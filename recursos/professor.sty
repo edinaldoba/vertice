@@ -1,0 +1,446 @@
+%  Copyright (C) 2026 Edinaldo Barbosa de Alencar
+%  Este programa é software livre; você pode redistribuí-lo e/ou
+%  modificá-lo sob os termos da Licença Pública Geral GNU...
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{professor}[2026/04/20 Pacote de Estilização do Prof. Edinaldo Barbosa de Alencar]
+
+% Carrega as dependências que o seu código já usa
+\RequirePackage{tikz}
+\usetikzlibrary{shapes.geometric, graphs, calc, curves, type1cm, arrows.meta, intersections, angles, decorations.pathreplacing, decorations.pathmorphing, fixedpointarithmetic}
+
+% --- DEFINIÇÃO DE CORES (ENSINO FUNDAMENTAL II) ---
+\definecolor{LaranjaSexto}{cmyk}{0,0.60,1,0}   % 6º ANO
+\definecolor{TurquesaSetimo}{HTML}{16A085}     % 7º ANO
+\definecolor{RoxoOitavo}{HTML}{8E44AD}         % 8° ANO
+\definecolor{GrafiteNono}{HTML}{2C3E50}        % 9° ANO
+
+% --- DEFINIÇÃO DE CORES (ENSINO MÉDIO) ---
+\definecolor{AzulProfessor}{HTML}{0055AA}      % 1º ANO
+\definecolor{VerdeEscola}{HTML}{008844}        % 2º ANO
+\definecolor{VinhoDestaque}{cmyk}{0,1,1,0.18}  % 3° ANO
+
+% --- LÓGICA DE OPÇÕES (A MÁGICA) ---
+% Isso permite usar \usepackage[sexto]{professor}
+\DeclareOption{sexto}{\colorlet{CorSerie}{LaranjaSexto}}
+\DeclareOption{setimo}{\colorlet{CorSerie}{TurquesaSetimo}}
+\DeclareOption{oitavo}{\colorlet{CorSerie}{RoxoOitavo}}
+\DeclareOption{nono}{\colorlet{CorSerie}{GrafiteNono}}
+\DeclareOption{primeiro}{\colorlet{CorSerie}{AzulProfessor}}
+\DeclareOption{segundo}{\colorlet{CorSerie}{VerdeEscola}}
+\DeclareOption{terceiro}{\colorlet{CorSerie}{VinhoDestaque}}
+
+\ExecuteOptions{primeiro} % Define um padrão caso você não especifique
+\ProcessOptions\relax
+
+% --- PALETA DE CORES HARMONIZADA ---
+\definecolor{VermelhoProva}{cmyk}{0,1,1,0.22}
+\definecolor{Vinho}{cmyk}{0,1,1,0.45}
+\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}
+\definecolor{VerdeSucesso}{RGB}{0,120,60}
+\definecolor{LaranjaAlerta}{cmyk}{0,0.65,1,0.10}
+\definecolor{RoxoElegante}{RGB}{100,50,150}
+
+% --- SEUS COMANDOS (Copiados do arquivo original) ---
+
+% Nó circular
+\newcommand{\circled}[2]{
+\tikz[baseline=(char.base)]{
+\pgfmathsetmacro{\g}{255*#1};
+\pgfmathsetmacro{\gg}{255-\g};
+\draw[line width=0.8pt, fill=gray!\g] (char) circle (0.18cm);
+\node[inner sep=0pt, text=gray!\gg] (char) {\bf\small #2};
+}
+}
+
+
+
+
+
+
+
+% #1: Cor Principal (ex: AzulProfessor)
+% #2: Intensidade do preenchimento (ex: 10 ou 20)
+% #3: Parâmetro original #2 (N)
+\newcommand*{\temaQuadradosColorida}[2]{
+	\pgfmathsetmacro{\n}{86}; % Número de quadrados
+	\pgfmathsetmacro{\s}{(19)/(\n+1)-0.14};
+
+	% Linhas horizontais principais na cor forte
+	\draw[line width=1pt, color=#1] (0,0) -- (19,0)    (0,-0.28) -- (19,-0.28);
+	\draw[line width=1pt, color=#1] (0,-1.00) -- (19,-1.00)    (0,-1.28) -- (19,-1.28);
+
+	% Loop dos quadradinhos decorativos
+	\foreach \i in {0,...,\n}{
+		% Borda da cor principal e fundo suave
+		\draw[line width=0.8pt, color=#1, fill=#1!#2]
+		({0.5*\s+(0.14+\s)*\i}, -0.07) rectangle ({0.5*\s+0.14+(0.14+\s)*\i}, -0.21);
+
+		\draw[line width=0.8pt, color=#1, fill=#1!#2]
+		({0.5*\s+(0.14+\s)*\i}, -1.07) rectangle ({0.5*\s+0.14+(0.14+\s)*\i}, -1.21);
+	}
+}
+
+
+
+
+
+% --- Definição das Cores do Professor ---
+%\definecolor{AzulProfessor}{RGB}{0, 85, 170} % Exemplo de tom de azul
+
+% --- Nova Função para Questões Coloridas ---
+% #1: Cor Principal (ex: AzulProfessor)
+% #2: Cor do Texto/Ícone (ex: white para contraste ou o próprio AzulProfessor)
+% #3: K (Ajuste de tamanho original)
+% #4: Número da Questão (ex: 01, 02)
+\newcommand{\questaoQuadradosColorida}[4]{%
+	\pgfmathsetmacro{\k}{15*#3}
+	\pgfmathsetmacro{\n}{10+\k}
+	% Usamos a intensidade !10 para um fundo muito suave, igual ao circled
+	\tikz[baseline=(char.base)]{
+		% Caixa Principal com cantos arredondados, fundo suave e borda forte
+		\node[
+		shape=rectangle,
+		rounded corners,
+		draw=#1,             % Borda da Cor Principal
+		fill=#1!10,          % Fundo Suave (10% da Cor Principal)
+		align=center,
+		inner sep=2pt,       % Mais respiro interno
+		line width=1pt,      % Borda um pouco mais grossa
+		font=\bf\small,
+		text=#2              % Cor do texto interno
+		] (char) {\hspace{1mm}\resizebox{2.6cm}{0.38cm}{QUEST\~AO #4}\hspace{1mm}};
+
+		% Mini-Quadrados da Esquerda (Preenchimento suave, borda forte)
+		\foreach \i in {0,...,2}{
+			\draw[line width=0.8pt, color=#1, fill=#1!10]
+			(-2.10+0.21*\i, -0.07) rectangle (-1.96+0.21*\i, +0.07);
+		}
+
+		% Mini-Quadrados da Direita (Preenchimento suave, borda forte)
+		\foreach \i in {0,...,\n}{
+			\draw[line width=0.8pt, color=#1, fill=#1!10]
+			(1.54+0.21*\i, -0.07) rectangle (1.68+0.21*\i, +0.07);
+		}
+
+		% Linhas Laterais duplas (Cor forte)
+		\draw[line width=0.8pt, color=#1]
+		(-2.135,-0.14) -- (-1.47,-0.14) (1.475,-0.14) -- ({3.815+0.21*\k},-0.14)
+		(-2.135,+0.14) -- (-1.47,+0.14) (1.475,+0.14) -- ({3.815+0.21*\k},+0.14);
+	}
+}
+
+
+
+
+
+
+
+% --- Nova Função para Temas de Página (Ondas) ---
+% #1: Cor Principal (ex: CorSerie)
+% #2: K (Ajuste de comprimento extra)
+\newcommand{\temaOndasColorida}[2]{%
+	\begin{tikzpicture}[remember picture, overlay]
+		% Cálculo da largura baseado no parâmetro #2
+		\pgfmathsetmacro{\largura}{17.5 + 1.5*#2}
+		\pgfmathsetmacro{\amostras}{20 * \largura}
+
+		% --- Barra Superior ---
+		\fill[#1!15] (0,0) rectangle (\largura, -0.28);
+		% Sombra branca para a onda
+		\draw[white, line width=2.8pt, smooth, samples=\amostras, domain=0:\largura]
+		plot(\x, {-0.14 - 0.06*sin(12*\x r)});
+		% Linha da onda na cor principal
+		\draw[#1, line width=0.8pt, smooth, samples=\amostras, domain=0:\largura]
+		plot(\x, {-0.14 - 0.06*sin(12*\x r)});
+
+		% --- Barra Inferior (Espaçamento de 0.9 como no original) ---
+		\fill[#1!15] (0,-1) rectangle (\largura, -1.28);
+		% Sombra branca
+		\draw[white, line width=2.8pt, smooth, samples=\amostras, domain=0:\largura]
+		plot(\x, {-1.14 - 0.06*sin(12*\x r)});
+		% Linha da onda
+		\draw[#1, line width=0.8pt, smooth, samples=\amostras, domain=0:\largura]
+		plot(\x, {-1.14 - 0.06*sin(12*\x r)});
+	\end{tikzpicture}
+}
+
+
+
+% --- Modelo Ondas Aprimorado ---
+% #1: Cor Principal (ex: blue, black, VerdeEscuro)
+% #2: K (Ajuste de comprimento da barra)
+% #3: Número da Questão
+\newcommand{\questaoOndasColorida}[3]{%
+	\noindent\tikz[baseline=(char.base)]{
+		% O texto da Questão
+		\node[inner sep=0pt, font=\bf\small, anchor=west] (char) at (0,0) {\resizebox{2.6cm}{0.38cm}{QUEST\~AO #3}\,\,};
+
+		% Cálculo do comprimento da barra baseada no #2 (K)
+		\pgfmathsetmacro{\larguraBarra}{3.2 + 3.25*#2}
+		\pgfmathsetmacro{\amostras}{40 * \larguraBarra}
+
+		% Retângulo de fundo (com tom suave da cor escolhida)
+		\fill[#1!15] (2.7, -0.14) rectangle ({2.7 + \larguraBarra}, 0.14);
+
+		% Onda Branca (para dar contraste/vazado)
+		\draw[white, line width=2.8pt, smooth, samples=\amostras, domain=0:\larguraBarra]
+		plot({\x+2.7}, {0.06*sin(12*\x r)});
+
+		% Onda Colorida (a linha fina principal)
+		\draw[#1, line width=0.8pt, smooth, samples=\amostras, domain=0:\larguraBarra]
+		plot({\x+2.7}, {0.06*sin(12*\x r)});
+
+		% Pontilhado decorativo inferior
+		\pgfmathsetmacro{\numPontos}{59 + 32*#2}
+		\foreach \i in {0,...,\numPontos}{
+			\fill[#1!50] ({0.1*\i}, -0.35) circle (0.7pt);
+		}
+	}
+}
+
+
+
+
+
+
+
+\newcommand{\circledColorida}[3]{% #1: Cor, #2: Intensidade (0-100), #3: Texto
+	\tikz[baseline=(char.base)]{
+		\node[
+		shape=circle,
+		draw=#1,            % Cor da borda
+		fill=#1!#2,         % Cor do fundo com intensidade
+		line width=0.8pt,
+		inner sep=1.5pt,
+		font=\bf\small,
+		text={% Lógica de contraste
+			\ifnum#2>50 white\else black\fi
+		}
+		] (char) {#3};
+	}
+}
+
+
+\newcommand*{\rectangled}[3]{
+	\tikz[baseline=(current bounding box.center)]{
+		\node[ shape=rectangle, rounded corners, draw, align=left, line width=#1pt, inner sep=#2pt ] (char) {#3};
+	}
+}
+
+
+
+\newcommand*{\tabela}[2]{
+	\tikz[baseline=(char.base)]{
+		\node(table)[ shape=rectangle, rounded corners=0.6em, draw, line width=#1pt, inner sep=0pt ] (char) {#2};
+	}
+}
+
+
+
+\newcommand*{\temaTrapezios}[2]{
+	\pgfmathsetmacro{\g}{70+70*#1}
+	\pgfmathsetmacro{\n}{42+4*#2};
+	\fill[color=gray!\g] (0,0) rectangle ({0.7-0.1*#2+0.4*\n},-0.24);
+	\fill[color=gray!\g] (0,-0.9) rectangle ({0.7-0.1*#2+0.4*\n},-1.14);
+	\foreach \i in {0,...,\n}{
+		\fill[color=gray!0] ({0.3-0.05*#2+0.4*\i},-0.24)--({0.2-0.05*#2+0.4*\i},-0.14)--({0.3-0.05*#2+0.4*\i},-0.04)--({0.5-0.05*#2+0.4*\i},-0.24)--cycle
+		({0.3-0.05*#2+0.4*\i},-1.14)--({0.2-0.05*#2+0.4*\i},-1.04)--({0.3-0.05*#2+0.4*\i},-0.94)--({0.5-0.05*#2+0.4*\i},-1.14)--cycle;
+	}
+}
+
+\newcommand*{\temaOndas}[2]{
+	\pgfmathsetmacro{\g}{70+70*#1};
+	\pgfmathsetmacro{\n}{17.5+1.5*#2};
+	\fill[color=gray!\g] (0,0) rectangle (\n,-0.24);
+	\draw[line width=3pt  , gray!0  , smooth, samples=200, domain=0:\n]	plot(\x,{-0.12-0.06*sin(10*\x r)});
+	\draw[line width=0.8pt, gray!255, smooth, samples=200, domain=0:\n]	plot(\x,{-0.12-0.06*sin(10*\x r)});
+	\fill[color=gray!\g] (0,-0.9) rectangle (\n,-1.14);
+	\draw[line width=3pt  , gray!0  , smooth, samples=200, domain=0:\n]	plot(\x,{-1.02-0.06*sin(10*\x r)});
+	\draw[line width=0.8pt, gray!255, smooth, samples=200, domain=0:\n]	plot(\x,{-1.02-0.06*sin(10*\x r)});
+}
+
+\newcommand*{\temaQuadrados}[2]{
+	\pgfmathsetmacro{\g}{100+155*#1};
+	\pgfmathsetmacro{\n}{96+8*#2};
+	\pgfmathsetmacro{\s}{(17.5+1.5*#2)/(\n+1)-0.12};
+	\draw[line width=0.8pt] (0,-0.01412) -- ({17.5+1.5*#2},-0.01412)    (0,-0.25412) -- ({17.5+1.5*#2},-0.25412);
+	\draw[line width=0.8pt] (0,-0.9) -- ({17.5+1.5*#2},-0.9)    (0,-1.14) -- ({17.5+1.5*#2},-1.14);
+	\foreach \i in {0,...,\n}{
+		\draw[line width=0.8pt, color=gray!\g]
+		({0.5*\s+(0.12+\s)*\i}, -0.07412) rectangle ({0.5*\s+0.12+(0.12+\s)*\i}, -0.19412);
+		\draw[line width=0.8pt, color=gray!\g]
+		({0.5*\s+(0.12+\s)*\i}, -0.96) rectangle ({0.5*\s+0.12+(0.12+\s)*\i}, -1.08);
+	}
+}
+
+\newcommand*{\temaLinhas}[2]{
+	\pgfmathsetmacro{\g}{100+155*#1};
+	\pgfmathsetmacro{\n}{145+13*#2};
+	\pgfmathsetmacro{\s}{(17.5+1.5*#2)/(\n+1)};
+	\foreach \i in {0,...,\n}{
+		\draw[line width=0.8pt, color=gray!\g] ({0.5*\s+\s*\i}, -0.01412) -- ({0.5*\s+\s*\i}, -0.25412);
+		\draw[line width=0.8pt, color=gray!\g] ({0.5*\s+\s*\i}, -0.9) -- ({0.5*\s+\s*\i}, -1.14);
+	}
+	\draw[line width=0.8pt] (0,-0.01412) -- ({17.5+1.5*#2},-0.01412)    (0,-0.25412) -- ({17.5+1.5*#2},-0.25412);
+	\draw[line width=0.8pt] (0,-0.9) -- ({17.5+1.5*#2},-0.9)    (0,-1.14) -- ({17.5+1.5*#2},-1.14);
+}
+
+\newcommand*{\temaSenoides}[2]{
+	\pgfmathsetmacro{\g}{100+155*#1};
+	\pgfmathsetmacro{\n}{17.5+1.5*#2};
+	\draw[line width=0.8pt, gray!\g, smooth, samples=300, domain=0:\n ]
+		plot(\x,{-0.13412+0.088*sin(11*\x r)})
+		plot(\x,{-0.13412-0.088*sin(11*\x r)})
+		plot(\x,{-1.02+0.088*sin(11*\x r)})
+		plot(\x,{-1.02-0.088*sin(11*\x r)});
+	\draw[line width=0.8pt] (0,-0.01412) -- (\n,-0.01412) (0,-0.25412) -- (\n,-0.25412);
+	\draw[line width=0.8pt] (0,-0.9) -- (\n,-0.9) (0,-1.14) -- (\n,-1.14);
+}
+
+\newcommand*{\temaCirculos}[2]{
+	\pgfmathsetmacro{\g}{63.75*(1+#1)}
+	\pgfmathsetmacro{\gg}{2*\g}
+	\pgfmathsetmacro{\n}{17.5+1.5*#2};
+	\fill[left color=gray!\gg, right color=gray!0] (0,0) rectangle (\n,-0.24);
+	\fill[left color=gray!\gg, right color=gray!0] (0,-0.9) rectangle (\n,-1.14);
+	\pgfmathsetmacro{\n}{34+3*#2};
+	\pgfmathsetmacro{\s}{(17.5+1.5*#2-0.24)/\n};
+	\foreach \i in {0,...,\n}{
+		\pgfmathsetmacro{\g}{255/\n/2*(1+#1)*\i}
+		\fill[color=gray!\g] ({\s*\i+0.12},-0.12) circle (0.12);
+		\fill[color=gray!\g] ({\s*\i+0.12},-1.02) circle (0.12);
+	}
+}
+
+
+
+
+
+
+\newcommand{\questaoTrapezios}[3]{
+\noindent\tikz[]{
+\node[inner sep=0pt] at (1.33,-0.1) {\resizebox{2.6cm}{0.35cm}{\bf Quest\~ao #3}\,};
+\pgfmathsetmacro{\g}{70+70*#1}
+\pgfmathsetmacro{\n}{101/30+91/30*#2};
+\fill[color=gray!\g] (2.7,0) rectangle ({2.7+\n},-0.24);
+\pgfmathsetmacro{\nn}{7+8*#2};
+\pgfmathsetmacro{\s}{(\n+0.1-0.4*(\nn+1))/2}
+\foreach \i in { 0,...,\nn }{
+	\fill[color=gray!0] ({\s+2.8+0.4*\i},-0.24)--({\s+2.7+0.4*\i},-0.14)--({\s+2.8+0.4*\i},-0.04)--({\s+3+0.4*\i},-0.24)--cycle;
+}
+\pgfmathsetmacro{\n}{60+30*#2};
+\foreach \i in {0,...,\n}{
+	\fill ({0.02118+0.1*\i},-0.34) circle (0.6pt);
+}
+}}
+
+
+
+
+\newcommand{\questaoOndas}[3]{
+\noindent\tikz[]{
+\node[inner sep=0pt] at (1.33,-0.1) {\resizebox{2.6cm}{0.35cm}{\bf Quest\~ao #3}\,};
+\pgfmathsetmacro{\g}{70+70*#1}
+\pgfmathsetmacro{\n}{97/30+95/30*#2};
+\fill[color=gray!\g] (2.7,0) rectangle ({2.7+\n},-0.24);
+\pgfmathsetmacro{\k}{34+34*#2}
+\draw[line width=3pt, gray!0, smooth, samples=\k, domain=0:\n ]	plot({\x+2.7},{-0.12+0.06*sin(10*\x r)});
+\draw[line width=0.8pt, gray!255, smooth, samples=\k, domain=0:\n ]	plot({\x+2.7},{-0.12+0.06*sin(10*\x r)});
+\pgfmathsetmacro{\n}{59+31*#2};
+\foreach \i in {0,...,\n}{
+	\fill ({0.02118+0.1*\i},-0.34) circle (0.6pt);
+}
+}}
+
+
+
+
+\newcommand*{\questaoCirculos}[3]{
+	\noindent\hspace{-1.5mm}\tikz[]{
+		\node[left] at (0,0.13) {\resizebox{2.6cm}{0.35cm}{\bf Quest\~ao #3}\,};
+		\pgfmathsetmacro{\g}{63.75*(1+#1)}
+		\pgfmathsetmacro{\gg}{2*\g}
+		\pgfmathsetmacro{\n}{3.23+3.02*#2};
+		\fill[left color=gray!\gg, right color=gray!0] (0,0) rectangle (\n,0.24);
+		\pgfmathsetmacro{\n}{6+6*#2};
+		\foreach \i in {0,...,\n}{
+			\pgfmathsetmacro{\g}{85/8*(1+#1)*(2-#2)*\i}
+			\fill[color=gray!\g] ({0.5*\i+0.12},0.12) circle (0.12);
+		}
+		\pgfmathsetmacro{\n}{60+30*#2};
+		\foreach \i in {0,...,\n}{
+			\fill ({0.1*\i-2.77},-0.1) circle (0.6pt);
+		}
+}}
+
+
+
+
+
+
+
+
+\newcommand*{\questaoQuadrados}[3]{
+	\pgfmathsetmacro{\k}{17*#2}
+	\pgfmathsetmacro{\n}{14+\k}
+	\pgfmathsetmacro{\g}{100+155*#1}
+	\pgfmathsetmacro{\gg}{255*#1}
+	\pgfmathsetmacro{\ggg}{255-\gg}
+	\tikz[baseline=(char.base)]{
+		\node[ shape=rectangle, rounded corners, draw, align=center, top color=gray!\gg, bottom color=gray!\gg, inner sep=1pt, line width=0.8pt, text=gray!\ggg ]
+		(char) {\bf\hspace{0.5mm}\resizebox{2.56cm}{0.35cm}{QUEST\~AO #3}\hspace{0.5mm}};
+		\foreach \i in {0,...,2}{
+			\draw[line width=0.8pt, color=gray!\g] (-1.91+0.18*\i, -0.06) rectangle (-1.79+0.18*\i, +0.06);
+		}
+		\foreach \i in {0,...,\n}{
+			\draw[line width=0.8pt, color=gray!\g] (1.43+0.18*\i, -0.06) rectangle (1.55+0.18*\i, +0.06);
+		}
+		\draw[line width=0.8pt]
+		(-1.94,-0.12) -- (-1.37,-0.12) (1.37,-0.12) -- ({4.1+0.18*\k},-0.12)
+		(-1.94,+0.12) -- (-1.37,+0.12) (1.37,+0.12) -- ({4.1+0.18*\k},+0.12);
+	}
+}
+
+
+
+\newcommand*{\questaoLinhas}[3]{
+	\pgfmathsetmacro{\k}{0.12*25*#2}
+	\pgfmathsetmacro{\n}{21+25*#2}
+	\pgfmathsetmacro{\g}{100+155*#1}
+	\pgfmathsetmacro{\gg}{255*#1}
+	\pgfmathsetmacro{\ggg}{255-\gg}
+	\tikz[baseline=(char.base)]{
+		\node[ shape=rectangle, rounded corners, draw, align=center, top color=gray!\gg, bottom color=gray!\gg, inner sep=1pt, line width=0.8pt, text=gray!\ggg ]
+		(char) {\bf\hspace{0.5pt}\resizebox{2.7cm}{0.35cm}{QUEST\~AO #3}\hspace{0.5pt}};
+		\foreach \i in {0,...,4}{
+			\draw[line width=0.8pt, color=gray!\g] (-2+0.12*\i, -0.12) -- (-2+0.12*\i, +0.12);
+		}
+		\foreach \i in {1,...,\n}{
+			\draw[line width=0.8pt, color=gray!\g] (1.4+0.12*\i, -0.12) -- (1.4+0.12*\i, +0.12);
+		}
+		\draw[line width=0.8pt]
+		(-2.06,-0.12) -- (-1.4,-0.12) (1.4,-0.12) -- ({3.98+\k},-0.12)
+		(-2.06,+0.12) -- (-1.4,+0.12) (1.4,+0.12) -- ({3.98+\k},+0.12);
+	}
+}
+
+
+
+\newcommand*{\questaoSenoides}[3]{
+	\pgfmathsetmacro{\k}{50+50*#2}
+	\pgfmathsetmacro{\n}{3.15+3.05*#2}
+	\pgfmathsetmacro{\g}{100+155*#1}
+	\pgfmathsetmacro{\gg}{255*#1}
+	\pgfmathsetmacro{\ggg}{255-\gg}
+	\tikz[baseline=(char.base)]{
+		\node[ shape=rectangle, rounded corners, draw, align=center, top color=gray!\gg, bottom color=gray!\gg, inner sep=1pt, line width=0.8pt, text=gray!\ggg ]
+		(char) {\bf\hspace{0.5mm}\resizebox{2.7cm}{0.35cm}{QUEST\~AO #3}\hspace{0.5mm}};
+		\draw[line width=0.8pt, gray!\g, smooth, samples=\k, domain=0:\n ]
+			plot(\x+1.45,{+0.088*sin(11*\x r)})
+			plot(\x+1.45,{-0.088*sin(11*\x r)});
+		\draw[line width=0.8pt]
+			(1.45,-0.12) -- ({1.46+\n},-0.12)
+			(1.45,+0.12) -- ({1.46+\n},+0.12);
+	}
+}

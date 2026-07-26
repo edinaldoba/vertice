@@ -1,0 +1,239 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}
+\usepackage{pdflscape,lscape,tikz,ifthen,ulem,graphicx}
+\usetikzlibrary{calc}
+\pagestyle{empty}
+
+\pgfmathsetmacro{\nal}{%d}
+\pgfmathsetmacro{\nn}{%d}
+\pgfmathsetmacro{\p}{199/330}
+
+% DADOS
+
+\newcommand{\pa}[2]{\fill ({7+\p*(#2+0.5)},{-1.2-\p*(#1+2.5)}) circle (1.5pt);}
+
+\newcommand{\pb}[2]{\fill ({7+\p*(#2+1/3)},{-1.2-\p*(#1+2.5)}) circle (1.5pt) ({7+\p*(#2+2/3)},{-1.2-\p*(#1+2.5)}) circle (1.5pt);}
+
+\newcommand{\pc}[2]{\fill ({7+\p*(#2+0.5)},{-1.2-\p*(#1+2.65-sqrt(3)/6)}) circle (1.5pt) ({7+\p*(#2+1/3)},{-1.2-\p*(#1+2.65)}) circle (1.5pt) ({7+\p*(#2+2/3)},{-1.2-\p*(#1+2.65)}) circle (1.5pt);}
+
+
+\newcommand{\fa}[2]{\node at ({7+\p*(#2+0.5)},{-1.2-\p*(#1+2.5)}) {F};}
+
+\newcommand{\fb}[2]{\node at ({7+\p*(#2+1/3)},{-1.2-\p*(#1+2.5)}) {\scriptsize\bf F}; \node at ({7+\p*(#2+2/3)},{-1.2-\p*(#1+2.5)}) {\scriptsize\bf F};}
+
+\newcommand{\fc}[2]{\node at ({7+\p*(#2+0.5)},{-1.2-\p*(#1+2.65-sqrt(3)/6)}) {\tiny\bf F}; \node at ({7+\p*(#2+1/3)},{-1.2-\p*(#1+2.65)}) {\tiny\bf F}; \node at ({7+\p*(#2+2/3)},{-1.2-\p*(#1+2.65)}) {\tiny\bf F};}
+
+\begin{document}
+\begin{landscape}
+
+\noindent\begin{tikzpicture}
+
+\fill (0,0) circle (0pt);
+
+\draw (1,-1) rectangle (28.7,-20);
+
+
+\draw (1.6,{-1.2-3*\p}) -- (1.6,{-1.2-(27+3)*\p})
+(7,-1) -- (7,{-1.2-(27+3)*\p})
+(27.8,{-1.2-2*\p}) -- (27.8,{-1.2-(27+3)*\p})
+(26.9,{-1.2-1*\p}) -- (26.9,{-1.2-(27+3)*\p});
+
+\node at (27.35,{-1.2-2.5*\p}) {\bf\Large P};
+\node at (28.25,{-1.2-2.5*\p}) {\bf\Large F};
+
+\draw (7,{-1.2-\p}) -- (28.7,{-1.2-\p})
+(7,{-1.2-2*\p}) -- (28.7,{-1.2-2*\p});
+
+\foreach \i in {0,...,32}
+{
+	\draw ({7+\i*\p},{-1.2-2*\p}) -- ({7+\i*\p},{-1.2-(27+3)*\p});
+}
+
+\ifthenelse{\nn>0}{
+	
+	\foreach \i in {1,...,\nn}{
+		\node[inner sep=0pt] at ({7+\p*(\i-0.5)},{-1.2-\p*2.5}) {\pgfmathparse{\dia[\i-1]}\pgfmathresult};
+	}
+	
+	\foreach \i in {0,...,2}
+	{	
+		\pgfmathsetmacro{\t}{\ndias[\i+1]}
+		\ifthenelse{\t>0}
+		{
+			\draw ({7+\ndias[\i+1]*\p},{-1.2-\p}) -- ({7+\ndias[\i+1]*\p},{-1.2-2*\p});
+			
+			\node at ({7+0.5*(\ndias[\i+1]+\ndias[\i])*\p},{-1.2-1.5*\p}) {\Large\pgfmathparse{\mes[\i]}\pgfmathresult};
+		}{}
+	}
+	
+	\foreach \i in {1,...,27}{
+		\ifthenelse{\i<\nal\OR\i=\nal}{
+			\node[inner sep=0pt] at (27.35,{-1.2-(2.5+\i)*\p}) {\bf\pgfmathparse{\pres[\i-1]}\pgfmathresult};
+			
+			\node[inner sep=0pt] at (28.25,{-1.2-(2.5+\i)*\p}) {\bf\pgfmathparse{\falt[\i-1]}\pgfmathresult};
+			
+		}{}
+	}
+
+\foreach \j in {%s}{
+\foreach \i in {1,...,33}
+{
+\ifthenelse{\i=0%s}{}{
+	\draw[line width=0.8pt,gray!50] ({7+(-0.8+\i)*\p},{-1.2-\p*(2.8+\j-0)}) -- ({7+(-0.2+\i)*\p},{-1.2-\p*(2.2+\j-0)});
+}
+}
+\draw[line width=0.8pt,gray!50] ({27.35-0.3*\p},{-1.2-(2.8+\j-0)*\p}) -- ({27.35+0.3*\p},{-1.2-(2.2+\j-0)*\p}) ({28.25-0.3*\p},{-1.2-(2.8+\j-0)*\p}) -- ({28.25+0.3*\p},{-1.2-(2.2+\j-0)*\p});
+}
+	
+}{}
+
+\node[inner sep=0pt,right] at (1.2,{-1-0.6*(3*\p+0.2)/3}) {\large\bf\underline{SEDUC} / \underline{São Luis$-$MA}};
+
+\node[inner sep=0pt,right] at (1.2,{-1-1.5*(3*\p+0.2)/3}) {\large\bf\underline{%s}};
+
+\node[inner sep=0pt,right] at (1.2,{-1-2.4*(3*\p+0.2)/3}) {\large\bf\underline{%s}};
+
+\node[inner sep=0pt] at (17.85,{-1.05-(0.2+\p)/2}) {\bf\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};
+
+\foreach \i in {0,...,27}
+{
+	\draw (1,{-1.2-\p*(\i+3)}) -- (28.7,{-1.2-\p*(\i+3)});
+}
+
+\foreach \i in {1,...,27}{
+	\ifthenelse{\i<\nal\OR\i=\nal}{
+		
+		\node[inner sep=0pt] at (1.3,{-1.2-\p*(\i+2.5)}) {\pgfmathparse{\num[\i-1]}\pgfmathresult};
+		
+		\node[inner sep=0pt,right] at (1.7,{-1.2-\p*(\i+2.52)}) {\pgfmathparse{\alunos[\i-1]}\pgfmathresult};
+		
+	}{
+		\node[inner sep=0pt] at (1.3,{-1.2-\p*(\i+2.5)}) {\i};
+	}
+}
+
+
+
+\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \underline{\,%.2d\,}/\underline{\,%.2d\,}/\underline{\,%d\,} \qquad Aulas dadas: \underline{\,%d\,} \qquad Aulas previstas: \underline{\,%d\,} \qquad Professor(a): \underline{\includegraphics[width=0.2\linewidth]{../informados/.assinatura.png}}};
+
+
+% FREQUENCIA I
+
+% FERIADOS
+
+\end{tikzpicture}
+
+
+
+% PAGINA 2
+
+
+
+\noindent\begin{tikzpicture}
+
+\fill (0,0) circle (0pt);
+
+\draw (1,-1) rectangle (28.7,-20);
+
+
+\draw (1.6,{-1.2-3*\p}) -- (1.6,{-1.2-(27+3)*\p})
+(7,-1) -- (7,{-1.2-(27+3)*\p})
+(27.8,{-1.2-2*\p}) -- (27.8,{-1.2-(27+3)*\p})
+(26.9,{-1.2-1*\p}) -- (26.9,{-1.2-(27+3)*\p});
+
+\node at (27.35,{-1.2-2.5*\p}) {\bf\Large P};
+\node at (28.25,{-1.2-2.5*\p}) {\bf\Large F};
+
+\draw (7,{-1.2-\p}) -- (28.7,{-1.2-\p})
+(7,{-1.2-2*\p}) -- (28.7,{-1.2-2*\p});
+
+\foreach \i in {0,...,32}
+{	
+	\draw ({7+\i*\p},{-1.2-2*\p}) -- ({7+\i*\p},{-1.2-(27+3)*\p});
+}
+
+\ifthenelse{\nn>0}{
+	
+	\foreach \i in {1,...,\nn}{
+		\node[inner sep=0pt] at ({7+\p*(\i-0.5)},{-1.2-\p*2.5}) {\pgfmathparse{\dia[\i-1]}\pgfmathresult};
+	}
+	
+	\foreach \i in {0,...,2}
+	{	
+		\pgfmathsetmacro{\t}{\ndias[\i+1]}
+		\ifthenelse{\t>0}
+		{
+			\draw ({7+\ndias[\i+1]*\p},{-1.2-\p}) -- ({7+\ndias[\i+1]*\p},{-1.2-2*\p});
+			
+			\node at ({7+0.5*(\ndias[\i+1]+\ndias[\i])*\p},{-1.2-1.5*\p}) {\Large\pgfmathparse{\mes[\i]}\pgfmathresult};
+		}{}
+	}
+	
+	\foreach \i in {28,...,54}{
+		\ifthenelse{\i<\nal\OR\i=\nal}{
+			\node[inner sep=0pt] at (27.35,{-1.2-(2.5+\i-27)*\p}) {\bf\pgfmathparse{\pres[\i-1]}\pgfmathresult};
+			
+			\node[inner sep=0pt] at (28.25,{-1.2-(2.5+\i-27)*\p}) {\bf\pgfmathparse{\falt[\i-1]}\pgfmathresult};
+			
+		}{}
+	}
+
+\foreach \j in {%s}{ 
+\foreach \i in {1,...,33}
+{
+\ifthenelse{\i=0%s}{}{
+	\draw[line width=0.8pt,gray!50] ({7+(-0.8+\i)*\p},{-1.2-\p*(2.8+\j-27)}) -- ({7+(-0.2+\i)*\p},{-1.2-\p*(2.2+\j-27)});
+}
+}
+\draw[line width=0.8pt,gray!50] ({27.35-0.3*\p},{-1.2-(2.8+\j-27)*\p}) -- ({27.35+0.3*\p},{-1.2-(2.2+\j-27)*\p}) ({28.25-0.3*\p},{-1.2-(2.8+\j-27)*\p}) -- ({28.25+0.3*\p},{-1.2-(2.2+\j-27)*\p});
+}
+	
+}{}
+
+\node[inner sep=0pt,right] at (1.2,{-1-0.6*(3*\p+0.2)/3}) {\large\bf\underline{SEDUC} / \underline{São Luis$-$MA}};
+
+\node[inner sep=0pt,right] at (1.2,{-1-1.5*(3*\p+0.2)/3}) {\large\bf\underline{%s}};
+		
+\node[inner sep=0pt,right] at (1.2,{-1-2.4*(3*\p+0.2)/3}) {\large\bf\underline{%s}};
+				
+\node[inner sep=0pt] at (17.85,{-1.05-(0.2+\p)/2}) {\bf\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};
+
+\foreach \i in {0,...,27}
+{
+	\draw (1,{-1.2-\p*(\i+3)}) -- (28.7,{-1.2-\p*(\i+3)});
+}
+
+\foreach \i in {28,...,54}{
+	\ifthenelse{\i<\nal\OR\i=\nal}{
+		
+		\node[inner sep=0pt] at (1.3,{-1.2-\p*(\i-27+2.5)}) {\pgfmathparse{\num[\i-1]}\pgfmathresult};
+		
+		\node[inner sep=0pt,right] at (1.7,{-1.2-\p*(\i-27+2.52)}) {\pgfmathparse{\alunos[\i-1]}\pgfmathresult};
+		
+	}{
+		\node[inner sep=0pt] at (1.3,{-1.2-\p*(\i-27+2.5)}) {\i};
+	}
+}
+
+
+
+\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \underline{\,%.2d\,}/\underline{\,%.2d\,}/\underline{\,%d\,} \qquad Aulas dadas: \underline{\,%d\,} \qquad Aulas previstas: \underline{\,%d\,} \qquad Professor(a): \underline{\includegraphics[width=0.2\linewidth]{../informados/.assinatura.png}}};
+
+
+% FREQUENCIA II
+
+% FERIADOS
+
+\end{tikzpicture}
+
+
+
+\end{landscape}
+\end{document}
+
+
+

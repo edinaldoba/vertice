@@ -1,0 +1,25 @@
+% QUESTAO
+Dado a parábola abaixo. Quais as coordenadas de seu vértice?
+
+\parbox{0.4\linewidth}{
+
+% ALTERNATIVAS
+$(2,-3)$
+$(-3,2)$
+$(-2,3)$
+$(3,-2)$
+$(0,0)$
+
+}\parbox{0.59\linewidth}{
+\begin{tikzpicture}[ >=latex, x=0.4cm, y=0.4cm ]
+\pgfmathsetmacro{\a}{1}   % coeficiente 'a'
+\pgfmathsetmacro{\b}{-4}  % coeficiente 'b'
+\pgfmathsetmacro{\c}{1}   % coeficiente 'c'
+\pgfmathsetmacro{\p}{2.5} % Largura do domí­nio 2*\p
+\newcommand*{\f}[1]{\a*(#1)^2+\b*(#1)+\c} % função quadrática
+\graficoFuncaoQuadratica
+\ponto{2}{-3};
+\end{tikzpicture}
+}
+
+

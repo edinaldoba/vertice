@@ -1,0 +1,59 @@
+% QUESTAO
+A medida $M$ de cada ângulo interno de um polígono regular de $n$ lados é dada por
+\[ M=\dfrac{(n-2)\cdot 180^\circ}{n} \]
+Assim, dado o pentágono regular a seguir
+\vspace{-1mm}
+\begin{center}
+\tikz[scale=2,thick]{
+\pgfmathsetmacro{\nn}{5};
+\pgfmathsetmacro{\ang}{360/\nn};
+\pgfmathsetmacro{\rnd}{0};
+\pgfmathsetmacro{\angulo}{270-0.5*\ang+\rnd*0.3/\nn};
+\pgfmathsetmacro{\a}{cos(\angulo)};
+\pgfmathsetmacro{\aa}{sin(\angulo)};
+\coordinate (A) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+0.5*\ang+\rnd*0/\nn};
+\pgfmathsetmacro{\b}{cos(\angulo)};
+\pgfmathsetmacro{\bb}{sin(\angulo)};
+\coordinate (B) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+1.5*\ang+\rnd*rand/\nn};
+\pgfmathsetmacro{\c}{cos(\angulo)};
+\pgfmathsetmacro{\cc}{sin(\angulo)};
+\coordinate (C) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+2.5*\ang+\rnd*rand/\nn};
+\pgfmathsetmacro{\d}{cos(\angulo)};
+\pgfmathsetmacro{\dd}{sin(\angulo)};
+\coordinate (D) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+3.5*\ang+\rnd*rand/\nn};
+\pgfmathsetmacro{\e}{cos(\angulo)};
+\pgfmathsetmacro{\ee}{sin(\angulo)};
+\coordinate (E) at (\angulo:1);
+\draw (A)--(B)--(C)--(D)--(E)--cycle;
+\pgfmathsetmacro{\angA}{acos(((\a-\b)*(\a-\e)+(\aa-\bb)*(\aa-\ee))/sqrt((\a-\b)^2+(\aa-\bb)^2)/sqrt((\a-\e)^2+(\aa-\ee)^2))};
+\pgfmathsetmacro{\ang}{acos((\b-\a)/sqrt((\a-\b)^2+(\aa-\bb)^2))};
+\draw[nodelabel={-3mm}{$M$}] ($(A)+(\ang:0.2)$) arc (\ang:\ang+\angA:0.2);
+\pgfmathsetmacro{\angB}{acos(((\b-\c)*(\b-\a)+(\bb-\cc)*(\bb-\aa))/sqrt((\b-\c)^2+(\bb-\cc)^2)/sqrt((\b-\a)^2+(\bb-\aa)^2))};
+\pgfmathsetmacro{\ang}{acos((\c-\b)/sqrt((\b-\c)^2+(\bb-\cc)^2))};
+\draw[nodelabel={-3mm}{$M$}] ($(B)+(\ang:0.2)$) arc (\ang:\ang+\angB:0.2);
+\pgfmathsetmacro{\angC}{acos(((\c-\d)*(\c-\b)+(\cc-\dd)*(\cc-\bb))/sqrt((\c-\d)^2+(\cc-\dd)^2)/sqrt((\c-\b)^2+(\cc-\bb)^2))};
+\pgfmathsetmacro{\ang}{acos((\d-\c)/sqrt((\c-\d)^2+(\cc-\dd)^2))};
+\draw[nodelabel={-3mm}{$M$}] ($(C)+(\ang:0.2)$) arc (\ang:\ang+\angC:0.2);
+\pgfmathsetmacro{\angD}{acos(((\d-\e)*(\d-\c)+(\dd-\ee)*(\dd-\cc))/sqrt((\d-\e)^2+(\dd-\ee)^2)/sqrt((\d-\c)^2+(\dd-\cc)^2))};
+\pgfmathsetmacro{\ang}{acos(-(\e-\d)/sqrt((\d-\e)^2+(\dd-\ee)^2))};
+\draw[nodelabel={-3mm}{$M$}] ($(D)+(\ang:-0.2)$) arc (\ang:\ang+\angD:-0.2);
+\pgfmathsetmacro{\angE}{acos(((\e-\a)*(\e-\d)+(\ee-\aa)*(\ee-\dd))/sqrt((\e-\a)^2+(\ee-\aa)^2)/sqrt((\e-\d)^2+(\ee-\dd)^2))};
+\pgfmathsetmacro{\ang}{acos(-(\a-\e)/sqrt((\e-\a)^2+(\ee-\aa)^2))};
+\draw[nodelabel={-3mm}{$M$}] ($(E)+(\ang:-0.2)$) arc (\ang:\ang+\angE:-0.2);
+}
+\end{center}
+\vspace{-2mm}
+Qual a medida $M$ do ângulo interno?
+
+% ALTERNATIVAS 8
+$M=108^\circ$
+$M=90^\circ$
+$M=135^\circ$
+$M=54^\circ$
+$M=180^\circ$
+
+

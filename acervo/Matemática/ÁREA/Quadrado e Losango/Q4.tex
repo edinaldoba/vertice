@@ -1,0 +1,28 @@
+% QUESTAO
+A \'area do quadrado mede $50$\,m$^2$. Assim, o valor $x$ da sua diagonal \'e:
+
+\parbox{0.35\linewidth}{
+
+% ALTERNATIVAS
+$10$\,m
+$8$\,m
+$9$\,m
+$12$\,m
+$15$\,m
+
+}\parbox{0.64\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[ rotate=-45, scale=1.2 ]
+\pgfmathsetmacro{\dd}{8};
+\pgfmathsetmacro{\ddd}{8};
+
+\losango{\ddd}{\dd};
+
+\draw[dashed,nodelabel={8pt}{$x$}] (C) -- (D);
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

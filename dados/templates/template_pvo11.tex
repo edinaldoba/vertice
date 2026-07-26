@@ -1,0 +1,139 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage[nointegrals]{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\onehalfspacing
+\pagestyle{empty}
+
+\usepackage[%s]{professor}
+% \input{../../TIKZ/comandos_tikz}
+
+\definecolor{cinza}{rgb}{0.4,0.4,0.4}
+
+\newcommand{\linhas}[1]{
+	\tikz[cinza!40,line width=1pt]
+	{
+		\fill (0,{0.8*(#1+0.8)}) circle (0pt);
+		\foreach \i in {1,...,#1}{
+			\draw (0,0.8*\i) -- (\linewidth,0.8*\i);
+		}
+	}
+}
+
+% Texto vertical em tabela
+\newcommand*{\vtext}[2]{\parbox[t]{9pt}{\multirow{#1}{*}{\rotatebox[origin=c]{90}{#2}}}}
+
+
+
+\newcommand{\sen}{\mathrm{sen}\hspace{2pt}}
+\newcommand{\cossec}{\mathrm{cossec}\hspace{2pt}}
+\newcommand{\tg}{\mathrm{tg}\hspace{2pt}}
+\newcommand{\cotg}{\mathrm{cotg}\hspace{2pt}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+
+
+
+% TURMA
+
+% IDENTIFICADOR
+
+\begin{document}
+\noindent
+\begin{tikzpicture}
+
+\tema%sColorida{CorSerie}{%d}
+
+\node[inner sep=0pt, color=CorSerie] at ({8.75+%d*0.75},-0.64) {\LARGE\bf %s};
+
+\draw[line width=1pt, color=CorSerie, rounded corners] (0,-1.4) rectangle (17.5,-2.6);
+\draw[line width=1pt, color=CorSerie] (7,-1.4)--(7,-2.6) (13,-1.4)--(13,-2.6);
+
+\node[inner sep=0pt,right] at (0.1,-2.00) {\resizebox{6.5cm}{0.75cm}{\bf %s}};
+
+\node[inner sep=0pt,right] at (7.3,-1.75) {{\color{CorSerie}\bf Gestor(a):} %s};
+\node[inner sep=0pt,right] at (7.3,-2.25) {{\color{CorSerie}\bf Professor:} %s};
+
+\node[inner sep=0pt,right] at (13.3,-1.75) {{\color{CorSerie}\bf Data:} \underline{\hspace{6mm}}/\underline{\hspace{6mm}}/\underline{%d}};
+\node[inner sep=0pt,right,color=CorSerie] at (14.55,-1.71) {\bf %.2d\hspace{4mm}%.2d};
+\node[inner sep=0pt,right] at (13.3,-2.25) {{\color{CorSerie}\bf Turma:} %s};
+
+\draw[line width=1pt,rounded corners,color=Vinho!70] (17.6,-1.40) rectangle (19,-3.36);
+\node[inner sep=0pt] at (18.3,-1.71) {\bf\uuline{NOTA}};
+
+\node[inner sep=0pt,left] at (1.9,-3.16) {\bf Aluno(a):};
+\node[inner sep=0pt,right,color=CorSerie] at (2.1,-3.12) {\bf %s};
+\draw (2,-3.36) -- (15.2,-3.36);
+
+\node[inner sep=0pt,left] at (16.2,-3.16) {\bf Nº:};
+\node[inner sep=0pt,right,color=CorSerie] at (16.4,-3.12) {\bf %.2d};
+\draw (16.3,-3.36) -- (17.3,-3.36);
+
+\pgfmathsetmacro{\a}{3.56};
+\pgfmathsetmacro{\k}{27.65};
+% COLUNAS
+\foreach \i in {0,...,190}{
+	\fill (0.1*\i,-\a) circle (0.5pt);
+	\fill (0.1*\i,-\k) circle (0.5pt);
+}
+\end{tikzpicture}
+
+
+
+\vspace{-24.44cm}
+
+\setlength{\columnsep}{%.1fcm}
+
+\begin{multicols}{%d}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\newpage
+\noindent
+\begin{tikzpicture}
+\pgfmathsetmacro{\a}{0};
+\pgfmathsetmacro{\k}{27.7};
+% COLUNAS
+\foreach \i in {0,...,190}{
+	\fill (0.1*\i,{-\a-0.1}) circle (0.5pt);
+	\fill (0.1*\i,-\k) circle (0.5pt);
+}
+\end{tikzpicture}
+
+\vspace{-27.85cm}
+
+\begin{multicols}{%d}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\end{document}

@@ -1,0 +1,32 @@
+% QUESTAO
+A \'area do trap\'ezio ret\^angulo abaixo \'e de $18$\,m$^2$. Assim, o valor de $x$ \'e:
+
+\parbox{0.3\linewidth}{
+
+% ALTERNATIVAS
+$3$\,m
+$0$\,m
+$1$\,m
+$2$\,m
+$4$\,m
+
+}\parbox{0.69\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[ rotate=0, >=latex ]
+
+\pgfmathsetmacro{\B}{7};
+\pgfmathsetmacro{\b}{5};
+\pgfmathsetmacro{\h}{3};
+
+\trapezio{$x+4$}{\B}{$x+2$}{\b}{\h}{-1};
+\draw[ nodelabel={8pt}{$x$} ] (A) -- (D);
+
+\draw (A) rectangle +(1.5*\raio,1.5*\raio);
+\fill ($(A)+(0.75*\raio,0.75*\raio)$) circle (1.25*\raio mm);
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

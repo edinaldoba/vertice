@@ -1,0 +1,18 @@
+=======================================================================================
+                            INSTRUÇÕES E DIRETRIZES DO SISTEMA
+=======================================================================================
+
+--- LISTAGEM DOS ALUNOS ---
+• Início de Período: Utilize o botão "ABRIR" para importar a lista de alunos do 
+  período anterior para o atual.
+• Alunos Ausentes: Insira um asterisco seguido de espaço (* ) antes do nome dos 
+  alunos que não frequentam as aulas.
+
+--- DADOS DE ENTRADA (INFORMADOS) ---
+• Registros: Listas, Avaliações, Frequência (faltas) e Conteúdos.
+• Evidências: Imagens dos cartões-resposta capturadas via celular após a aplicação.
+
+--- DADOS GERADOS (AUTOMÁTICOS) ---
+• Cache: Arquivos temporários criados para cada prova, preservando o estado da interface.
+• Médias: Cálculo automático do período, integrando avaliações e recuperações.
+=======================================================================================

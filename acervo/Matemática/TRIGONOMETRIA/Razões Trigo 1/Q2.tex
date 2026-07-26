@@ -1,0 +1,23 @@
+% QUESTAO
+No triângulo retângulo abaixo, qual é o valor do $\text{cos}(\alpha)$?
+
+\parbox{0.3\linewidth}{
+
+% ALTERNATIVAS
+$4/5$
+$3/5$
+$3/4$
+$4/3$
+$1$
+
+}\parbox{0.7\linewidth}{
+\begin{tikzpicture}[scale=0.8]
+	\draw[cyan, fill] (0,0) -- (0.5,0) arc (0:36.87:0.5) -- cycle;
+	\draw[thick] (0,0) -- (4,0) node[midway, below] {4} -- (4,3) node[midway, right] {3} -- cycle node[midway, left, xshift=-2pt] {5};
+	\draw[thick] (3.7,0) -- (3.7,0.3) -- (4,0.3);
+	\fill (3.85,0.15) circle (1.5pt);
+	\node at (0.7,0.2) {$\alpha$};
+\end{tikzpicture}
+}
+
+

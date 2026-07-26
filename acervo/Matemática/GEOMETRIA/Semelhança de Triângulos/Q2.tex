@@ -1,0 +1,46 @@
+% QUESTAO
+Os triângulos $ABC$ e $A'B'C'$ são semelhantes.
+
+\tikz[]{
+\def\legA{}
+\def\legB{}
+\def\legC{}
+\triangulo
+{}	              {8}	               {0}
+{}		  {6}	               {0}
+{}	              {12}	               {0}
+\node[left] at (A) {$B$};
+\node[right] at (B) {$C$};
+\node[above] at (C) {$A$};
+\node[above] at ($(A)!0.45!(C)$) {$y$};
+\node[above] at ($(B)!0.5!(C)$) {$8$};
+\node[below] at ($(A)!0.45!(B)$) {$x$};
+}
+
+\tikz[rotate=180,scale=0.6]{
+\def\legA{}
+\def\legB{}
+\def\legC{}
+\triangulo
+{}	              {6}	               {0}
+{}		  {8}	               {0}
+{}	              {12}	               {0}
+\node[right] at (A) {$C'$};
+\node[left] at (B) {$B'$};
+\node[below] at (C) {$A'$};
+\node[below] at ($(A)!0.47!(C)$) {$4$};
+\node[below] at ($(B)!0.47!(C)$) {$3$};
+\node[above] at ($(A)!0.5!(B)$) {$6$};
+}
+
+Calcule a razão de semelhança e as medidas dos elementos indicados por $x$ e $y$.
+
+% ALTERNATIVAS 10
+$x=12$ e $y=6$
+$x=6$ e $y=12$
+$x=10$ e $y=8$
+$x=14$ e $y=6$
+$x=12$ e $y=8$
+
+
+

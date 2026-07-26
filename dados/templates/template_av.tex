@@ -1,0 +1,31 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}
+\usepackage{tikz}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\onehalfspacing
+\pagestyle{empty}
+\begin{document}
+\begin{spacing}{%f}
+\noindent\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\hline
+\multicolumn{2}{|l|}{\rule{0mm}{5.5mm}\multirow{3}{50mm}{\bf\underline{SEDUC} / \underline{São Luis $-$ MA}\\\underline{%s}\\\underline{%s}}}& \multicolumn{11}{c|}{\multirow{2}{130mm}{\centering\bf\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\
+\multicolumn{2}{|c|}{\rule{0mm}{5.5mm}} & \multicolumn{11}{c|}{} \\\cline{3-13}
+\multicolumn{2}{|c|}{\rule{0mm}{5.5mm}} & \resizebox{7.5mm}{11pt}{\bf Av1} & \resizebox{7.5mm}{11pt}{Rec} & \resizebox{7.5mm}{11pt}{\bf Av2} & \resizebox{7.5mm}{11pt}{Rec} & \resizebox{7.5mm}{11pt}{\bf Av3} & \resizebox{7.5mm}{11pt}{Rec} & \resizebox{7.5mm}{11pt}{\bf Av4} & \resizebox{7.5mm}{11pt}{Rec} & \resizebox{7.5mm}{11pt}{\bf Av5} & \resizebox{7.5mm}{11pt}{Rec} &  \resizebox{11mm}{11pt}{\bf Média}\\\hline
+% LISTA
+\multicolumn{13}{|c|}{\rule{0mm}{5.5mm}Professor(a): \underline{\includegraphics[width=0.28\linewidth]{../dados/informados/.assinatura.png}} \hspace{3cm}  Data: %s } \\\hline
+\end{tabular}
+\end{spacing}
+\end{document}

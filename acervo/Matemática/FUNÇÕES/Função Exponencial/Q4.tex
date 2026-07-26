@@ -1,0 +1,26 @@
+% QUESTAO
+O gráfico abaixo representa uma função exponencial do tipo $y=a^x$. Identifique a sua lei de formação.
+
+\parbox{0.38\linewidth}{
+
+% ALTERNATIVAS
+$y=2^x$
+$y=3\cdot 2^x$
+$y=3^x$
+$y=\left(\frac{1}{2}\right)^x$
+$y=2^{-x}$
+
+}\parbox{0.62\linewidth}{
+\begin{tikzpicture}[ >=latex, x=0.7cm, y=0.7cm ]
+% f(x) = b * a^x
+\pgfmathsetmacro{\a}{2}   % coeficiente 'a'
+\pgfmathsetmacro{\b}{1}  % coeficiente 'b'
+\pgfmathsetmacro{\xini}{-1.9} % Largura do domí­nio 2*\p
+\pgfmathsetmacro{\xfim}{2.2} % Largura do domí­nio 2*\p
+\newcommand*{\f}[1]{\b*\a^(#1)} % função quadrática
+\graficoFuncaoExponencial
+\ponto{0}{1}
+\ponto{2}{4}
+\end{tikzpicture}
+}
+

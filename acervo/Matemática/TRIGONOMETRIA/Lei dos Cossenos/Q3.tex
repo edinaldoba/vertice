@@ -1,0 +1,39 @@
+% QUESTAO
+Os valores de $x$ e $y$ na figura s\~ao, respectivamente:
+
+\parbox{0.3\linewidth}{
+
+% ALTERNATIVAS
+$3$ e $4$
+$4$ e $3$
+$4$ e $5$
+$3$ e $1$
+$7$ e $5$
+
+}\parbox{0.69\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[ rotate=0, >=latex, scale=0.95 ]
+\def\legA{}
+\def\legB{}
+\def\legC{}
+\triangulo
+{$2\sqrt{5}$}	              {2*sqrt(5)}	               {0}
+{$5$}		  		  {5}	               {0}
+{}	              {5}	               {0}
+
+\coordinate (D) at (3,0);
+\draw[ dashed, nodelabel={-6pt}{$y$} ] (C) -- (D);
+
+\draw (D) rectangle +(-0.6*\raio,0.6*\raio);
+\fill ($(D)+(-0.3*\raio,0.3*\raio)$) circle (0.5*\raio mm);
+
+\rowlabel{0.5}{-90}{$x$}{A}{D};
+\rowlabel{1.5}{-90}{$5$}{A}{B};
+
+\end{tikzpicture}
+\vspace{-6mm}
+\end{center}
+}
+
+

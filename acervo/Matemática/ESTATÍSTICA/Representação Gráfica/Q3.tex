@@ -1,0 +1,31 @@
+% QUESTAO
+Luísa construiu um gráfico de setores para organizar seu tempo diário (24h).
+
+\begin{tikzpicture}[scale=1.5]
+  \fill[AzulProfessor!70] (0,0) -- (0:1) arc (0:36:1) -- cycle;
+  \fill[VerdeEscola!70] (0,0) -- (36:1) arc (36:90:1) -- cycle;
+  \fill[LaranjaAlerta!70] (0,0) -- (90:1) arc (90:162:1) -- cycle;
+  \fill[RoxoElegante!70] (0,0) -- (162:1) arc (162:270:1) -- cycle;
+  \fill[VinhoDestaque!70] (0,0) -- (270:1) arc (270:360:1) -- cycle;
+  \foreach \a in {0, 36, 90, 162, 270} {\draw[CorSerie!50] (0,0) -- (\a:1);}
+  \draw[CorSerie, thick] (0,0) circle (1);
+  \node[white] at (18:0.7)  {\scriptsize\bf 10\%};
+  \node[white] at (63:0.7)  {\scriptsize\bf 15\%};
+  \node[white] at (126:0.7) {\scriptsize\bf 20\%};
+  \node[white] at (216:0.7) {\scriptsize\bf 30\%};
+  \node[white] at (315:0.7) {\scriptsize\bf 25\%};
+  \node[right] at (18:1) {\footnotesize\bf comer};
+  \node[above right] at (63:1) {\footnotesize\bf estudar};
+  \node[above left] at (126:1) {\footnotesize\bf outras};
+  \node[left] at (216:1) {\footnotesize\bf dormir};
+  \node[below right] at (315:1) {\footnotesize\bf escola};
+\end{tikzpicture}
+
+Com base no gráfico, quanto tempo Luísa gasta na escola? E quanto tempo gasta comendo?
+
+% ALTERNATIVAS
+6h e 2h\,24min
+3h\,30min e 3h
+6h e 3h\,30min
+3h e 2h
+2h e 3h

@@ -1,0 +1,44 @@
+% QUESTAO
+O número de diagonais $D$ de um polígono de $n$ lados é dado por
+\[ D=\dfrac{n\cdot (n-3)}{2} \]
+Dado um polígono de dez lados (decágono)
+\vspace{-1mm}
+\begin{center}
+\tikz[scale=2,thick]{
+\pgfmathsetmacro{\nn}{10};
+\pgfmathsetmacro{\ang}{360/\nn};
+\pgfmathsetmacro{\rnd}{100};
+\pgfmathsetmacro{\angulo}{270-0.5*\ang+\rnd*rand/\nn};
+\coordinate (A) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+0.5*\ang+\rnd*rand/\nn};
+\coordinate (B) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+1.5*\ang+\rnd*rand/\nn};
+\coordinate (C) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+2.5*\ang+\rnd*rand/\nn};
+\coordinate (D) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+3.5*\ang+\rnd*rand/\nn};
+\coordinate (E) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+4.5*\ang+\rnd*rand/\nn};
+\coordinate (F) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+5.5*\ang+\rnd*rand/\nn};
+\coordinate (G) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+6.5*\ang+\rnd*rand/\nn};
+\coordinate (H) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+7.5*\ang+\rnd*rand/\nn};
+\coordinate (I) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+8.5*\ang+\rnd*rand/\nn};
+\coordinate (J) at (\angulo:1);
+\draw (A)--(B)--(C)--(D)--(E)--(F)--(G)--(H)--(I)--(J)--cycle;
+}
+\end{center}
+\vspace{-2mm}
+Determine o número de diagonais desse polígono.
+
+% ALTERNATIVAS 8
+$D=35$ diagonais
+$D=44$ diagonais
+$D=54$ diagonais
+$D=27$ diagonais
+$D=20$ diagonais
+
+

@@ -1,0 +1,31 @@
+\noindent\parbox{\linewidth}{
+
+% QUESTAO
+Feito o levantamento de um terreno, foram determinados os dados indicados na figura abaixo. Nessas condições, qual é a área desse terreno?
+
+\parbox{0.34\linewidth}{
+
+% ALTERNATIVAS 4
+$2250$ m$^2$
+$1358$ m$^2$
+$1829$ m$^2$
+$1640$ m$^2$
+$1250$ m$^2$
+
+
+} \parbox{0.6\linewidth}{
+\tikz[scale=0.5]{
+\draw[thick,fill=gray!30] (0,0) -- (0,4) -- (3.2,6.4) -- (5,4) -- (3.6,0) -- cycle;
+\draw[dashed] (0,4) -- (5,4);
+\draw[thick] ($(3.2,6.4)+({-asin(0.8)}:0.5)$) -- ($(3.2,6.4)+({-asin(0.8)}:0.5)+({-asin(0.8)-90}:0.5)$) -- ($(3.2,6.4)+({-asin(0.8)-90}:0.5)$);
+\draw[thick] (0,0) rectangle (0.5,0.5) (0,3.5) rectangle (0.5,4);
+\fill  (0.25,0.25) circle (2pt) (0.25,3.75) circle (2pt) ($($(3.2,6.4)+({-asin(0.8)}:0.5)$)!0.5!($(3.2,6.4)+({-asin(0.8)-90}:0.5)$)$) circle (2pt);
+\node[below] at (1.8,0) {$37$\,m};
+\node[left] at (0,2) {$44$\,m};
+\node at (0.7,5.6) {$48$\,m};
+\node at (5.1,5.4) {$14$\,m};} }
+
+
+}
+
+

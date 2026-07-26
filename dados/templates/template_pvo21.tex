@@ -1,0 +1,168 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage[nointegrals]{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\onehalfspacing
+\pagestyle{empty}
+
+\usepackage[%s]{professor}
+% \input{../../TIKZ/comandos_tikz}
+
+\definecolor{cinza}{rgb}{0.4,0.4,0.4}
+
+\newcommand{\linhas}[1]{
+	\tikz[cinza!40,line width=1pt]
+	{
+		\fill (0,{0.8*(#1+0.8)}) circle (0pt);
+		\foreach \i in {1,...,#1}{
+			\draw (0,0.8*\i) -- (\linewidth,0.8*\i);
+		}
+	}
+}
+
+% Texto vertical em tabela
+\newcommand*{\vtext}[2]{\parbox[t]{9pt}{\multirow{#1}{*}{\rotatebox[origin=c]{90}{#2}}}}
+
+
+\newcommand{\sen}{\mathrm{sen}\hspace{2pt}}
+\newcommand{\cossec}{\mathrm{cossec}\hspace{2pt}}
+\newcommand{\tg}{\mathrm{tg}\hspace{2pt}}
+\newcommand{\cotg}{\mathrm{cotg}\hspace{2pt}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+
+
+
+% TURMA
+
+% IDENTIFICADOR
+
+\begin{document}
+\noindent
+\begin{tikzpicture}
+
+\tema%s{%d}{%d}
+\node[inner sep=0pt] at ({8.75+%d*0.75},-0.6) {\LARGE\bf %s};
+
+\draw[line width=0.8pt,rounded corners] (17.6,-0.01412) rectangle (19,-1.85);
+\node[inner sep=0pt] at (18.3,-0.3) {\bf\uuline{NOTA}};
+
+\node[inner sep=0pt,left] at (1.9,-1.65) {\bf Aluno(a):};
+\node[inner sep=0pt,right,color=blue] at (2.1,-1.61) {\bf %s};
+\draw (2,-1.85) -- (15.2,-1.85);
+
+\node[inner sep=0pt,left] at (16.2,-1.65) {\bf Nº:};
+\node[inner sep=0pt,right,color=blue] at (16.4,-1.61) {\bf %.2d};
+\draw (16.3,-1.85) -- (17.3,-1.85);
+
+\pgfmathsetmacro{\a}{2.06};
+\pgfmathsetmacro{\k}{27.55764};
+\pgfmathsetmacro{\s}{0.4};
+\pgfmathsetmacro{\n}{(380+5*\s)/3};
+\foreach \i in {0,...,\n}{\fill ({(38-\s)/6+0.1*\i},-\a) circle (0.6pt);}
+\foreach \i in {1,...,254}{\fill ({(38-\s)/6},{-\a-0.1*\i}) circle (0.6pt); \fill ({(76+\s)/6},{-\a-0.1*\i}) circle (0.6pt);}
+\foreach \i in {0,...,190}{\fill (0.1*\i,-\k) circle (0.6pt);}
+\foreach \i in {0,...,%d}{\fill ({4.45*0+0.2+0.2*\i},-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill ({4.45*1+0.2+0.2*\i},-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill ({4.45*2+0.2+0.2*\i},-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill ({4.45*3+0.2+0.2*\i},-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill ({4.45*4+0.2+0.2*\i},-\k-0.1) circle (1.2pt);}
+
+
+
+\draw[line width=0.8pt,rounded corners] (0,-\a) rectangle (91/15,-3.78);
+\node[inner sep=0pt,right] at (0.09,-2.4) {\resizebox{5.88cm}{0.35cm}{\bf %s}};
+\node[inner sep=0pt,right] at (0.09,-2.98) {{\bf Gestor(a):} %s};
+\node[inner sep=0pt,right] at (0.09,-3.5) {{\bf Professor:} %s};
+
+\draw[line width=0.8pt,rounded corners] (0,-3.88) rectangle (3.8,-5.5);
+\node[inner sep=0pt,right] at (0.09,-4.185) {{\bf Data:} \underline{\hspace{6mm}}/\underline{\hspace{6mm}}/\underline{%d}};
+\node[inner sep=0pt,right,color=blue] at (1.34,-4.145) {\bf %.2d\hspace{4mm}%.2d};
+\node[inner sep=0pt,right] at (0.09,-4.69) {{\bf Série:} %dº Ano};
+\node[inner sep=0pt,right] at (0.09,-5.195) {{\bf Turma:} %.3s};
+
+\draw[line width=0.8pt,rounded corners] (3.9,-3.88) rectangle (91/15,-5.5);
+
+\pgfmathsetmacro{\t}{%d};
+
+\foreach \i in {0,...,3}{
+\draw[line width=0.8pt] ({3.9+0.7*81/220},{-3.88-(\i+0.7)*81/220}) circle (0.14cm);
+\ifthenelse{\i=\t}{
+\fill ({3.9+0.7*81/220},{-3.88-(\i+0.7)*81/220}) circle (0.08cm);
+}{}
+}
+
+\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-0.7*81/220}) {\footnotesize Matutino};
+\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-1.7*81/220}) {\footnotesize Vespertino};
+\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-2.7*81/220}) {\footnotesize Integral};
+\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-3.7*81/220}) {\footnotesize Noturno};
+
+
+\end{tikzpicture}
+
+\vspace{-26.04cm}
+
+\setlength{\columnsep}{6mm}
+
+\begin{multicols}{3}
+\rule{0cm}{3.225cm}
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\newpage
+\noindent
+\begin{tikzpicture}
+\pgfmathsetmacro{\a}{0.04236};
+\pgfmathsetmacro{\k}{27.55764};
+\pgfmathsetmacro{\s}{0.4};
+\foreach \i in {1,...,273}{\fill ({(38-\s)/6},{-\a-0.1-0.1*\i}) circle (0.6pt); \fill ({(76+\s)/6},{-\a-0.1-0.1*\i}) circle (0.6pt);}
+\foreach \i in {0,...,190}{\fill (0.1*\i,{-\a-0.1}) circle (0.6pt);}
+\foreach \i in {0,...,190}{\fill (0.1*\i,-\k) circle (0.6pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*0+0.2+0.2*\i,-\a) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*1+0.2+0.2*\i,-\a) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*2+0.2+0.2*\i,-\a) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*3+0.2+0.2*\i,-\a) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*4+0.2+0.2*\i,-\a) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*0+0.2+0.2*\i,-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*1+0.2+0.2*\i,-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*2+0.2+0.2*\i,-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*3+0.2+0.2*\i,-\k-0.1) circle (1.2pt);}
+\foreach \i in {0,...,%d}{\fill (4.45*4+0.2+0.2*\i,-\k-0.1) circle (1.2pt);}
+\end{tikzpicture}
+
+\vspace{-27.85cm}
+
+\begin{multicols}{3}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\end{document}

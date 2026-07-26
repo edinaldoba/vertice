@@ -1,0 +1,38 @@
+% QUESTAO
+Dados o poliedro da figura abaixo
+
+\begin{center}
+\vspace{-4mm}
+\begin{tikzpicture}[ >=latex, scale=0.5 ]
+
+\coordinate (C) at (0,0);
+\coordinate (B) at (-45:-2);
+\coordinate (D) at (4,0);
+\coordinate (E) at ($(D)+(-45:-2)$);
+\coordinate (A) at (80:6);
+
+\draw[thick] (B) -- (C) -- (D);
+\draw[dashed] (D) -- (E) -- (B) (A)--(E);
+\draw[thick] (A)--(B) (A)--(C) (A)--(D);
+
+\node at ($(A)+(0,0.3)$) {\footnotesize $A$};
+\node at ($(B)+(-0.3,0)$) {\footnotesize $B$};
+\node at ($(C)+(-135:0.35)$) {\footnotesize $C$};
+\node at ($(D)+(-45:0.3)$) {\footnotesize $D$};
+\node at ($(E)+(45:0.3)$) {\footnotesize $E$};
+
+\end{tikzpicture}
+\vspace{-6mm}
+\end{center}
+
+Qual a forma de cada face?
+
+% ALTERNATIVAS
+$4$ triangulares e $1$ quadrada
+$5$ triangulares
+$4$ triangulares
+$6$ quadradas
+$1$ triangular e $4$ quadradas
+
+
+

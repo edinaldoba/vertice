@@ -1,0 +1,66 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}
+\usepackage{xcolor,tikz,ifthen,ulem}
+\usetikzlibrary{calc}
+\pagestyle{empty}
+
+% LISTA
+
+\begin{document}
+
+\noindent\begin{tikzpicture}
+
+\pgfmathsetmacro{\nal}{%d}
+\pgfmathsetmacro{\p}{26.7/(\nal+2)}
+
+\fill (0,0) circle (0pt);
+
+\draw (1,-1) rectangle (20,-28.7);
+
+\draw (1.6,{-2-\p}) -- (1.6,{-28.7+\p})
+(7,-1) -- (7,{-28.7+\p})
+(19,-2) -- (19,{-28.7+\p})
+(18,-2) -- (18,{-28.7+\p})
+(7,-2) -- (20,-2);
+
+\node[inner sep=0pt,right] at (1.2,-1.6) {\bf\resizebox{5.5cm}{0.44cm}{%s}};
+
+\node[inner sep=0pt,right] at (1.2,{-1.9-0.5*\p}) {\large Turma: \bf %s};
+
+\node[inner sep=0pt,left] at (17.8,{-2-0.5*\p}) {Data: \underline{\qquad}/\underline{\qquad}/\underline{%d}};
+
+\node[inner sep=0pt,right] at (7.2,{-2-0.5*\p}) {\underline{Frequência}};
+
+\node[inner sep=0pt] at (13.5,-1.6) {\bf\resizebox{12.5cm}{0.6cm}{%s}};
+
+\pgfmathsetmacro{\ll}{0.6*\p}
+\node[inner sep=0pt] at (18.5,{-2-0.5*\p}) {\resizebox{0.9cm}{\ll cm}{\bf Nota}};
+\node[inner sep=0pt] at (19.5,{-2-0.5*\p}) {\resizebox{0.75cm}{\ll cm}{\bf Rec}};
+
+\foreach \i in {0,...,\nal}{
+\draw (1,{-2-\p*(\i+1)}) -- (7,{-2-\p*(\i+1)})
+(18,{-2-\p*(\i+1)}) -- (20,{-2-\p*(\i+1)});
+}
+
+\foreach \i in {1,...,\nal}{
+\draw (7.1,{-2-\p*(\i+0.75)}) -- (17.9,{-2-\p*(\i+0.75)});
+}
+
+\foreach \i in {1,...,\nal}{
+	\node[inner sep=0pt] at (1.3,{-2-\p*(\i+0.5)}) {\pgfmathparse{\num[\i-1]}\pgfmathresult};
+	\node[inner sep=0pt,right] at (1.7,{-2-\p*(\i+0.5)}) {\pgfmathparse{\alunos[\i-1]}\pgfmathresult};
+	\node[inner sep=0pt,color=gray!80,right] at (7.1,{-2-\p*(\i+0.5)}) {\pgfmathparse{\freq[\i-1]}\pgfmathresult};
+}
+
+\node[inner sep=0pt] at (10.5,{-2.07-\p*(\nal+1.5)}) {SEDUC $-$ São Luis, \underline{\qquad} de \underline{\hspace{1.2cm}} de %d \,/\, Professor: \underline{\hspace{8.8cm}}};
+
+\end{tikzpicture}
+
+\end{document}
+
+
+

@@ -1,0 +1,27 @@
+\noindent\parbox{\linewidth}{
+
+% QUESTAO
+Calcule a área do setor circular da figura abaixo.
+\parbox{0.4\linewidth}{
+
+% ALTERNATIVAS 4
+$60$ cm$^2$
+$16$ cm$^2$
+$56$ cm$^2$
+$24$ cm$^2$
+$42$ cm$^2$
+
+}\parbox{0.5\linewidth}{
+\tikz[thick,scale=1.5,>=latex]{
+\draw (0,0) circle (1);
+\draw[fill=gray!50] (0,0) -- (10:1) arc (10:60:1) -- cycle;
+\draw[<->] (10:1.15) arc (10:60:1.15);
+\node[rotate=-52] at (37:1.4) {$12$\,cm};
+\node[rotate=10,below] at (10:0.5) {$10$\,cm};
+\node[left] at (0,0) {O};
+}}
+
+
+}
+
+

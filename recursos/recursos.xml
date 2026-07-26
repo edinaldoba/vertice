@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/br/com/alencar/edinaldo/vertice">
+    <file>interface.glade</file>
+    <file>professor.sty</file>
+    <file>css/style_dark_green.css</file>
+    <file>css/style_deep_blue.css</file>
+    <file>css/style_light.css</file>
+    <file>css/icones/trash_blue.svg</file>
+    <file>css/icones/trash_blue_hover.svg</file>
+    <file>css/icones/trash_green.svg</file>
+    <file>css/icones/trash_green_hover.svg</file>
+    <file>css/icones/trash_light.svg</file>
+    <file>css/icones/trash_light_hover.svg</file>
+  </gresource>
+</gresources>

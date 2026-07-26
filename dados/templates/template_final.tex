@@ -1,0 +1,31 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}
+\usepackage{tikz}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\onehalfspacing
+\pagestyle{empty}
+\begin{document}
+\begin{spacing}{%f}
+\noindent\begin{tabular}{|c|p{5cm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{9.8mm}|R{8.5mm}|R{7mm}|R{7mm}|c|}\hline
+\multicolumn{2}{|l|}{\rule{0mm}{5.5mm}\multirow{3}{50mm}{\bf\underline{SEDUC} / \underline{São Luis $-$ MA}\\\underline{%s}\\\underline{%s}}}& \multicolumn{9}{c|}{\multirow{2}{130mm}{\centering\bf\LARGE Relatório Final de %s / %s}}\\
+\multicolumn{2}{|c|}{\rule{0mm}{5.5mm}} & \multicolumn{9}{c|}{}\\\cline{3-11}
+\multicolumn{2}{|c|}{\rule{0mm}{5.5mm}} & \resizebox{8.5mm}{10pt}{\bf\,1º\,p\,} & \resizebox{8.5mm}{10pt}{\bf\,2º\,p\,} & \resizebox{8.5mm}{10pt}{\bf\,3º\,p\,} & \resizebox{8.5mm}{10pt}{\bf\,4º\,p\,} & \resizebox{9.8mm}{11pt}{\bf Soma} & \resizebox{8.5mm}{11pt}{\bf Média} &  \resizebox{7mm}{11pt}{\bf Final}& \resizebox{7.8mm}{11pt}{\bf Cons.} & \resizebox{20mm}{11pt}{\bf Observação}\\\hline
+% LISTA
+\multicolumn{11}{|c|}{\rule{0mm}{5.5mm}Professor(a): \underline{\includegraphics[width=0.28\linewidth]{../informados/.assinatura.png}} \hspace{3cm}  Data: %s}\\\hline
+\end{tabular}
+\end{spacing}
+\end{document}

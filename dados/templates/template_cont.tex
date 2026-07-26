@@ -1,0 +1,82 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}
+\usepackage{tikz,ifthen,ulem,graphicx}
+\usetikzlibrary{calc}
+\pagestyle{empty}
+
+\pgfmathsetmacro{\nn}{%d}
+\pgfmathsetmacro{\p}{277/%d}
+
+% DADOS
+
+
+\begin{document}
+	
+	\noindent\begin{tikzpicture}
+	
+	\fill (0,0) circle (0pt);
+	
+	\draw (1,-1) rectangle (20,-28.7);
+	
+	
+	\draw (2,{-1-3*\p}) -- (2,{-1-\s*\p})
+	({2+\p},{-1-3*\p}) -- ({2+\p},{-1-\s*\p})
+	(7,-1) -- (7,{-1-3*\p})
+	(7,{-1-1.8*\p}) -- (20,{-1-1.8*\p})
+	(1,{-1-3*\p}) -- (20,{-1-3*\p})
+	(1,{-1-\s*\p}) -- (20,{-1-\s*\p});
+	
+	\node[right] at (7,{-1-2.45*\p}) {\LARGE\it Conteúdos};
+	
+	
+	
+	\ifthenelse{\nn>0}{
+		
+		\foreach \i in {1,...,\nn}{
+			\node[inner sep=0pt] at ({2+\p/2},{-1-(3+0.5*(\nhoras[\i-1]+\nhoras[\i]))*\p}) {\pgfmathparse{\dia[\i-1]}\pgfmathresult};
+			
+			\node[right] at ({2+\p},{-1-(3+0.5*(\nhoras[\i-1]+\nhoras[\i]))*\p}) {\parbox{17.15cm}{\pgfmathparse{\cont[\i-1]}\pgfmathresult}};
+			
+			\draw (2,{-1-\p*(\nhoras[\i]+3)}) -- (20,{-1-\p*(\nhoras[\i]+3)});
+		}
+		
+		\foreach \i in {0,...,2}
+		{	
+			\pgfmathsetmacro{\t}{\ndias[\i+1]}
+			\ifthenelse{\t>0}
+			{
+				\draw (1,{-1-\p*(3+\ndias[\i+1])}) -- (2,{-1-\p*(3+\ndias[\i+1])});
+				
+				\node at (1.5,{-1-3*\p-0.5*(\ndias[\i+1]+\ndias[\i])*\p}) {\Large\pgfmathparse{\mes[\i]}\pgfmathresult};
+			}{}
+		}
+		
+	}{}
+	
+\node[right] at (1,{-1-\p/2}) {\large\bf\underline{SEDUC} / \underline{São Luis$-$MA}};
+	
+\node[right] at (1,{-1-3*\p/2}) {\large\bf\underline{%s}};
+	
+\node[right] at (1,{-1-5*\p/2}) {\large\bf\underline{%s}};
+	
+\node[inner sep=0pt] at (13.5,{-1-\p}) {\bf\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};
+	
+	
+	
+	
+	
+	
+\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \underline{\,%.2d\,}/\underline{\,%.2d\,}/\underline{\,%d\,} \hspace{5mm} Aulas dadas: \underline{\,%d\,} \hspace{5mm} Aulas previstas: \underline{\,%d\,} \hspace{5mm} Professor(a): \underline{\includegraphics[width=0.2\linewidth]{../informados/.assinatura.png}}};
+	
+	
+	\end{tikzpicture}
+	
+	
+	
+\end{document}
+
+

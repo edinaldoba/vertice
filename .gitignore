@@ -1,0 +1,55 @@
+# ==============================================================================
+# BLINDAGEM DE DADOS SENSÍVEIS E PRIVACIDADE (SISTEMA VÉRTICE)
+# ==============================================================================
+
+# 1. Ignora qualquer subpasta chamada 'CE Poeta Cunha Santos' em qualquer nível do projeto
+**/CE Poeta Cunha Santos/
+**/CE Poeta Cunha Santos/**/*
+
+# 2. Ignora qualquer arquivo que comece com 'assinatura' ou '.assinatura' em qualquer pasta
+**/.assinatura*
+**/assinatura*
+
+# 3. Regra restritiva para a pasta 'suporte/'
+# Primeiro: Bloqueia TUDO dentro de suporte/
+suporte/*
+
+# Segundo: Abre exceção (!) APENAS para o script dependencias.sh
+!suporte/dependencias.sh
+
+# ==============================================================================
+# IMAGENS E MÍDIAS (MINÚSCULAS E MAIÚSCULAS)
+# ==============================================================================
+*.png
+*.PNG
+*.jpg
+*.JPG
+*.jpeg
+*.JPEG
+*.ppm
+*.PPM
+*.bmp
+*.BMP
+*.gif
+*.GIF
+# *.svg
+*.SVG
+*.webp
+*.WEBP
+*.tiff
+*.TIFF
+
+# ==============================================================================
+# DOCUMENTOS GERADOS, COMPILAÇÃO E BACKUPS
+# ==============================================================================
+*.pdf
+*.PDF
+*.o
+*.so
+*.a
+*.out
+*.tar.gz
+*.tar.gz.gpg
+.aux
+.log 
+.synctex.gz

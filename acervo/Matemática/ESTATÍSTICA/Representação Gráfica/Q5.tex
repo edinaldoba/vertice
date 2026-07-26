@@ -1,0 +1,32 @@
+% QUESTAO
+As questões de Matemática foram classificadas em categorias quanto ao índice de facilidade, como mostra o gráfico abaixo.
+
+\begin{tikzpicture}[>=latex, xscale=0.30, yscale=0.45]
+  \draw[CorSerie!20, xstep=1, ystep=1.5] (0,0) grid (11,5);
+  \draw[<->, CorSerie, thick] (0,5.5) node[above=-1mm] {\bf\tiny Categoria} -- (0,0) -- (13.5,0) node[below] {\bf\tiny Nº Quest.};
+  \draw[CorSerie!40] (1,0.1) -- (1,-0.1) node[below, text=black] {\tiny 1};
+  \draw[CorSerie!40] (2,0.1) -- (2,-0.1) node[below, text=black] {\tiny 2};
+  \draw[CorSerie!40] (3,0.1) -- (3,-0.1) node[below, text=black] {\tiny 3};
+  \draw[CorSerie!40] (4,0.1) -- (4,-0.1) node[below, text=black] {\tiny 4};
+  \draw[CorSerie!40] (5,0.1) -- (5,-0.1) node[below, text=black] {\tiny 5};
+  \draw[CorSerie!40] (6,0.1) -- (6,-0.1) node[below, text=black] {\tiny 6};
+  \draw[CorSerie!40] (7,0.1) -- (7,-0.1) node[below, text=black] {\tiny 7};
+  \draw[CorSerie!40] (8,0.1) -- (8,-0.1) node[below, text=black] {\tiny 8};
+  \draw[CorSerie!40] (9,0.1) -- (9,-0.1) node[below, text=black] {\tiny 9};
+  \draw[CorSerie!40] (10,0.1) -- (10,-0.1) node[below, text=black] {\tiny 10};
+  \draw[fill=VinhoDestaque!70] (0,0.5) rectangle node[right=0.900cm] {\bf\scriptsize 6} (6,1.5);
+  \draw[fill=LaranjaAlerta!70] (0,2.0) rectangle node[right=0.600cm] {\bf\scriptsize 4} (4,3.0);
+  \draw[fill=VerdeEscola!70]   (0,3.5) rectangle node[right=1.200cm] {\bf\scriptsize 8} (8,4.5);
+  \node[left] at (0,1) {\scriptsize fácil};
+  \node[left] at (0,2.5) {\scriptsize mediana};
+  \node[left] at (0,4) {\scriptsize difícil};
+\end{tikzpicture}
+
+Se essa classificação fosse apresentada em um gráfico de setores, o ângulo do setor referente à categoria ``\textbf{mediana}'' mediria:
+
+% ALTERNATIVAS
+80$^{\circ}$
+99$^{\circ}$
+53$^{\circ}$
+104$^{\circ}$
+97$^{\circ}$

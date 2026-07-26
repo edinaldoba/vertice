@@ -1,0 +1,29 @@
+% QUESTAO
+Observe uma circunferência
+\vspace{-1mm}
+\begin{center}
+\tikz[>=latex,scale=0.2,rotate=0]{
+\pgfmathsetmacro{\R}{sqrt(52)};
+\coordinate (O) at (0,0);
+\fill (O) circle (0.4*\R mm);
+\draw[thick] (O) circle (\R);	
+\draw[thick] (-135:\R) -- (45:\R);
+\draw[dashed] (-135:\R) -- ($(-135:\R)+(-45:\R+1)$) (45:\R) -- ($(45:\R)+(-45:\R+1)$);
+\draw[ decorate, decoration={brace,raise=0pt} ] ($(45:\R)+(-45:\R+1)$) -- ($(-135:\R)+(-45:\R+1)$);
+\node at (-45:10) {$D$};
+\node[below] at (45:\R/1.7) {$R$};
+\node[below] at (-135:\R/2.7) {$R$};
+}
+\end{center}
+\vspace{-2mm}
+Qual é a razão entre o raio $R$ e o diâmetro $D$?
+
+% ALTERNATIVAS 3
+$\frac{R}{D}=\frac{1}{2}$
+$\frac{R}{D}=\frac{3}{2}$
+$\frac{R}{D}=2$
+$\frac{R}{D}=1$
+$\frac{R}{D}=\frac{2}{3}$
+
+
+

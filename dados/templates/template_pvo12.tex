@@ -1,0 +1,153 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage[nointegrals]{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\onehalfspacing
+\pagestyle{empty}
+
+\usepackage[%s]{professor}
+% \input{../../TIKZ/comandos_tikz}
+
+\definecolor{cinza}{rgb}{0.4,0.4,0.4}
+
+\newcommand{\linhas}[1]{
+	\tikz[cinza!40,line width=1pt]
+	{
+		\fill (0,{0.8*(#1+0.8)}) circle (0pt);
+		\foreach \i in {1,...,#1}{
+			\draw (0,0.8*\i) -- (\linewidth,0.8*\i);
+		}
+	}
+}
+
+% Texto vertical em tabela
+\newcommand*{\vtext}[2]{\parbox[t]{9pt}{\multirow{#1}{*}{\rotatebox[origin=c]{90}{#2}}}}
+
+
+\newcommand{\sen}{\mathrm{sen}\hspace{2pt}}
+\newcommand{\cossec}{\mathrm{cossec}\hspace{2pt}}
+\newcommand{\tg}{\mathrm{tg}\hspace{2pt}}
+\newcommand{\cotg}{\mathrm{cotg}\hspace{2pt}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+
+
+
+% TURMA
+
+% IDENTIFICADOR
+
+\begin{document}
+\noindent
+\begin{tikzpicture}
+
+\tema%s{%d}{%d}
+\node[inner sep=0pt] at ({8.75+%d*0.75},-0.6) {\LARGE\bf %s};
+
+\draw[line width=0.8pt,rounded corners] (0,-1.24) rectangle (17.5,-2.44);
+\draw[line width=0.8pt] (7,-1.24)--(7,-2.44) (13,-1.24)--(13,-2.44);
+
+\node[inner sep=0pt,right] at (0.1,-1.84) {\resizebox{6.5cm}{0.75cm}{\bf %s}};
+
+\node[inner sep=0pt,right] at (7.3,-1.59) {{\bf Gestor(a):} %s};
+\node[inner sep=0pt,right] at (7.3,-2.09) {{\bf Professor:} %s};
+
+\node[inner sep=0pt,right] at (13.3,-1.59) {{\bf Data:} \underline{\hspace{6mm}}/\underline{\hspace{6mm}}/\underline{%d}};
+\node[inner sep=0pt,right,color=blue] at (14.55,-1.55) {\bf %.2d\hspace{4mm}%.2d};
+\node[inner sep=0pt,right] at (13.3,-2.09) {{\bf Turma:} %s};
+
+\draw[line width=0.8pt,rounded corners] (17.6,-1.24) rectangle (19,-3.2);
+\node[inner sep=0pt] at (18.3,-1.55) {\bf\uuline{NOTA}};
+
+\node[inner sep=0pt,left] at (1.9,-3) {\bf Aluno(a):};
+\node[inner sep=0pt,right,color=blue] at (2.1,-2.96) {\bf %s};
+\draw (2,-3.2) -- (15.2,-3.2);
+	
+\node[inner sep=0pt,left] at (16.2,-3) {\bf Nº:};
+\node[inner sep=0pt,right,color=blue] at (16.4,-2.96) {\bf %.2d};
+\draw (16.3,-3.2) -- (17.3,-3.2);
+
+\pgfmathsetmacro{\a}{3.4};
+\pgfmathsetmacro{\k}{27.58588};
+% COLUNAS
+\draw[line width=0.8pt] (0,-\a) -- (19,-\a);
+\draw[line width=0.8pt] (0,-\k) -- (19,-\k);
+\draw[line width=0.8pt] (0,{-\k-0.1}) -- (19,{-\k-0.1});
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*0+0.2+0.2*\i},-\k) -- ({4.45*0+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*1+0.2+0.2*\i},-\k) -- ({4.45*1+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*2+0.2+0.2*\i},-\k) -- ({4.45*2+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*3+0.2+0.2*\i},-\k) -- ({4.45*3+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*4+0.2+0.2*\i},-\k) -- ({4.45*4+0.2+0.2*\i},{-\k-0.1});}
+
+
+\end{tikzpicture}
+
+
+
+\vspace{-24.6cm}
+
+\setlength{\columnsep}{%.1fcm}
+
+\begin{multicols}{%d}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\newpage
+\noindent
+\begin{tikzpicture}
+\pgfmathsetmacro{\a}{0.01412};
+\pgfmathsetmacro{\k}{27.58588};
+% COLUNAS
+\draw[line width=0.8pt] (0,-\a) -- (19,-\a);
+\draw[line width=0.8pt] (0,{-0.1-\a}) -- (19,{-0.1-\a});
+\draw[line width=0.8pt] (0,-\k) -- (19,-\k);
+\draw[line width=0.8pt] (0,{-\k-0.1}) -- (19,{-\k-0.1});
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*0+0.2+0.2*\i},-\a) -- ({4.45*0+0.2+0.2*\i},{-\a-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*1+0.2+0.2*\i},-\a) -- ({4.45*1+0.2+0.2*\i},{-\a-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*2+0.2+0.2*\i},-\a) -- ({4.45*2+0.2+0.2*\i},{-\a-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*3+0.2+0.2*\i},-\a) -- ({4.45*3+0.2+0.2*\i},{-\a-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*4+0.2+0.2*\i},-\a) -- ({4.45*4+0.2+0.2*\i},{-\a-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*0+0.2+0.2*\i},-\k) -- ({4.45*0+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*1+0.2+0.2*\i},-\k) -- ({4.45*1+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*2+0.2+0.2*\i},-\k) -- ({4.45*2+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*3+0.2+0.2*\i},-\k) -- ({4.45*3+0.2+0.2*\i},{-\k-0.1});}
+\foreach \i in {0,...,%d}{\draw[line width=0.8pt] ({4.45*4+0.2+0.2*\i},-\k) -- ({4.45*4+0.2+0.2*\i},{-\k-0.1});}
+\end{tikzpicture}
+
+\vspace{-27.85cm}
+
+\begin{multicols}{%d}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+% RESPOSTAS
+
+\end{multicols}
+
+\end{document}

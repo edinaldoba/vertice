@@ -1,0 +1,37 @@
+% QUESTAO
+Em um polígono regular os lados têm mesma medida e os ângulos internos são congruentes. Assim, para o heptágono regular da figura
+\vspace{-1mm}
+\begin{center}
+\tikz[scale=2,thick]{
+\pgfmathsetmacro{\nn}{7};
+\pgfmathsetmacro{\ang}{360/\nn};
+\pgfmathsetmacro{\rnd}{0};
+\pgfmathsetmacro{\angulo}{270-0.5*\ang+\rnd*0.3/\nn};
+\coordinate (A) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+0.5*\ang+\rnd*0/\nn};
+\coordinate (B) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+1.5*\ang+\rnd*rand/\nn};
+\coordinate (C) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+2.5*\ang+\rnd*rand/\nn};
+\coordinate (D) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+3.5*\ang+\rnd*rand/\nn};
+\coordinate (E) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+4.5*\ang+\rnd*rand/\nn};
+\coordinate (F) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+5.5*\ang+\rnd*rand/\nn};
+\coordinate (G) at (\angulo:1);
+\draw (A)--(B)--(C)--(D)--(E)--(F)--(G)--cycle;
+\node[below] at ($(A)!0.5!(B)$) {$8$\,cm};
+}
+\end{center}
+\vspace{-2mm}
+Calcule a medida de seu perímetro.
+
+% ALTERNATIVAS 4
+Perímetro $=56$\,cm
+Perímetro $=49$\,cm
+Perímetro $=42$\,cm
+Perímetro $=35$\,cm
+Perímetro $=63$\,cm
+
+

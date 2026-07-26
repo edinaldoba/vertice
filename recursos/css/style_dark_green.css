@@ -1,0 +1,598 @@
+/*
+ * Copyright (C) 2026 Edinaldo Barbosa de Alencar
+ * Este programa é software livre; você pode redistribuí-lo e/ou
+ * modificá-lo sob os termos da Licença Pública Geral GNU...
+ */
+
+/* ==========================================================================
+   APLICATIVO PROVAS - TEMA DARK VERDE (estilo_dark_verde.css)
+   --------------------------------------------------------------------------
+   Estrutura:
+   1. Regras Globais e Tipografia Base
+   2. Estrutura Principal (Janela e Barras)
+   3. Navegação (Notebook e Abas)
+   4. Containers e Áreas de Rolagem (ListBox, ScrolledWindow, ActionBar)
+   5. Classes de Tipografia Específicas
+   6. Componentes de Interação (Botões, Inputs, Combobox, Check/Radio)
+   7. Painéis de Status e Feedback
+   8. Diálogos e Modais (MessageDialog)
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. REGRAS GLOBAIS E TIPOGRAFIA BASE
+   ========================================================================== */
+
+/* Define a fonte padrão e o tamanho base para todos os rótulos da aplicação */
+label {
+    font-family: 'Ubuntu', 'Inter', sans-serif;
+    font-size: 20px;
+    color: #E0E0E0;
+}
+
+/* ==========================================================================
+   2. ESTRUTURA PRINCIPAL (JANELA E BARRAS)
+   ========================================================================== */
+
+/* Janela Principal: Substitui o cinza padrão pelo grafite profundo */
+window,
+.window,
+window.main-window {
+    background-image: none; /* GTK aplica gradientes por padrão, isto anula */
+    background-color: #263238; /* Material Design Dark */
+    border: 1px solid #37474F;
+}
+
+/* Barra de Título (Headerbar) */
+window headerbar,
+.window headerbar,
+window headerbar.titlebar {
+    background-image: none;
+    background-color: #1A232A;
+    box-shadow: none;
+    border: 1px solid #37474F;
+}
+
+/* Textos internos da Barra de Título */
+headerbar label,
+.titlebar label,
+headerbar .title {
+    color: #E0E0E0;
+/*     font-weight: bold; */
+}
+
+/* ==========================================================================
+   3. NAVEGAÇÃO (NOTEBOOK E ABAS)
+   ========================================================================== */
+
+/* Estrutura base do Notebook: Fundo transparente para herdar o grafite */
+notebook,
+notebook > stack {
+    background-color: transparent;
+    border-style: none;
+}
+
+notebook {
+    background-color: #1c2421;
+    border: 1px solid #37474F;
+}
+
+/* Cabeçalho onde ficam as abas */
+notebook > header {
+    background-color: #263238;
+    border-bottom: none;
+}
+
+/* Estilo padrão das Abas (Inativas) */
+notebook > header > tabs > tab {
+    background-color: #37474F;
+    padding: 6px;
+    border: none;
+}
+
+/* Comportamento de Hover (Mouse sobre a aba) */
+notebook > header > tabs > tab:hover {
+    border-bottom:4.0px solid #00aa00;
+    box-shadow: none;
+}
+
+/* Estado Ativo/Selecionado das Abas */
+notebook > header > tabs > tab:checked,
+notebook > header > tabs > tab:active {
+    background-color: #131816;
+    color: #FFFFFF;
+    font-weight: bold;
+    border-bottom: 5.0px solid #00ff00;
+    box-shadow: none;
+}
+
+
+/* ==========================================================================
+   4. CONTAINERS E ÁREAS DE ROLAGEM
+   ========================================================================== */
+
+/* --- Actionbar (Barra de Ações Inferior/Superior) --- */
+actionbar,
+actionbar > revealer > box {
+    background-color: transparent;
+    border-style: none;
+    box-shadow: none;
+}
+
+actionbar > revealer > box {
+    border-top: 1px solid #B0BEC5;
+}
+
+/* --- ListBox e Linhas (ListRow) --- */
+/* Fundo transparente para integração perfeita com o tema */
+listbox,
+list {
+    background-color: transparent;
+    border-style: none;
+    box-shadow: none;
+    margin-bottom: 16px;
+}
+
+listrow,
+row {
+    background-color: transparent;
+    border-style: none;
+    box-shadow: none;
+}
+
+/* Interação nas linhas da ListBox */
+listrow:hover,
+row:hover {
+    background-color: rgba(255, 255, 255, 0.05); /* Leve destaque no hover */
+}
+
+listrow:selected,
+row:selected {
+    background-color: rgba(255, 255, 255, 0.1); /* Seleção suave */
+}
+
+/* --- ScrolledWindow (Área de Rolagem Interna) --- */
+scrolledwindow {
+    background-color: transparent;
+    border: 1px solid #1A3020; /* Borda verde escura discreta */
+    border-radius: 6px;
+    padding: 6px;
+    box-shadow: inset 0 2px 8px 0 rgba(10, 25, 15, 0.6),
+                inset 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Garante que o viewport interno não pinte por cima da nossa sombra */
+scrolledwindow viewport {
+    background-color: transparent;
+}
+
+
+/* ==========================================================================
+   🛑 REMOVE O RETÂNGULO AZUL DE SELEÇÃO DO GTKFLOWBOXCHILD
+   ========================================================================== */
+
+/* Neutraliza o fundo azul quando o container do mini-card é selecionado ou clicado */
+flowboxchild:selected,
+flowboxchild:selected:focus,
+flowboxchild:selected:hover,
+flowboxchild:active {
+    background-color: transparent;
+    background-image: none;
+    border-color: transparent;
+    border-style: none;
+    box-shadow: none;
+}
+
+/* Garante que o fundo continue limpo mesmo se a janela perder o foco */
+flowboxchild:selected:backdrop {
+    background-color: transparent;
+    background-image: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+
+
+
+/* ==========================================================================
+   BARRA DE ROLAGEM - TEMA DARK GREEN
+   ========================================================================== */
+
+/* 1. O Trilho (Background da barra de rolagem) */
+scrollbar.vertical trough,
+scrollbar.horizontal trough {
+    background-color: rgba(13, 19, 16, 0.6); /* Fundo escuro sutil */
+    border-radius: 5px;
+    margin: 2px;
+}
+
+/* 2. O Slider (A parte móvel) */
+scrollbar slider {
+    background-color: #37474F;    /* Cor base do tema */
+    border-radius: 5px;
+    min-width: 10px;
+    min-height: 10px;
+    border: 1px solid #465a64;    /* Borda verde para dar profundidade */
+}
+
+/* 3. Comportamento ao passar o mouse */
+scrollbar slider:hover {
+    background-color: #81C784;    /* Verde claro do seu tema */
+    border-color: #FFFFFF;
+}
+
+/* 4. Comportamento durante o clique (Ação de arrastar) */
+scrollbar slider:active {
+    background-color: #FFFFFF;    /* Destaque máximo ao arrastar */
+    border-color: #81C784;
+}
+
+/* 5. Limpeza visual (remove setas padrão) */
+scrollbar button {
+    background: none;
+    border: none;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+}
+
+
+
+/* --- Separadores --- */
+separator {
+    background-color: #005500; /* Linha sutil semi-transparente */
+    min-height: 1px; /* Garante espessura de 1px mesmo em monitores HiDPI */
+}
+
+/* ==========================================================================
+   5. CLASSES DE TIPOGRAFIA ESPECÍFICAS
+   ========================================================================== */
+
+/* Coluna da Esquerda (Ex: ANO, DISCIPLINA) */
+.cabecalho,
+.cabecalho label {
+    color: #00e300;
+    font-weight: bold;
+}
+
+/* Títulos das Seções Principais (Ex: ASSUNTO PRINCIPAL) */
+.titulo-secao-principal,
+.titulo-secao-principal label {
+    color: #a5d6a7; /* Verde Indigo elegante */
+    font-size: 26px;
+    font-weight: bold;
+}
+
+/* Títulos das Seções Secundárias */
+.titulo-secao,
+.titulo-secao label {
+    color: #a5d6a7; /* Verde fluorescente para contraste */
+    font-weight: bold;
+}
+
+/* Indicador visual de item do subtema */
+.indicador-item-subtema {
+    color: #00ff00;
+    font-size: 23px;
+    font-weight: bold;
+    margin-left: 7px;
+}
+
+/* ==========================================================================
+   6. COMPONENTES DE INTERAÇÃO E ENTRADA DE DADOS
+   ========================================================================== */
+
+/* --- Botões Gerais (Painel Lateral Direito) --- */
+button {
+    background-image: none;
+    background-color: #1A232A;
+    color: #00ff00;
+    font-weight: bold;
+    border: 1px solid #37474F;
+    border-radius: 10px;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+button label {
+    font-size: 24px;
+    color: #a5d6a7;
+}
+
+button:hover {
+    background-color: #009400;
+    border: 1px solid #00ff00;
+}
+
+button:hover label {
+    color: #FFFFFF;
+}
+
+/* --- Campos de Texto (GtkEntry) --- */
+entry {
+    background-color: #37474F;
+    color: #FFFFFF;
+    font-family: 'Ubuntu Mono', monospace;
+    font-weight: normal;
+    padding: 4px 12px;
+    border: 1px solid #455A64;
+}
+
+entry label {
+    color: #FFFFFF;
+    font-family: 'Ubuntu Mono', monospace;
+    font-weight: normal;
+}
+
+.entry-qtd-questoes-subtema {
+    padding: 4px 16px;
+}
+
+/* --- ComboBox (Menus Suspensos) --- */
+combobox button,
+button cellview {
+    background-color: #27353f;
+    color: #ffffff;
+    font-family: 'Ubuntu Mono', monospace;
+    font-size: 20px;
+    font-weight: bold;
+    border: 1px solid #005500;
+    border-radius: 7px;
+}
+
+button cellview {
+    background-color: transparent;
+}
+
+combobox button:hover {
+    background-color: #005500;
+    border: 1px solid #00aa00;
+}
+
+/* Pop-up do ComboBox Aberto */
+window.popup menu,
+window.popup menu arrow {
+    background-color: #222D36;
+    border: 1px solid #005500;
+}
+
+window.popup menu,
+window.popup menu cellview {
+    background-color: #1A232A;
+    color: #7498a8;
+    font-family: 'Ubuntu Mono', monospace;
+    font-size: 20px;
+    border: 1px solid #005500;
+    border-radius: 7px;
+}
+
+window.popup menu cellview {
+    background-color: transparent;
+}
+
+window.popup menu menuitem:hover,
+window.popup menu menuitem:selected {
+    background-color: #005500;
+}
+
+window.popup menu menuitem:hover cellview,
+window.popup menu menuitem:selected cellview {
+    color: #ffffff; /* Texto acende no hover */
+    font-weight: bold;
+    border: 1px solid #00aa00;
+}
+
+combobox cellview:disabled,
+.popup menuitem:disabled * {
+    color: #00aa00;
+    font-style: italic;
+}
+
+/* Remove o negrito do texto visível na caixa do combo fechado */
+.combo-box-text-normal,
+.combo-box-text-normal button,
+.combo-box-text-normal cellview,
+.combo-box-text-normal label {
+    font-weight: normal;
+}
+
+
+
+/* --- CheckButtons (Caixas de Seleção) --- */
+check {
+    background-image: none;
+    color:#ffffff;
+    background-color: #000000;
+    border: 1px solid #455A64;
+    border-radius: 4px;
+}
+
+check:hover {
+    border-color: #00ff00;
+}
+
+check:checked {
+    background-image: none;
+    background-color: #00dc00;
+    border-color: #00dc00;
+}
+
+
+/* --- RadioButtons (Seleção Única) --- */
+radio {
+    background-image: none;
+    color: #ffffff;
+    background-color: #000000;
+    border: 1px solid #455A64;
+}
+
+radio:hover {
+    border-color: #00ff00;
+}
+
+radio:checked {
+    background-image: none;
+    background-color: #00dc00;
+    border-color: #00dc00;
+}
+
+/* ==========================================================================
+   7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)
+   ========================================================================== */
+
+/* --- Mini Cards de Informação --- */
+.mini-card-flowbox {
+    background-color: #242f35;
+    padding: 4px 8px;
+    border: 1px solid #37474F;
+    border-radius: 6px;
+}
+
+/* --- Componentes do Stepper (Seletor Numérico Customizado) --- */
+.stepper-container { /* BOX flexível no formato de pílula */
+    background-color: #303f47;
+    padding: 0px 5px;
+    border-radius: 12px;
+}
+
+.label-stepper {
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: bold;
+    min-width: 17px;
+}
+
+.btn-stepper {
+    background-color: #242f35;
+    padding: 0px 0px;
+}
+.btn-stepper label {
+    font-weight: bold;
+    font-size: 24px;
+    color: #00aa00;
+}
+.btn-stepper:hover {
+    background-color: #2c3c47;
+    border-radius: 50%;
+    border-color: #00aa00;
+}
+.btn-stepper:hover label {
+    color: #00ff00;
+}
+
+
+
+.botao-remover-ifood {
+/*     transition: none; */
+    background-image: url("./icones/trash_green.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    min-width: 24px;
+    min-height: 24px;
+/*     padding: 0px 5px; */
+}
+
+/* Opcional: Se quiser que ele mude de cor no hover, você pode apontar para um terceiro SVG */
+.botao-remover-ifood:hover {
+    background-image: url("./icones/trash_green_hover.svg");
+}
+
+
+
+/* --- Mini Cards de Informação --- */
+.mini-card {
+    background-color: #242f35;
+/*     font-size: 16px; */
+    padding: 4px 8px;
+    border: 1px solid #37474F;
+    border-radius: 6px;
+}
+
+
+/* --- Painel de Feedback Central --- */
+.painel-feedback {
+    background-color: #1A232A;
+    padding: 13px;
+    border: 1px solid #37474F;
+    border-radius: 13px;
+}
+
+/* Variação: Sucesso */
+.sucesso-titulo    { color: #a5d6a7; font-size: 28px; font-weight: bold; }
+.sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
+.sucesso-instrucao { color: #00e300; font-size: 20px; font-weight: normal; }
+
+/* Variação: Aviso */
+.aviso-titulo    { color: #FFD54F; font-size: 28px; font-weight: bold; }
+.aviso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
+.aviso-instrucao { color: #FFB300; font-size: 20px; font-weight: normal; }
+
+/* Variação: Erro */
+.erro-titulo     { color: #E57373; font-size: 28px; font-weight: bold; }
+.erro-subtitulo  { color: #90A4AE; font-size: 24px; font-style: italic; }
+.erro-instrucao  { color: #EF5350; font-size: 20px; font-weight: normal; }
+
+/* Variação: Info (Informação) */
+.info-titulo    { color: #4DD0E1; font-size: 28px; font-weight: bold; }
+.info-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
+.info-instrucao { color: #26C6DA; font-size: 20px; font-weight: normal; }
+
+/* ==========================================================================
+   8. DIÁLOGOS E MODAIS (GtkMessageDialog)
+   ========================================================================== */
+
+/* Janela do Diálogo */
+messagedialog {
+    background-color: #1A232A;
+    border: 1px solid #9d7c19;
+}
+
+/* Barra de Título do Diálogo */
+messagedialog headerbar,
+messagedialog .titlebar {
+    background-image: none;
+    background-color: #000000;
+    border: 1px solid #9d7c19;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+/* Texto da Barra de Título do Diálogo */
+messagedialog headerbar,
+messagedialog .title {
+    color: #9d7c19;
+    font-weight: bold;
+}
+
+/* Texto do Corpo do Diálogo */
+messagedialog label {
+    color: #B2BEC3;
+    font-size: 23px;
+}
+
+/* Botões Padrão dentro do Diálogo */
+messagedialog button {
+    background-image: none;
+    background-color: #000000;
+    color: #FFFFFF;
+    padding: 16px 16px;
+    border: 1px solid #9d7c19;
+    border-radius: 7px;
+}
+
+messagedialog button:hover {
+    background-color: #37474F;
+    border: 1px solid #81C784;
+}
+
+/* Botões de Ação Sugerida (Ex: "OK", "Confirmar") */
+messagedialog button.suggested-action {
+    background-image: none;
+    background-color: #1A237E;
+    color: #E0E0E0;
+    border: 1px solid #1A237E;
+}
+
+messagedialog button.suggested-action:hover {
+    background-color: #283593;
+}

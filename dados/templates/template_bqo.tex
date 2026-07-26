@@ -1,0 +1,58 @@
+\documentclass[11pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% FONTE
+\usepackage[brazil]{babel}
+\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{multicol}
+\usepackage{enumerate}
+\usepackage[nointegrals]{wasysym}
+%\usepackage{wasysym}
+\usepackage{array,multirow,graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{ifthen}
+\usepackage{setspace}
+\usepackage{ulem}
+\onehalfspacing
+\pagestyle{empty}
+
+\usepackage[%s]{professor}
+% \input{../../../../TIKZ/comandos_tikz}
+
+
+% Texto vertical em tabela
+\newcommand*{\vtext}[2]{\parbox[t]{9pt}{\multirow{#1}{*}{\rotatebox[origin=c]{90}{#2}}}}
+
+
+\newcommand{\sen}{\mathrm{sen}\hspace{2pt}}
+\newcommand{\cossec}{\mathrm{cossec}\hspace{2pt}}
+\newcommand{\tg}{\mathrm{tg}\hspace{2pt}}
+\newcommand{\cotg}{\mathrm{cotg}\hspace{2pt}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\begin{document}
+\noindent\tikz{
+%\tema%s{%d}{1}
+\tema%sColorida{CorSerie}{1}
+\node[inner sep=0pt, right] at (0,-0.65) {\LARGE\bf %s: %s};
+}
+
+
+\setlength{\columnsep}{%dmm}
+\setlength{\columnseprule}{0.8pt}
+
+\begin{multicols}{%d}
+
+\begin{enumerate}[\hspace{-1.8mm}]
+
+% QUESTOES
+
+\end{enumerate}
+
+\end{multicols}
+
+\end{document}

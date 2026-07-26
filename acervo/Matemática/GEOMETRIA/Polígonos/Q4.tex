@@ -1,0 +1,53 @@
+% QUESTAO
+Dado o hexágono da figura a seguir
+\vspace{-2mm}
+\begin{center}
+\tikz[scale=2,thick]{
+\pgfmathsetmacro{\nn}{6};
+\pgfmathsetmacro{\ang}{360/\nn};
+\pgfmathsetmacro{\rnd}{0};
+\pgfmathsetmacro{\angulo}{270-0.5*\ang+\rnd*0.3/\nn};
+\coordinate (A) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+0.5*\ang+\rnd*0/\nn};
+\coordinate (B) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+1.5*\ang+\rnd*rand/\nn};
+\coordinate (C) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+2.5*\ang+\rnd*rand/\nn};
+\coordinate (D) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+3.5*\ang+\rnd*rand/\nn};
+\coordinate (E) at (\angulo:1);
+\pgfmathsetmacro{\angulo}{270+4.5*\ang+\rnd*rand/\nn};
+\coordinate (F) at (\angulo:1);
+\draw (A)--(B)--(C)--(D)--(E)--(F)--cycle;
+\fill (A) circle (0.7pt);
+\fill (B) circle (0.7pt);
+\fill (C) circle (0.7pt);
+\fill (D) circle (0.7pt);
+\fill (E) circle (0.7pt);
+\fill (F) circle (0.7pt);
+\node[below left] at (A) {$A$};
+\node[below right] at (B) {$B$};
+\node[right] at (C) {$C$};
+\node[above right] at (D) {$D$};
+\node[above left] at (E) {$E$};
+\node[left] at (F) {$F$};
+\node[below] at ($(A)!0.5!(B)$) {$\ell$};
+\node[right] at ($(B)!0.5!(C)$) {$\ell$};
+\node[right] at ($(C)!0.5!(D)$) {$\ell$};
+\node[above] at ($(D)!0.5!(E)$) {$\ell$};
+\node[left] at ($(E)!0.5!(F)$) {$\ell$};
+\node[left] at ($(A)!0.5!(F)$) {$\ell$};
+}
+\end{center}
+\vspace{-2mm}
+Quais elementos encontram-se indicados nessa figura?
+
+% ALTERNATIVAS 3
+Vértices e lados
+Lados e ângulos internos
+Ângulos internos e externos
+Vértices e ângulos internos
+Lados e ângulos externos
+
+
+
