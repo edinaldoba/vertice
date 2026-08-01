@@ -730,7 +730,7 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
          unsigned char g = buffer_gigante[idx + 1];
          unsigned char b = buffer_gigante[idx + 2];
 
-         int luminancia = ( r * 299 + g * 587 + b * 114 ) / 1000;
+         int luminancia = ( 2126*r + 7152*g + 722*b ) / 10000;
          IMG->image[i][j] = luminancia;
       }
    }

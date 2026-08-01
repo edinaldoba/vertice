@@ -17,6 +17,8 @@ suporte/*
 # Segundo: Abre exceção (!) APENAS para o script dependencias.sh
 !suporte/dependencias.sh
 
+github.sh
+
 # ==============================================================================
 # IMAGENS E MÍDIAS (MINÚSCULAS E MAIÚSCULAS)
 # ==============================================================================

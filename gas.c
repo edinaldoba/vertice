@@ -8,33 +8,46 @@
 #include <stdlib.h>
 #include <string.h> // Não esqueça de incluir para usar o memcpy
 #include <math.h>
-#include <stdbool.h>
 
 #include "gas.h"
 
 
 
-typedef struct {
-	double *x;
-} GasGenitores;
+static double gas_sum( const double *array, const int tam ) {
+   g_return_val_if_fail( array && tam > 0, 0.0 );
+   double soma = 0.0;
+   for ( int i = 0; i < tam; i++ ) {
+      soma += array[i];
+   }
+   return soma;
+}
+
+static double gas_mean( const double *array, const int tam ) {
+   g_return_val_if_fail( tam > 0, 0.0 );
+   return gas_sum( array, tam ) / tam;
+}
+
+
 
 
 void gas_gerar_sementes( guint32 *sementes ) {
-    // 1. Pega os ciclos/tempo monotônico do processador em alta precisão (64 bits)
-    gint64 ciclos_cpu = g_get_monotonic_time();
+   g_return_if_fail( sementes );
 
-    // 2. Separa a parte alta e baixa do inteiro de 64 bits
-    guint32 baixa = (guint32)(ciclos_cpu & 0xFFFFFFFF);
-    guint32 alta  = (guint32)(ciclos_cpu >> 32);
+   // 1. Pega os ciclos/tempo monotônico do processador em alta precisão (64 bits)
+   gint64 ciclos_cpu = g_get_monotonic_time();
 
-    // Imprime para manter a rastreabilidade se precisar reproduzir a execução
-    g_print( "Semente Monotonica (Ciclos): %" G_GINT64_FORMAT "\n", ciclos_cpu );
+   // 2. Separa a parte alta e baixa do inteiro de 64 bits
+   guint32 baixa = ( guint32 )( ciclos_cpu & 0xFFFFFFFF );
+   guint32 alta  = ( guint32 )( ciclos_cpu >> 32 );
 
-    // 3. Monta o array de sementes multiplicando por constantes de dispersão
-    sementes[0] = baixa;
-    sementes[1] = alta ^ 0x9E3779B9; // Proporção Áurea de 32-bit
-    sementes[2] = baixa ^ 0x6789A;
-    sementes[3] = (baixa + alta) ^ 0xBCDEF;
+   // Imprime para manter a rastreabilidade se precisar reproduzir a execução
+   // g_print( "Semente Monotonica (Ciclos): %" G_GINT64_FORMAT "\n", ciclos_cpu );
+
+   // 3. Monta o array de sementes multiplicando por constantes de dispersão
+   sementes[0] = baixa;
+   sementes[1] = alta ^ 0x9E3779B9; // Proporção Áurea de 32-bit
+   sementes[2] = baixa ^ 0x6789A;
+   sementes[3] = ( baixa + alta ) ^ 0xBCDEF;
 }
 
 
@@ -58,38 +71,134 @@ static GasGenitores *gas_alocar_genitores( const int n_gen, const int n_dim ) {
    return gen;
 }
 
-static void gas_liberar_populacao( GasPopulacao *pop, const int n_pop ) {
+void gas_liberar_populacao( GasPopulacao *pop, const int n_pop ) {
+   g_return_if_fail( pop );
    for ( int i = 0; i < n_pop; i++ ) {
-      g_free( pop[i].x );
+      if ( pop[i].x != NULL ) {
+         g_free( pop[i].x );
+      }
    }
    g_free( pop );
 }
 
 static void gas_liberar_genitores( GasGenitores *gen, const int n_gen ) {
+   g_return_if_fail( gen );
    for ( int i = 0; i < n_gen; i++ ) {
-      g_free( gen[i].x );
+      if ( gen[i].x != NULL ) {
+         g_free( gen[i].x );
+      }
    }
    g_free( gen );
 }
 
 
 
-static void gas_populacao_inicial( GasPopulacao *pop, const GasParametros *par, const GasLimites *lim ) {
-   g_return_if_fail( par->n_pop > 0 && lim->n_dim > 0 );
+// ============================================================================
+// FUNÇÃO QUE CALCULA OS LIMITES DOS 4 QUADRANTES (4 OBJETIVOS)
+// ============================================================================
+GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj ) {
+   // Validação estrita padrão GLib
+   // Como esta função desenha limites para 4 quadrantes, travamos n_obj em 4.
+   g_return_val_if_fail( nrow > 0 && ncol > 0 && n_obj == 4, NULL );
 
-   for ( int i = 0; i < par->n_pop; i++ ) {
-      for ( int j = 0; j < lim->n_dim; j++ ) {
-         pop[i].x[j] = g_rand_double_range( par->rand, lim->ini[j], lim->fim[j] );
+   int n_dim = 2; // 0: eixo X (colunas), 1: eixo Y (linhas)
+
+   // Calcula os pontos médios e limites máximos da imagem
+   double mid_x = ( ncol - 1.0 ) / 2.0;
+   double mid_y = ( nrow - 1.0 ) / 2.0;
+   double max_x = ncol - 1.0;
+   double max_y = nrow - 1.0;
+
+   // Constantes espaciais (Devem ter tamanho constante [4] para inicializar com chaves)
+   // k=0 (Topo-Esquerda)   | k=1 (Topo-Direita)
+   // ----------------------+----------------------
+   // k=3 (Base-Esquerda)   | k=2 (Base-Direita)
+   double ini_x[4] = { 0.0,   mid_x, mid_x, 0.0   };
+   double fim_x[4] = { mid_x, max_x, max_x, mid_x };
+
+   double ini_y[4] = { 0.0,   0.0,   mid_y, mid_y };
+   double fim_y[4] = { mid_y, mid_y, max_y, max_y };
+
+   // Aloca o array principal de limites usando a variável n_obj
+   GasLimites *lim = g_new0( GasLimites, n_obj );
+
+   for ( int k = 0; k < n_obj; k++ ) {
+      lim[k].n_dim = n_dim;
+      lim[k].ini   = g_new0( double, n_dim );
+      lim[k].fim   = g_new0( double, n_dim );
+
+      // Preenche os limites da Dimensão 0 (Eixo X)
+      lim[k].ini[0] = ini_x[k];
+      lim[k].fim[0] = fim_x[k];
+
+      // Preenche os limites da Dimensão 1 (Eixo Y)
+      lim[k].ini[1] = ini_y[k];
+      lim[k].fim[1] = fim_y[k];
+   }
+
+   return lim;
+}
+
+
+void gas_limites_liberar( GasLimites *lim, int n_obj ) {
+   if ( !lim ) return;
+
+   for ( int k = 0; k < n_obj; k++ ) {
+      if ( lim[k].ini ) g_free( lim[k].ini );
+      if ( lim[k].fim ) g_free( lim[k].fim );
+   }
+   g_free( lim );
+}
+
+
+
+static void gas_populacao_inicial_uniforme( GasPopulacao *pop, const GasParametros *par, const GasLimites *lim ) {
+   g_return_if_fail( pop && par && lim );
+
+   // Aloca um array temporário para armazenar os índices das fatias (bins)
+   int *indices = g_new( int, par->n_pop );
+
+   // Processa uma dimensão por vez para garantir a distribuição uniforme em cada eixo
+   for ( int j = 0; j < lim->n_dim; j++ ) {
+
+      // 1. Cria fatias ordenadas de 0 até n-1
+      for ( int i = 0; i < par->n_pop; i++ ) {
+         indices[i] = i;
+      }
+
+      // 2. Embaralhamento de Fisher-Yates (Shuffle)
+      // Isso garante que a combinação das dimensões seja aleatória (não forme uma linha diagonal)
+      for ( int i = par->n_pop - 1; i > 0; i-- ) {
+         int k = g_rand_int_range( par->rand, 0, i + 1 );
+         int temp = indices[i];
+         indices[i] = indices[k];
+         indices[k] = temp;
+      }
+
+      // 3. Distribui os indivíduos dentro de suas respectivas fatias
+      double tamanho_fatia = ( lim->fim[j] - lim->ini[j] ) / ( double )par->n_pop;
+
+      for ( int i = 0; i < par->n_pop; i++ ) {
+         int bin = indices[i]; // Qual fatia este indivíduo pegou nesta dimensão?
+
+         // Calcula os limites reais desta fatia específica no espaço de busca
+         double inicio_fatia = lim->ini[j] + ( bin * tamanho_fatia );
+         double fim_fatia    = inicio_fatia + tamanho_fatia;
+
+         // Sorteia um ponto uniformemente *dentro* da fatia
+         pop[i].x[j] = g_rand_double_range( par->rand, inicio_fatia, fim_fatia );
       }
    }
+
+   // Libera a memória temporária
+   g_free( indices );
 }
 
 
 
 static void gas_torneio( const GasPopulacao *pop, GasGenitores *gen, const int n_dim, const GasParametros *par,
-                         int(gas_comparar)(const void* a, const void* b) )
-{
-   g_return_if_fail( pop != NULL && gen != NULL );
+                  int( gas_comparar )( const void* a, const void* b ) ) {
+   g_return_if_fail( pop && gen && par && gas_comparar );
 
    for ( int i = 0; i < par->n_gen; i++ ) {
       int rnd1 = g_rand_int_range( par->rand, 0, par->n_pop );
@@ -101,14 +210,14 @@ static void gas_torneio( const GasPopulacao *pop, GasGenitores *gen, const int n
             rnd1 = rnd2;
          }
       }
-      memcpy( gen[i].x, pop[rnd1].x, n_dim * sizeof(double) );
+      memcpy( gen[i].x, pop[rnd1].x, n_dim * sizeof( double ) );
    }
 }
 
 
 
 static void gas_crossover_aritmetico( GasPopulacao *pop, const GasGenitores *gen, const int n_dim, const GasParametros *par ) {
-   g_return_if_fail( pop != NULL && gen != NULL );
+   g_return_if_fail( pop && gen && par );
 
    for ( int i = 0; i < par->n_gen - 1; i += 2 ) {
       double rnd = g_rand_double_range( par->rand, 0.0, 1.0 );
@@ -122,34 +231,18 @@ static void gas_crossover_aritmetico( GasPopulacao *pop, const GasGenitores *gen
          }
 
       } else {
-         memcpy( pop[i].x, gen[i].x, n_dim * sizeof(double) );
-         memcpy( pop[i + 1].x, gen[i + 1].x, n_dim * sizeof(double) );
+         memcpy( pop[i].x, gen[i].x, n_dim * sizeof( double ) );
+         memcpy( pop[i + 1].x, gen[i + 1].x, n_dim * sizeof( double ) );
       }
    }
 }
 
 
-// static void gas_mutacao_direcional( GasPopulacao *pop, const double *coef_disp, const int n_dim, const GasParametros *par ) {
-//    g_return_if_fail( pop != NULL && coef_disp != NULL );
-//
-//    double fator_escala = 1.0 / sqrt( n_dim );
-//
-//    for ( int i = 0; i < par->n_gen; i++ ) {
-//       double rnd_mut = g_rand_double_range( par->rand, 0.0, 1.0 );
-//
-//       if ( rnd_mut < par->p_mut ) {
-//          for ( int j = 0; j < n_dim; j++ ) {
-//             double rnd_dir = g_rand_double_range( par->rand, -1.0, 1.0 );
-//             pop[i].x[j] = pop[i].x[j] + rnd_dir * coef_disp[j] * fator_escala;
-//          }
-//       }
-//    }
-// }
 
 
 // GG, eu adaptei o meu coeficiente de dispersão lindo e maravilhoso na mutação creep. Ficou perfeito!
 static void gas_mutacao_creep( GasPopulacao *pop, const double *coef_disp, const GasLimites *lim, const GasParametros *par ) {
-   g_return_if_fail( pop != NULL && coef_disp != NULL );
+   g_return_if_fail( pop && coef_disp && lim && par );
 
    for ( int i = 0; i < par->n_gen; i++ ) {
       double rnd_mut = g_rand_double_range( par->rand, 0.0, 1.0 );
@@ -161,10 +254,10 @@ static void gas_mutacao_creep( GasPopulacao *pop, const double *coef_disp, const
             double rnd_step = g_rand_double_range( par->rand, 0.0, 1.0 );
 
             if ( g_rand_boolean( par->rand ) ) {
-               pop[i].x[j] = pop[i].x[j] + rnd_step * fmin( lim->fim[j] - pop[i].x[j], coef_disp[j] * fator_escala );
+               pop[i].x[j] = pop[i].x[j] + rnd_step * MIN( lim->fim[j] - pop[i].x[j], coef_disp[j] * fator_escala );
 
             } else {
-               pop[i].x[j] = pop[i].x[j] - rnd_step * fmin( pop[i].x[j] - lim->ini[j], coef_disp[j] * fator_escala );
+               pop[i].x[j] = pop[i].x[j] - rnd_step * MIN( pop[i].x[j] - lim->ini[j], coef_disp[j] * fator_escala );
             }
          }
       }
@@ -172,31 +265,30 @@ static void gas_mutacao_creep( GasPopulacao *pop, const double *coef_disp, const
 }
 
 static void gas_coeficiente_dispersao( const GasPopulacao *pop, double *coef_disp,
-                                       const GasParametros *par, const int n_dim )
-{
-   g_return_if_fail( pop != NULL && coef_disp != NULL );
+                                       const GasParametros *par, const int n_dim ) {
+   g_return_if_fail( pop && coef_disp && par );
 
    for ( int j = 0; j < n_dim; j++ ) {
-      double inv_n_pop = 1.0 / par->n_pop;
+      double inn_pop = 1.0 / par->n_pop;
       double soma = 0.0;
 
       for ( int i = 0; i < par->n_pop; i++ ) {
          soma += pop[i].x[j];
       }
-      double media = soma * inv_n_pop;
+      double media = soma * inn_pop;
       soma = 0.0;
 
       for ( int i = 0; i < par->n_pop; i++ ) {
          double diff = pop[i].x[j] - media;
          soma += diff * diff;
       }
-      coef_disp[j] = par->peso_disp * sqrt( soma * inv_n_pop );
+      coef_disp[j] = par->peso_disp * sqrt( soma * inn_pop );
    }
 }
 
 
 
-int gas_comparar_objetivo_max( const void* a, const void* b ) {
+static int gas_comparar_objetivo_max( const void* a, const void* b ) {
    const GasPopulacao *arg1 = ( const GasPopulacao * )a;
    const GasPopulacao *arg2 = ( const GasPopulacao * )b;
    if ( arg1->fitness < arg2->fitness ) return -1;
@@ -204,251 +296,351 @@ int gas_comparar_objetivo_max( const void* a, const void* b ) {
    return 0;
 }
 
-int gas_comparar_objetivo_min( const void* a, const void* b ) {
-   const GasPopulacao *arg1 = ( const GasPopulacao * )a;
-   const GasPopulacao *arg2 = ( const GasPopulacao * )b;
-   if ( arg1->fitness < arg2->fitness ) return 1;
-   if ( arg1->fitness > arg2->fitness ) return -1;
-   return 0;
-}
 
 
-double F5( const double *x, const int n_dim ) {
-   // Validação de segurança no padrão da GLib
-   g_return_val_if_fail( x != NULL && n_dim > 0, 0.0 );
 
-   // 1. Transformamos a1 e a2 em uma única matriz 2D.
-   // 2. O modificador 'static const' é crucial aqui: ele diz ao compilador para alocar
-   //    essa matriz na memória apenas uma vez (no segmento de dados), em vez de empurrar
-   //    50 números inteiros para a pilha (stack) a cada milissegundo que a função for chamada.
-   static const double a[2][25] = {
-      {-32,-16,  0, 16, 32,-32,-16,  0, 16, 32,-32,-16,  0, 16, 32,-32,-16,  0, 16, 32,-32,-16,  0, 16, 32},
-      {-32,-32,-32,-32,-32,-16,-16,-16,-16,-16,  0,  0,  0,  0,  0, 16, 16, 16, 16, 16, 32, 32, 32, 32, 32}
-   };
 
-   const double K = 500.0;
-   double soma = 0.0;
 
-   // Proteção para garantir que o laço não tente ler uma 3ª dimensão inexistente na matriz 'a'
-   int dim_max = (n_dim < 2) ? n_dim : 2;
+// ============================================================================
+// FUNÇÃO DE FITNESS LOCAL (ALTAMENTE OTIMIZADA)
+// ============================================================================
+static double fitness_local( const double *x, const ImagemCinza *img, const int limiar, const int k ) {
+   g_return_val_if_fail( x && img && img->image, 0.0 );
 
-   for ( int j = 0; j < 25; j++ ) {
-      double soma_potencias = 0.0;
+   ( void )k;
 
-      // Aproveitando o n_dim para iterar sobre as dimensões de forma flexível e expansível
-      for ( int d = 0; d < dim_max; d++ ) {
-         soma_potencias += pow( x[d] - a[d][j], 6.0 );
+   int cx = ( int )round( x[0] );
+   int cy = ( int )round( x[1] );
+
+   if ( cx < 0 || cx >= img->ncol || cy < 0 || cy >= img->nrow ) return 0.0;
+
+   // Vetores de direção: 0(Leste), 1(Oeste), 2(Sul), 3(Norte)
+   int dx[4] = { 1, -1,  0,  0 };
+   int dy[4] = { 0,  0,  1, -1 };
+
+   int raio_max = 40;
+   double fitness_total = 0.0;
+
+   int centro_eh_preto = ( img->image[cy][cx] < limiar );
+
+   // NOVO: Array para guardar o 'r' da última transição em cada uma das 4 direções
+   int ultimo_r[4] = { 0, 0, 0, 0 };
+
+   for ( int dir = 0; dir < 4; dir++ ) {
+      int transicoes = 0;
+      int estado_atual = centro_eh_preto;
+
+      for ( int r = 1; r <= raio_max; r++ ) {
+         int px = cx + ( dx[dir] * r );
+         int py = cy + ( dy[dir] * r );
+
+         if ( px < 0 || px >= img->ncol || py < 0 || py >= img->nrow ) break;
+
+         int pixel_escuro = ( img->image[py][px] < limiar );
+
+         if ( pixel_escuro != estado_atual ) {
+            transicoes++;
+            estado_atual = pixel_escuro;
+
+            // NOVO: Atualiza a distância da transição mais recente
+            ultimo_r[dir] = r;
+         }
       }
 
-      // Uso explícito de '1.0' e '(double)' para evitar conversões implícitas
-      soma += 1.0 / ( (double)j + soma_potencias );
+      int pontuacao = 5 - abs( transicoes - 5 );
+      if ( pontuacao < 0 ) pontuacao = 0;
+
+      fitness_total += pontuacao;
    }
 
-   return 1.0 / ( (1.0 / K) + soma );
+   double fitness_normalizado = fitness_total / 20.0;
+
+   if ( !centro_eh_preto ) {
+      fitness_normalizado *= 0.90;
+   }
+   // NOVO: Desempate do Platô! Só aplicamos se ele encontrou o alvo (20 pontos)
+   else if ( fitness_total == 20.0 ) {
+
+      // Calcula a diferença de distância das bordas opostas
+      // Se estiver perfeitamente centralizado, erro_x e erro_y serão 0 (ou no máximo 1 por conta do grid de pixels)
+      int erro_x = abs( ultimo_r[0] - ultimo_r[1] ); // Diferença entre Leste e Oeste
+      int erro_y = abs( ultimo_r[2] - ultimo_r[3] ); // Diferença entre Sul e Norte
+
+      // Aplicamos uma penalidade minúscula (0.0001 por pixel de assimetria)
+      // Ex: Se o candidato está 3 pixels pro lado direito, erro_x = 6. Penalidade = 0.0006.
+      // O fitness cai de 1.0000 para 0.9994.
+      double penalidade_simetria = ( erro_x + erro_y ) * 0.015;
+
+      // O centro absoluto mantém 1.0000 (ou o mais próximo disso possível)
+      fitness_normalizado -= penalidade_simetria;
+   }
+
+   return fitness_normalizado;
 }
 
 
-double F6( const double *x, const int n_dim ) {
-   g_return_val_if_fail( x != NULL && n_dim > 0, 0.0 );
+
+// ============================================================================
+// CÁLCULO DA ÁREA DE QUALQUER POLÍGONO (SHOELACE FORMULA / FÓRMULA DE GAUSS)
+// ============================================================================
+static double gas_calcular_area_ancoras( const GasPopulacao *elite, const int n_ancoras ) {
+   g_return_val_if_fail( elite && n_ancoras >= 3, 0.0 );
 
    double soma = 0.0;
 
-   // 1. Multiplicação direta em vez de pow(x[j], 2)
-   for ( int j = 0; j < n_dim; j++ ) {
-      soma += x[j] * x[j];
+   for ( int i = 0; i < n_ancoras; i++ ) {
+      // O operador modulo (%) garante que o próximo vértice após o último seja o primeiro (0)
+      int proximo = ( i + 1 ) % n_ancoras;
+
+      // Coordenadas do vértice atual (i) e do próximo (proximo)
+      double x_atual   = elite[i].x[0];
+      double y_atual   = elite[i].x[1];
+
+      double x_proximo = elite[proximo].x[0];
+      double y_proximo = elite[proximo].x[1];
+
+      // Produto cruzado em 2D (Determinante da matriz 2x2)
+      soma += ( x_atual * y_proximo ) - ( x_proximo * y_atual );
    }
 
-   // 2. Fragmentação da equação para evitar múltiplos pow() e melhorar a leitura
-   double temp_sin = sin( sqrt(soma) );
-   double numerador = ( temp_sin * temp_sin ) - 0.5;
-
-   double temp_denom = 1.0 + 0.001 * soma;
-   double denominador = temp_denom * temp_denom;
-
-   return 0.5 - ( numerador / denominador );
-}
-
-double F10( const double *x, const int n_dim ) { // Função de Rastrigin I
-   g_return_val_if_fail( x != NULL && n_dim > 0, 0.0 );
-
-   const double A = 10.0;
-   double soma = 0.0;
-
-   // Iteramos sobre as dimensões (n_dim) em vez de usar um 'ndim' global
-   for ( int j = 0; j < n_dim; j++ ) {
-      // 1. Substituímos pow(x[j], 2) pela multiplicação direta x[j] * x[j]
-      // 2. Utilizamos a constante G_PI nativa da GLib (que já possui precisão máxima)
-      // 3. Garantimos que 2.0 seja tratado como double
-      soma += (x[j] * x[j]) - A * cos( 2.0 * G_PI * x[j] );
-   }
-
-   return (A * n_dim) + soma;
-}
-
-
-static double gas_max( const double *array, int tam ) {
-   g_return_val_if_fail( array != NULL, 0.0 );
-
-   gdouble max_val = array[0];
-
-   for (int i = 1; i < tam; i++) {
-      max_val = MAX( max_val, array[i] );
-   }
-
-   return max_val;
+   // A área é a metade do módulo do determinante acumulado
+   return fabs( soma ) / 2.0;
 }
 
 
 
+// Função auxiliar inline para distância euclidiana (muito rápida)
+static inline double gas_distancia( const double p1[2], const double p2[2] ) {
+   return hypot( p1[0] - p2[0], p1[1] - p2[1] ); // Nativa do C
+}
 
 
-static void gas_display_gnuplot( const GasLimites *lim, int geracao ) {
-   FILE *p_plot;
+// ============================================================================
+// FUNÇÃO AUXILIAR: ERRO ORTOGONAL VIA PRODUTO ESCALAR NORMALIZADO
+// ============================================================================
+static double gas_erro_ortogonal( const double p0[2], const double p1[2],
+                                    const double p2[2], const double p3[2],
+                                    const double top_w, const double bot_w,
+                                    const double left_h, const double right_h ) {
 
-   // 1. Gráfico de Evolução
-   p_plot = fopen( "gnuplot/plotEvolucao.txt", "w" );
-   if ( p_plot ) {
-      fprintf( p_plot, "reset\n" );
-      fprintf( p_plot, "set terminal wxt size 920,600 enhanced font 'Verdana,16' persist\n" );
-      fprintf( p_plot, "set grid\n" );
-      fprintf( p_plot, "set xrange [0:%d]\n", geracao );
-      fprintf( p_plot, "set xlabel 'Geração'\n" );
-      fprintf( p_plot, "set ylabel 'Avaliação'\n" );
-      fprintf( p_plot, "plot 'E.pts' title 'Evolução da Avaliação do Mais Apto' with lines lt 3 lw 2\n" );
-      fclose( p_plot );
+   // Vetores partindo de cada vértice
+   // Canto 0 (Top-Esq): Vetor para P1 e Vetor para P3
+   double dp0 = ( p1[0] - p0[0] ) * ( p3[0] - p0[0] ) + ( p1[1] - p0[1] ) * ( p3[1] - p0[1] );
+
+   // Canto 1 (Top-Dir): Vetor para P0 e Vetor para P2
+   double dp1 = ( p0[0] - p1[0] ) * ( p2[0] - p1[0] ) + ( p0[1] - p1[1] ) * ( p2[1] - p1[1] );
+
+   // Canto 2 (Bot-Dir): Vetor para P1 e Vetor para P3
+   double dp2 = ( p1[0] - p2[0] ) * ( p3[0] - p2[0] ) + ( p1[1] - p2[1] ) * ( p3[1] - p2[1] );
+
+   // Canto 3 (Bot-Esq): Vetor para P2 e Vetor para P0
+   double dp3 = ( p2[0] - p3[0] ) * ( p0[0] - p3[0] ) + ( p2[1] - p3[1] ) * ( p0[1] - p3[1] );
+
+   // O erro é a média dos cossenos absolutos de cada quina.
+   // Como a área na função principal é garantida > 100, não há risco de divisão por zero aqui.
+   double cos0 = fabs( dp0 ) / ( top_w * left_h );
+   double cos1 = fabs( dp1 ) / ( top_w * right_h );
+   double cos2 = fabs( dp2 ) / ( bot_w * right_h );
+   double cos3 = fabs( dp3 ) / ( bot_w * left_h );
+
+   return ( cos0 + cos1 + cos2 + cos3 ) / 4.0;
+}
+
+// ============================================================================
+// FUNÇÃO DE FITNESS GEOMÉTRICO (ATUALIZADA)
+// ============================================================================
+static double fitness_geometrico( const double *x, const GasPopulacao *elite, const int k ) {
+   g_return_val_if_fail( x && elite && k >= 0 && k < 4, 0.0 );
+
+   // 1. O PULO DO GATO: Simulação do polígono
+   GasPopulacao simulacao[4];
+   for ( int i = 0; i < 4; i++ ) {
+      simulacao[i].x = ( i == k ) ? ( double * )x : elite[i].x;
    }
 
-   // 2. Gráfico de Dispersão
-   p_plot = fopen( "gnuplot/plotDispersao.txt", "w" );
-   if ( p_plot ) {
-      fprintf( p_plot, "reset\n" );
-      fprintf( p_plot, "set terminal wxt size 900,600 enhanced font 'Verdana,16' persist\n" );
-      fprintf( p_plot, "set grid\n" );
-      fprintf( p_plot, "set xrange [0:%d]\n", geracao );
-      fprintf( p_plot, "set xlabel 'Geração'\n" );
-      fprintf( p_plot, "set ylabel 'Dispersão'\n" );
-      fprintf( p_plot, "plot 'D.pts' title 'Evolução do Coeficiente de Dispersão' with lines lt 3 lw 2\n" );
-      fclose( p_plot );
+   // 2. Extrai as distâncias reais PRIMEIRO (Para resolver o "Ovo e a Galinha")
+   double top_w   = gas_distancia( simulacao[0].x, simulacao[1].x );
+   double bot_w   = gas_distancia( simulacao[3].x, simulacao[2].x );
+   double left_h  = gas_distancia( simulacao[0].x, simulacao[3].x );
+   double right_h = gas_distancia( simulacao[1].x, simulacao[2].x );
+
+   double largura_real = ( top_w + bot_w ) / 2.0;
+   double altura_real  = ( left_h + right_h ) / 2.0;
+
+   // Barreira contra colapso geométrico (arestas muito pequenas)
+   if ( largura_real < 50.0 || altura_real < 50.0 ) return 0.0;
+
+   // 3. Detecção Automática da Direção da Página
+   // Se o GA formou um retângulo mais largo que alto, assumimos gabarito Horizontal ('h')
+   // Caso contrário, assumimos Vertical ('v')
+   double proporcao_alvo;
+   if ( largura_real > altura_real ) {
+      proporcao_alvo = 14.0 / 11.0; // Horizontal
+   } else {
+      proporcao_alvo = 10.0 / 15.0; // Vertical
    }
 
-   // 3. Animação dos Pontos (Limpo, Inteligente e Profissional)
-   p_plot = fopen( "gnuplot/plotPontos.txt", "w" );
-   if ( p_plot ) {
-      fprintf( p_plot, "reset\n" );
-      fprintf( p_plot, "set terminal wxt size 800,800 enhanced font 'Verdana,16' persist\n" );
-      fprintf( p_plot, "set grid\n" );
-      fprintf( p_plot, "set xrange [%.1f:%.1f]\n", lim->ini[0], lim->fim[0] );
-      fprintf( p_plot, "set yrange [%.1f:%.1f]\n", lim->ini[1], lim->fim[1] );
-      fprintf( p_plot, "set size ratio -1\n" );
-      fprintf( p_plot, "set pointsize 2\n" );
+   // 4. Calcula a área e as dimensões teóricas ideais
+   double area = gas_calcular_area_ancoras( simulacao, 4 );
 
-      // Usamos o laço nativo do gnuplot para iterar sobre os arquivos .pts gerados
-      fprintf( p_plot, "do for [i=0:%d] {\n", geracao );
-      fprintf( p_plot, "    plot sprintf('geracao_%%d.pts', i) title sprintf('Geração: %%d', i) with points pt 1\n" );
-      fprintf( p_plot, "    pause 0.015\n" );
-      fprintf( p_plot, "}\n" );
+   // Como proporcao_alvo = Largura / Altura, deduzimos as dimensões ideais a partir da área:
+   double largura_ideal = sqrt( area * proporcao_alvo );
+   double altura_ideal  = sqrt( area / proporcao_alvo );
 
-      fclose( p_plot );
-   }
+   // 5. Avaliação de Erros Geométricos
+   double erro_w = fabs( largura_real - largura_ideal ) / largura_ideal;
+   double erro_h = fabs( altura_real - altura_ideal ) / altura_ideal;
+
+   // Cálculo do erro de ortogonalidade aproveitando as arestas já calculadas
+   double erro_ortogonal = gas_erro_ortogonal( simulacao[0].x, simulacao[1].x,
+                           simulacao[2].x, simulacao[3].x,
+                           top_w, bot_w, left_h, right_h );
+
+   // 6. Fitness (Erro Relativo Normalizado)
+   // Os três erros gravitam de 0.0 a 1.0 (ou mais em deformações severas).
+   double f_geo = 1.0 / ( 1.0 + erro_w + erro_h + erro_ortogonal );
+
+   return f_geo;
 }
 
 
 
-static void gas_gravar_pontos( const GasPopulacao *pop, const int n_pop, const int geracao ) {
-   char arquivo[256];
-   snprintf( arquivo, sizeof(arquivo), "gnuplot/geracao_%d.pts", geracao );
-   FILE *p_geracao = fopen( arquivo, "w" );
-   if ( p_geracao ) {
-      for ( int i = 0; i < n_pop; i++ ) {
-         fprintf( p_geracao, "%.8f %.8f\n", pop[i].x[0], pop[i].x[1] );
+// ============================================================================
+// FUNÇÃO GLOBAL DE AVALIAÇÃO (COEVOLUÇÃO)
+// ============================================================================
+
+static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elite, const ImagemCinza *img,
+      const double w1, const int limiar, const int k ) {
+   g_return_val_if_fail( x && img, 0.0 );
+
+   // Pesos da combinação linear para gerações > 0 (podem ser ajustados depois)
+   // printf( "%lf\n", w1 ); getchar();
+   const double w2 = 1.0 - w1;
+
+   // 1. O fitness local sempre é calculado, independentemente da geração
+   // Avalia o contraste/textura da imagem exatamente na coordenada 'x'
+   double f_local = fitness_local( x, img, limiar, k );
+
+   // 2. GERAÇÃO 0: Se a elite for NULL, não há como calcular a geometria
+   if ( elite == NULL ) {
+      return f_local;
+   }
+
+   // 3. GERAÇÕES > 0: A elite existe, ativando a pressão evolutiva geométrica
+   // Avalia como a coordenada 'x' se comporta em relação às outras 3 âncoras
+   double f_geo = fitness_geometrico( x, elite, k );
+
+   // 4. FITNESS ATRIBUÍDO (Equilíbrio de Nash)
+   double f_atribuido = ( w1 * f_local ) + ( w2 * f_geo );
+
+   return f_atribuido;
+}
+
+
+
+
+// ============================================================================
+// PIPELINE PRINCIPAL DE COEVOLUÇÃO
+// ============================================================================
+GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim ) {
+   g_return_val_if_fail( img && par && lim, NULL );
+
+   // Alocação da matriz de dispersão
+   double **coef_disp = g_new0( double*, par->n_obj );
+
+   GasPopulacao **pop = g_new0( GasPopulacao*, par->n_obj );
+   GasGenitores **gen = g_new0( GasGenitores*, par->n_obj );
+
+   double disp_max = 0.0;
+
+   for ( int k = 0; k < par->n_obj; k++ ) {
+      coef_disp[k] = g_new0( double, lim[k].n_dim );
+
+      for ( int j = 0; j < lim[k].n_dim; j++ ) {
+         disp_max += par->peso_disp * ( lim[k].fim[j] - lim[k].ini[j] ) / sqrt( 12.0 );
       }
-      fclose( p_geracao );
+
+      pop[k] = gas_alocar_populacao( par->n_pop, lim[k].n_dim );
+      gen[k] = gas_alocar_genitores( par->n_gen, lim[k].n_dim );
+
+      gas_populacao_inicial_uniforme( pop[k], par, &lim[k] );
    }
-}
 
+   disp_max = disp_max / ( lim[0].n_dim * par->n_obj );
 
-static void gas_display_terminal( const GasPopulacao *pop, const int n_dim, const double dispersao_max, const int geracao ) {
-   printf( "Geração: %d\n", geracao );
-   printf( "Mais Apto: " );
-   for ( int i = 0; i < n_dim; i++ ) {
-      printf( "%.8f  ", pop->x[i] );
-   }
-   printf( "\nAvaliação do Mais Apto: %.8f\n", pop->fitness );
-   printf( "Coeficiente de Dispersão: %.8f\n\n", dispersao_max );
-}
-
-
-
-
-
-GasPopulacao gas_pipeline( const GasParametros *par, const GasLimites *lim, double(gas_avaliar)(const double*,const int),
-                           int(gas_comparar)(const void* a, const void* b) )
-{
-   double *coef_disp = g_new0( double, lim->n_dim );
-   GasPopulacao *pop = gas_alocar_populacao( par->n_pop, lim->n_dim );
-   GasGenitores *gen = gas_alocar_genitores( par->n_gen, lim->n_dim );
+   GasPopulacao *elite = gas_alocar_populacao( par->n_obj, lim[0].n_dim );
 
    int geracao = 0;
-   double dispersao_max;
+   g_autofree double *dispersao_media = g_new0( double, par->n_obj );
+   double dispersao_media_global = 0.0;
 
-   gas_populacao_inicial( pop, par, lim );
+   // Geração 0 (Avaliação Exploratória)
+   for ( int k = 0; k < par->n_obj; k++ ) {
+      gas_coeficiente_dispersao( pop[k], coef_disp[k], par, lim[k].n_dim );
+      dispersao_media[k] = gas_mean( coef_disp[k], lim[k].n_dim );
 
-   for ( int i = 0; i < par->n_pop; i++ ) {
-      pop[i].fitness = gas_avaliar( pop[i].x, lim->n_dim );
-   }
-   qsort( pop, par->n_pop, sizeof(GasPopulacao), gas_comparar );
-   gas_coeficiente_dispersao( pop, coef_disp, par, lim->n_dim );
+      dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
+      double proporcao = dispersao_media_global / disp_max;
 
-   //--------------- FEEDBACK VISUAL ------------------------//
-   FILE *p_dispersao = fopen( "gnuplot/D.pts", "w" );
-   FILE *p_fitness   = fopen( "gnuplot/E.pts", "w" );
-   dispersao_max = gas_max(coef_disp, lim->n_dim);
-   fprintf( p_dispersao, "%d %.8f\n", geracao, dispersao_max );
-   fprintf( p_fitness  , "%d %.8f\n", geracao, pop[par->n_pop - 1].fitness );
-   gas_display_terminal( &pop[par->n_pop - 1], lim->n_dim, dispersao_max, geracao );
-   gas_gravar_pontos( pop, par->n_pop, geracao );
-   //-------------------------------------------------------//
-
-   do {
-      /****************************** ALGORITMOS GENÉTICOS ******************************/
-      geracao = geracao + 1;
-
-      gas_torneio( pop, gen, lim->n_dim, par, gas_comparar );
-      gas_crossover_aritmetico( pop, gen, lim->n_dim, par );
-      gas_mutacao_creep( pop, coef_disp, lim, par );
+      // w1 inicia em ~0.95 e cai de forma igual e sincronizada para as 4 âncoras.
+      // O CLAMP garante matematicamente que o peso nunca saia de [0, 1].
+      double w1 = CLAMP( 0.95 * proporcao + 0.05, 0.0, 1.0 );
 
       for ( int i = 0; i < par->n_pop; i++ ) {
-         pop[i].fitness = gas_avaliar( pop[i].x, lim->n_dim );
+         pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, NULL, img, w1, par->limiar, k );
       }
-      qsort( pop, par->n_pop, sizeof(GasPopulacao), gas_comparar );
-      gas_coeficiente_dispersao( pop, coef_disp, par, lim->n_dim );
-      dispersao_max = gas_max( coef_disp, lim->n_dim );
+      qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
 
-      //--------------- FEEDBACK VISUAL ------------------------//
-      fprintf( p_dispersao, "%d %.8f\n", geracao, dispersao_max );
-      fprintf( p_fitness  , "%d %.8f\n", geracao, pop[par->n_pop - 1].fitness );
-      gas_display_terminal( &pop[par->n_pop - 1], lim->n_dim, dispersao_max, geracao );
-      gas_gravar_pontos( pop, par->n_pop, geracao );
-      //--------------------------------------------------------//
+      memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
+      elite[k].fitness = pop[k][par->n_pop - 1].fitness;
+   }
 
-   } while ( dispersao_max > par->toleracia && geracao < 1000 ); // <--- FIM DO LOOP WHILE
+   // Laço Evolutivo
+   do {
+      geracao++;
 
-   //--------------- FEEDBACK VISUAL ------------------------//
-   gas_display_gnuplot( lim, geracao );
-   if ( p_fitness )   fclose( p_fitness );
-   if ( p_dispersao ) fclose( p_dispersao );
-   //--------------------------------------------------------//
+      for ( int k = 0; k < par->n_obj; k++ ) {
+         gas_torneio( pop[k], gen[k], lim[k].n_dim, par, gas_comparar_objetivo_max );
+         gas_crossover_aritmetico( pop[k], gen[k], lim[k].n_dim, par );
+         gas_mutacao_creep( pop[k], coef_disp[k], &lim[k], par );
 
-   GasPopulacao melhor;
-   melhor.fitness = pop[par->n_pop - 1].fitness;
-   melhor.x = g_new0( double, lim->n_dim );
-   memcpy( melhor.x, pop[par->n_pop - 1].x, lim->n_dim * sizeof(double) );
+         gas_coeficiente_dispersao( pop[k], coef_disp[k], par, lim[k].n_dim );
+         dispersao_media[k] = gas_mean( coef_disp[k], lim[k].n_dim );
 
-   //-------- Liberar memória ----------------
+         // A proporção normalizada: Inicia próxima de 1.0 e cai em direção a 0
+         dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
+         double proporcao = dispersao_media_global / disp_max;
+
+         // w1 inicia em ~0.9 e cai. O CLAMP garante matematicamente que o peso nunca saia de [0, 1]
+         double w1 = CLAMP( 0.95 * proporcao + 0.05, 0.0, 1.0 );
+
+         for ( int i = 0; i < par->n_gen; i++ ) { // GG, isso estava errado a dias. Não se avalia membros antigos da população
+            pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, elite, img, w1, par->limiar, k );
+         }
+         qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
+
+         memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
+         elite[k].fitness = pop[k][par->n_pop - 1].fitness;
+      }
+
+   } while ( dispersao_media_global > par->toleracia && geracao < par->max_geracoes );
+
+
+   // ------------------------------------------------------------------------
+   // LIMPEZA DE RECURSOS DO PIPELINE
+   // ------------------------------------------------------------------------
+   for ( int k = 0; k < par->n_obj; k++ ) {
+      g_free( coef_disp[k] );
+      gas_liberar_populacao( pop[k], par->n_pop );
+      gas_liberar_genitores( gen[k], par->n_gen );
+   }
+
+   g_free( pop );
+   g_free( gen );
    g_free( coef_disp );
-   gas_liberar_populacao( pop, par->n_pop );
-   gas_liberar_genitores( gen, par->n_gen );
 
-   return melhor;
+   // Retorna as âncoras limpas e seguras
+   return elite;
 }
+
 

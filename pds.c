@@ -486,12 +486,8 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
 
 
 /* Redução com Interpolação Bilinear Otimizada e Paralelizada */
-ImagemCinza *reduzir_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim ) {
-   if ( !origem || !destino || dim <= 0 ) return NULL;
-
-   if ( MAX( origem->ncol, origem->nrow ) <= dim ) {
-      return origem;
-   }
+void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim ) {
+   if ( !origem || !destino || dim <= 0 ) return;
 
    gboolean deitada = ( origem->ncol > origem->nrow );
    destino->ncol = deitada ? dim : ( dim * origem->ncol ) / origem->nrow;
@@ -505,7 +501,7 @@ ImagemCinza *reduzir_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino,
    }
 
    destino->image = alocar_matriz_pixels( destino->nrow, destino->ncol );
-   if ( !destino->image ) return NULL;
+   if ( !destino->image ) return;
 
    // Fatores de proporção (mapeamento reverso alinhando os cantos)
    float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? destino->ncol - 1 : 1 );
@@ -546,7 +542,6 @@ ImagemCinza *reduzir_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino,
          destino->image[i][j] = ( int )( pixel_interpolado + 0.5f );
       }
    }
-   return destino;
 }
 
 
@@ -556,12 +551,8 @@ ImagemCinza *reduzir_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino,
 
 
 
-ImagemColorida *reduzir_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim ) {
-   if ( !origem || !destino || dim <= 0 ) return NULL;
-
-   if ( MAX( origem->ncol, origem->nrow ) <= dim ) {
-      return origem;
-   }
+void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim ) {
+   if ( !origem || !destino || dim <= 0 ) return;
 
    gboolean deitada = ( origem->ncol > origem->nrow );
    destino->ncol = deitada ? dim : ( dim * origem->ncol ) / origem->nrow;
@@ -578,7 +569,7 @@ ImagemColorida *reduzir_imagem_colorida_bilinear( ImagemColorida *origem, Imagem
 
    // 3. Alocação da Nova Matriz Colorida
    destino->image = alocar_matriz_pixels_colorida( destino->nrow, destino->ncol );
-   if ( !destino->image ) return NULL;
+   if ( !destino->image ) return;
 
    // 4. Fatores de proporção
    float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? destino->ncol - 1 : 1 );
@@ -626,7 +617,6 @@ ImagemColorida *reduzir_imagem_colorida_bilinear( ImagemColorida *origem, Imagem
          destino->image[i][j].b = ( uint8_t )( b_interp + 0.5f );
       }
    }
-   return destino;
 }
 
 
@@ -725,6 +715,101 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 
 
 
+// void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
+//    if ( !IMG || !IMG->image ) return;
+//
+//    int max_val = IMG->max;
+//    int num_bins = max_val + 1;
+//
+//    // Alocação limpa com GLib. Para imagens de 12MP, um pixel count cabe no long,
+//    // mas usamos long long para garantir que nunca haverá overflow na variância.
+//    g_autofree long long *histograma = g_new0( long long, num_bins );
+//
+//    // =================================================================================
+//    // 1. CONSTRUÇÃO PARALELA DO HISTOGRAMA (Padrão Ouro de Otimização Multi-Core)
+//    // =================================================================================
+//    #pragma omp parallel
+//    {
+//       // Cada thread ganha um histograma local para não travar a memória (Sem atomic/locks)
+//       long long *hist_local = g_new0( long long, num_bins );
+//
+//       #pragma omp for nowait
+//       for ( int i = 0; i < IMG->nrow; i++ ) {
+//          for ( int j = 0; j < IMG->ncol; j++ ) {
+//             int val = IMG->image[i][j];
+//             if ( val >= 0 && val <= max_val ) {
+//                hist_local[val]++;
+//             }
+//          }
+//       }
+//
+//       // Ao final do seu lote de linhas, a thread despeja seus dados no histograma global
+//       #pragma omp critical
+//       {
+//          for ( int k = 0; k < num_bins; k++ ) {
+//             histograma[k] += hist_local[k];
+//          }
+//       }
+//
+//       g_free( hist_local );
+//    }
+//
+//    // =================================================================================
+//    // 2. MATEMÁTICA DO MÉTODO DE OTSU (Muito rápido, apenas 256 iterações)
+//    // =================================================================================
+//    long long total_pixels = ( long long )IMG->nrow * IMG->ncol;
+//    double soma_total = 0.0;
+//
+//    for ( int i = 0; i < num_bins; i++ ) {
+//       soma_total += ( double )( i * histograma[i] );
+//    }
+//
+//    double soma_b = 0.0;
+//    long long w_b = 0;
+//    long long w_f = 0;
+//
+//    double variancia_maxima = 0.0;
+//    int limiar_otsu = 0;
+//
+//    // Varre todos os limiares possíveis (0 a 255)
+//    for ( int t = 0; t < num_bins; t++ ) {
+//       w_b += histograma[t];              // Peso da classe "Fundo" (Background)
+//       if ( w_b == 0 ) continue;          // Evita divisão por zero
+//
+//       w_f = total_pixels - w_b;          // Peso da classe "Frente" (Foreground)
+//       if ( w_f == 0 ) break;             // Fim dos dados úteis
+//
+//       soma_b += ( double )( t * histograma[t] );
+//
+//       // Médias das intensidades do fundo e da frente
+//       double media_b = soma_b / ( double )w_b;
+//       double media_f = ( soma_total - soma_b ) / ( double )w_f;
+//
+//       // Variância Inter-Classes
+//       double diff = media_b - media_f;
+//       double variancia_inter = ( double )w_b * ( double )w_f * diff * diff;
+//
+//       // Guarda o limiar que produziu a maior separação entre branco e preto
+//       if ( variancia_inter > variancia_maxima ) {
+//          variancia_maxima = variancia_inter;
+//          limiar_otsu = t;
+//       }
+//    }
+//
+//    // =================================================================================
+//    // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (O seu laço original, super rápido)
+//    // =================================================================================
+//    #pragma omp parallel for schedule(static)
+//    for ( int i = 0; i < IMG->nrow; i++ ) {
+//       for ( int j = 0; j < IMG->ncol; j++ ) {
+//          IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? max_val : 0;
+//       }
+//    }
+// }
+
+
+
+
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
    if ( !IMG || !IMG->image ) return;
 
@@ -736,32 +821,15 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
    g_autofree long long *histograma = g_new0( long long, num_bins );
 
    // =================================================================================
-   // 1. CONSTRUÇÃO PARALELA DO HISTOGRAMA (Padrão Ouro de Otimização Multi-Core)
+   // 1. CONSTRUÇÃO DO HISTOGRAMA (Sequencial e Otimizado para Cache L1/L2)
    // =================================================================================
-   #pragma omp parallel
-   {
-      // Cada thread ganha um histograma local para não travar a memória (Sem atomic/locks)
-      long long *hist_local = g_new0( long long, num_bins );
-
-      #pragma omp for nowait
-      for ( int i = 0; i < IMG->nrow; i++ ) {
-         for ( int j = 0; j < IMG->ncol; j++ ) {
-            int val = IMG->image[i][j];
-            if ( val >= 0 && val <= max_val ) {
-               hist_local[val]++;
-            }
+   for ( int i = 0; i < IMG->nrow; i++ ) {
+      for ( int j = 0; j < IMG->ncol; j++ ) {
+         int val = IMG->image[i][j];
+         if ( val >= 0 && val <= max_val ) {
+            histograma[val]++;
          }
       }
-
-      // Ao final do seu lote de linhas, a thread despeja seus dados no histograma global
-      #pragma omp critical
-      {
-         for ( int k = 0; k < num_bins; k++ ) {
-            histograma[k] += hist_local[k];
-         }
-      }
-
-      g_free( hist_local );
    }
 
    // =================================================================================
@@ -807,9 +875,8 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
    }
 
    // =================================================================================
-   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (O seu laço original, super rápido)
+   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (Sequencial)
    // =================================================================================
-   #pragma omp parallel for schedule(static)
    for ( int i = 0; i < IMG->nrow; i++ ) {
       for ( int j = 0; j < IMG->ncol; j++ ) {
          IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? max_val : 0;

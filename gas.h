@@ -2,40 +2,43 @@
 #define GAS_H
 
 #include <glib.h>
-#include <omp.h>
+#include "comum.h"
 
 
 typedef struct {
-	int n_pop, n_gen, n_tor;
-	double p_rec, p_mut, peso_disp, toleracia;
-	GRand *rand; // <- Ponteiro para o gerador de números aleatórios
+   int n_pop, n_gen, n_tor, n_obj;
+   int max_geracoes;
+   int limiar;
+   double p_rec, p_mut, peso_disp, toleracia;
+   GRand *rand; // <- Ponteiro para o gerador de números aleatórios
 } GasParametros;
 
 typedef struct {
-	double *ini, *fim;
-	int n_dim;
+   double *ini, *fim;
+   int n_dim;
 } GasLimites;
 
 typedef struct {
    double *x, fitness;
 } GasPopulacao;
 
+typedef struct {
+   double *x;
+} GasGenitores;
 
-#define GAS_NUM_SEMENTES 4
+
+// ============================================================================
+// ASSINATURAS DE FUNÇÕES
+// ============================================================================
 void gas_gerar_sementes( guint32 *sementes );
 
-int gas_comparar_objetivo_max( const void* a, const void* b );
+void gas_liberar_populacao( GasPopulacao *pop, const int n_pop );
 
-int gas_comparar_objetivo_min( const void* a, const void* b );
+GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj );
 
-double F5( const double *x, const int n_dim );
+void gas_limites_liberar( GasLimites *lim, int n_obj );
 
-double F6( const double *x, const int n_dim );
-
-double F10( const double *x, const int n_dim );
-
-GasPopulacao gas_pipeline( const GasParametros *par, const GasLimites *lim, double(gas_avaliar)(const double*,const int),
-									int(gas_comparar)(const void* a, const void* b) );
+GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim );
 
 
 

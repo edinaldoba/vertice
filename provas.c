@@ -645,7 +645,7 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *diario, cons
       g_autofree char *nome_arquivo_png = g_strdup_printf( "%.2d - %s.png", aluno_idx + 1, diario[aluno_idx].aluno );
       g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
-      if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 2.5 ) ) {
+      if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 6.0 ) ) {
          g_printerr( "[AVISO] Falha ao converter e mover imagem %s\n", thread_caminho_png );
       }
 

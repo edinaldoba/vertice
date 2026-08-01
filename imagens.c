@@ -19,6 +19,7 @@
 #include "glibrary.h"
 #include "latex.h"
 #include "pds.h"
+#include "gas.h"
 
 
 
@@ -114,444 +115,94 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
 
 
+static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora ) {
+   // 1. Validação de segurança dos ponteiros de entrada
+   g_return_val_if_fail( img && info && ancora, FALSE );
 
+   guint32 sementes[4];
+   gas_gerar_sementes( sementes );
 
+   // Como usamos g_autoptr, a GLib fará o free automático no fim do escopo (não usar g_rand_free)
+   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
 
+   GasParametros par = {
+      .n_pop        = 120,    // Tamanho da população (Calibrado)
+      .n_gen        = 48,     // Quantidade de substituições (40%)
+      .n_tor        = 2,      // Número de indivíduos no torneio
+      .n_obj        = 4,      // Número de objetivos da coevolução
+      .p_rec        = 0.80,   // Probabilidade de recombinação
+      .p_mut        = 0.90,   // Probabilidade de mutação
+      .peso_disp    = 1.8,    // Peso de dispersão inicial
+      .toleracia    = 3.0e-1, // Tolerância geométrica
+      .max_geracoes = 65,     // Limite máximo de gerações inicial
+      .limiar       = 10,     // Limiar valor do pixel fitness local
+      .rand         = rand_context
+   };
 
+   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
 
-
-// Função unificada: dir_i e dir_j ditam para qual lado o "L-shape" vai crescer (1 ou -1)
-static int ponto_de_referencia( ImagemCinza *IMG, IndiceMatriz p, int dir_i, int dir_j, int tamanho_maximo ) {
-   if ( !IMG || !IMG->image ) return 0;
-
-   int limiar = 10;
-
-   int soma = 0;
-   float taxa_aux = 0.0f;
-
-   // Variáveis para validar a integridade da "quina" (linhas/colunas de origem)
-   int soma_linha_origem = 0;
-   int soma_coluna_origem = 0;
-
-   // 1. Proteção Direcional de Borda precisa usar (tamanho_maximo - 1)
-   int limite_i = p.i + ( ( tamanho_maximo - 1 ) * dir_i );
-   int limite_j = p.j + ( ( tamanho_maximo - 1 ) * dir_j );
-
-   if ( limite_i < 0 || limite_i >= IMG->nrow || limite_j < 0 || limite_j >= IMG->ncol ) {
-      return 0;
+   // 2. Primeira tentativa de convergência
+   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
+   if ( melhor == NULL ) {
+      gas_limites_liberar( lim, par.n_obj );
+      return FALSE; // Força quarentena com segurança
    }
 
-   // 2. Crescimento direcional do quadrado
-   for ( int i = 0; i < tamanho_maximo; i++ ) {
+   double media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
+   gboolean sucesso = (media_fitness > 0.999);
 
-      // OTIMIZAÇÃO: Verifica a saúde das bordas da quina em O(1) por camada
-      if ( IMG->image[ p.i ][ p.j + ( i * dir_j ) ] < limiar ) soma_linha_origem++;
-      if ( IMG->image[ p.i + ( i * dir_i ) ][ p.j ] < limiar ) soma_coluna_origem++;
+   // 3. Mecanismo de resgate (Retry) para imagens com muito ruído
+   if ( !sucesso ) {
+      // CRÍTICO: Liberar a memória da primeira tentativa antes de alocar a nova
+      gas_liberar_populacao( melhor, par.n_obj );
 
-      // Varre a linha "horizontal" da nova camada L
-      for ( int j = 0; j <= i; j++ ) {
-         if ( IMG->image[ p.i + ( i * dir_i ) ][ p.j + ( j * dir_j ) ] < limiar ) {
-            soma++;
-         }
-      }
+      par.peso_disp = 2.8; // Forçar exploração profunda
+      par.max_geracoes = 100;
+      melhor = gas_pipeline( img, &par, lim );
 
-      // Varre a coluna "vertical" da nova camada L
-      for ( int r = 0; r < i; r++ ) {
-         if ( IMG->image[ p.i + ( r * dir_i ) ][ p.j + ( i * dir_j ) ] < limiar ) {
-            soma++;
-         }
-      }
-
-      int area_total = ( i + 1 ) * ( i + 1 );
-      float taxa = ( float )soma / area_total;
-
-      // ====================================================================
-      // 3. BLINDAGEM DE DESLIZAMENTO (A Lógica que você propôs)
-      // ====================================================================
-      float taxa_linha_origem  = ( float )soma_linha_origem / ( i + 1 );
-      float taxa_coluna_origem = ( float )soma_coluna_origem / ( i + 1 );
-
-      // Se a quina estiver vazando para a margem branca, ignoramos a taxa
-      // global de 83% e simplesmente pulamos o critério de aceite.
-      if ( taxa_linha_origem < 0.8f || taxa_coluna_origem < 0.8f ) {
-         continue;
-      }
-
-      // 4. Critério de aceite e detecção de queda (Peak Detection)
-      if ( ( i > 3 ) && ( ( taxa > 0.8f ) || ( taxa_aux > 0.0f ) ) ) {
-
-         // Aceita maior OU igual (>=) para tolerar o preenchimento total
-         if ( taxa >= taxa_aux ) {
-            taxa_aux = taxa;
-         } else {
-            // A densidade caiu! Significa que a camada anterior (i-1) era o limite.
-            return i;
-         }
-      }
+      media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
+      sucesso = (media_fitness > 0.999);
    }
 
-   return 0;
+   // 4. Extração das coordenadas reais
+   for ( int k = 0; k < par.n_obj; k++ ) {
+      ancora[k].j = (int)round(melhor[k].x[0]);
+      ancora[k].i = (int)round(melhor[k].x[1]);
+   }
+
+   // 5. Determinação autônoma da direção da folha baseada na geometria das âncoras
+   info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
+                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j  ) ? 'h' : 'v';
+
+   // ------------------------------------------------------------------------
+   // LIMPEZA DE MEMÓRIA (DEEP FREE)
+   // ------------------------------------------------------------------------
+
+   gas_liberar_populacao( melhor, par.n_obj );
+   gas_limites_liberar( lim, par.n_obj );
+
+   return sucesso;
 }
 
 
 
-
-// =====================================================================
-// Funções de Varredura dos 4 Cantos (Corrigidas)
-// =====================================================================
-
-static IndiceMatriz quadradinho_A( ImagemCinza *IMG, int tam_max ) {
-   if ( !IMG ) return ( IndiceMatriz ) {
-      -1, -1
-      };
-
-   // Canto Superior Esquerdo: cresce para Baixo (+1) e Direita (+1)
-   for ( int i = 0; i < IMG->nrow / 2; i++ ) {
-      for ( int j = 0; j < IMG->ncol / 2; j++ ) {
-         IndiceMatriz p = { .i = i, .j = j };
-         int lado_quadradinho = ponto_de_referencia( IMG, p, 1, 1, tam_max );
-         if ( lado_quadradinho > 0 ) {
-            return p;
-         }
-      }
-   }
-   return ( IndiceMatriz ) {
-      -1, -1
-      };
-}
-
-static IndiceMatriz quadradinho_B( ImagemCinza *IMG, int tam_max ) {
-   if ( !IMG ) return ( IndiceMatriz ) {
-      -1, -1
-      };
-
-   // Canto Superior Direito: cresce para Baixo (+1) e Esquerda (-1)
-   // CORRIGIDO: j começa em IMG->ncol - 1
-   for ( int j = IMG->ncol - 1; j > IMG->ncol / 2; j-- ) {
-      for ( int i = 0; i < IMG->nrow / 2; i++ ) {
-         IndiceMatriz p = { .i = i, .j = j };
-         int lado_quadradinho = ponto_de_referencia( IMG, p, 1, -1, tam_max );
-         if ( lado_quadradinho > 0 ) {
-            return p;
-         }
-      }
-   }
-   return ( IndiceMatriz ) {
-      -1, -1
-      };
-}
-
-static IndiceMatriz quadradinho_C( ImagemCinza *IMG, int tam_max ) {
-   if ( !IMG ) return ( IndiceMatriz ) {
-      -1, -1
-      };
-
-   // Canto Inferior Direito: cresce para Cima (-1) e Esquerda (-1)
-   // CORRIGIDO: i e j começam no tamanho máximo - 1
-   for ( int i = IMG->nrow - 1; i > IMG->nrow / 2; i-- ) {
-      for ( int j = IMG->ncol - 1; j > IMG->ncol / 2; j-- ) {
-         IndiceMatriz p = { .i = i, .j = j };
-         int lado_quadradinho = ponto_de_referencia( IMG, p, -1, -1, tam_max );
-         if ( lado_quadradinho > 0 ) {
-            return p;
-         }
-      }
-   }
-   return ( IndiceMatriz ) {
-      -1, -1
-      };
-}
-
-static IndiceMatriz quadradinho_D( ImagemCinza *IMG, int tam_max ) {
-   if ( !IMG ) return ( IndiceMatriz ) {
-      -1, -1
-      };
-
-   // Canto Inferior Esquerdo: cresce para Cima (-1) e Direita (+1)
-   // CORRIGIDO: i começa em IMG->nrow - 1
-   for ( int i = IMG->nrow - 1; i > IMG->nrow / 2; i-- ) {
-      for ( int j = 0; j < IMG->ncol / 2; j++ ) {
-         IndiceMatriz p = { .i = i, .j = j };
-         int lado_quadradinho = ponto_de_referencia( IMG, p, -1, 1, tam_max );
-         if ( lado_quadradinho > 0 ) {
-            return p;
-         }
-      }
-   }
-   return ( IndiceMatriz ) {
-      -1, -1
-      };
-}
-
-
-
-typedef struct {
-   int distorcido;
-   int culpado;
-   double grau_erro;
-   char direcao;     // Agora a função retorna a direção correta!
-} AnaliseAncoras;
-
-static AnaliseAncoras verificar_ancoras( const IndiceMatriz *p ) {
-   AnaliseAncoras resultado = {0, -1, 0.0, 'x'};
-   if ( !p ) return resultado;
-
-   // =======================================================================
-   // 1. ACHAR A "QUINA IMACULADA" E SALVAR TODOS OS ÂNGULOS
-   // =======================================================================
-   double menor_cos_sq = 2.0;
-   int melhor_vertice = 0;
-
-   // double cos_sq_array[4];
-
-   for ( int k = 0; k < 4; k++ ) {
-      int prev = ( k + 3 ) % 4;
-      int next = ( k + 1 ) % 4;
-
-      long long v1_i = p[prev].i - p[k].i;
-      long long v1_j = p[prev].j - p[k].j;
-      long long v2_i = p[next].i - p[k].i;
-      long long v2_j = p[next].j - p[k].j;
-
-      long long dot = ( v1_i * v2_i ) + ( v1_j * v2_j );
-      long long mag1 = ( v1_i * v1_i ) + ( v1_j * v1_j );
-      long long mag2 = ( v2_i * v2_i ) + ( v2_j * v2_j );
-
-      double cos_sq = 1.0;
-      if ( mag1 != 0 && mag2 != 0 ) {
-         cos_sq = ( double )( dot * dot ) / ( double )( mag1 * mag2 );
-      }
-
-      // cos_sq_array[k] = cos_sq;
-
-      if ( cos_sq < menor_cos_sq ) {
-         menor_cos_sq = cos_sq;
-         melhor_vertice = k;
-      }
-   }
-
-   // =======================================================================
-   // 2. EXTRAIR A DIREÇÃO DAS ARESTAS IMACULADAS
-   // =======================================================================
-   int k = melhor_vertice;
-   double edge_prev = hypot( p[( k + 3 ) % 4].i - p[k].i, p[( k + 3 ) % 4].j - p[k].j );
-   double edge_next = hypot( p[( k + 1 ) % 4].i - p[k].i, p[( k + 1 ) % 4].j - p[k].j );
-
-   double good_w, good_h;
-   if ( k == 0 ) {
-      good_w = edge_next;
-      good_h = edge_prev;
-   } else if ( k == 1 ) {
-      good_w = edge_prev;
-      good_h = edge_next;
-   } else if ( k == 2 ) {
-      good_w = edge_next;
-      good_h = edge_prev;
-   } else             {
-      good_w = edge_prev;
-      good_h = edge_next;
-   }
-
-   resultado.direcao = ( good_h < good_w ) ? 'h' : 'v';
-
-   // =======================================================================
-   // 3. ANÁLISE DE DISTORÇÃO DO PARALELOGRAMO
-   // =======================================================================
-   long long err_i = ( long long )p[0].i - p[1].i + p[2].i - p[3].i;
-   long long err_j = ( long long )p[0].j - p[1].j + p[2].j - p[3].j;
-   long long distorcao_sq = ( err_i * err_i ) + ( err_j * err_j );
-
-   long long diag_sq = ( long long )( p[2].i - p[0].i ) * ( p[2].i - p[0].i ) +
-                       ( long long )( p[2].j - p[0].j ) * ( p[2].j - p[0].j );
-
-   if ( diag_sq == 0 ) {
-      resultado.distorcido = 1;
-      return resultado;
-   }
-
-   double threshold_sq = 0.03 * 0.03;
-   double razao_sq = ( double )distorcao_sq / ( double )diag_sq;
-   resultado.grau_erro = sqrt( razao_sq );
-
-   // =======================================================================
-   // 4. VEREDITO FINAL E DEFESA CONTRA O INSCRITÍVEL
-   // =======================================================================
-   if ( razao_sq > threshold_sq ) {
-      resultado.distorcido = 1; // Faltava sinalizar a distorção!
-
-      // Usa o melhor_vertice que o laço inicial (passo 1) já encontrou
-      int suposto_culpado = ( melhor_vertice + 2 ) % 4;
-
-      // Consulta no vetor se o ângulo do oposto também é suspeitamente bom
-      // if (cos_sq_array[suposto_culpado] < 0.03) {
-      //    resultado.culpado = -1; // Aborta a restauração
-      // } else {
-      resultado.culpado = suposto_culpado; // Restaura com segurança
-      // }
-   } else {
-      resultado.distorcido = 0;
-      resultado.culpado = -1;
-   }
-
-   return resultado;
-}
-
-
-static int validar_proporcao_final( const IndiceMatriz *ancora, char direcao ) {
-   double w_top = hypot( ancora[1].i - ancora[0].i, ancora[1].j - ancora[0].j );
-   double w_bot = hypot( ancora[2].i - ancora[3].i, ancora[2].j - ancora[3].j );
-   double h_left  = hypot( ancora[3].i - ancora[0].i, ancora[3].j - ancora[0].j );
-   double h_right = hypot( ancora[2].i - ancora[1].i, ancora[2].j - ancora[1].j );
-
-   double w_avg = ( w_top + w_bot ) / 2.0;
-   double h_avg = ( h_left + h_right ) / 2.0;
-
-   if ( w_avg < 1.0 || h_avg < 1.0 ) return 0; // Proteção contra zeros
-
-   double proporcao_real = h_avg / w_avg;
-   double proporcao_esperada = ( direcao == 'h' ) ? ( 11.0 / 14.0 ) : ( 15.0 / 10.0 );
-
-   double erro = fabs( proporcao_real - proporcao_esperada ) / proporcao_esperada;
-
-   // 6% de tolerância para o papel amassado no scanner
-   return ( erro <= 0.06 );
-}
-
-
-
-static void restaurar_ancora_culpada( IndiceMatriz *ancora, int culpado ) {
-   if ( !ancora || culpado < 0 || culpado > 3 ) return;
-
-   // Usamos variáveis locais para deixar a equação exatamente igual à teoria matemática
-   int i0 = ancora[0].i, j0 = ancora[0].j;
-   int i1 = ancora[1].i, j1 = ancora[1].j;
-   int i2 = ancora[2].i, j2 = ancora[2].j;
-   int i3 = ancora[3].i, j3 = ancora[3].j;
-
-   switch ( culpado ) {
-   case 0:
-      ancora[0].i = i1 + i3 - i2;
-      ancora[0].j = j1 + j3 - j2;
-      break;
-   case 1:
-      ancora[1].i = i0 + i2 - i3;
-      ancora[1].j = j0 + j2 - j3;
-      break;
-   case 2:
-      ancora[2].i = i1 + i3 - i0;
-      ancora[2].j = j1 + j3 - j0;
-      break;
-   case 3:
-      ancora[3].i = i0 + i2 - i1;
-      ancora[3].j = j0 + j2 - j1;
-      break;
-   }
-
-}
-
-
-
-static gboolean referencias_e_direcao( ImagemCinza *IMG, MapeamentoGabarito *info, IndiceMatriz *ancora ) {
-   if ( !IMG || !info ) return FALSE;
-   int tam_max = MAX( IMG->ncol, IMG->nrow ) / 20;
-
-   // 1. Threads buscam os 4 cantos
-   #pragma omp parallel sections
-   {
-      #pragma omp section
-      {
-         ancora[0] = quadradinho_A( IMG, tam_max );
-      }
-      #pragma omp section
-      {
-         ancora[1] = quadradinho_B( IMG, tam_max );
-      }
-      #pragma omp section
-      {
-         ancora[2] = quadradinho_C( IMG, tam_max );
-      }
-      #pragma omp section
-      {
-         ancora[3] = quadradinho_D( IMG, tam_max );
-      }
-   }
-
-   // 2. Análise geométrica profunda
-   AnaliseAncoras analise = verificar_ancoras( ancora );
-
-   // 3. A direção foi deduzida com segurança cirúrgica ignorando o erro!
-   info->direcao = analise.direcao;
-
-   // 4. Salva a prova caso tenha um falso positivo esticando ela
-   if ( analise.distorcido ) {
-      if ( analise.culpado == -1 ) return FALSE; // Distorção inexplicável (ex: encontrou uma linha)
-
-      g_printerr( "Aviso: Distorção detectada (%.1f%%). Restaurando a quina %d...\n",
-                  analise.grau_erro * 100.0, analise.culpado );
-
-      restaurar_ancora_culpada( ancora, analise.culpado );
-   }
-
-   // 5. O Veredito: A malha (original ou restaurada) possui a escala que esperamos?
-   if ( !validar_proporcao_final( ancora, info->direcao ) ) {
-      g_printerr( "Erro Crítico: Proporção da malha não bate com a direção %c. Enviando para Quarentena.\n", info->direcao );
-      return FALSE;
-   }
-
-   printf( "\ndireção = %c\nA( %3d, %3d )         B( %3d, %3d )\nD( %3d, %3d )         C( %3d, %3d )\n\n", info->direcao,
-           ancora[0].i, ancora[0].j, ancora[1].i, ancora[1].j,
-           ancora[3].i, ancora[3].j, ancora[2].i, ancora[2].j );
-
-   return TRUE; // Sucesso absoluto! A imagem pode ser recortada perfeitamente.
-}
-
-
-
-// Atualize a assinatura no .h e no .c para receber o angulo_aplicado
-static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza *img_gray_rot,
-                               double angulo_aplicado, IndiceMatriz *ancora )
-{
-   if ( !img_rgb || !img_gray_rot || !ancora ) return;
-
-   // 1. O ângulo usado para DESENTORTAR a miniatura foi -angulo_aplicado
-   double rad = -angulo_aplicado * ( G_PI / 180.0 );
-   double cos_a = cos( rad );
-   double sin_a = sin( rad );
-
-   // 2. Dimensões reais da imagem RGB Original (que continua torta no disco/memória)
-   double W_orig = img_rgb->ncol;
-   double H_orig = img_rgb->nrow;
-
-   // 3. Calculamos qual seria o tamanho do Bounding Box da RGB se ela fosse desentortada
-   double W_rot_rgb = fabs(W_orig * cos_a) + fabs(H_orig * sin_a);
-   double H_rot_rgb = fabs(H_orig * cos_a) + fabs(W_orig * sin_a);
-
-   // 4. Fatores de escala exatos (Cinza Reta -> RGB Reta)
-   double scale_x = W_rot_rgb / (double)img_gray_rot->ncol;
-   double scale_y = H_rot_rgb / (double)img_gray_rot->nrow;
-
-   // 5. Parâmetros da transformação afim inversa (Para voltar para o espaço torto)
-   double ux = cos_a;
-   double uy = -sin_a;
-   double vx = sin_a;
-   double vy = cos_a;
-
-   // Origem do centro de rotação mapeado (idêntico ao cálculo da rotacionar_imagem)
-   double x_origem = (W_orig / 2.0) - (W_rot_rgb / 2.0) * ux - (H_rot_rgb / 2.0) * vx;
-   double y_origem = (H_orig / 2.0) - (W_rot_rgb / 2.0) * uy - (H_rot_rgb / 2.0) * vy;
-
+static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza *img_gray, IndiceMatriz *ancora ) {
+   // Validação de segurança padrão GLib
+   g_return_if_fail( img_rgb && img_gray && ancora );
+   g_return_if_fail( img_gray->ncol > 0 && img_gray->nrow > 0 ); // Proteção vital!
+
+   // 1. Fatores de escala diretos (Largura e Altura)
+   double scale_x = (double)img_rgb->ncol / (double)img_gray->ncol;
+   double scale_y = (double)img_rgb->nrow / (double)img_gray->nrow;
+
+   // 2. Aplicação da escala em cada uma das 4 âncoras
    for ( int ii = 0; ii < 4; ii++ ) {
-      // Passo A: Escala o ponto para o mundo RGB Reto
-      double x_sh = ancora[ii].j * scale_x;
-      double y_sh = ancora[ii].i * scale_y;
+      double x_scaled = ancora[ii].j * scale_x;
+      double y_scaled = ancora[ii].i * scale_y;
 
-      // Passo B: Aplica a Rotação Inversa para achar a coordenada na RGB Original (torta)
-      double x_skewed = x_origem + ( y_sh * vx ) + ( x_sh * ux );
-      double y_skewed = y_origem + ( y_sh * vy ) + ( x_sh * uy );
-
-      // Atualiza a âncora com precisão sub-pixel convertida para inteiro
-      ancora[ii].j = ( int )round( x_skewed );
-      ancora[ii].i = ( int )round( y_skewed );
+      // Atualiza a âncora convertendo de volta para inteiro com arredondamento seguro
+      ancora[ii].j = ( int )round( x_scaled );
+      ancora[ii].i = ( int )round( y_scaled );
    }
 }
 
@@ -609,12 +260,10 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
       ImagemColorida img_rgb_orig  = {0};
       ImagemColorida img_rgb_crop  = {0};
-      // ImagemColorida img_rgb_rot  = {0};
 
       ImagemCinza img_gray_bin   = {0};
       ImagemCinza img_gray_crop  = {0};
       ImagemCinza img_gray_alloc = {0};
-      ImagemCinza img_gray_rot  = {0};
 
       g_autofree char *path_png = g_build_filename( destino, imgs_png[i].str, NULL );
       g_autofree char *path_ppm = trocar_extensao( path_png, "ppm" );
@@ -624,36 +273,23 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       // FASE 1: Carregamento
       imread( &img_rgb_orig, path_ppm );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
-      // binarizar_pgm_metodo_otsu( &img_gray_bin );
       g_remove( path_ppm );
 
       // FASE 2: Normalização e Deskewing (Em Cinza para Visão)
-      int dim = 640;
-      ImagemCinza *ptr_gray_work = reduzir_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
-      salvar_imagem_pgm( ptr_gray_work, path_ppm ); // Teste
-
-      double angulo_erro = detectar_angulo_inclinacao_cv( ptr_gray_work );
-      double angulo_aplicado = 0.0; // <--- NOVA VARIÁVEL
-
-      if ( fabs( angulo_erro ) > 0.2 ) {
-         g_printerr( "Gabarito rotacionado em %.2f graus. Corrigindo o prumo...\n", angulo_erro );
-         rotacionar_imagem( ptr_gray_work, &img_gray_rot, -angulo_erro );
-         ptr_gray_work = &img_gray_rot;
-         angulo_aplicado = angulo_erro; // <--- REGISTRAMOS QUE ROTACIONAMOS DE FATO
-      }
+      int dim = 960;
+      redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
       // FASE 3: Visão Computacional
-      if ( !referencias_e_direcao( ptr_gray_work, &info, ancora ) ) {
+      if ( !gas_mapear_ancoras( &img_gray_alloc, &info, ancora ) ) {
          fprintf( stderr, "[ERRO] Falha de âncoras na imagem: %s\n", imgs_png[i].str );
          sucesso = FALSE;
       }
 
       if ( sucesso ) {
          // FASE 4: Correção Geométrica Dupla
-         cortar_imagem_bilinear( ptr_gray_work, &img_gray_crop, ancora );
-         // salvar_imagem_pgm( &img_gray_crop, path_ppm ); // Teste
+         cortar_imagem_bilinear( &img_gray_alloc, &img_gray_crop, ancora );
 
-         normalizar_ancora( &img_rgb_orig, ptr_gray_work, angulo_aplicado, ancora );
+         normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          cortar_imagem_colorida_bilinear( &img_rgb_orig, &img_rgb_crop, ancora );
 
          salvar_imagem_png( &img_rgb_crop, path_png );
@@ -690,8 +326,8 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
                fflush( f[j] ); // Garante que o dado vá fisicamente para o disco
             }
 
-            printf( "%3d %3d %3d %3d %3d | Número: %2d | Respostas: %s\n",
-                    info.id, info.turma, info.disc, info.per, info.seq, info.num, info.resp );
+            // printf( "%3d %3d %3d %3d %3d | Número: %2d | Respostas: %s\n",
+            //         info.id, info.turma, info.disc, info.per, info.seq, info.num, info.resp );
          } else {
             g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_png[i].str );
             sucesso = FALSE;
@@ -716,7 +352,6 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
-      if ( img_gray_rot.image )   liberar_matriz_pixels( img_gray_rot.image, img_gray_rot.nrow );
       if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
 
       liberar_imagem_imread( &img_rgb_orig );

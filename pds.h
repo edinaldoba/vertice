@@ -39,9 +39,9 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
 
 void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora );
 
-ImagemCinza *reduzir_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim );
+void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim );
 
-ImagemColorida *reduzir_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim );
+void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim );
 
 void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, float sigma );
 
