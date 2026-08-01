@@ -509,7 +509,7 @@ void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, i
 
    // Paralelização OpenMP ativada.
    // schedule(static) é perfeito aqui porque o custo computacional de cada linha é exatamente igual.
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < destino->nrow; i++ ) {
       // OTIMIZAÇÃO 1: Variáveis declaradas aqui dentro são PRIVADAS para cada thread
       float src_y = y_ratio * i;
@@ -543,8 +543,6 @@ void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, i
       }
    }
 }
-
-
 
 
 

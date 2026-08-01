@@ -34,6 +34,7 @@ gboolean pdf2png( const char *caminho_pdf, const char *caminho_png, double escal
 
 void rgb2gray( ImagemColorida *PPM, ImagemCinza *PGM );
 void imread_gray( ImagemCinza *IMG, const char *arquivo );
+void imread_pgm( ImagemCinza *IMG, const char *arquivo );
 void imread( ImagemColorida *img, const char *arquivo );
 
 

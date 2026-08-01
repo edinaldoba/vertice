@@ -742,6 +742,60 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
 
 
 
+void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
+   if ( !IMG || !arquivo ) return;
+
+   FILE *p = fopen( arquivo, "rb" );
+   if ( !p ) {
+      g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
+      return;
+   }
+
+   // 1. Segurança reativada: Se falhar, fecha o arquivo e aborta antes de alocar lixo.
+   if ( fscanf( p, "%9s\n%d %d\n%d\n", IMG->key, &IMG->ncol, &IMG->nrow, &IMG->max ) != 4 ) {
+      g_printerr( "[ERRO] Falha ao ler o cabeçalho PGM do arquivo %s.\n", arquivo );
+      fclose( p );
+      return;
+   }
+
+   snprintf( IMG->key, sizeof( IMG->key ), "P5" ); // Mais seguro que sprintf
+
+   // 2. Pré-alocação segura da matriz 2D com GLib
+   IMG->image = g_new0( int*, IMG->nrow );
+   for ( int i = 0; i < IMG->nrow; i++ ) {
+      IMG->image[i] = g_new0( int, IMG->ncol );
+   }
+
+   // 3. I/O em Bloco (Leitura Massiva)
+   size_t total_pixels = ( size_t )IMG->ncol * IMG->nrow;
+   unsigned char *buffer_gigante = g_new( unsigned char, total_pixels );
+
+   if ( fread( buffer_gigante, 1, total_pixels, p ) != total_pixels ) {
+      g_printerr( "[AVISO] Fim de arquivo inesperado. A imagem %s pode estar cortada.\n", arquivo );
+   }
+   fclose( p );
+
+   // 4. Processamento CPU-Bound Paralelizado via OpenMP
+   // schedule(static) reativado para dividir linhas igualmente entre os núcleos
+   // #pragma omp parallel for schedule(static)
+   for ( int i = 0; i < IMG->nrow; i++ ) {
+
+      // CORREÇÃO: Em PGM (tons de cinza), temos exatos 1 byte por pixel, sem o '* 3'
+      size_t offset_linha = ( size_t )i * IMG->ncol;
+
+      for ( int j = 0; j < IMG->ncol; j++ ) {
+         // O acesso é perfeitamente linear e contíguo
+         size_t idx = offset_linha + j;
+
+         IMG->image[i][j] = ( int )buffer_gigante[idx];
+      }
+   }
+
+   g_free( buffer_gigante ); // Limpeza via GLib
+}
+
+
+
 
 
 

@@ -135,7 +135,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
       .peso_disp    = 1.8,    // Peso de dispersão inicial
       .toleracia    = 3.0e-1, // Tolerância geométrica
       .max_geracoes = 65,     // Limite máximo de gerações inicial
-      .limiar       = 10,     // Limiar valor do pixel fitness local
+      .limiar       = 2,     // Limiar valor do pixel fitness local
       .rand         = rand_context
    };
 
@@ -278,6 +278,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       // FASE 2: Normalização e Deskewing (Em Cinza para Visão)
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
+      // salvar_imagem_pgm( &img_gray_alloc, path_ppm ); // Teste
 
       // FASE 3: Visão Computacional
       if ( !gas_mapear_ancoras( &img_gray_alloc, &info, ancora ) ) {

@@ -4,28 +4,6 @@
 #include "comum.h"
 
 
-// =========================================================================
-// INÍCIO DA BLINDAGEM DE LINGUAGEM (Funções c++)
-// =========================================================================
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-   // FUNÇÕES C++ OPEN_CV (Implementações no arquivo transformacoes_cv.cpp)
-   void extrair_regiao_por_ancoras_cv( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora );
-   void extrair_regiao_colorida_por_ancoras_cv( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora );
-   double detectar_angulo_inclinacao_cv( const ImagemCinza *IMG );
-   int encontrar_ancoras_cv( const ImagemCinza *IMG, IndiceMatriz *ancora );
-
-// =========================================================================
-// FIM DA BLINDAGEM DE LINGUAGEM
-// =========================================================================
-#ifdef __cplusplus
-}
-#endif
-
-
-
 
 void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora );
 
