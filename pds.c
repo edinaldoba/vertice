@@ -51,7 +51,7 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
 
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
@@ -119,7 +119,7 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
 
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
@@ -339,7 +339,7 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
    int y_lim = IMG->nrow - 1;
 
    // 4. Mapeamento Reverso com Interpolação Bilinear
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
 
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
@@ -428,7 +428,7 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
 
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
@@ -574,7 +574,7 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
    float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? destino->nrow - 1 : 1 );
 
    // 5. Mapeamento Reverso Paralelizado
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < destino->nrow; i++ ) {
       float src_y = y_ratio * i;
       int y = ( int )src_y;
@@ -671,7 +671,7 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
 
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int y = 0; y < IMG->nrow; y++ ) {
       for ( int x = 0; x < IMG->ncol; x++ ) {
 
@@ -709,101 +709,6 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 }
 
 
-
-
-
-
-// void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
-//    if ( !IMG || !IMG->image ) return;
-//
-//    int max_val = IMG->max;
-//    int num_bins = max_val + 1;
-//
-//    // Alocação limpa com GLib. Para imagens de 12MP, um pixel count cabe no long,
-//    // mas usamos long long para garantir que nunca haverá overflow na variância.
-//    g_autofree long long *histograma = g_new0( long long, num_bins );
-//
-//    // =================================================================================
-//    // 1. CONSTRUÇÃO PARALELA DO HISTOGRAMA (Padrão Ouro de Otimização Multi-Core)
-//    // =================================================================================
-//    #pragma omp parallel
-//    {
-//       // Cada thread ganha um histograma local para não travar a memória (Sem atomic/locks)
-//       long long *hist_local = g_new0( long long, num_bins );
-//
-//       #pragma omp for nowait
-//       for ( int i = 0; i < IMG->nrow; i++ ) {
-//          for ( int j = 0; j < IMG->ncol; j++ ) {
-//             int val = IMG->image[i][j];
-//             if ( val >= 0 && val <= max_val ) {
-//                hist_local[val]++;
-//             }
-//          }
-//       }
-//
-//       // Ao final do seu lote de linhas, a thread despeja seus dados no histograma global
-//       #pragma omp critical
-//       {
-//          for ( int k = 0; k < num_bins; k++ ) {
-//             histograma[k] += hist_local[k];
-//          }
-//       }
-//
-//       g_free( hist_local );
-//    }
-//
-//    // =================================================================================
-//    // 2. MATEMÁTICA DO MÉTODO DE OTSU (Muito rápido, apenas 256 iterações)
-//    // =================================================================================
-//    long long total_pixels = ( long long )IMG->nrow * IMG->ncol;
-//    double soma_total = 0.0;
-//
-//    for ( int i = 0; i < num_bins; i++ ) {
-//       soma_total += ( double )( i * histograma[i] );
-//    }
-//
-//    double soma_b = 0.0;
-//    long long w_b = 0;
-//    long long w_f = 0;
-//
-//    double variancia_maxima = 0.0;
-//    int limiar_otsu = 0;
-//
-//    // Varre todos os limiares possíveis (0 a 255)
-//    for ( int t = 0; t < num_bins; t++ ) {
-//       w_b += histograma[t];              // Peso da classe "Fundo" (Background)
-//       if ( w_b == 0 ) continue;          // Evita divisão por zero
-//
-//       w_f = total_pixels - w_b;          // Peso da classe "Frente" (Foreground)
-//       if ( w_f == 0 ) break;             // Fim dos dados úteis
-//
-//       soma_b += ( double )( t * histograma[t] );
-//
-//       // Médias das intensidades do fundo e da frente
-//       double media_b = soma_b / ( double )w_b;
-//       double media_f = ( soma_total - soma_b ) / ( double )w_f;
-//
-//       // Variância Inter-Classes
-//       double diff = media_b - media_f;
-//       double variancia_inter = ( double )w_b * ( double )w_f * diff * diff;
-//
-//       // Guarda o limiar que produziu a maior separação entre branco e preto
-//       if ( variancia_inter > variancia_maxima ) {
-//          variancia_maxima = variancia_inter;
-//          limiar_otsu = t;
-//       }
-//    }
-//
-//    // =================================================================================
-//    // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (O seu laço original, super rápido)
-//    // =================================================================================
-//    #pragma omp parallel for schedule(static)
-//    for ( int i = 0; i < IMG->nrow; i++ ) {
-//       for ( int j = 0; j < IMG->ncol; j++ ) {
-//          IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? max_val : 0;
-//       }
-//    }
-// }
 
 
 
@@ -885,107 +790,3 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
 
 
 
-
-int calcular_limiar_ancoras( const ImagemCinza *IMG ) {
-   if ( !IMG || !IMG->image ) return 15; // Fallback de segurança
-
-   int max_val = IMG->max;
-   int num_bins = max_val + 1;
-   g_autofree long long *histograma = g_new0( long long, num_bins );
-
-   // ====================================================================
-   // 1. HISTOGRAMA PARALELO RÁPIDO
-   // ====================================================================
-   #pragma omp parallel
-   {
-      long long *hist_local = g_new0( long long, num_bins );
-
-      #pragma omp for nowait
-      for ( int i = 0; i < IMG->nrow; i++ ) {
-         for ( int j = 0; j < IMG->ncol; j++ ) {
-            int val = IMG->image[i][j];
-            if ( val >= 0 && val <= max_val ) hist_local[val]++;
-         }
-      }
-
-      #pragma omp critical
-      {
-         for ( int k = 0; k < num_bins; k++ ) histograma[k] += hist_local[k];
-      }
-      g_free( hist_local );
-   }
-
-   // ====================================================================
-   // 2. PRIMEIRO ESTÁGIO (Separa Papel vs Tinta)
-   // ====================================================================
-   long long total_pixels = (long long)IMG->nrow * IMG->ncol;
-   double soma_total = 0.0;
-   for ( int i = 0; i < num_bins; i++ ) soma_total += i * histograma[i];
-
-   double soma_b = 0.0, variancia_maxima = 0.0;
-   long long w_b = 0, w_f = 0;
-   int limiar_1 = 0;
-
-   for ( int t = 0; t < num_bins; t++ ) {
-      w_b += histograma[t];
-      if ( w_b == 0 ) continue;
-      w_f = total_pixels - w_b;
-      if ( w_f == 0 ) break;
-
-      soma_b += (double)( t * histograma[t] );
-      double media_b = soma_b / w_b;
-      double media_f = ( soma_total - soma_b ) / w_f;
-      double diff = media_b - media_f;
-      double var_inter = (double)w_b * (double)w_f * diff * diff;
-
-      if ( var_inter > variancia_maxima ) {
-         variancia_maxima = var_inter;
-         limiar_1 = t;
-      }
-   }
-
-   // ====================================================================
-   // 3. SEGUNDO ESTÁGIO (Separa Ruído/Cinza vs Âncoras Pretas)
-   // ====================================================================
-   long long total_pixels_escuros = 0;
-   double soma_total_escuros = 0.0;
-
-   // Limitamos o universo aos pixels que já são considerados "Tinta"
-   for ( int i = 0; i <= limiar_1; i++ ) {
-      total_pixels_escuros += histograma[i];
-      soma_total_escuros += i * histograma[i];
-   }
-
-   if ( total_pixels_escuros == 0 ) return 15; // Proteção
-
-   soma_b = 0.0;
-   w_b = 0;
-   variancia_maxima = 0.0;
-   int limiar_2 = 0;
-
-   // Roda o Otsu apenas na metade escura do histograma
-   for ( int t = 0; t <= limiar_1; t++ ) {
-      w_b += histograma[t];
-      if ( w_b == 0 ) continue;
-      w_f = total_pixels_escuros - w_b;
-      if ( w_f == 0 ) break;
-
-      soma_b += (double)( t * histograma[t] );
-      double media_b = soma_b / w_b;
-      double media_f = ( soma_total_escuros - soma_b ) / w_f;
-      double diff = media_b - media_f;
-      double var_inter = (double)w_b * (double)w_f * diff * diff;
-
-      if ( var_inter > variancia_maxima ) {
-         variancia_maxima = var_inter;
-         limiar_2 = t;
-      }
-   }
-
-   // Limites de segurança física: Mesmo com iluminação perfeita ou péssima,
-   // uma âncora de matriz raramente foge dessa janela num scanner moderno.
-   // if ( limiar_2 < 12 ) limiar_2 = 12;
-   // if ( limiar_2 > 50 ) limiar_2 = 50;
-
-   return limiar_2;
-}

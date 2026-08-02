@@ -25,6 +25,24 @@
 
 
 
+static char* trocar_extensao( const char *caminho_orig, const char *nova_ext ) {
+   if ( !caminho_orig ) return NULL;
+
+   // Procura o ÚLTIMO ponto no caminho
+   const char *ponto = g_strrstr( caminho_orig, "." );
+
+   if ( ponto ) {
+      // Calcula o tamanho do nome do arquivo sem a extensão
+      size_t tam_base = ponto - caminho_orig;
+
+      // Cria a nova string alocada automaticamente no heap
+      return g_strdup_printf( "%.*s.%s", ( int )tam_base, caminho_orig, nova_ext );
+   }
+
+   // Se o arquivo não tinha extensão (ex: "imagem"), apenas anexa a nova
+   return g_strdup_printf( "%s.%s", caminho_orig, nova_ext );
+}
+
 
 //========================================================================================================//
 static void nome_aleatorio( char *nome, size_t tam ) {
@@ -38,8 +56,8 @@ static void nome_aleatorio( char *nome, size_t tam ) {
    nome[len] = '\0';
 }
 
-static int converter_e_copiar_imagens( const char *origem, const char *destino, ItemTextoCurto **imgs_png ) {
-   if ( !origem || !destino || !imgs_png ) return 0;
+static int converter_e_copiar_imagens( const char *origem, const char *destino, ItemTextoCurto **imgs_orig ) {
+   if ( !origem || !destino || !imgs_orig ) return 0;
 
    GError *error = NULL;
 
@@ -70,7 +88,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
    }
    g_dir_close( dir );
 
-   *imgs_png = g_new0( ItemTextoCurto, arquivos_validos->len );
+   *imgs_orig = g_new0( ItemTextoCurto, arquivos_validos->len );
 
    // 2. FASE DE PROCESSAMENTO PARALELO
    // OTIMIZAÇÃO: Usamos 'schedule(dynamic)' em vez de 'static'.
@@ -82,16 +100,18 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
       // Resgata o nome do arquivo da lista
       const char *file_atual = ( const char * ) g_ptr_array_index( arquivos_validos, i );
 
-      char nome_img[17];
+      char nome_img[20];
       nome_aleatorio( nome_img, sizeof( nome_img ) );
-      snprintf( ( *imgs_png )[i].str, sizeof( ( *imgs_png )[i].str ), "%s.png", nome_img );
+
+      const char *ext = g_strrstr( file_atual, "." );
+      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i].str ), "%s%s", nome_img, (ext!=NULL) ? ext : "" );
 
       // Montagem de caminhos independente para cada thread
       char *path_origem = g_build_filename( origem, file_atual, NULL );
-      char *path_destino = g_build_filename( destino, ( *imgs_png )[i].str, NULL );
+      char *path_destino = g_build_filename( destino, ( *imgs_orig )[i].str, NULL );
 
       // O processamento interno pesado
-      if ( converter_para_png_otimizado( path_origem, path_destino ) ) {
+      if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
          // g_remove(path_origem);
       } else {
          // g_printerr é thread-safe no Linux, não corrompe o terminal
@@ -135,7 +155,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
       .peso_disp    = 1.8,    // Peso de dispersão inicial
       .toleracia    = 3.0e-1, // Tolerância geométrica
       .max_geracoes = 65,     // Limite máximo de gerações inicial
-      .limiar       = 2,     // Limiar valor do pixel fitness local
+      .limiar       = 10,     // Limiar valor do pixel fitness local
       .rand         = rand_context
    };
 
@@ -242,8 +262,8 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       f[i] = fopen( arquivo, "ab" );
    }
 
-   ItemTextoCurto *imgs_png = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_png );
+   ItemTextoCurto *imgs_orig = NULL;
+   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
 
    int n_rejeitadas = 0;
 
@@ -265,15 +285,15 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       ImagemCinza img_gray_crop  = {0};
       ImagemCinza img_gray_alloc = {0};
 
-      g_autofree char *path_png = g_build_filename( destino, imgs_png[i].str, NULL );
-      g_autofree char *path_ppm = trocar_extensao( path_png, "ppm" );
+      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
 
-      converter_para_ppm( path_png, path_ppm );
+      g_autofree char* img_png = trocar_extensao( imgs_orig[i].str, "png" );
+      g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
       // FASE 1: Carregamento
-      imread( &img_rgb_orig, path_ppm );
+      carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
+      g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
-      g_remove( path_ppm );
 
       // FASE 2: Normalização e Deskewing (Em Cinza para Visão)
       int dim = 960;
@@ -282,7 +302,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
       // FASE 3: Visão Computacional
       if ( !gas_mapear_ancoras( &img_gray_alloc, &info, ancora ) ) {
-         fprintf( stderr, "[ERRO] Falha de âncoras na imagem: %s\n", imgs_png[i].str );
+         fprintf( stderr, "[ERRO] Falha de âncoras na imagem: %s\n", imgs_orig[i].str );
          sucesso = FALSE;
       }
 
@@ -293,7 +313,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          cortar_imagem_colorida_bilinear( &img_rgb_orig, &img_rgb_crop, ancora );
 
-         salvar_imagem_png( &img_rgb_crop, path_png );
+         salvar_imagem_png_nativa( path_png, &img_rgb_crop );
 
          // Binarização maravilhosa usando o Método de Otsu
          binarizar_pgm_metodo_otsu( &img_gray_crop );
@@ -302,7 +322,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
          info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
 
          if ( !decodificar_payload_matriz( &info, limite ) ) {
-            fprintf( stderr, "[FALHA] Payload inválido. Imagem: %s\n", imgs_png[i].str );
+            fprintf( stderr, "[FALHA] Payload inválido. Imagem: %s\n", imgs_orig[i].str );
             sucesso = FALSE;
          }
       }
@@ -316,13 +336,13 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
          if ( j >= 0 && f[j] != NULL ) {
             ler_respostas_gabarito( &img_gray_crop, info.direcao, info.resp );
             info.num = ler_numero_aluno( &img_gray_crop, info.direcao );
-            g_strlcpy( info.nome_img, imgs_png[i].str, sizeof( info.nome_img ) );
+            g_strlcpy( info.nome_img, img_png, sizeof( info.nome_img ) );
 
             // PROTEÇÃO CRÍTICA: Múltiplas threads não podem escrever no mesmo arquivo juntas!
             #pragma omp critical(escrita_binario)
             {
                if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
-                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_png[i].str );
+                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
                }
                fflush( f[j] ); // Garante que o dado vá fisicamente para o disco
             }
@@ -330,7 +350,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
             // printf( "%3d %3d %3d %3d %3d | Número: %2d | Respostas: %s\n",
             //         info.id, info.turma, info.disc, info.per, info.seq, info.num, info.resp );
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_png[i].str );
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
             sucesso = FALSE;
          }
       }
@@ -339,23 +359,29 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       // TRATAMENTO DE ERROS (Quarentena)
       // ====================================================================
       if ( !sucesso ) {
-         g_autofree char *path_erro = g_build_filename( dir_rejeitadas, imgs_png[i].str, NULL );
-         salvar_imagem_png( &img_rgb_orig, path_erro );
+         // CORREÇÃO 2: Usa img_png (que já tem a extensão .png) em vez da original
+         g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
+
+         salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
+
+         // CORREÇÃO 1: Remove o arquivo PNG da pasta principal caso ele já tenha
+         // sido salvo pela Fase 4 antes da falha ocorrer nas Fases 5 ou 6.
          g_remove( path_png );
+
          n_rejeitadas++;
       }
 
       // ====================================================================
       // LIMPEZA SEGURA DE MEMÓRIA
       // ====================================================================
-      // Não precisamos mais rastrear o `ptr_gray_work`. Basta checar se a
-      // estrutura tem um ponteiro alocado e liberar. Simples, direto e blindado.
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
       if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
 
-      liberar_imagem_imread( &img_rgb_orig );
+      // Padronizando a limpeza: Como você usa alocação nativa agora para a RGB original,
+      // a forma mais segura de limpar é garantindo que o ponteiro não é nulo e chamando a função base:
+      if ( img_rgb_orig.image )   liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
    }
 
    // Limpeza final de arquivos e arrays
@@ -363,7 +389,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       if ( f[i] != NULL ) fclose( f[i] );
    }
    g_free( f );
-   g_free( imgs_png );
+   g_free( imgs_orig );
    free( resp_bin );
 
    puts( "Processamento das imagens concluído com sucesso!" );

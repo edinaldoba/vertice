@@ -25,7 +25,6 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG );
 
-int calcular_limiar_ancoras( const ImagemCinza *IMG );
 
 
 

@@ -11,21 +11,15 @@ PixelRGB** alocar_matriz_pixels_colorida( int nrow, int ncol );
 void liberar_matriz_pixels( int **matriz, int nrow );
 void liberar_matriz_pixels_colorida( PixelRGB **matriz, int nrow );
 void liberar_imagem_imread( ImagemColorida *img );
-char *trocar_extensao( const char *entrada, const char *extensao );
 
-gboolean converter_para_png( const char *origem, const char *destino );
-gboolean converter_para_png_otimizado( const char *origem, const char *destino );
-gboolean converter_para_ppm( const char *origem, const char *destino );
+gboolean salvar_imagem_png_nativa(const char *caminho, const ImagemColorida *img);
+gboolean carregar_imagem_colorida_nativa(const char *caminho, ImagemColorida *img);
 
-void salvar_imagem_ppm_p6( const ImagemColorida *IMG, const char *caminho );
-void salvar_imagem_png( const ImagemColorida *IMG, const char *caminho );
 void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino );
 
 void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, int x_ini, int y_ini, int largura, int altura );
 void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida *img,
                                        int x_ini, int y_ini, int largura, int altura );
-
-void binarizar_pgm( ImagemCinza *IMG );
 
 int pdf_para_png_multiplo( const char *caminho_pdf, const char *pasta_destino, const char *prefixo_arquivo,
                            int inicio, int fim, double escala );

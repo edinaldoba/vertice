@@ -1,23 +1,21 @@
 # 📐 Vértice — Sistema de Gestão Educacional e Diagramação Automatizada
 
-O **Vértice** é um ecossistema de software de alta performance desenvolvido nativamente em **C** e **GTK 3**. O projeto foi arquitetado para centralizar a gestão pedagógica de instituições de ensino, automatizar rotinas burocráticas e servir como um motor ultraveloz de diagramação e compilação de avaliações e materiais didáticos via **LuaLaTeX** e **TikZ**.
+O **Vértice** é um ecossistema de software de alta performance desenvolvido nativamente em **C** e **GTK 3**. O projeto foi arquitetado para centralizar a gestão pedagógica de instituições de ensino, automatizar rotinas burocráticas e servir como um motor ultraveloz de diagramação e compilação de avaliações e materiais didáticos via **LaTeX** e **TikZ**.
 
 ---
 
-## 🚀 Diferenciais e Arquitetura Técnica
+🚀 Arquitetura e Diferenciais Técnicos
+Diferente de sistemas acadêmicos convencionais, o Vértice é construído em C de baixo nível para distribuições Linux (Debian/Ubuntu), aliando máxima performance, portabilidade e zero dependências externas pesadas:
 
-Diferente de sistemas acadêmicos convencionais, o Vértice foi projetado em baixo nível para garantir máxima performance, portabilidade em distribuições Linux (Debian/Ubuntu) e total blindagem de dados:
+* **Multithreading e Alta Performance (OpenMP & POSIX):** Processamento paralelo massivo de imagens e compilação LaTeX em background com isolamento rigoroso de memória (Deep Copy) e sincronização via g_idle_add, mantendo a interface 100% responsiva e livre de memory leaks.
 
-* **Instância Única Nativa:** Controle de concorrência via D-Bus (`GtkApplication`), otimizando o uso de memória e garantindo tempo de resposta imediato.
-* **Processamento Assíncrono e Concorrência:** Arquitetura multithread robusta utilizando POSIX Threads (`pthreads`) e **OpenMP**. O isolamento rigoroso de memória (*Deep Copy*) e a sincronização nativa com o *Main Loop* (`g_idle_add`) permitem a execução massiva de Visão Computacional e compilação LaTeX em background, mantendo a interface gráfica 100% responsiva e isenta de *memory leaks*.
-* **Pipeline de Alta Performance com Algoritmo Genético Coevolutivo (GA):** Substitui as abordagens clássicas de detecção e rotação por uma busca estocástica multiobjetivo em C. O motor localiza e ajusta as âncoras da prova diretamente no espaço da imagem em tempo recorde (~3 a 30 ms por folha).
-* **isomorfismo Geométrico Implícito:** Avalia a ortogonalidade (via produto escalar) e a proporção de área (via Fórmula de Gauss/Shoelace) em tempo real, absorvendo rotações e distorções de perspectiva sem a necessidade de interpolação de matrizes pesadas.
-* **Resiliência e Sistema de Quarentena Automatizado:** Pipeline nativo de processamento em lote com alta tolerância a falhas. Identifica e isola automaticamente em um diretório de Quarentena as provas rasuradas, com ruído severo ou desalinhadas, garantindo que o fluxo contínuo de correção em massa não seja interrompido.
-* **Visão Computacional e Correção Óptica:** Pipeline nativo de processamento em lote com alta tolerância a falhas. Realiza detecção de âncoras geométricas e extração de *payload* via matrizes, contando com um mecanismo automatizado de **Quarentena** que isola provas danificadas ou com ruído sem interromper o fluxo contínuo de correção.
-* **Recursos Embutidos (`GResource`):** Interfaces (`.glade`) e ativos gráficos compilados diretamente dentro do binário final, eliminando dependências externas e falhas de caminho de arquivo (*file path*).
-* **Persistência Binária Pura:** Armazenamento em estruturas C gravadas em blocos binários (`.bin`), garantindo leitura e escrita instantâneas com proteção contra corrupção externa.
-* **Motor de Diagramação Editorial:** Compilação de PDFs via LuaLaTeX e TikZ, conferindo estética matemática e visual de nível editorial a todos os documentos gerados.
-* **Interface Modular e Harmoniosa:** Painel moderno com arquitetura modular de abas, suporte a temas customizados e foco na experiência de uso do docente.
+* **Otimização Estocástica e Isomorfismo Geométrico:** Localização de âncoras e ajuste de perspectiva via Algoritmo Genético Coevolutivo em C (~3 a 27 ms por folha). Avalia ortogonalidade (produto escalar) e proporção de área (Fórmula de Shoelace) em tempo real, sem a sobrecarga de interpolação de matrizes.
+
+* **Pipeline Rápido e Sistema de Quarentena:** Leitura e correção em lote com tolerância a falhas. Isolamento automático de gabaritos rasurados, ruidosos ou desalinhados em pasta de quarentena, sem interromper o fluxo contínuo.
+
+* **Persistência Binária e Ativos Embutidos:** Armazenamento direto em estruturas C (.bin) para leitura/escrita instantâneas. Interfaces (.glade) e recursos compilados dentro do binário final via GResource, eliminando falhas de file path.
+
+* **Instância Única e Diagramação Editorial:** Controle de concorrência via D-Bus (GtkApplication), integração com LaTeX/TikZ para emissão de provas em nível editorial, e interface modular limpa voltada para a produtividade docente.
 
 ---
 
@@ -34,7 +32,7 @@ Para validar o fluxo completo do sistema — da binarização das imagens até a
 
 * **Linguagem C (C11):** Core do sistema, gerenciamento fino de memória e manipulação I/O de arquivos binários.
 * **GTK 3 & Glade:** Construção da interface gráfica nativa e gerenciamento de eventos/sinais.
-* **LuaLaTeX & TikZ:** Renderização de alta precisão estética para fórmulas matemáticas, tabelas e gráficos.
+* **LaTeX & TikZ:** Renderização de alta precisão estética para fórmulas matemáticas, tabelas e gráficos.
 * **OpenMP & POSIX Threads:** Paralelismo e concorrência para otimização de rotinas pesadas.
 
 ---

@@ -7,30 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <string.h>
 #include <poppler.h>
 #include <cairo.h>
 
+#include "comum.h"
 #include "imgcore.h"
-
-
-
-// 1. Salva o estado atual dos alertas do GCC
-#pragma GCC diagnostic push
-
-// 2. Manda o GCC ignorar a falta de protótipos temporariamente
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-// 3. Inclui a biblioteca externa que causa o alerta
-#define STB_IMAGE_IMPLEMENTATION
-#include "./include/thirdparty/stb_image.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "./include/thirdparty/stb_image_write.h"
-
-// 4. Restaura os alertas do GCC para o padrão restrito do seu Makefile
-#pragma GCC diagnostic pop
-
-
 
 
 
@@ -87,233 +70,202 @@ void liberar_imagem_imread( ImagemColorida *img ) {
 
 
 
+// void carregar_imagem_pixbuf(const char *caminho, ImagemColorida *img) {
+//     g_return_if_fail(img != NULL); // Segurança GLib
+//
+//     GError *erro = NULL;
+//
+//     // O GdkPixbuf descobre o formato (PNG, JPEG, PPM) sozinho pelo cabeçalho do arquivo!
+//     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(caminho, &erro);
+//
+//     if (!pixbuf) {
+//         g_printerr("[ERRO] Falha ao carregar imagem '%s': %s\n", caminho, erro->message);
+//         g_clear_error(&erro);
+//         return;
+//     }
+//
+//     // Extrai dimensões e dados de layout da memória
+//     int largura = gdk_pixbuf_get_width(pixbuf);
+//     int altura = gdk_pixbuf_get_height(pixbuf);
+//     int canais = gdk_pixbuf_get_n_channels(pixbuf);   // 3 (RGB) ou 4 (RGBA/PNG transparente)
+//     int rowstride = gdk_pixbuf_get_rowstride(pixbuf); // Espaço real em bytes de uma linha
+//     guchar *pixels = gdk_pixbuf_get_pixels(pixbuf);
+//
+//     // 1. Preenche os metadados da sua estrutura
+//     img->ncol = largura;
+//     img->nrow = altura;
+//     img->max = 255; // Padrão GdkPixbuf é 8-bit por canal
+//     g_strlcpy(img->key, "P6", sizeof(img->key)); // Mantemos P6 para não quebrar outras rotinas antigas
+//
+//     // 2. Aloca a matriz bidimensional usando sua função
+//     img->image = alocar_matriz_pixels_colorida(img->nrow, img->ncol);
+//
+//     // 3. Conversão de 1D (GdkPixbuf) para 2D (Sua matriz)
+//     for (int i = 0; i < altura; i++) {
+//         // Encontra o ponteiro inicial para a linha 'i', respeitando o padding (rowstride)
+//         guchar *linha = pixels + (i * rowstride);
+//
+//         for (int j = 0; j < largura; j++) {
+//             // Encontra o pixel exato dentro da linha, saltando de 3 em 3 ou 4 em 4 bytes
+//             guchar *p = linha + (j * canais);
+//
+//             // Copia apenas os canais RGB.
+//             // Se canais == 4 (tiver canal Alpha de transparência em p[3]), ele será ignorado com segurança.
+//             img->image[i][j].r = p[0];
+//             img->image[i][j].g = p[1];
+//             img->image[i][j].b = p[2];
+//         }
+//     }
+//
+//     // Libera a memória da biblioteca nativa SOMENTE APÓS ter copiado tudo
+//     g_object_unref(pixbuf);
+// }
 
 
-// 1. A função agora retorna 'char *'
-char *trocar_extensao( const char *entrada, const char *extensao ) {
-   // Usa g_strrchr (procura char) que é mais rápido que g_strrstr (procura string)
-   const char *ponto = g_strrstr( entrada, "." );
 
-   if ( ponto != NULL ) {
-      // Cria uma substring do início até o ponto e concatena a nova extensão
-      char *base = g_strndup( entrada, ponto - entrada );
-      char *resultado = g_strdup_printf( "%s.%s", base, extensao );
-      g_free( base );
-      return resultado;
-   }
 
-   // Se a imagem veio sem extensão, apenas anexa
-   return g_strdup_printf( "%s.%s", entrada, extensao );
+// Função auxiliar privada para transformar a matriz 2D em um vetor 1D
+static guchar* achatar_matriz_colorida(const ImagemColorida *img) {
+    if (!img || !img->image) return NULL;
+
+    int largura = img->ncol;
+    int altura = img->nrow;
+
+    // O GdkPixbuf RGB exige exatamente 3 bytes por pixel.
+    // O "rowstride" (passo da linha) é o tamanho exato de uma linha em bytes.
+    int rowstride = largura * 3;
+
+    // Alocamos o bloco único contíguo usando GLib
+    guchar *pixels_1d = g_malloc(altura * rowstride);
+
+    // Copiamos linha por linha em paralelo!
+    // O memcpy faz a CPU transferir o bloco de memória de uma vez só (instruções SIMD).
+    for (int y = 0; y < altura; y++) {
+        guchar *destino_linha = pixels_1d + (y * rowstride);
+
+        // Copiamos os pixels da linha Y da sua matriz 2D para a posição correta no vetor 1D
+        memcpy(destino_linha, img->image[y], rowstride);
+    }
+
+    return pixels_1d;
+}
+
+gboolean salvar_imagem_png_nativa(const char *caminho, const ImagemColorida *img) {
+    if (!caminho || !img || !img->image) return FALSE;
+
+    GError *erro = NULL;
+    int largura = img->ncol;
+    int altura = img->nrow;
+    int rowstride = largura * 3; // 3 canais (R, G, B)
+
+    // 1. Extração contígua: trazemos a sua matriz 2D para o formato nativo do GTK
+    // O g_autofree blinda a função: não importa onde ocorra um "return", a RAM será limpa.
+    g_autofree guchar *pixels_rgb = achatar_matriz_colorida(img);
+    if (!pixels_rgb) return FALSE;
+
+    // 2. Criação do envelope do GdkPixbuf (Ele apenas "aponta" para o nosso vetor)
+    // GDK_COLORSPACE_RGB, FALSE (sem transparência/Alpha), 8 (bits por canal)
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(
+        pixels_rgb, GDK_COLORSPACE_RGB, FALSE, 8,
+        largura, altura, rowstride, NULL, NULL
+    );
+
+    if (!pixbuf) {
+        g_printerr("Falha crítica ao alocar o envelope GdkPixbuf.\n");
+        return FALSE;
+    }
+
+    // 3. I/O de Disco Nativo: Salva o arquivo comprimido usando a libpng do Linux
+    gboolean sucesso = gdk_pixbuf_save(pixbuf, caminho, "png", &erro, NULL);
+
+    if (!sucesso) {
+        g_printerr("Erro ao salvar PNG (%s): %s\n", caminho, erro->message);
+        g_clear_error(&erro); // Limpa a struct de erro da GLib
+    }
+
+    // 4. Limpeza: Destruímos o envelope.
+    // O vetor 'pixels_rgb' será libertado silenciosamente no fechamento das chaves pelo g_autofree.
+    g_object_unref(pixbuf);
+
+    return sucesso;
 }
 
 
 
 
 
+// Função de reconstrução que lida com 3 canais (RGB) ou 4 canais (RGBA)
+static void reconstruir_matriz_colorida(const guchar *pixels_1d, ImagemColorida *img,
+                                       int largura, int altura,
+                                       int rowstride, int canais) {
+    g_return_if_fail(pixels_1d != NULL);
+    g_return_if_fail(img != NULL);
 
-// Retorna TRUE se a conversão/cópia funcionou perfeitamente, FALSE caso contrário
-gboolean converter_para_png( const char *origem, const char *destino ) {
-   if ( !origem || !destino ) return FALSE;
+    if (img->image != NULL) {
+        liberar_matriz_pixels_colorida(img->image, img->nrow);
+    }
 
-   // Se já é PNG, fazemos uma cópia rápida de arquivo sem gastar CPU com re-encoding
-   if ( g_str_has_suffix( origem, ".png" ) ) {
-      gchar *conteudo = NULL;
-      gsize tamanho = 0;
+    img->ncol = largura;
+    img->nrow = altura;
+    img->max = 255;
+    g_strlcpy(img->key, "P6", sizeof(img->key));
 
-      // Lê o arquivo inteiro para a RAM
-      if ( g_file_get_contents( origem, &conteudo, &tamanho, NULL ) ) {
-         // Grava no destino
-         gboolean sucesso = g_file_set_contents( destino, conteudo, tamanho, NULL );
-         g_free( conteudo );
+    img->image = alocar_matriz_pixels_colorida(altura, largura);
+    if (!img->image) return;
 
-         if ( !sucesso ) {
-            g_printerr( "Falha ao gravar a cópia PNG no destino: %s\n", destino );
-            return FALSE;
-         }
-         return TRUE;
-      } else {
-         g_printerr( "Falha ao ler o arquivo PNG de origem: %s\n", origem );
-         return FALSE;
-      }
-   }
+    // Se for RGB puro (3 canais) e sem padding, podemos usar o memcpy ultraveloz!
+    if (canais == 3 && rowstride == (largura * 3)) {
+        size_t tamanho_linha_util = largura * sizeof(PixelRGB);
 
-   int largura, altura, canais;
+        // #pragma omp parallel for
+        for (int y = 0; y < altura; y++) {
+            const guchar *origem_linha = pixels_1d + (y * rowstride);
+            memcpy(img->image[y], origem_linha, tamanho_linha_util);
+        }
+    } else {
+        // Caso a imagem tenha Alpha (4 canais) ou padding no rowstride,
+        // copiamos pixel a pixel pulando o canal A (transparência)
+        // #pragma omp parallel for
+        for (int y = 0; y < altura; y++) {
+            const guchar *origem_linha = pixels_1d + (y * rowstride);
+            for (int x = 0; x < largura; x++) {
+                const guchar *p = origem_linha + (x * canais);
+                img->image[y][x].r = p[0];
+                img->image[y][x].g = p[1];
+                img->image[y][x].b = p[2];
+            }
+        }
+    }
+}
 
-   // 1. Carrega a imagem original forçando 3 canais (RGB) para padronizar a saída
-   unsigned char *pixels = stbi_load( origem, &largura, &altura, &canais, 3 );
-   if ( !pixels ) {
-      g_printerr( "Erro ao carregar a imagem na RAM via stb: %s\n", origem );
-      return FALSE;
-   }
+gboolean carregar_imagem_colorida_nativa(const char *caminho, ImagemColorida *img) {
+    g_return_val_if_fail(caminho != NULL, FALSE);
+    g_return_val_if_fail(img != NULL, FALSE);
 
-   // 2. Escreve os pixels diretamente no formato PNG
-   int sucesso = stbi_write_png( destino, largura, altura, 3, pixels, largura * 3 );
+    GError *erro = NULL;
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(caminho, &erro);
 
-   // 3. Limpa a matriz de pixels da memória imediatamente
-   stbi_image_free( pixels );
+    if (!pixbuf) {
+        g_printerr("[ERRO] Ao carregar imagem (%s): %s\n", caminho, erro->message);
+        g_clear_error(&erro);
+        return FALSE;
+    }
 
-   if ( !sucesso ) {
-      g_printerr( "Erro ao gravar o arquivo PNG de destino: %s\n", destino );
-      return FALSE;
-   }
+    int largura = gdk_pixbuf_get_width(pixbuf);
+    int altura = gdk_pixbuf_get_height(pixbuf);
+    int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+    int canais = gdk_pixbuf_get_n_channels(pixbuf); // 3 para RGB, 4 para RGBA
+    const guchar *pixels_1d = gdk_pixbuf_read_pixels(pixbuf);
 
-   return TRUE;
+    // Passamos o número de canais para a função auxiliar
+    reconstruir_matriz_colorida(pixels_1d, img, largura, altura, rowstride, canais);
+
+    g_object_unref(pixbuf);
+    return TRUE;
 }
 
 
 
-
-
-gboolean converter_para_png_otimizado( const char *origem, const char *destino ) {
-   if ( !origem || !destino ) return FALSE;
-
-   int largura, altura, canais;
-
-   // 1. Carrega forçando TRÊS canais (RGB). Compatibilidade 100% com PPM P6.
-   unsigned char *pixels = stbi_load( origem, &largura, &altura, &canais, 3 );
-   if ( !pixels ) {
-      g_printerr( "Erro ao carregar a imagem: %s\n", origem );
-      return FALSE;
-   }
-
-   size_t total_pixels = ( size_t )largura * altura;
-
-   #pragma omp parallel for schedule(static)
-   for ( size_t i = 0; i < total_pixels; i++ ) {
-      size_t idx = i * 3;
-      unsigned char *p = &pixels[idx];
-
-      // Limiar de limpeza do fundo (Quase branco vira Branco Absoluto)
-      if ( p[0] >= 220 && p[1] >= 220 && p[2] >= 220 ) {
-         p[0] = 255;
-         p[1] = 255;
-         p[2] = 255;
-      } else {
-         // =========================================================
-         // ALGORITMO DE QUANTIZAÇÃO BITWISE DE ALTÍSSIMA VELOCIDADE
-         // =========================================================
-         // A máscara 0xE0 (11100000 em binário) zera os 5 bits inferiores.
-         // Isso reduz cada canal de 256 tons para apenas 8 tons (8x8x8 = 512 cores totais).
-         // Para comprimir ainda mais, use 0xC0 (reduz para 64 cores totais).
-         p[0] = p[0] & 0xE0; // R
-         p[1] = p[1] & 0xE0; // G
-         p[2] = p[2] & 0xE0; // B
-      }
-   }
-
-   stbi_write_png_compression_level = 9;
-
-   // Escreve o arquivo mantendo os 3 canais
-   int sucesso = stbi_write_png( destino, largura, altura, 3, pixels, largura * 3 );
-
-   stbi_image_free( pixels );
-
-   if ( !sucesso ) {
-      g_printerr( "Erro ao gravar o arquivo PNG: %s\n", destino );
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-
-
-
-
-
-// Retorna TRUE se a conversão funcionou perfeitamente, FALSE caso contrário
-gboolean converter_para_ppm( const char *origem, const char *destino ) {
-   // 1. Validações defensivas robustas via GLib
-   g_return_val_if_fail( origem != NULL, FALSE );
-   g_return_val_if_fail( destino != NULL, FALSE );
-
-   int largura, altura, canais;
-
-   // 2. Força o carregamento em 3 canais (RGB), ideal para o PPM P6
-   unsigned char *pixels = stbi_load( origem, &largura, &altura, &canais, 3 );
-   if ( !pixels ) {
-      g_printerr( "Erro ao carregar a imagem na RAM via stb: %s\n", origem );
-      return FALSE;
-   }
-
-   // 3. Abertura segura de arquivo
-   FILE *fp = fopen( destino, "wb" );
-   if ( !fp ) {
-      g_printerr( "Erro ao criar o arquivo de destino: %s\n", destino );
-      stbi_image_free( pixels );
-      return FALSE;
-   }
-
-   // 4. Escreve o cabeçalho do formato genérico PPM (P6, dimensões e valor máximo)
-   fprintf( fp, "P6\n%d %d\n255\n", largura, altura );
-
-   // 5. Escreve os dados binários. Cast para size_t previne overflow em imagens gigantes
-   size_t tamanho_buffer = ( size_t )largura * altura * 3;
-   size_t gravados = fwrite( pixels, 1, tamanho_buffer, fp );
-
-   if ( gravados != tamanho_buffer ) {
-      g_printerr( "Aviso: Falha ao gravar todos os bytes da imagem %s.\n", destino );
-      fclose( fp );
-      stbi_image_free( pixels );
-      return FALSE; // Aborta retornando erro de gravação
-   }
-
-   // 6. Limpeza de recursos
-   fclose( fp );
-   stbi_image_free( pixels );
-   // Nota: O g_free(destino) foi removido, pois o gerenciamento da string agora pertence ao chamador da função.
-
-   return TRUE;
-}
-
-
-
-
-
-
-void salvar_imagem_ppm_p6( const ImagemColorida *IMG, const char *caminho ) {
-   if ( !IMG || !caminho ) return;
-
-   FILE *fp = fopen( caminho, "wb" );
-   if ( !fp ) return;
-
-   // Grava o cabeçalho P6 padrão
-   fprintf( fp, "P6\n%d %d\n%d\n", IMG->ncol, IMG->nrow, IMG->max );
-
-   // Grava as linhas contíguas de pixels
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      fwrite( IMG->image[i], sizeof( PixelRGB ), IMG->ncol, fp );
-   }
-
-   fclose( fp );
-}
-
-
-
-void salvar_imagem_png( const ImagemColorida *IMG, const char *caminho ) {
-   if ( !IMG || !caminho ) return;
-
-   size_t tamanho_buffer = ( size_t )IMG->ncol * IMG->nrow * 3;
-   unsigned char *buffer_linear = ( unsigned char* ) malloc( tamanho_buffer );
-
-   // Serializa a matriz 2D em um vetor 1D contíguo
-   #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      size_t offset = ( size_t )i * IMG->ncol * 3;
-      memcpy( &buffer_linear[offset], IMG->image[i], IMG->ncol * sizeof( PixelRGB ) );
-   }
-
-   // Executa a compressão nativa do PNG pela biblioteca de terceiros
-   // Parâmetros: caminho, largura, altura, canais (3 = RGB), buffer, stride (largura * 3)
-   int sucesso = stbi_write_png( caminho, IMG->ncol, IMG->nrow, 3, buffer_linear, IMG->ncol * 3 );
-
-   if ( !sucesso ) {
-      g_printerr( "Erro ao exportar arquivo PNG para: %s\n", caminho );
-   }
-
-   free( buffer_linear );
-}
 
 
 
@@ -343,7 +295,7 @@ void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino ) {
 
    // 3. Conversão CPU-Bound Paralelizada
    // As threads transformam a matriz 2D de 'ints' em um vetor 1D contíguo de bytes
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < IMG->nrow; i++ ) {
 
       // Calcula o deslocamento da linha no buffer gigante
@@ -368,16 +320,6 @@ void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino ) {
 
 
 
-
-
-
-
-
-
-
-
-
-
 void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, int x_ini, int y_ini, int largura, int altura ) {
    if ( !IMG || !img || largura <= 0 || altura <= 0 ) return;
 
@@ -396,16 +338,11 @@ void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, int x_in
    img->max = IMG->max;
 
    // Cópia ultra-rápida de blocos de memória linha a linha (sem interpolação)
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < altura; i++ ) {
       memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( int ) );
    }
 }
-
-
-
-
-
 
 
 
@@ -431,40 +368,9 @@ void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida
    img->max = IMG->max;
 
    // Cópia pura de memória, muito mais rápida que interpolação para cortes retos
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < altura; i++ ) {
       memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( PixelRGB ) );
-   }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void binarizar_pgm( ImagemCinza *IMG ) {
-   if ( !IMG || !IMG->image ) return;
-
-   // Cache local das variáveis para evitar acesso contínuo à estrutura via ponteiro
-   int limiar = IMG->max / 2;
-   int max_val = IMG->max;
-
-   // Paralelização limpa e estática
-   #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      for ( int j = 0; j < IMG->ncol; j++ ) {
-         // O processador avalia a condição em tempo recorde na memória cache
-         IMG->image[i][j] = ( IMG->image[i][j] > limiar ) ? max_val : 0;
-      }
    }
 }
 
@@ -657,9 +563,7 @@ void rgb2gray( ImagemColorida *PPM, ImagemCinza *PGM ) {
    // 1. Pré-alocação segura da matriz 2D
    PGM->image = alocar_matriz_pixels( PGM->nrow, PGM->ncol );
 
-// #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
-
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < PGM->nrow; i++ ) {
       for ( int j = 0; j < PGM->ncol; j++ ) {
 
@@ -667,14 +571,11 @@ void rgb2gray( ImagemColorida *PPM, ImagemCinza *PGM ) {
          unsigned char g = PPM->image[i][j].g;
          unsigned char b = PPM->image[i][j].b;
 
-         // PGM->image[i][j] = MIN3( r, g, b );
-
          // Luminância Rec.709
          PGM->image[i][j] = ( 2126*r + 7152*g + 722*b ) / 10000;
       }
    }
 
-// #undef MIN3
 }
 
 
