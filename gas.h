@@ -30,8 +30,6 @@ typedef struct {
 // ============================================================================
 // ASSINATURAS DE FUNÇÕES
 // ============================================================================
-void gas_gerar_sementes( guint32 *sementes );
-
 void gas_liberar_populacao( GasPopulacao *pop, const int n_pop );
 
 GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj );

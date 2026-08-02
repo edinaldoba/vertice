@@ -217,6 +217,8 @@ typedef struct {
 
    InterfaceCabecalho cabecalho;
 
+   GRand *rand; // <- Ponteiro para o gerador de números aleatórios
+
 } AppContext;
 
 
@@ -255,8 +257,6 @@ void atualizar_interface_com_dados( AppContext *ctx, const PacotePersistencia *p
 
 void atualizar_tema( AppContext *ctx, const char *tema );
 
-void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina, int periodo, int prova );
-
 void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx );
 
 gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const char *mensagem );
@@ -267,12 +267,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
-// Callbacks dos botões e navegação (Removido o 'static' para permitir acesso externo)
-void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho );
-
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 
-int foco_periodo_corrente( int escalar_hoje );
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 
 gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolean forcar_atualizacao );

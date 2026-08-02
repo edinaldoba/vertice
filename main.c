@@ -14,9 +14,9 @@
 #include "signals.h"
 #include "basicas.h"
 
-#include "./include/thirdparty/rdtsc.h"
 #include "mensagens.h"
 #include "callbacks.h"
+
 
 
 
@@ -102,8 +102,11 @@ int main( int argc, char *argv[] ) {
    AppContext ctx;
    inicializacao_app_context( &ctx );
 
-   // Inicializa o gerador de números aleatórios para o Acervo
-   srand( rdtsc() );
+   // Inicialização estocástica nativa e de alta entropia da GLib
+   guint32 sementes[4];
+   gerar_sementes( sementes );
+   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
+   ctx.rand = g_steal_pointer( &rand_context );
 
    GtkApplication *app;
    int status;
@@ -170,7 +173,9 @@ void inicializacao_app_context( AppContext *ctx ) {
 
    *ctx = ( AppContext ) {
       .diario = NULL,
-      .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}},
+      .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
+         .recursos_prefix = NULL
+      },
       .provider = NULL,
 
       // 2. Inicialização do Estado Nativo da RAM (InterfaceDados)

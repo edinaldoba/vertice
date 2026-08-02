@@ -166,7 +166,8 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
          fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
       }
       // Assinalar alternativas para teste
-      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5+i, -2.5-rand()%5 );
+      float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
+      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5+i, y_aleatorio );
    }
 
    if ( assinalar_nome_numero ) {

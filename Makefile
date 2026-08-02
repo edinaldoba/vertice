@@ -12,7 +12,7 @@ $(RESOURCES_C): $(RESOURCES_XML)
 	glib-compile-resources $(RESOURCES_XML) --sourcedir=recursos --target=$(RESOURCES_C) --generate-source
 
 # Módulos do sistema escritos em C puro
-C_SOURCES = main.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c \
+C_SOURCES = main.c auxiliar.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c \
             glibrary.c imgcore.c callbacks.c basicas.c provas.c gabaritos.c gas.c \
             latex.c mensagens.c layout.c signals.c acervo.c $(RESOURCES_C)
 

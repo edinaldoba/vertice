@@ -411,7 +411,7 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
             fputs( "\\vspace{-2mm}\n", pp );
             fputs( "\\begin{enumerate}[\\hspace{0.42cm}]\n", pp );
 
-            int *rnd = randperm( 5 );
+            g_autofree int *rnd = randperm( 5 );
 
             // 1. Encontra em qual índice (j) da permutação aleatória o valor 'g' caiu
             int indice_g = 0;
@@ -431,7 +431,7 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
                }
                alternativas[ rnd[j] ][ strlen( alternativas[ rnd[j] ] ) - 1 ] = '\0';
             }
-            free( rnd );
+
 
             for ( letra = 65; letra < 70; letra++ ) {
                if ( strcmp( dados->decoracao_estilo, "Quadrados" ) == 0 ||
@@ -493,7 +493,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
 
    char pasta_tema[1000], questao[2000], modelo_pvo[1000];
 
-   int ii, i, j, q, narq, *N = NULL;
+   int ii, i, j, q, narq;
 
    FILE *pm, **pb;
 
@@ -528,14 +528,13 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
             }
 
             narq = quantidade_arquivos_por_extensao( pasta_tema, ".tex" );
-            N = randperm( narq );
+            g_autofree int *N = randperm( narq );
 
             for ( j = 0; j < dados->qtd_questoes[i]; j++ ) {
                sprintf( questao, "%s/Q%d.tex", pasta_tema, N[j] + 1 );
                pb[q] = fopen( questao, "r" );
                q++;
             }
-            free( N );
          }
       }
 

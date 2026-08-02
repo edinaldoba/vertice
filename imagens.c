@@ -140,7 +140,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
    g_return_val_if_fail( img && info && ancora, FALSE );
 
    guint32 sementes[4];
-   gas_gerar_sementes( sementes );
+   gerar_sementes( sementes );
 
    // Como usamos g_autoptr, a GLib fará o free automático no fim do escopo (não usar g_rand_free)
    g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
@@ -155,7 +155,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
       .peso_disp    = 1.8,    // Peso de dispersão inicial
       .toleracia    = 3.0e-1, // Tolerância geométrica
       .max_geracoes = 65,     // Limite máximo de gerações inicial
-      .limiar       = 10,     // Limiar valor do pixel fitness local
+      .limiar       = 1,      // Limiar valor do pixel fitness local
       .rand         = rand_context
    };
 
@@ -169,7 +169,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
    }
 
    double media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-   gboolean sucesso = (media_fitness > 0.999);
+   gboolean sucesso = (media_fitness > 0.998);
 
    // 3. Mecanismo de resgate (Retry) para imagens com muito ruído
    if ( !sucesso ) {
@@ -181,7 +181,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
       melhor = gas_pipeline( img, &par, lim );
 
       media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-      sucesso = (media_fitness > 0.999);
+      sucesso = (media_fitness > 0.998);
    }
 
    // 4. Extração das coordenadas reais

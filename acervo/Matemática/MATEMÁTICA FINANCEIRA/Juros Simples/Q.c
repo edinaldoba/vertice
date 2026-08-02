@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "../../../bancoQ.h"
+#include "/home/usuario/Documentos/LATEX/SEDUC/acervo/bancoQ.h"
 #include "Q.h"
-#include "/home/usuario/Documentos/LATEX/SEDUC/include/thirdparty/rdtsc.h"
+#include "/home/usuario/Documentos/LATEX/SEDUC/acervo/rdtsc.h"
 
 
 int main()

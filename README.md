@@ -4,7 +4,8 @@ O **Vértice** é um ecossistema de software de alta performance desenvolvido na
 
 ---
 
-🚀 Arquitetura e Diferenciais Técnicos
+## 🚀 Arquitetura e Diferenciais Técnicos
+
 Diferente de sistemas acadêmicos convencionais, o Vértice é construído em C de baixo nível para distribuições Linux (Debian/Ubuntu), aliando máxima performance, portabilidade e zero dependências externas pesadas:
 
 * **Multithreading e Alta Performance (OpenMP & POSIX):** Processamento paralelo massivo de imagens e compilação LaTeX em background com isolamento rigoroso de memória (Deep Copy) e sincronização via g_idle_add, mantendo a interface 100% responsiva e livre de memory leaks.

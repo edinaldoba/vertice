@@ -6,7 +6,7 @@
 bool dist_alt( int *alt );
 
 #include "Q.h"
-#include "/home/usuario/Documentos/LATEX/SEDUC/include/thirdparty/rdtsc.h"
+#include "/home/usuario/Documentos/LATEX/SEDUC/acervo/rdtsc.h"
 
 
 int main(){

@@ -9,6 +9,7 @@
 
 
 
+
 gboolean gio_copiar_arquivo( const gchar *caminho_origem, const gchar *caminho_destino ) {
    // 1. Validação defensiva padronizada da GLib (substitui o if inicial)
    g_return_val_if_fail( caminho_origem != NULL, FALSE );

@@ -91,11 +91,6 @@ typedef struct {
 } DataHoje;
 
 typedef struct {
-   float num;
-   int idx;
-} IndexacaoValor;
-
-typedef struct {
    char aluno[64];
    bool ativo;
 } FichaAuxiliar;

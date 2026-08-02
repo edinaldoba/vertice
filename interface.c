@@ -9,12 +9,14 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-#include "comum.h"
 #include "interface.h"
 #include "basicas.h"
 #include "callbacks.h"
 #include "mensagens.h"
 #include "dinamica.h"
+
+// Esta é a única inclusão deste arquivo em todo o projeto
+#include "auxiliar.h"
 
 
 void interface_style( AppContext *ctx ) {
@@ -230,6 +232,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
 
 
 
+
 void atualizar_tema( AppContext *ctx, const char *tema ) {
    if ( !ctx ) return;
 
@@ -279,15 +282,6 @@ void atualizar_tema( AppContext *ctx, const char *tema ) {
 /* =================================================================================================================
    GERENCIAMENTO DE FLUXO DE GABARITOS - Versão Otimizada (Painel de Feedback)
    ================================================================================================================= */
-
-void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina, int periodo, int prova ) {
-   if ( !nome || tam < 16 ) return;
-   snprintf( nome, tam, "%.3d%.2d%d%d.bin", turma, disciplina, periodo, prova );
-}
-
-
-
-
 void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx ) {
    if ( !widget || !painel || !ctx ) return;
 
@@ -630,29 +624,6 @@ bool carregar_estado_aplicativo( AppContext *ctx ) {
 
 
 
-//==================================================================================================
-static void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
-   // 1. Recupere o renderizador de texto que você associou ao combo box de temas
-   // (Se você usou gtk_combo_box_text_new(), o GTK cria um internamente.
-   // Para customizar, pegamos a lista de renderizadores dele):
-   GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( widget ) );
-
-   if ( renderers != NULL ) {
-      // O primeiro renderizador (data) é o GtkCellRendererText responsável pelas strings
-      GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-
-      // 2. Ativa o corte elegante com reticências no final (Ellipsize)
-      g_object_set( G_OBJECT( renderer ), "ellipsize", PANGO_ELLIPSIZE_END, NULL );
-
-      // 3. Opcional: Define a largura máxima em caracteres que o combo aceita exibir
-      // antes de começar a colocar os três pontos (ex: 20 ou 25 caracteres)
-      g_object_set( G_OBJECT( renderer ), "max-width-chars", qtd_caracteres, NULL );
-
-      // Libera a lista temporária usada para a captura
-      g_list_free( renderers );
-   }
-}
-//==================================================================================================
 
 
 
@@ -750,77 +721,6 @@ void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco,
 
 
 
-
-
-//======================================================================================================================//
-static bool diretorio_existe( const char *caminhodir ) {
-   struct stat sb;
-   // stat retorna 0 se o caminho existir
-   // S_ISDIR verifica se o caminho é de fato uma pasta
-   return ( stat( caminhodir, &sb ) == 0 && S_ISDIR( sb.st_mode ) );
-}
-//======================================================================================================================//
-void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho ) {
-
-   snprintf( caminho->base, sizeof( caminho->base ), "%s/%s/%s/%s/%s",
-             dados->ano, dados->escola, dados->turma, dados->disciplina, dados->periodo );
-
-   /* Endereço do diretório dos dados informados, onde estão os arquivos
-    * lista.dat, conteúdos.dat, frequência.dat, avaliações.dat e média.dat */
-   snprintf( caminho->dados, sizeof( caminho->dados ), "./dados/informados/%s", caminho->base );
-
-   /* Endereço do diretório dos gabaristos e respostas, onde estão os arquivos gabaritos.dat, gabaritos1.dat,
-    * respostas1.dat e outros arquivos gravados por ocasião da correção automática das provas */
-   snprintf( caminho->gabaritos, sizeof( caminho->gabaritos ), "./dados/gabaritos/%s", caminho->base );
-
-   /* Endereço do diretório dos relatórios e provas em geral (arquivos em PDF) */
-   snprintf( caminho->relatorios, sizeof( caminho->relatorios ), "./relatorios/%s", caminho->base );
-
-   // 1. Encontra o ponteiro para a última ocorrência da barra '/'
-   const char *base = strrchr( caminho->base, '/' );
-   int comp;
-   if ( base != NULL ) {
-      comp = ( int )( base - caminho->base );
-   } else {
-      comp = ( int )strlen( caminho->base );
-   }
-   snprintf( caminho->relatorios_final, sizeof( caminho->relatorios_final ),
-             "./relatorios/%.*s", comp, caminho->base );
-
-
-   /* Replica a hierarquia da pasta de relatórios e provas atraves da marcação do 'expor dados'" */
-   const char* home = getenv( "HOME" );
-   if ( home == NULL ) home = ".";
-   snprintf( caminho->externo, sizeof( caminho->externo ), "%s/Documentos/%s", home, caminho->base );
-
-   snprintf( caminho->externo_final, sizeof( caminho->externo_final ), "%s/Documentos/%.*s", home, comp, caminho->base );
-
-   snprintf( caminho->externo_escola, sizeof( caminho->externo_escola ),
-             "%s/Documentos/%s/%s", home, dados->ano, dados->escola );
-
-   if ( !diretorio_existe( caminho->dados ) )            {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->dados );
-   }
-   if ( !diretorio_existe( caminho->gabaritos ) )        {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->gabaritos );
-   }
-   if ( !diretorio_existe( caminho->relatorios ) )       {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->relatorios );
-   }
-   if ( !diretorio_existe( caminho->relatorios_final ) ) {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->relatorios_final );
-   }
-   if ( !diretorio_existe( caminho->externo ) )          {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo );
-   }
-   if ( !diretorio_existe( caminho->externo_final ) )    {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo_final );
-   }
-   if ( !diretorio_existe( caminho->externo_escola ) )   {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo_escola );
-   }
-}
-//======================================================================================================================//
 
 
 
@@ -921,26 +821,6 @@ static void atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 
 
-
-//==================================================================================================
-static int obter_foco_inicial( const int limite, const FichaAluno *diario ) {
-   int i;
-   for ( i = 0; i < limite; i++ ) {
-      if ( diario[i].ativo ) {
-         break;
-      }
-   }
-   int foco = ( i < limite ) ? i : 0;
-   return foco;
-}
-//==================================================================================================
-static void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i ) {
-   const FichaAluno *diario = ( const FichaAluno * )ficha;
-   int len = calcular_len_limpo( diario[i].aluno, 30 );
-   char aluno[64];
-   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, diario[i].aluno );
-   gtk_list_store_set( store, iter, 0, aluno, 1, diario[i].ativo, -1 );
-}
 //==================================================================================================
 static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
@@ -981,29 +861,7 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
 
 
-
-//======================================================================================================================//
-int foco_periodo_corrente( int escalar_hoje ) {
-   int foco;
-   long int fim_do_periodo[5];
-
-   fim_do_periodo[0] = mapear_data_para_id( 17,  4, 2026 ); // fim do 1º período
-   fim_do_periodo[1] = mapear_data_para_id( 30,  6, 2026 ); // fim do 2º período
-   fim_do_periodo[2] = mapear_data_para_id( 9,  10, 2026 ); // fim do 3º período
-   fim_do_periodo[3] = mapear_data_para_id( 29, 12, 2026 ); // fim do 4º período
-   fim_do_periodo[4] = mapear_data_para_id( 15,  1, 2027 ); // fim da recuperação e do conselho de classe
-
-   // Substituição perfeita do switch por lógica condicional dinâmica:
-   if ( fim_do_periodo[0] + 10 > escalar_hoje )  foco = 0;
-   else if ( fim_do_periodo[1] + 30 > escalar_hoje )  foco = 1;
-   else if ( fim_do_periodo[2] + 10 > escalar_hoje )  foco = 2;
-   else if ( fim_do_periodo[3] + 10 > escalar_hoje )  foco = 3;
-   else if ( fim_do_periodo[4] + 10 > escalar_hoje )  foco = 4;
-   else return 0;
-
-   return foco;
-}
-//======================================================================================================================//
+//==================================================================================================
 void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    if ( !ctx ) return;
 
@@ -1089,6 +947,7 @@ gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolea
 
    return TRUE; // Retorna TRUE indicando que uma carga real (ou semente) foi processada
 }
+
 
 
 

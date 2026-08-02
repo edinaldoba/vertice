@@ -30,26 +30,6 @@ static double gas_mean( const double *array, const int tam ) {
 
 
 
-void gas_gerar_sementes( guint32 *sementes ) {
-   g_return_if_fail( sementes );
-
-   // 1. Pega os ciclos/tempo monotônico do processador em alta precisão (64 bits)
-   gint64 ciclos_cpu = g_get_monotonic_time();
-
-   // 2. Separa a parte alta e baixa do inteiro de 64 bits
-   guint32 baixa = ( guint32 )( ciclos_cpu & 0xFFFFFFFF );
-   guint32 alta  = ( guint32 )( ciclos_cpu >> 32 );
-
-   // Imprime para manter a rastreabilidade se precisar reproduzir a execução
-   // g_print( "Semente Monotonica (Ciclos): %" G_GINT64_FORMAT "\n", ciclos_cpu );
-
-   // 3. Monta o array de sementes multiplicando por constantes de dispersão
-   sementes[0] = baixa;
-   sementes[1] = alta ^ 0x9E3779B9; // Proporção Áurea de 32-bit
-   sementes[2] = baixa ^ 0x6789A;
-   sementes[3] = ( baixa + alta ) ^ 0xBCDEF;
-}
-
 
 static GasPopulacao *gas_alocar_populacao( const int n_pop, const int n_dim ) {
    g_return_val_if_fail( n_pop > 0 && n_dim > 0, NULL );
