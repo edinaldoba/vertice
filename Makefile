@@ -12,7 +12,7 @@ $(RESOURCES_C): $(RESOURCES_XML)
 	glib-compile-resources $(RESOURCES_XML) --sourcedir=recursos --target=$(RESOURCES_C) --generate-source
 
 # Módulos do sistema escritos em C puro
-C_SOURCES = main.c auxiliar.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c \
+C_SOURCES = main.c auxiliar.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c matriz.c \
             glibrary.c imgcore.c callbacks.c basicas.c provas.c gabaritos.c gas.c \
             latex.c mensagens.c layout.c signals.c acervo.c $(RESOURCES_C)
 
@@ -46,7 +46,7 @@ CFLAGS = $(BASE_WARNINGS) -Wmissing-prototypes -D_FORTIFY_SOURCE=2 $(PKG_CFLAGS)
 LDFLAGS = -fopenmp -flto=auto -s
 
 # LDLIBS: Bibliotecas do sistema (OpenSSL, Math) + as capturadas pelo pkg-config
-LDLIBS = $(PKG_LIBS) -lssl -lcrypto -lm
+LDLIBS = $(PKG_LIBS) -lssl -lcrypto -llapacke -llapack -lblas -lm
 
 # =====================================================================
 # 4. REGRAS DE COMPILAÇÃO E LINKAGEM

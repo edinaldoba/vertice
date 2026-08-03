@@ -146,8 +146,8 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
    g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
 
    GasParametros par = {
-      .n_pop        = 120,    // Tamanho da população (Calibrado)
-      .n_gen        = 48,     // Quantidade de substituições (40%)
+      .n_pop        = 60,    // Tamanho da população (Calibrado)
+      .n_gen        = 24,     // Quantidade de substituições (40%)
       .n_tor        = 2,      // Número de indivíduos no torneio
       .n_obj        = 4,      // Número de objetivos da coevolução
       .p_rec        = 0.80,   // Probabilidade de recombinação
@@ -169,7 +169,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
    }
 
    double media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-   gboolean sucesso = (media_fitness > 0.998);
+   gboolean sucesso = (media_fitness > 0.90);
 
    // 3. Mecanismo de resgate (Retry) para imagens com muito ruído
    if ( !sucesso ) {
@@ -181,7 +181,7 @@ static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *
       melhor = gas_pipeline( img, &par, lim );
 
       media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-      sucesso = (media_fitness > 0.998);
+      sucesso = (media_fitness > 0.90);
    }
 
    // 4. Extração das coordenadas reais
@@ -298,7 +298,6 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       // FASE 2: Normalização e Deskewing (Em Cinza para Visão)
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
-      // salvar_imagem_pgm( &img_gray_alloc, path_ppm ); // Teste
 
       // FASE 3: Visão Computacional
       if ( !gas_mapear_ancoras( &img_gray_alloc, &info, ancora ) ) {
@@ -308,10 +307,10 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
       if ( sucesso ) {
          // FASE 4: Correção Geométrica Dupla
-         cortar_imagem_bilinear( &img_gray_alloc, &img_gray_crop, ancora );
+         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
 
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
-         cortar_imagem_colorida_bilinear( &img_rgb_orig, &img_rgb_crop, ancora );
+         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
 
          salvar_imagem_png_nativa( path_png, &img_rgb_crop );
 
@@ -668,6 +667,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    }
 
 }
+
 
 
 

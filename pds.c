@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "matriz.h"
 #include "pds.h"
 #include "imgcore.h"
 
@@ -788,5 +789,265 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
 }
 
 
+
+
+
+
+void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMatriz *ancora, char direcao ) {
+   g_return_if_fail( img && img->image && img_crop && ancora );
+
+   int largura, altura;
+   int fator_de_proporcionalidade = 50;
+
+   if ( direcao == 'h' ) {
+      largura = 14 * fator_de_proporcionalidade; // 700 px
+      altura = 11 * fator_de_proporcionalidade;  // 550 px
+   } else {
+      largura = 10 * fator_de_proporcionalidade; // 500 px
+      altura = 15 * fator_de_proporcionalidade;  // 750 px
+   }
+
+   // =========================================================================
+   // 1. PREPARAÇÃO DOS PONTOS (TARGET -> SOURCE)
+   // =========================================================================
+   Matrix dst_pts = mat_new( 4, 2 ); // O Gabarito Perfeito Virtual
+   Matrix src_pts = mat_new( 4, 2 ); // As coordenadas reais tortas da foto
+
+   // Âncora A (Top-Left)
+   dst_pts.data[0] = 0.0;           dst_pts.data[1] = 0.0;
+   // Âncora B (Top-Right)
+   dst_pts.data[2] = largura - 1;   dst_pts.data[3] = 0.0;
+   // Âncora C (Bottom-Right)
+   dst_pts.data[4] = largura - 1;   dst_pts.data[5] = altura - 1;
+   // Âncora D (Bottom-Left)
+   dst_pts.data[6] = 0.0;           dst_pts.data[7] = altura - 1;
+
+   // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
+   for ( int k = 0; k < 4; k++ ) {
+      src_pts.data[k * 2 + 0] = ( double )ancora[k].j;
+      src_pts.data[k * 2 + 1] = ( double )ancora[k].i;
+   }
+
+   // =========================================================================
+   // 2. RESOLUÇÃO DA HOMOGRAFIA INVERSA VIA LAPACKE
+   // =========================================================================
+   Matrix H_inv = mat_new( 3, 3 );
+
+   // Passamos de DST para SRC para podermos fazer o Backward Warping
+   if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
+      fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia!\n" );
+      mat_free( src_pts ); mat_free( dst_pts ); mat_free( H_inv );
+      return;
+   }
+
+   // =========================================================================
+   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS
+   // =========================================================================
+   img_crop->ncol = largura;
+   img_crop->nrow = altura;
+   img_crop->max = img->max;
+   snprintf( img_crop->key, sizeof(img_crop->key), "%s", img->key );
+
+   // Aloca a matriz do crop (Destino)
+   img_crop->image = alocar_matriz_pixels( img_crop->nrow, img_crop->ncol );
+
+   int orig_w = img->ncol;
+   int orig_h = img->nrow;
+   int fundo_branco = img->max > 0 ? img->max : 255;
+   int **orig_pixels = img->image;
+
+   // =========================================================================
+   // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR (MULTITHREAD)
+   // =========================================================================
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int y_dst = 0; y_dst < altura; y_dst++ ) {
+      for ( int x_dst = 0; x_dst < largura; x_dst++ ) {
+
+         // 4.1 Projeção 3D (Coordenadas Homogêneas)
+         double w = H_inv.data[6] * x_dst + H_inv.data[7] * y_dst + H_inv.data[8];
+         if ( w == 0.0 ) w = 1e-8; // Evita divisão por zero matemática
+
+         // Resgate da coordenada exata subpixel na imagem original
+         double x_src = ( H_inv.data[0] * x_dst + H_inv.data[1] * y_dst + H_inv.data[2] ) / w;
+         double y_src = ( H_inv.data[3] * x_dst + H_inv.data[4] * y_dst + H_inv.data[5] ) / w;
+
+         // 4.2 Verifica se o ponto rastreado existe dentro da foto original
+         if ( x_src >= 0.0 && x_src < orig_w - 1 && y_src >= 0.0 && y_src < orig_h - 1 ) {
+
+            // 4.3 Interpolação Bilinear C Puro
+            int x1 = ( int )x_src;
+            int y1 = ( int )y_src;
+            int x2 = x1 + 1;
+            int y2 = y1 + 1;
+
+            double dx = x_src - x1;
+            double dy = y_src - y1;
+
+            // Coleta as 4 intensidades vizinhas da imagem de origem
+            double p11 = orig_pixels[y1][x1];
+            double p12 = orig_pixels[y2][x1];
+            double p21 = orig_pixels[y1][x2];
+            double p22 = orig_pixels[y2][x2];
+
+            // Mistura topológica
+            double pixel_val = ( p11 * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
+                               ( p21 * dx * ( 1.0 - dy ) ) +
+                               ( p12 * ( 1.0 - dx ) * dy ) +
+                               ( p22 * dx * dy );
+
+            // Grava diretamente no crop
+            img_crop->image[y_dst][x_dst] = ( int )round( pixel_val );
+         } else {
+            img_crop->image[y_dst][x_dst] = fundo_branco;
+         }
+      }
+   }
+
+   // =========================================================================
+   // 5. LIMPEZA DOS OBJETOS MATEMÁTICOS LOCAIS
+   // =========================================================================
+   // IMPORTANTE: A imagem original (img) não é mais liberada aqui!
+   mat_free( src_pts );
+   mat_free( dst_pts );
+   mat_free( H_inv );
+}
+
+
+
+
+
+
+void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img_crop, IndiceMatriz *ancora, char direcao ) {
+   g_return_if_fail( img && img->image && img_crop && ancora );
+
+   int largura, altura;
+   int fator_de_proporcionalidade = 50;
+
+   if ( direcao == 'h' ) {
+      largura = 14 * fator_de_proporcionalidade; // 700 px
+      altura = 11 * fator_de_proporcionalidade;  // 550 px
+   } else {
+      largura = 10 * fator_de_proporcionalidade; // 500 px
+      altura = 15 * fator_de_proporcionalidade;  // 750 px
+   }
+
+   // =========================================================================
+   // 1. PREPARAÇÃO DOS PONTOS (TARGET -> SOURCE)
+   // =========================================================================
+   Matrix dst_pts = mat_new( 4, 2 ); // O Gabarito Perfeito Virtual (Proporcional)
+   Matrix src_pts = mat_new( 4, 2 ); // As coordenadas reais tortas da foto original
+
+   // Âncora A (Top-Left)
+   dst_pts.data[0] = 0.0;           dst_pts.data[1] = 0.0;
+   // Âncora B (Top-Right)
+   dst_pts.data[2] = largura - 1;   dst_pts.data[3] = 0.0;
+   // Âncora C (Bottom-Right)
+   dst_pts.data[4] = largura - 1;   dst_pts.data[5] = altura - 1;
+   // Âncora D (Bottom-Left)
+   dst_pts.data[6] = 0.0;           dst_pts.data[7] = altura - 1;
+
+   // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
+   for ( int k = 0; k < 4; k++ ) {
+      src_pts.data[k * 2 + 0] = ( double )ancora[k].j;
+      src_pts.data[k * 2 + 1] = ( double )ancora[k].i;
+   }
+
+   // =========================================================================
+   // 2. RESOLUÇÃO DA HOMOGRAFIA INVERSA VIA LAPACKE
+   // =========================================================================
+   Matrix H_inv = mat_new( 3, 3 );
+
+   if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
+      fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia colorida!\n" );
+      mat_free( src_pts ); mat_free( dst_pts ); mat_free( H_inv );
+      return;
+   }
+
+   // =========================================================================
+   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS RGB
+   // =========================================================================
+   img_crop->ncol = largura;
+   img_crop->nrow = altura;
+   img_crop->max = img->max;
+   snprintf( img_crop->key, sizeof(img_crop->key), "%s", img->key );
+
+   // Aloca a matriz do crop (Destino)
+   img_crop->image = alocar_matriz_pixels_colorida( img_crop->nrow, img_crop->ncol );
+
+   int orig_w = img->ncol;
+   int orig_h = img->nrow;
+   uint8_t fundo_branco = ( uint8_t )( img->max > 0 ? img->max : 255 );
+   PixelRGB **orig_pixels = img->image;
+
+   // =========================================================================
+   // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR DE 3 CANAIS (MULTITHREAD)
+   // =========================================================================
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int y_dst = 0; y_dst < altura; y_dst++ ) {
+      for ( int x_dst = 0; x_dst < largura; x_dst++ ) {
+
+         // 4.1 Projeção 3D (Coordenadas Homogêneas)
+         double w = H_inv.data[6] * x_dst + H_inv.data[7] * y_dst + H_inv.data[8];
+         if ( w == 0.0 ) w = 1e-8; // Evita divisão por zero matemática
+
+         // Resgate da coordenada exata subpixel na imagem original
+         double x_src = ( H_inv.data[0] * x_dst + H_inv.data[1] * y_dst + H_inv.data[2] ) / w;
+         double y_src = ( H_inv.data[3] * x_dst + H_inv.data[4] * y_dst + H_inv.data[5] ) / w;
+
+         // 4.2 Verifica se o ponto rastreado existe dentro da foto original
+         if ( x_src >= 0.0 && x_src < orig_w - 1 && y_src >= 0.0 && y_src < orig_h - 1 ) {
+
+            // 4.3 Interpolação Bilinear - Extração dos Vizinhos
+            int x1 = ( int )x_src;
+            int y1 = ( int )y_src;
+            int x2 = x1 + 1;
+            int y2 = y1 + 1;
+
+            double dx = x_src - x1;
+            double dy = y_src - y1;
+
+            // Coleta as structs de cor dos 4 pixels vizinhos da imagem de origem
+            PixelRGB p11 = orig_pixels[y1][x1];
+            PixelRGB p12 = orig_pixels[y2][x1];
+            PixelRGB p21 = orig_pixels[y1][x2];
+            PixelRGB p22 = orig_pixels[y2][x2];
+
+            // Mistura topológica por canal (R, G, B)
+            double r_val = ( p11.r * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
+                           ( p21.r * dx * ( 1.0 - dy ) ) +
+                           ( p12.r * ( 1.0 - dx ) * dy ) +
+                           ( p22.r * dx * dy );
+
+            double g_val = ( p11.g * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
+                           ( p21.g * dx * ( 1.0 - dy ) ) +
+                           ( p12.g * ( 1.0 - dx ) * dy ) +
+                           ( p22.g * dx * dy );
+
+            double b_val = ( p11.b * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
+                           ( p21.b * dx * ( 1.0 - dy ) ) +
+                           ( p12.b * ( 1.0 - dx ) * dy ) +
+                           ( p22.b * dx * dy );
+
+            // Grava diretamente no crop
+            img_crop->image[y_dst][x_dst].r = ( uint8_t )round( r_val );
+            img_crop->image[y_dst][x_dst].g = ( uint8_t )round( g_val );
+            img_crop->image[y_dst][x_dst].b = ( uint8_t )round( b_val );
+
+         } else {
+            img_crop->image[y_dst][x_dst].r = fundo_branco;
+            img_crop->image[y_dst][x_dst].g = fundo_branco;
+            img_crop->image[y_dst][x_dst].b = fundo_branco;
+         }
+      }
+   }
+
+   // =========================================================================
+   // 5. LIMPEZA DOS OBJETOS MATEMÁTICOS LOCAIS
+   // =========================================================================
+   // IMPORTANTE: A imagem original (img) não é mais liberada aqui!
+   mat_free( src_pts );
+   mat_free( dst_pts );
+   mat_free( H_inv );
+}
 
 

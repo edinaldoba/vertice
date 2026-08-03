@@ -25,7 +25,9 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG );
 
+void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMatriz *ancora, char direcao );
 
+void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img_crop, IndiceMatriz *ancora, char direcao );
 
 
 
