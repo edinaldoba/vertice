@@ -299,7 +299,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
 
    // Zera o buffer inicialmente para segurança
    char nome[32];
-   nome_base_gabaritos_bin( nome, sizeof( nome ), foco->turma, foco->disciplina, foco->periodo, dados->iprova - 1 );
+   nome_base_gabaritos_bin( nome, sizeof( nome ), foco->turma, foco->disciplina, foco->periodo, dados->iprova );
 
    // 3. g_autofree no arquivo resolve definitivamente o Memory Leak
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );

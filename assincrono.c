@@ -176,7 +176,7 @@ void* thread_gerar_prova_background( void *data ) {
 
    char nome[32] = {0};
    nome_base_gabaritos_bin( nome, sizeof( nome ), args->foco.turma, args->foco.disciplina,
-                            args->foco.periodo, args->dados.iprova - 1 );
+                            args->foco.periodo, args->dados.iprova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 

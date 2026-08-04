@@ -63,7 +63,10 @@ gboolean decodificar_payload_matriz( MapeamentoGabarito *info, const LimitesFilt
    info->per   = ( uint8_t )( ( info->payload >> 18 ) & 0x07 ); // Desloca 18 bits e isola 3 bits (18 a 20)
    info->seq   = ( uint8_t )( ( info->payload >> 21 ) & 0x03 ); // Desloca 21 bits e isola 2 bits (21 a 22)
 
-   if ( info->turma >= limite->turmas || info->per + 1 >= limite->periodos || info->seq == 3 ) {
+   // A sequência da prova é o único valor que não pode ser zero (valores 1, 2 e 3)
+   // Pois a leitura do binário numa área branca retornava um payload válido onde todos os bits são zero
+   // Mudando a sequência da prova de 0, 1, 2 para 1, 2, 3 elimina essa vulnerabilidade.
+   if ( info->turma >= limite->turmas || info->per + 1 >= limite->periodos || info->seq == 0 ) {
       return FALSE;
    }
 

@@ -121,7 +121,7 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
    uint8_t turma = foco->turma;
    uint8_t disc  = foco->disciplina;
    uint8_t per   = foco->periodo;
-   uint8_t seq   = dados->iprova - 1;
+   uint8_t seq   = dados->iprova; // Mudei de iprova-1 para iprova apenas, para evitar payload válido nulo.
    gerar_matriz_identificacao( p, id, turma, disc, per, seq );
 
 

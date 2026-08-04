@@ -564,7 +564,7 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
    // Passo 1: Calcular a dispersão global e o w1 oficial da Geração 0
    dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
    double proporcao_inicial = dispersao_media_global / disp_max;
-   double w1 = CLAMP( 0.90 * proporcao_inicial + 0.10, 0.0, 1.0 );
+   double w1 = CLAMP( (1 - par->alfa) * proporcao_inicial + par->alfa, 0.0, 1.0 );
 
    // Passo 2: Avaliar todo mundo com o w1 perfeitamente sincronizado
    for ( int k = 0; k < par->n_obj; k++ ) {
@@ -603,7 +603,7 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
       // ----------------------------------------------------------------------
       dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
       double proporcao = dispersao_media_global / disp_max;
-      w1 = CLAMP( 0.90 * proporcao + 0.10, 0.0, 1.0 );
+      w1 = CLAMP( (1 - par->alfa) * proporcao + par->alfa, 0.0, 1.0 );
 
       // ----------------------------------------------------------------------
       // ETAPA 3: AVALIAÇÃO E EQUILÍBRIO DE NASH (Via Gauss-Seidel)
@@ -640,119 +640,4 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
    // Retorna as âncoras limpas e seguras
    return elite;
 }
-
-
-
-// GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim ) {
-//    g_return_val_if_fail( img && par && lim, NULL );
-//
-//    // Alocação da matriz de dispersão
-//    double **coef_disp = g_new0( double*, par->n_obj );
-//
-//    GasPopulacao **pop = g_new0( GasPopulacao*, par->n_obj );
-//    GasGenitores **gen = g_new0( GasGenitores*, par->n_obj );
-//
-//    double disp_max = 0.0;
-//    g_autofree double *dispersao_media = g_new0( double, par->n_obj );
-//
-//    // Inicialização e cálculo da Dispersão Máxima Teórica (Uniforme)
-//    for ( int k = 0; k < par->n_obj; k++ ) {
-//       coef_disp[k] = g_new0( double, lim[k].n_dim );
-//
-//       for ( int j = 0; j < lim[k].n_dim; j++ ) {
-//          disp_max += par->peso_disp * ( lim[k].fim[j] - lim[k].ini[j] ) / sqrt( 12.0 );
-//       }
-//
-//       pop[k] = gas_alocar_populacao( par->n_pop, lim[k].n_dim );
-//       gen[k] = gas_alocar_genitores( par->n_gen, lim[k].n_dim );
-//
-//       gas_populacao_inicial_uniforme( pop[k], par, &lim[k] );
-//
-//       gas_coeficiente_dispersao( pop[k], coef_disp[k], par, lim[k].n_dim );
-//       dispersao_media[k] = gas_mean( coef_disp[k], lim[k].n_dim );
-//    }
-//
-//    disp_max /= ( lim[0].n_dim * par->n_obj );
-//
-//    GasPopulacao *elite = gas_alocar_populacao( par->n_obj, lim[0].n_dim );
-//
-//    int geracao = 0;
-//
-//    double dispersao_media_global = 0.0;
-//
-//    // =========================================================================
-//    // GERAÇÃO 0: AVALIAÇÃO EXPLORATÓRIA
-//    // =========================================================================
-//
-//    // Passo 2: Calcular a dispersão global e o w1 oficial da Geração 0
-//    dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
-//    double proporcao_inicial = dispersao_media_global / disp_max;
-//    double w1 = CLAMP( 0.95 * proporcao_inicial + 0.05, 0.0, 1.0 );
-//
-//    // Passo 3: Avaliar todo mundo com o w1 perfeitamente sincronizado
-//    for ( int k = 0; k < par->n_obj; k++ ) {
-//       for ( int i = 0; i < par->n_pop; i++ ) {
-//          pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, NULL, img, w1, par->limiar, k );
-//       }
-//       qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
-//
-//       memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
-//       elite[k].fitness = pop[k][par->n_pop - 1].fitness;
-//    }
-//
-//    // =========================================================================
-//    // LAÇO EVOLUTIVO CO-EVOLUTIVO (Equilíbrio de Nash)
-//    // =========================================================================
-//    do {
-//       geracao++;
-//
-//       for ( int k = 0; k < par->n_obj; k++ ) {
-//
-//          // ATUALIZAÇÃO DA POPULAÇÃO
-//          gas_torneio( pop[k], gen[k], lim[k].n_dim, par, gas_comparar_objetivo_max );
-//          gas_crossover_aritmetico( pop[k], gen[k], lim[k].n_dim, par );
-//          gas_mutacao_creep( pop[k], coef_disp[k], &lim[k], par );
-//
-//          // Atualizou a população, imediatamente calcula-se o coeficiente de dispersão
-//          gas_coeficiente_dispersao( pop[k], coef_disp[k], par, lim[k].n_dim );
-//          dispersao_media[k] = gas_mean( coef_disp[k], lim[k].n_dim );
-//       }
-//
-//       // Prepara um único w1 para cada geração antes da avaliação (fitness)
-//       dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
-//       double proporcao = dispersao_media_global / disp_max;
-//       w1 = CLAMP( 0.95 * proporcao + 0.05, 0.0, 1.0 );
-//
-//
-//       for ( int k = 0; k < par->n_obj; k++ ) {
-//
-//          // OTIMIZAÇÃO APLICADA: Avalia apenas os recém-nascidos (n_gen)!
-//          for ( int i = 0; i < par->n_gen; i++ ) {
-//             pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, elite, img, w1, par->limiar, k );
-//          }
-//          qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
-//
-//          // Atualiza o Elite DESTE grupo para o próximo grupo k usar (Gauss-Seidel)
-//          memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
-//          elite[k].fitness = pop[k][par->n_pop - 1].fitness;
-//       }
-//
-//    } while ( dispersao_media_global > par->toleracia && geracao < par->max_geracoes );
-//
-//    // =========================================================================
-//    // LIMPEZA DE RECURSOS DO PIPELINE
-//    // =========================================================================
-//    for ( int k = 0; k < par->n_obj; k++ ) {
-//       g_free( coef_disp[k] );
-//       gas_liberar_populacao( pop[k], par->n_pop );
-//       gas_liberar_genitores( gen[k], par->n_gen );
-//    }
-//
-//    g_free( pop );
-//    g_free( gen );
-//    g_free( coef_disp );
-//
-//    // Retorna as âncoras limpas e seguras
-//    return elite;
-// }
 

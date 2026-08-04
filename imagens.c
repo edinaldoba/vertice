@@ -135,75 +135,6 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
 
 
-static gboolean gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora ) {
-   // 1. Validação de segurança dos ponteiros de entrada
-   g_return_val_if_fail( img && info && ancora, FALSE );
-
-   guint32 sementes[4];
-   gerar_sementes( sementes );
-
-   // Como usamos g_autoptr, a GLib fará o free automático no fim do escopo (não usar g_rand_free)
-   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
-
-   GasParametros par = {
-      .n_pop        = 60,    // Tamanho da população (Calibrado)
-      .n_gen        = 24,     // Quantidade de substituições (40%)
-      .n_tor        = 2,      // Número de indivíduos no torneio
-      .n_obj        = 4,      // Número de objetivos da coevolução
-      .p_rec        = 0.80,   // Probabilidade de recombinação
-      .p_mut        = 0.90,   // Probabilidade de mutação
-      .peso_disp    = 1.8,    // Peso de dispersão inicial
-      .toleracia    = 3.0e-1, // Tolerância geométrica
-      .max_geracoes = 65,     // Limite máximo de gerações inicial
-      .limiar       = 1,      // Limiar valor do pixel fitness local
-      .rand         = rand_context
-   };
-
-   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
-
-   // 2. Primeira tentativa de convergência
-   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
-   if ( melhor == NULL ) {
-      gas_limites_liberar( lim, par.n_obj );
-      return FALSE; // Força quarentena com segurança
-   }
-
-   double media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-   gboolean sucesso = (media_fitness > 0.90);
-
-   // 3. Mecanismo de resgate (Retry) para imagens com muito ruído
-   if ( !sucesso ) {
-      // CRÍTICO: Liberar a memória da primeira tentativa antes de alocar a nova
-      gas_liberar_populacao( melhor, par.n_obj );
-
-      par.peso_disp = 2.8; // Forçar exploração profunda
-      par.max_geracoes = 100;
-      melhor = gas_pipeline( img, &par, lim );
-
-      media_fitness = ( melhor[0].fitness + melhor[1].fitness + melhor[3].fitness + melhor[2].fitness ) / 4.0;
-      sucesso = (media_fitness > 0.90);
-   }
-
-   // 4. Extração das coordenadas reais
-   for ( int k = 0; k < par.n_obj; k++ ) {
-      ancora[k].j = (int)round(melhor[k].x[0]);
-      ancora[k].i = (int)round(melhor[k].x[1]);
-   }
-
-   // 5. Determinação autônoma da direção da folha baseada na geometria das âncoras
-   info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
-                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j  ) ? 'h' : 'v';
-
-   // ------------------------------------------------------------------------
-   // LIMPEZA DE MEMÓRIA (DEEP FREE)
-   // ------------------------------------------------------------------------
-
-   gas_liberar_populacao( melhor, par.n_obj );
-   gas_limites_liberar( lim, par.n_obj );
-
-   return sucesso;
-}
-
 
 
 static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza *img_gray, IndiceMatriz *ancora ) {
@@ -228,9 +159,78 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 
 
 //========================================================================================================//
+/**
+ * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
+ * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
+ */
+static void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa ) {
+   // 1. Validação de segurança dos ponteiros de entrada
+   g_return_if_fail( img && info && ancora );
+
+   // Inicialização segura do motor estocástico
+   guint32 sementes[4];
+   gerar_sementes( sementes );
+   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
+
+   // 2. Ajuste dinâmico de hiperparâmetros (O pulo do gato para o resgate)
+   // Se for a 2ª tentativa (tentativa == 1), expande a exploração para quebrar mínimos locais
+   double peso_disp_atual = ( tentativa > 0 ) ? 2.3 : 1.8;
+   int max_geracoes_atual = ( tentativa > 0 ) ? 80  : 65;
+
+   GasParametros par = {
+      .n_pop        = 60,                // Tamanho da população (Calibrado)
+      .n_gen        = 24,                // Quantidade de substituições (40%)
+      .n_tor        = 2,                 // Número de indivíduos no torneio
+      .n_obj        = 4,                 // Número de objetivos da coevolução
+      .p_rec        = 0.80,              // Probabilidade de recombinação
+      .p_mut        = 0.90,              // Probabilidade de mutação altíssima
+      .peso_disp    = peso_disp_atual,   // Ajuste dinâmico de dispersão
+      .toleracia    = 3.0e-1,            // Tolerância geométrica
+      .max_geracoes = max_geracoes_atual,// Ajuste dinâmico de fôlego
+      .limiar       = 1,                 // Limiar de valor do pixel (fitness local)
+      .alfa         = 0.2,               // Controle fixo de convergência do w1 e w2
+      .rand         = rand_context
+   };
+
+   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
+
+   // 3. Execução do Pipeline Evolutivo
+   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
+   if ( melhor == NULL ) {
+      gas_limites_liberar( lim, par.n_obj );
+      return; // Força quarentena com segurança
+   }
+
+   // 4. Extração e arredondamento das coordenadas reais (Subpixel -> Pixel)
+   for ( int k = 0; k < par.n_obj; k++ ) {
+      ancora[k].j = ( int )round( melhor[k].x[0] );
+      ancora[k].i = ( int )round( melhor[k].x[1] );
+   }
+
+   // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
+   info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
+                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j  ) ? 'h' : 'v';
+
+   // 6. Limpeza profunda de memória
+   gas_liberar_populacao( melhor, par.n_obj );
+   gas_limites_liberar( lim, par.n_obj );
+}
+//========================================================================================================//
+
+
+
+
+//========================================================================================================//
+/**
+ * Função principal de processamento em lote.
+ * Executa a visão computacional multithread, cortes e leitura do payload/respostas.
+ */
 int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
    if ( !dados || !limite ) return -1;
 
+   // =========================================================================
+   // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
+   // =========================================================================
    const char *home = g_get_home_dir();
    if ( home == NULL ) home = ".";
 
@@ -249,10 +249,12 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
    g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
    int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
+
    if ( qtd_bin <= 0 ) {
       g_printerr( "[AVISO] Nenhuma prova foi gerada até o momento.\n" );
       return -1;
    }
+
    ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
 
@@ -264,69 +266,63 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
    ItemTextoCurto *imgs_orig = NULL;
    int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
-
    int n_rejeitadas = 0;
 
    // =========================================================================
-   // LAÇO PARALELO (O OpenMP processará múltiplas imagens simultaneamente)
+   // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
    // =========================================================================
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
    for ( int i = 0; i < qtd_img; i++ ) {
 
-      gboolean sucesso = TRUE; // Substitui o goto!
+      gboolean sucesso = FALSE; // Inicializamos false e só confirmamos no payload
+      int tentativas = 0;
 
       MapeamentoGabarito info = {0};
       IndiceMatriz ancora[4] = {0};
 
       ImagemColorida img_rgb_orig  = {0};
       ImagemColorida img_rgb_crop  = {0};
-
-      ImagemCinza img_gray_bin   = {0};
-      ImagemCinza img_gray_crop  = {0};
-      ImagemCinza img_gray_alloc = {0};
+      ImagemCinza img_gray_bin     = {0};
+      ImagemCinza img_gray_crop    = {0};
+      ImagemCinza img_gray_alloc   = {0};
 
       g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
-
-      g_autofree char* img_png = trocar_extensao( imgs_orig[i].str, "png" );
+      g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
-      // FASE 1: Carregamento
+      // FASE 1: Carregamento e Conversão de Cor
       carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
       g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
 
-      // FASE 2: Normalização e Deskewing (Em Cinza para Visão)
+      // FASE 2: Normalização de Resolução
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
-      // FASE 3: Visão Computacional
-      if ( !gas_mapear_ancoras( &img_gray_alloc, &info, ancora ) ) {
-         fprintf( stderr, "[ERRO] Falha de âncoras na imagem: %s\n", imgs_orig[i].str );
-         sucesso = FALSE;
-      }
+      // FASE 3: Visão Computacional Evolutiva (Estratégia de Dupla Passada)
+      do {
+         // PROTEÇÃO: Limpa a memória do crop anterior antes de sobrescrever na 2ª tentativa
+         if ( tentativas > 0 && img_gray_crop.image != NULL ) {
+            liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+            img_gray_crop.image = NULL;
+         }
 
-      if ( sucesso ) {
-         // FASE 4: Correção Geométrica Dupla
+         gas_mapear_ancoras( &img_gray_alloc, &info, ancora, tentativas );
          transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
-
-         normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
-         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
-
-         salvar_imagem_png_nativa( path_png, &img_rgb_crop );
-
-         // Binarização maravilhosa usando o Método de Otsu
          binarizar_pgm_metodo_otsu( &img_gray_crop );
-
-         // FASE 5: Leitura do Payload
          info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
 
-         if ( !decodificar_payload_matriz( &info, limite ) ) {
-            fprintf( stderr, "[FALHA] Payload inválido. Imagem: %s\n", imgs_orig[i].str );
-            sucesso = FALSE;
-         }
+         // A prova de fogo: O Payload bateu perfeitamente?
+         sucesso = decodificar_payload_matriz( &info, limite );
+         tentativas++;
+
+      } while ( !sucesso && tentativas < 2 );
+
+      if ( !sucesso ) {
+         fprintf( stderr, "[FALHA CRÍTICA] Payload inválido mesmo após resgate. Imagem: %s\n", imgs_orig[i].str );
       }
 
-      // FASE 6: Identificação e Escrita (Se tudo deu certo até aqui)
+      // FASE 4: Processamento de Dados (Apenas se convergiu)
       if ( sucesso ) {
          ItemTextoCurto chave;
          nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), info.turma, info.disc, info.per, info.seq );
@@ -337,56 +333,61 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
             info.num = ler_numero_aluno( &img_gray_crop, info.direcao );
             g_strlcpy( info.nome_img, img_png, sizeof( info.nome_img ) );
 
-            // PROTEÇÃO CRÍTICA: Múltiplas threads não podem escrever no mesmo arquivo juntas!
+            // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
             #pragma omp critical(escrita_binario)
             {
                if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
                   g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
                }
-               fflush( f[j] ); // Garante que o dado vá fisicamente para o disco
+               fflush( f[j] ); // Força I/O imediato para evitar corrupção de cache
             }
-
-            // printf( "%3d %3d %3d %3d %3d | Número: %2d | Respostas: %s\n",
-            //         info.id, info.turma, info.disc, info.per, info.seq, info.num, info.resp );
          } else {
             g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
-            sucesso = FALSE;
+            sucesso = FALSE; // Rebaixa o status para forçar quarentena
          }
       }
 
-      // ====================================================================
-      // TRATAMENTO DE ERROS (Quarentena)
-      // ====================================================================
-      if ( !sucesso ) {
-         // CORREÇÃO 2: Usa img_png (que já tem a extensão .png) em vez da original
+      // FASE 5: Renderização do Crop Colorido ou Quarentena
+      if ( sucesso ) {
+         normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
+         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
+         salvar_imagem_png_nativa( path_png, &img_rgb_crop );
+
+      } else {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
-
          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
-
-         // CORREÇÃO 1: Remove o arquivo PNG da pasta principal caso ele já tenha
-         // sido salvo pela Fase 4 antes da falha ocorrer nas Fases 5 ou 6.
-         g_remove( path_png );
-
          n_rejeitadas++;
       }
 
-      // ====================================================================
-      // LIMPEZA SEGURA DE MEMÓRIA
-      // ====================================================================
+      // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
       if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
-
-      // Padronizando a limpeza: Como você usa alocação nativa agora para a RGB original,
-      // a forma mais segura de limpar é garantindo que o ponteiro não é nulo e chamando a função base:
       if ( img_rgb_orig.image )   liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
    }
 
-   // Limpeza final de arquivos e arrays
+   // =========================================================================
+   // FINALIZAÇÃO GLOBAL
+   // =========================================================================
    for ( int i = 0; i < qtd_bin; i++ ) {
-      if ( f[i] != NULL ) fclose( f[i] );
+      if ( f[i] != NULL ) {
+         // 1. Fecha o stream para liberar o lock do sistema operacional sobre o arquivo
+         fclose( f[i] );
+
+         // 2. Monta o caminho absoluto/relativo completo para o arquivo físico
+         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+
+         // 3. Verifica o tamanho lendo os metadados do disco
+         if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
+            // CORREÇÃO: Usar o caminho completo ('arquivo') ao invés de apenas o nome
+            if ( g_remove( arquivo ) != 0 ) {
+               g_printerr( "[ERRO] Falha ao tentar remover o arquivo vazio: %s\n", arquivo );
+            }
+         }
+      }
    }
+
    g_free( f );
    g_free( imgs_orig );
    free( resp_bin );
@@ -505,7 +506,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    const FichaAluno       *diario  =  ctx->diario;
 
    char nome_bin[64];
-   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), foco->turma, foco->disciplina, foco->periodo, dados->iprova - 1 );
+   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), foco->turma, foco->disciplina, foco->periodo, dados->iprova );
 
    g_autofree char *path_resp = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
                                 "respostas", nome_bin, NULL );
