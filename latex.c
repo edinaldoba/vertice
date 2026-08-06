@@ -72,7 +72,7 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
    // 1. Lógica de Rotação transferida do LaTeX para o C
    int  rotacao = ( direcao == 'h' ) ? 0 : 90;
    float xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
-   float yscale = 0.6;
+   float yscale = ( direcao == 'h' ) ? 0.6 : 0.6;
 
    // Injeção direta dos valores calculados
    fprintf( p, "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n",

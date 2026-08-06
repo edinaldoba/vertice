@@ -1051,3 +1051,113 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 }
 
 
+
+
+
+/**
+ * Aplica filtro de remoção de sombras e iluminação de fundo (Magic Color/Flat-Field)
+ * mantendo as cores originais da caneta e marcações para geração de PDFs limpos.
+ */
+void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur ) {
+   if ( !orig || !orig->image || !dest ) return;
+
+   int rows = orig->nrow;
+   int cols = orig->ncol;
+
+   // 1. Aloca a estrutura da imagem de destino se necessário
+   if ( dest->image == NULL ) {
+      dest->nrow = orig->nrow;
+      dest->ncol = orig->ncol;
+      dest->max = orig->max;
+      snprintf( dest->key, sizeof(dest->key), "%s", orig->key );
+      dest->image = alocar_matriz_pixels_colorida( rows, cols );
+   }
+
+   // 2. Passo A: Desfoque Separável (O Segredo da Velocidade)
+   // Precisamos de duas matrizes: uma intermediária para o desfoque horizontal
+   // e a matriz final de fundo para o vertical.
+   ImagemColorida fundo_h = {0};
+   ImagemColorida fundo   = {0};
+   fundo_h.image = alocar_matriz_pixels_colorida( rows, cols );
+   fundo.image   = alocar_matriz_pixels_colorida( rows, cols );
+
+   // Pré-calcula a quantidade de vizinhos para evitar o "conta++" no laço interno
+   int qtd_vizinhos = 0;
+   for ( int d = -raio_blur; d <= raio_blur; d += 2 ) qtd_vizinhos++;
+
+   // 2.1 Desfoque Horizontal (Linhas)
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+         long sr = 0, sg = 0, sb = 0;
+
+         for ( int dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
+            int nc = c + dc;
+            // Clamp otimizado inline sem macros genéricas
+            if ( nc < 0 ) nc = 0;
+            else if ( nc >= cols ) nc = cols - 1;
+
+            sr += orig->image[r][nc].r;
+            sg += orig->image[r][nc].g;
+            sb += orig->image[r][nc].b;
+         }
+         fundo_h.image[r][c].r = ( unsigned char )( sr / qtd_vizinhos );
+         fundo_h.image[r][c].g = ( unsigned char )( sg / qtd_vizinhos );
+         fundo_h.image[r][c].b = ( unsigned char )( sb / qtd_vizinhos );
+      }
+   }
+
+   // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+         long sr = 0, sg = 0, sb = 0;
+
+         for ( int dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
+            int nr = r + dr;
+            if ( nr < 0 ) nr = 0;
+            else if ( nr >= rows ) nr = rows - 1;
+
+            sr += fundo_h.image[nr][c].r;
+            sg += fundo_h.image[nr][c].g;
+            sb += fundo_h.image[nr][c].b;
+         }
+         fundo.image[r][c].r = ( unsigned char )( sr / qtd_vizinhos );
+         fundo.image[r][c].g = ( unsigned char )( sg / qtd_vizinhos );
+         fundo.image[r][c].b = ( unsigned char )( sb / qtd_vizinhos );
+      }
+   }
+
+   // 3. Passo B: Normalização Flat-Field Otimizada
+   // #pragma omp parallel for schedule(static)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+
+         // Acesso direto e linear em memória
+         PixelRGB po = orig->image[r][c];
+         PixelRGB pf = fundo.image[r][c];
+
+         // Evita divisão por zero (sem saltos condicionais caros)
+         int fr = ( pf.r < 1 ) ? 1 : pf.r;
+         int fg = ( pf.g < 1 ) ? 1 : pf.g;
+         int fb = ( pf.b < 1 ) ? 1 : pf.b;
+
+         // Divisão Flat-Field usando INTEIROS (Extremamente mais rápido que double)
+         int nr = ( po.r * 255 ) / fr;
+         int ng = ( po.g * 255 ) / fg;
+         int nb = ( po.b * 255 ) / fb;
+
+         // Realce de Fundo Branco Otimizado!
+         // Se for maior que 230, vira 255. Isso elimina o perigo de passar de 255
+         // e remove completamente a necessidade da macro CLAMP e de números negativos.
+         dest->image[r][c].r = ( nr > 230 ) ? 255 : ( unsigned char )nr;
+         dest->image[r][c].g = ( ng > 230 ) ? 255 : ( unsigned char )ng;
+         dest->image[r][c].b = ( nb > 230 ) ? 255 : ( unsigned char )nb;
+      }
+   }
+
+   // 4. Limpeza das matrizes temporárias
+   liberar_matriz_pixels_colorida( fundo_h.image, rows );
+   liberar_matriz_pixels_colorida( fundo.image, rows );
+}
+

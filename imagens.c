@@ -351,7 +351,15 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
-         salvar_imagem_png_nativa( path_png, &img_rgb_crop );
+
+         // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
+         ImagemColorida img_rgb_limpa = {0};
+         filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 ); // raio de 15px
+
+         // Salva a imagem tratada com fundo 100% branco
+         salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
+
+         liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
 
       } else {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );

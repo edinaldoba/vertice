@@ -29,6 +29,8 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
 
 void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img_crop, IndiceMatriz *ancora, char direcao );
 
+void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur );
+
 
 
 #endif

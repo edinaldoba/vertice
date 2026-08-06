@@ -466,9 +466,10 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
          fputs( "\\end{multicols}\n\\end{document}", pp );
          break;
       } else if ( strcmp( str, "% RESPOSTAS\n" ) == 0 && dados->qtd_paginas == 2 ) {
-         fputs( "\\begin{center}\n", pp );
+         // fputs( "\\hspace{-10mm}\\begin{center}\n", pp );
+         fputs( "\\noindent\\hspace{-3mm}", pp );
          quadro_de_respostas( pp, diario[jj].aluno, jj + 1, i, direcao, dados->naopresencial, dados, foco );
-         fputs( "\\end{center}\n", pp );
+         // fputs( "\\end{center}\n", pp );
          continue;
       }
       fputs( str, pp );
