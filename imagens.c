@@ -483,6 +483,59 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
 }
 
 
+static void atualizar_arquivo_avaliacoes_dat( char *linha_notas, const InterfaceDados *dados,
+                                              const CaminhoDiretorio *caminho ) {
+   g_return_if_fail( linha_notas && dados && caminho );
+
+   linha_notas[ dados->qtd_alunos_total ] = '\0';
+
+   g_autofree char *path_avaliacoes = g_build_filename( caminho->dados, "avaliações.dat", NULL );
+   g_autofree char *conteudo = NULL;
+   char **linhas = NULL;
+   guint num_linhas = 0;
+
+   // 1. Lê o arquivo se ele já existir (se não, tratamos como novo/vazio)
+   if ( g_file_get_contents( path_avaliacoes, &conteudo, NULL, NULL ) ) {
+      linhas = g_strsplit( conteudo, "\n", -1 );
+      num_linhas = g_strv_length( linhas );
+   }
+
+   guint alvo = 2 * dados->iprova - 2;
+
+   // 2. Calcula o tamanho necessário, garantindo que suporte o índice 'alvo'
+   guint novo_tamanho = ( alvo >= num_linhas ) ? alvo + 1 : num_linhas;
+
+   // 3. Aloca um novo array blindado (+1 para o terminador NULL exigido pela GLib)
+   char **novas_linhas = g_new0( char *, novo_tamanho + 1 );
+
+   // 4. Preenche a matriz dinâmica
+   for ( guint i = 0; i < novo_tamanho; i++ ) {
+      if ( i == alvo ) {
+         // for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+         //    novas_linhas[i][j] = linha_notas[j];
+         // }
+         novas_linhas[i] = g_strdup( linha_notas );
+
+      } else if ( i < num_linhas && linhas[i] != NULL ) {
+         novas_linhas[i] = g_strdup( linhas[i] );
+
+      } else {
+         novas_linhas[i] = g_strdup( "" ); // Linhas em branco para preencher lacunas
+      }
+   }
+
+   // 5. Junta o texto e realiza a gravação atômica
+   g_autofree char *novo_conteudo = g_strjoinv( "\n", novas_linhas );
+   if ( !g_file_set_contents( path_avaliacoes, novo_conteudo, -1, NULL ) ) {
+      g_printerr( "[ERRO] Falha ao salvar as notas em: %s\n", path_avaliacoes );
+   }
+
+   // 6. Limpeza simétrica de memória
+   g_strfreev( novas_linhas );
+   if ( linhas ) g_strfreev( linhas );
+}
+
+
 static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const InterfaceDados *dados,
       const FichaAluno *diario ) {
 
@@ -569,6 +622,8 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       g_printerr( "Aviso de I/O: Tamanhos lidos não batem perfeitamente com os registrados.\n" );
    }
 
+   g_autofree char *linha_notas = g_strdup("******************************************************************");
+
    // ====================================================================================
    // 3. LAÇO PARALELO BLINDADO
    // ====================================================================================
@@ -582,11 +637,12 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       if ( status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
 
          // O caminho feliz! Tudo perfeito.
-         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", i );
+         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", info[i].num );
          const char *gab = G[ info[i].id ].str;
 
          int nota = imagens_corrigidas( gab, &info[i], ctx, nome_base );
          info[i].nota = nota;
+         linha_notas[ info[i].num-1 ] = (nota==10) ? '#' : '0' + nota;
 
       } else {
          // O caminho de tratamento de erros
@@ -603,6 +659,9 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       }
 
    }
+
+   // Permite que o relatório de avaliações seja gerado já com a nota da prova recém corrigida
+   atualizar_arquivo_avaliacoes_dat( linha_notas, dados, caminho );
 
    // ====================================================================================
    // 4. COMPILAÇÃO PARALELA (LaTeX Multi-Core)
@@ -621,7 +680,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
 
    for ( int i = 0; i < qtd_linhas; i++ ) {
       if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-         arquivos_pdf[qtd_sucessos] = g_strdup_printf( "%.2d.pdf", i );
+         arquivos_pdf[qtd_sucessos] = g_strdup_printf( "%.2d.pdf", info[i].num );
          qtd_sucessos++;
       }
    }
@@ -643,7 +702,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < qtd_linhas; i++ ) {
       if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", i );
+         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", info[i].num );
          apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios/", nome_base, 5 );
       }
    }

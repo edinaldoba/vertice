@@ -483,8 +483,8 @@ int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *diario, const 
 
    j = 0;
    while ( fgets( notas, sizeof notas, p ) != NULL ) {
+      notas[ strcspn( notas, "\r\n" ) ] = '\0';
       len = strlen( notas );
-      notas[--len] = '\0';
       if ( len > 0 ) {
          if ( len == dados->qtd_alunos_total ) {
             for ( i = 0; i < dados->qtd_alunos_total; i++ ) {

@@ -137,7 +137,7 @@ int comparar_mapeamento_gabarito( const void* a, const void* b ) {
 int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,
                            int ( *comparador )( const void *, const void * ) ) {
    // Defesa contra ponteiros nulos ou tamanhos inválidos
-   if ( !chave || !vetor || n == 0 || tamanho_elemento == 0 || !comparador ) return -1;
+   g_return_val_if_fail( chave && vetor && comparador && n>0 && tamanho_elemento>0, -1 );
 
    void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
 

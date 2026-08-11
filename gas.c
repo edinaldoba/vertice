@@ -284,10 +284,8 @@ static int gas_comparar_objetivo_max( const void* a, const void* b ) {
 // ============================================================================
 // FUNÇÃO DE FITNESS LOCAL (ALTAMENTE OTIMIZADA)
 // ============================================================================
-static double fitness_local( const double *x, const ImagemCinza *img, const int limiar, const int k ) {
+static double gas_fitness_local( const double *x, const ImagemCinza *img, const int limiar ) {
    g_return_val_if_fail( x && img && img->image, 0.0 );
-
-   ( void )k;
 
    int cx = ( int )round( x[0] );
    int cy = ( int )round( x[1] );
@@ -429,7 +427,7 @@ static double gas_erro_ortogonal( const double p0[2], const double p1[2],
 // ============================================================================
 // FUNÇÃO DE FITNESS GEOMÉTRICO (ATUALIZADA)
 // ============================================================================
-static double fitness_geometrico( const double *x, const GasPopulacao *elite, const int k ) {
+static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite, const int k ) {
    g_return_val_if_fail( x && elite && k >= 0 && k < 4, 0.0 );
 
    // 1. O PULO DO GATO: Simulação do polígono
@@ -499,7 +497,7 @@ static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elit
 
    // 1. O fitness local sempre é calculado, independentemente da geração
    // Avalia o contraste/textura da imagem exatamente na coordenada 'x'
-   double f_local = fitness_local( x, img, limiar, k );
+   double f_local = gas_fitness_local( x, img, limiar );
 
    // 2. GERAÇÃO 0: Se a elite for NULL, não há como calcular a geometria
    if ( elite == NULL ) {
@@ -508,7 +506,7 @@ static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elit
 
    // 3. GERAÇÕES > 0: A elite existe, ativando a pressão evolutiva geométrica
    // Avalia como a coordenada 'x' se comporta em relação às outras 3 âncoras
-   double f_geo = fitness_geometrico( x, elite, k );
+   double f_geo = gas_fitness_geometrico( x, elite, k );
 
    // 4. FITNESS ATRIBUÍDO (Equilíbrio de Nash)
    double f_atribuido = ( w1 * f_local ) + ( w2 * f_geo );

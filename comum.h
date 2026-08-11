@@ -155,28 +155,83 @@ typedef struct {
 
 
 
-
 //=========================================================================================================//
 //             E S T R U T U R A    D E    D A D O S   -   B O L E T I M    A L U N O                      //
 //=========================================================================================================//
+typedef enum {
+   MATRICULA_REGULAR     = 1 << 0, // Aluno matriculado no começo do ano letivo
+   MATRICULA_INTERNA     = 1 << 1, // Aluno matriculado no meio do ano letivo vindo de outra turma da mesma escola
+   MATRICULA_EXTERNA     = 1 << 2, // Aluno matriculado no meio do ano letivo vindo de outra escola
+   TRANSFERENCIA_INTERNA = 1 << 3, // Aluno transferido da turma para outra turma da mesma escola
+   TRANSFERENCIA_EXTERNA = 1 << 4, // Aluno transferido da turma para outra escola
+   EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
+} SituacaoAluno;
+
 typedef struct {
-   char    aluno[64], ordem[8], cod[32], inep[32], sexo[16], nasc[16], sit[8];
-   int     limite_corte;
-   int     idx;
-   bool    ativo;
-   int     atipico;
+    char aluno[64];
+    char sexo; // M ou F
+    char nasc[16];
+} FichaSiaep;
 
-   // Matriz de notas: [Período 0-3][Avaliação/Recup]
-   int     avaliacoes[4][10];
-   float   media[4];
+typedef struct {
+    char cod_aluno[64];
+    char sit[8];
+} AcessoTurmas;
 
-   // Dados de Assiduidade
-   int     presencas[4];
-   int     faltas[4];
+typedef struct {
+   char aluno[64];
+   char sexo[16];
+   char nasc[16];
+   char rg[32];
+   char cpf[16];
+   char pai[64];
+   char mae[64];
+} BiografiaAluno;
 
-   int     total_presencas;
-   int     total_faltas;
+typedef struct {
+   char resp[64]; // Responsável
+   char celular[16];
+   char email[64];
+} ContatoAluno;
+
+typedef struct {
+   char aluno[64];
+
+   int limite_corte;        // Formatação de impressão
+   int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
+   bool ativo;              // Status de matrícula global
+
+   // --- 6. Campos Legados (Para futura remoção) ---
+   int avaliacoes[4][10];
+   float media[4];
 } FichaAluno;
+
+typedef struct {
+   uint32_t cod_aluno; // Código do aluno (identificação única - SIAEP)
+
+   BiografiaAluno bio;
+
+   SituacaoAluno sit;
+
+   int limite_corte;     // Formatação de impressão
+   int idx;              // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
+   gboolean ativo;    // Status de matrícula global
+   TipoAtipico atipico;  // Condição de adaptação curricular
+
+   struct {
+      float av;
+      float rec;
+   } nota[4][5];         // [4 Períodos][5 Avaliações]
+
+   float rec_final;
+   float conselho;
+
+   float relatorio[6];   // Médias dos 4 períodos + rec. final + conselho
+
+   int presencas[4];     // [4 Períodos]
+   int faltas[4];        // [4 Períodos]
+
+} FichaAlunoAux;
 //=========================================================================================================//
 
 

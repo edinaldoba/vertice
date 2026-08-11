@@ -13,6 +13,8 @@
 # 3. Regra restritiva para a pasta 'suporte/'
 # Primeiro: Bloqueia TUDO dentro de suporte/
 suporte/*
+alunos/*
+siaep/*
 
 # Segundo: Abre exceção (!) APENAS para o script dependencias.sh
 !suporte/dependencias.sh
