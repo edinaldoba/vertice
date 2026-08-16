@@ -104,7 +104,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
       nome_aleatorio( nome_img, sizeof( nome_img ) );
 
       const char *ext = g_strrstr( file_atual, "." );
-      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i].str ), "%s%s", nome_img, (ext!=NULL) ? ext : "" );
+      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i].str ), "%s%s", nome_img, ( ext != NULL ) ? ext : "" );
 
       // Montagem de caminhos independente para cada thread
       char *path_origem = g_build_filename( origem, file_atual, NULL );
@@ -143,8 +143,8 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
    g_return_if_fail( img_gray->ncol > 0 && img_gray->nrow > 0 ); // Proteção vital!
 
    // 1. Fatores de escala diretos (Largura e Altura)
-   double scale_x = (double)img_rgb->ncol / (double)img_gray->ncol;
-   double scale_y = (double)img_rgb->nrow / (double)img_gray->nrow;
+   double scale_x = ( double )img_rgb->ncol / ( double )img_gray->ncol;
+   double scale_y = ( double )img_rgb->nrow / ( double )img_gray->nrow;
 
    // 2. Aplicação da escala em cada uma das 4 âncoras
    for ( int ii = 0; ii < 4; ii++ ) {
@@ -209,7 +209,7 @@ static void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info
 
    // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
    info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
-                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j  ) ? 'h' : 'v';
+                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
 
    // 6. Limpeza profunda de memória
    gas_liberar_populacao( melhor, par.n_obj );
@@ -240,9 +240,8 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-        g_mkdir_with_parents( respostas, 0755 ) != 0 )
-   {
+         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -415,8 +414,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
 
 static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
-                                                   const char *arquivo_saida )
-{
+      const char *arquivo_saida ) {
    g_autofree char *nome_arquivo_escola = NULL;
    if ( dados->periodo[0] == 'R' ) {
       nome_arquivo_escola = g_strdup_printf( "Correção Recuperação Final - %s - %s - %s.pdf",
@@ -440,9 +438,8 @@ static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, 
 
 
 static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *info, const int qtd_linhas,
-                                                     const FichaAluno *diario, const InterfaceDados *dados,
-                                                     const CaminhoDiretorio *caminho )
-{
+      const FichaAluno *diario, const InterfaceDados *dados,
+      const CaminhoDiretorio *caminho ) {
    g_autofree char *diretorio_imagens = NULL;
 
    // 1. Construção simplificada: Não precisamos criar o diretório "Notas" separadamente.
@@ -470,7 +467,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
          int num_aluno = info[i].num;
 
          g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", i );
-         g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, diario[num_aluno-1].aluno );
+         g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, diario[num_aluno - 1].aluno );
          g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
          if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 1.5 ) ) {
@@ -484,7 +481,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
 
 
 static void atualizar_arquivo_avaliacoes_dat( char *linha_notas, const InterfaceDados *dados,
-                                              const CaminhoDiretorio *caminho ) {
+      const CaminhoDiretorio *caminho ) {
    g_return_if_fail( linha_notas && dados && caminho );
 
    linha_notas[ dados->qtd_alunos_total ] = '\0';
@@ -622,7 +619,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       g_printerr( "Aviso de I/O: Tamanhos lidos não batem perfeitamente com os registrados.\n" );
    }
 
-   g_autofree char *linha_notas = g_strdup("******************************************************************");
+   g_autofree char *linha_notas = g_strdup( "******************************************************************" );
 
    // ====================================================================================
    // 3. LAÇO PARALELO BLINDADO
@@ -642,7 +639,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
 
          int nota = imagens_corrigidas( gab, &info[i], ctx, nome_base );
          info[i].nota = nota;
-         linha_notas[ info[i].num-1 ] = (nota==10) ? '#' : '0' + nota;
+         linha_notas[ info[i].num - 1 ] = ( nota == 10 ) ? '#' : '0' + nota;
 
       } else {
          // O caminho de tratamento de erros
@@ -675,7 +672,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    // ====================================================================================
    // 5. UNIFICAÇÃO DOS PDFS E LIMPEZA NATIVA
    // ====================================================================================
-   g_auto(GStrv) arquivos_pdf = g_new0( char *, qtd_linhas + 1 );
+   g_auto( GStrv ) arquivos_pdf = g_new0( char *, qtd_linhas + 1 );
    int qtd_sucessos = 0;
 
    for ( int i = 0; i < qtd_linhas; i++ ) {
@@ -696,7 +693,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    g_remove( arquivo_saida );
 
    // Unifica os PDFs enviando DIRETAMENTE para o destino final
-   g_pdfunite( "./dados/temporarios/", (const char **)arquivos_pdf, qtd_sucessos, arquivo_saida );
+   g_pdfunite( "./dados/temporarios/", ( const char ** )arquivos_pdf, qtd_sucessos, arquivo_saida );
 
    // Limpeza nativa paralela
    #pragma omp parallel for schedule(static)

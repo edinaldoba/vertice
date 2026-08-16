@@ -142,7 +142,7 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
             pC = IMG->image[y_base + 1][x_base];
             pD = IMG->image[y_base + 1][x_base + 1];
 
-         // [SLOW PATH] - Borda com fallback para branco
+            // [SLOW PATH] - Borda com fallback para branco
          } else {
             int x0 = ( x_base < 0 ) ? 0 : ( x_base > x_lim ) ? x_lim : x_base;
             int x1 = ( x_base + 1 < 0 ) ? 0 : ( x_base + 1 > x_lim ) ? x_lim : x_base + 1;
@@ -247,8 +247,8 @@ void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_g
 
    MapeamentoAfim mapa;
    // Em uma rotação pura, as dimensões da imagem destino mudam para acomodar as pontas
-   mapa.largura_destino = (int)(fabs(IMG->ncol * cos_a) + fabs(IMG->nrow * sin_a));
-   mapa.altura_destino  = (int)(fabs(IMG->nrow * cos_a) + fabs(IMG->ncol * sin_a));
+   mapa.largura_destino = ( int )( fabs( IMG->ncol * cos_a ) + fabs( IMG->nrow * sin_a ) );
+   mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
 
    // Vetores diretores simples baseados no ângulo
    mapa.ux = cos_a;
@@ -257,8 +257,8 @@ void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_g
    mapa.vy = cos_a;
 
    // Calcula a origem para centralizar
-   mapa.x_origem = (IMG->ncol / 2.0f) - (mapa.largura_destino / 2.0f) * mapa.ux - (mapa.altura_destino / 2.0f) * mapa.vx;
-   mapa.y_origem = (IMG->nrow / 2.0f) - (mapa.largura_destino / 2.0f) * mapa.uy - (mapa.altura_destino / 2.0f) * mapa.vy;
+   mapa.x_origem = ( IMG->ncol / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.ux - ( mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( IMG->nrow / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.uy - ( mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim( IMG, img, &mapa );
 }
@@ -275,16 +275,16 @@ void rotacionar_imagem_colorida( const ImagemColorida *IMG, ImagemColorida *img,
    float sin_a = sinf( rad );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = (int)(fabs(IMG->ncol * cos_a) + fabs(IMG->nrow * sin_a));
-   mapa.altura_destino  = (int)(fabs(IMG->nrow * cos_a) + fabs(IMG->ncol * sin_a));
+   mapa.largura_destino = ( int )( fabs( IMG->ncol * cos_a ) + fabs( IMG->nrow * sin_a ) );
+   mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
 
    mapa.ux = cos_a;
    mapa.uy = -sin_a;
    mapa.vx = sin_a;
    mapa.vy = cos_a;
 
-   mapa.x_origem = (IMG->ncol / 2.0f) - (mapa.largura_destino / 2.0f) * mapa.ux - (mapa.altura_destino / 2.0f) * mapa.vx;
-   mapa.y_origem = (IMG->nrow / 2.0f) - (mapa.largura_destino / 2.0f) * mapa.uy - (mapa.altura_destino / 2.0f) * mapa.vy;
+   mapa.x_origem = ( IMG->ncol / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.ux - ( mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( IMG->nrow / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.uy - ( mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
@@ -814,13 +814,17 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    Matrix src_pts = mat_new( 4, 2 ); // As coordenadas reais tortas da foto
 
    // Âncora A (Top-Left)
-   dst_pts.data[0] = 0.0;           dst_pts.data[1] = 0.0;
+   dst_pts.data[0] = 0.0;
+   dst_pts.data[1] = 0.0;
    // Âncora B (Top-Right)
-   dst_pts.data[2] = largura - 1;   dst_pts.data[3] = 0.0;
+   dst_pts.data[2] = largura - 1;
+   dst_pts.data[3] = 0.0;
    // Âncora C (Bottom-Right)
-   dst_pts.data[4] = largura - 1;   dst_pts.data[5] = altura - 1;
+   dst_pts.data[4] = largura - 1;
+   dst_pts.data[5] = altura - 1;
    // Âncora D (Bottom-Left)
-   dst_pts.data[6] = 0.0;           dst_pts.data[7] = altura - 1;
+   dst_pts.data[6] = 0.0;
+   dst_pts.data[7] = altura - 1;
 
    // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
    for ( int k = 0; k < 4; k++ ) {
@@ -836,7 +840,9 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    // Passamos de DST para SRC para podermos fazer o Backward Warping
    if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
       fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia!\n" );
-      mat_free( src_pts ); mat_free( dst_pts ); mat_free( H_inv );
+      mat_free( src_pts );
+      mat_free( dst_pts );
+      mat_free( H_inv );
       return;
    }
 
@@ -846,7 +852,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    img_crop->ncol = largura;
    img_crop->nrow = altura;
    img_crop->max = img->max;
-   snprintf( img_crop->key, sizeof(img_crop->key), "%s", img->key );
+   snprintf( img_crop->key, sizeof( img_crop->key ), "%s", img->key );
 
    // Aloca a matriz do crop (Destino)
    img_crop->image = alocar_matriz_pixels( img_crop->nrow, img_crop->ncol );
@@ -938,13 +944,17 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    Matrix src_pts = mat_new( 4, 2 ); // As coordenadas reais tortas da foto original
 
    // Âncora A (Top-Left)
-   dst_pts.data[0] = 0.0;           dst_pts.data[1] = 0.0;
+   dst_pts.data[0] = 0.0;
+   dst_pts.data[1] = 0.0;
    // Âncora B (Top-Right)
-   dst_pts.data[2] = largura - 1;   dst_pts.data[3] = 0.0;
+   dst_pts.data[2] = largura - 1;
+   dst_pts.data[3] = 0.0;
    // Âncora C (Bottom-Right)
-   dst_pts.data[4] = largura - 1;   dst_pts.data[5] = altura - 1;
+   dst_pts.data[4] = largura - 1;
+   dst_pts.data[5] = altura - 1;
    // Âncora D (Bottom-Left)
-   dst_pts.data[6] = 0.0;           dst_pts.data[7] = altura - 1;
+   dst_pts.data[6] = 0.0;
+   dst_pts.data[7] = altura - 1;
 
    // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
    for ( int k = 0; k < 4; k++ ) {
@@ -959,7 +969,9 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 
    if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
       fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia colorida!\n" );
-      mat_free( src_pts ); mat_free( dst_pts ); mat_free( H_inv );
+      mat_free( src_pts );
+      mat_free( dst_pts );
+      mat_free( H_inv );
       return;
    }
 
@@ -969,7 +981,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    img_crop->ncol = largura;
    img_crop->nrow = altura;
    img_crop->max = img->max;
-   snprintf( img_crop->key, sizeof(img_crop->key), "%s", img->key );
+   snprintf( img_crop->key, sizeof( img_crop->key ), "%s", img->key );
 
    // Aloca a matriz do crop (Destino)
    img_crop->image = alocar_matriz_pixels_colorida( img_crop->nrow, img_crop->ncol );
@@ -1069,7 +1081,7 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
       dest->nrow = orig->nrow;
       dest->ncol = orig->ncol;
       dest->max = orig->max;
-      snprintf( dest->key, sizeof(dest->key), "%s", orig->key );
+      snprintf( dest->key, sizeof( dest->key ), "%s", orig->key );
       dest->image = alocar_matriz_pixels_colorida( rows, cols );
    }
 

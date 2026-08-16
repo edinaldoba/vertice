@@ -13,7 +13,7 @@ $(RESOURCES_C): $(RESOURCES_XML)
 
 # Módulos do sistema escritos em C puro
 C_SOURCES = main.c auxiliar.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c matriz.c \
-            glibrary.c imgcore.c callbacks.c basicas.c provas.c gabaritos.c gas.c \
+            glibrary.c imgcore.c callbacks.c basicas.c provas.c gabaritos.c gas.c seduc-ma.c \
             latex.c mensagens.c layout.c signals.c acervo.c $(RESOURCES_C)
 
 # Consolidação dos objetos gerados

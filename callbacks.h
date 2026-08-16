@@ -26,6 +26,7 @@ void on_botao_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_d
 void on_botao_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
 void on_botao_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
 void on_botao_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data );
+void on_botao_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================
 // 3. CURADORIA E COMPILAÇÃO DE Acervo
@@ -64,10 +65,7 @@ void on_check_atualizar_booleanos_interface_toggled( GtkWidget *widget, gpointer
 void on_entry_atualizar_tema_changed( GtkWidget *widget, gpointer user_data );
 
 
-
-
-
-// --- EMBRULHOS GTK ---
+// --- EMBRULHOS GTK INTERFACE DINÂMICA ---
 
 void on_subtema_check_toggled( GtkWidget *widget, gpointer user_data );
 

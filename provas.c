@@ -565,8 +565,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
 
 
 static void copiar_arquivos_prova_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
-                                                const char *destino_relatorio )
-{
+      const char *destino_relatorio ) {
    g_autofree char *nome_arquivo_escola = NULL;
    if ( dados->periodo[0] == 'R' ) {
       nome_arquivo_escola = g_strdup_printf( "Recuperação Final - %s - %s - %s.pdf",
@@ -590,8 +589,7 @@ static void copiar_arquivos_prova_externamente( const InterfaceDados *dados, con
 
 //========================================================================================================//
 static void copiar_arquivos_prova_nao_presencial( const FichaAluno *diario, const InterfaceDados *dados,
-                                                   const CaminhoDiretorio *caminho )
-{
+      const CaminhoDiretorio *caminho ) {
    g_autofree char *diretorio_provas  = NULL;
    g_autofree char *diretorio_imagens = NULL;
 
@@ -610,8 +608,7 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *diario, cons
 
    // 2. O g_mkdir_with_parents já cria tudo do zero (inclusive a pasta raiz "Provas" se faltar)
    if ( g_mkdir_with_parents( diretorio_provas, 0777 ) != 0 ||
-        g_mkdir_with_parents( diretorio_imagens, 0777 ) != 0 )
-   {
+         g_mkdir_with_parents( diretorio_imagens, 0777 ) != 0 ) {
       g_printerr( "ERRO CRÍTICO: Falha ao criar a hierarquia em %s\n", caminho->externo );
       return;
    }
@@ -663,7 +660,7 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *diario, cons
 
 //========================================================================================================//
 void compilacao_latex_e_manipulacao_de_arquivos( const FichaAluno *diario, const InterfaceDados *dados,
-                                                 const CaminhoDiretorio *caminho ) {
+      const CaminhoDiretorio *caminho ) {
 
    // 1. Compilação paralela do LaTeX
    g_pdflatex_parallel( "./dados/temporarios" );
@@ -688,7 +685,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const FichaAluno *diario, const
    // UNIÃO DOS PDFS (Frequência + Provas) DIRETAMENTE NO DESTINO FINAL
    // =========================================================================
    int qtd_pdfs = dados->qtd_alunos_ativos + 1; // +1 para acomodar a frequência
-   g_auto(GStrv) arquivos_pdf = g_new0( char *, qtd_pdfs + 1 ); // +1 para o NULL
+   g_auto( GStrv ) arquivos_pdf = g_new0( char *, qtd_pdfs + 1 ); // +1 para o NULL
 
    arquivos_pdf[0] = g_strdup( "frequencia.pdf" );
    for ( int i = 0; i < dados->qtd_alunos_ativos; i++ ) {
@@ -699,7 +696,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const FichaAluno *diario, const
    g_remove( destino_relatorio );
 
    // Geração unificada direto na pasta Relatórios (Elimina o gio_mover_arquivo)
-   g_pdfunite( "./dados/temporarios/", (const char **)arquivos_pdf, qtd_pdfs, destino_relatorio );
+   g_pdfunite( "./dados/temporarios/", ( const char ** )arquivos_pdf, qtd_pdfs, destino_relatorio );
 
    // =========================================================================
    // LIMPEZA PARALELA DE ARQUIVOS NATIVOS

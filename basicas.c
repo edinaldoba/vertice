@@ -71,7 +71,7 @@ int* randperm( int n ) {
 void file_permute( FILE **pb, int nquest ) {
    g_return_if_fail( pb && nquest > 0 );
 
-   for ( int i = 0; i < nquest-1; i++ ) {
+   for ( int i = 0; i < nquest - 1; i++ ) {
       int j = g_random_int_range( i, nquest );
       FILE *aux = pb[j];
       pb[j] = pb[i];
@@ -121,6 +121,15 @@ int comparar_item_combo( const void* a, const void* b ) {
 
 
 
+int comparar_ficha_aluno( const void* a, const void* b ) {
+   const FichaAlunoAux *arg1 = ( const FichaAlunoAux * )a;
+   const FichaAlunoAux *arg2 = ( const FichaAlunoAux * )b;
+
+   return strcoll( arg1->aluno, arg2->aluno );
+}
+
+
+
 
 int comparar_mapeamento_gabarito( const void* a, const void* b ) {
    const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
@@ -137,7 +146,7 @@ int comparar_mapeamento_gabarito( const void* a, const void* b ) {
 int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,
                            int ( *comparador )( const void *, const void * ) ) {
    // Defesa contra ponteiros nulos ou tamanhos inválidos
-   g_return_val_if_fail( chave && vetor && comparador && n>0 && tamanho_elemento>0, -1 );
+   g_return_val_if_fail( chave && vetor && comparador && n > 0 && tamanho_elemento > 0, -1 );
 
    void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
 
@@ -158,7 +167,7 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
 
 
 int contar_registros_binarios( const char *filepath, size_t tam ) {
-   g_return_val_if_fail( filepath && tam>0, 0 );
+   g_return_val_if_fail( filepath && tam > 0, 0 );
 
    FILE *f = fopen( filepath, "rb" );
    if ( !f ) return 0;
@@ -176,14 +185,14 @@ int contar_registros_binarios( const char *filepath, size_t tam ) {
 void display_tempo( const char *descricao, GTimer *cronometro ) {
    g_return_if_fail( descricao && cronometro );
 
-    double tempo_segundos = g_timer_elapsed( cronometro, NULL );
-    if ( tempo_segundos > 60.0 ) {
-        int minutos = ( int )( tempo_segundos / 60 );
-        double segundos_restantes = tempo_segundos - ( minutos * 60 );
-        printf( "⏱ %s concluída em %d min e %.2f seg.\n", descricao, minutos, segundos_restantes );
-    } else {
-        printf( "⏱ %s concluída em %.3f segundos.\n", descricao, tempo_segundos );
-    }
+   double tempo_segundos = g_timer_elapsed( cronometro, NULL );
+   if ( tempo_segundos > 60.0 ) {
+      int minutos = ( int )( tempo_segundos / 60 );
+      double segundos_restantes = tempo_segundos - ( minutos * 60 );
+      printf( "⏱ %s concluída em %d min e %.2f seg.\n", descricao, minutos, segundos_restantes );
+   } else {
+      printf( "⏱ %s concluída em %.3f segundos.\n", descricao, tempo_segundos );
+   }
 }
 
 
@@ -594,7 +603,7 @@ void preparar_ambiente_latex( const char *recursos_prefix ) {
    // 2. Verifica se o pacote JÁ EXISTE NO DISCO físico
    EstadoArquivo estado = verificar_arquivo( caminho_destino_final );
 
-   if ( estado & (ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO) ) {
+   if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
       printf( "⚠️ O pacote professor.sty não foi encontrado no sistema TeX.\n" );
 
       // 3. Verifica se o RECURSO existe na MEMÓRIA (Usando GLib ao invés de stat)
@@ -657,7 +666,7 @@ void preparar_ambiente_latex_no_disco( void ) {
    // 2. Verifica o status do arquivo no destino
    EstadoArquivo estado = verificar_arquivo( caminho_destino_final );
 
-   if ( (estado & ARQUIVO_INEXISTENTE) || (estado & ARQUIVO_VAZIO) ) {
+   if ( ( estado & ARQUIVO_INEXISTENTE ) || ( estado & ARQUIVO_VAZIO ) ) {
       printf( "⚠️ O pacote professor.sty não foi encontrado no sistema TeX.\n" );
 
       // 3. Tenta instalar da origem

@@ -706,7 +706,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
    char arquivo[1024];
    snprintf( arquivo, sizeof( arquivo ), "%s/lista.dat", ctx->caminho.dados );
 
-   while ( !(verificar_arquivo( arquivo ) & ARQUIVO_PRONTO) )  {
+   while ( !( verificar_arquivo( arquivo ) & ARQUIVO_PRONTO ) )  {
       if ( foco_periodo == 0 ) return;
       gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->entry.periodo ), --foco_periodo );
       snprintf( arquivo, sizeof( arquivo ), "%s/lista.dat", ctx->caminho.dados );

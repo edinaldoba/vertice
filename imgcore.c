@@ -125,69 +125,69 @@ void liberar_imagem_imread( ImagemColorida *img ) {
 
 
 // Função auxiliar privada para transformar a matriz 2D em um vetor 1D
-static guchar* achatar_matriz_colorida(const ImagemColorida *img) {
-    if (!img || !img->image) return NULL;
+static guchar* achatar_matriz_colorida( const ImagemColorida *img ) {
+   if ( !img || !img->image ) return NULL;
 
-    int largura = img->ncol;
-    int altura = img->nrow;
+   int largura = img->ncol;
+   int altura = img->nrow;
 
-    // O GdkPixbuf RGB exige exatamente 3 bytes por pixel.
-    // O "rowstride" (passo da linha) é o tamanho exato de uma linha em bytes.
-    int rowstride = largura * 3;
+   // O GdkPixbuf RGB exige exatamente 3 bytes por pixel.
+   // O "rowstride" (passo da linha) é o tamanho exato de uma linha em bytes.
+   int rowstride = largura * 3;
 
-    // Alocamos o bloco único contíguo usando GLib
-    guchar *pixels_1d = g_malloc(altura * rowstride);
+   // Alocamos o bloco único contíguo usando GLib
+   guchar *pixels_1d = g_malloc( altura * rowstride );
 
-    // Copiamos linha por linha em paralelo!
-    // O memcpy faz a CPU transferir o bloco de memória de uma vez só (instruções SIMD).
-    for (int y = 0; y < altura; y++) {
-        guchar *destino_linha = pixels_1d + (y * rowstride);
+   // Copiamos linha por linha em paralelo!
+   // O memcpy faz a CPU transferir o bloco de memória de uma vez só (instruções SIMD).
+   for ( int y = 0; y < altura; y++ ) {
+      guchar *destino_linha = pixels_1d + ( y * rowstride );
 
-        // Copiamos os pixels da linha Y da sua matriz 2D para a posição correta no vetor 1D
-        memcpy(destino_linha, img->image[y], rowstride);
-    }
+      // Copiamos os pixels da linha Y da sua matriz 2D para a posição correta no vetor 1D
+      memcpy( destino_linha, img->image[y], rowstride );
+   }
 
-    return pixels_1d;
+   return pixels_1d;
 }
 
-gboolean salvar_imagem_png_nativa(const char *caminho, const ImagemColorida *img) {
-    if (!caminho || !img || !img->image) return FALSE;
+gboolean salvar_imagem_png_nativa( const char *caminho, const ImagemColorida *img ) {
+   if ( !caminho || !img || !img->image ) return FALSE;
 
-    GError *erro = NULL;
-    int largura = img->ncol;
-    int altura = img->nrow;
-    int rowstride = largura * 3; // 3 canais (R, G, B)
+   GError *erro = NULL;
+   int largura = img->ncol;
+   int altura = img->nrow;
+   int rowstride = largura * 3; // 3 canais (R, G, B)
 
-    // 1. Extração contígua: trazemos a sua matriz 2D para o formato nativo do GTK
-    // O g_autofree blinda a função: não importa onde ocorra um "return", a RAM será limpa.
-    g_autofree guchar *pixels_rgb = achatar_matriz_colorida(img);
-    if (!pixels_rgb) return FALSE;
+   // 1. Extração contígua: trazemos a sua matriz 2D para o formato nativo do GTK
+   // O g_autofree blinda a função: não importa onde ocorra um "return", a RAM será limpa.
+   g_autofree guchar *pixels_rgb = achatar_matriz_colorida( img );
+   if ( !pixels_rgb ) return FALSE;
 
-    // 2. Criação do envelope do GdkPixbuf (Ele apenas "aponta" para o nosso vetor)
-    // GDK_COLORSPACE_RGB, FALSE (sem transparência/Alpha), 8 (bits por canal)
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(
-        pixels_rgb, GDK_COLORSPACE_RGB, FALSE, 8,
-        largura, altura, rowstride, NULL, NULL
-    );
+   // 2. Criação do envelope do GdkPixbuf (Ele apenas "aponta" para o nosso vetor)
+   // GDK_COLORSPACE_RGB, FALSE (sem transparência/Alpha), 8 (bits por canal)
+   GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data(
+                          pixels_rgb, GDK_COLORSPACE_RGB, FALSE, 8,
+                          largura, altura, rowstride, NULL, NULL
+                       );
 
-    if (!pixbuf) {
-        g_printerr("Falha crítica ao alocar o envelope GdkPixbuf.\n");
-        return FALSE;
-    }
+   if ( !pixbuf ) {
+      g_printerr( "Falha crítica ao alocar o envelope GdkPixbuf.\n" );
+      return FALSE;
+   }
 
-    // 3. I/O de Disco Nativo: Salva o arquivo comprimido usando a libpng do Linux
-    gboolean sucesso = gdk_pixbuf_save(pixbuf, caminho, "png", &erro, NULL);
+   // 3. I/O de Disco Nativo: Salva o arquivo comprimido usando a libpng do Linux
+   gboolean sucesso = gdk_pixbuf_save( pixbuf, caminho, "png", &erro, NULL );
 
-    if (!sucesso) {
-        g_printerr("Erro ao salvar PNG (%s): %s\n", caminho, erro->message);
-        g_clear_error(&erro); // Limpa a struct de erro da GLib
-    }
+   if ( !sucesso ) {
+      g_printerr( "Erro ao salvar PNG (%s): %s\n", caminho, erro->message );
+      g_clear_error( &erro ); // Limpa a struct de erro da GLib
+   }
 
-    // 4. Limpeza: Destruímos o envelope.
-    // O vetor 'pixels_rgb' será libertado silenciosamente no fechamento das chaves pelo g_autofree.
-    g_object_unref(pixbuf);
+   // 4. Limpeza: Destruímos o envelope.
+   // O vetor 'pixels_rgb' será libertado silenciosamente no fechamento das chaves pelo g_autofree.
+   g_object_unref( pixbuf );
 
-    return sucesso;
+   return sucesso;
 }
 
 
@@ -195,73 +195,73 @@ gboolean salvar_imagem_png_nativa(const char *caminho, const ImagemColorida *img
 
 
 // Função de reconstrução que lida com 3 canais (RGB) ou 4 canais (RGBA)
-static void reconstruir_matriz_colorida(const guchar *pixels_1d, ImagemColorida *img,
-                                       int largura, int altura,
-                                       int rowstride, int canais) {
-    g_return_if_fail(pixels_1d != NULL);
-    g_return_if_fail(img != NULL);
+static void reconstruir_matriz_colorida( const guchar *pixels_1d, ImagemColorida *img,
+      int largura, int altura,
+      int rowstride, int canais ) {
+   g_return_if_fail( pixels_1d != NULL );
+   g_return_if_fail( img != NULL );
 
-    if (img->image != NULL) {
-        liberar_matriz_pixels_colorida(img->image, img->nrow);
-    }
+   if ( img->image != NULL ) {
+      liberar_matriz_pixels_colorida( img->image, img->nrow );
+   }
 
-    img->ncol = largura;
-    img->nrow = altura;
-    img->max = 255;
-    g_strlcpy(img->key, "P6", sizeof(img->key));
+   img->ncol = largura;
+   img->nrow = altura;
+   img->max = 255;
+   g_strlcpy( img->key, "P6", sizeof( img->key ) );
 
-    img->image = alocar_matriz_pixels_colorida(altura, largura);
-    if (!img->image) return;
+   img->image = alocar_matriz_pixels_colorida( altura, largura );
+   if ( !img->image ) return;
 
-    // Se for RGB puro (3 canais) e sem padding, podemos usar o memcpy ultraveloz!
-    if (canais == 3 && rowstride == (largura * 3)) {
-        size_t tamanho_linha_util = largura * sizeof(PixelRGB);
+   // Se for RGB puro (3 canais) e sem padding, podemos usar o memcpy ultraveloz!
+   if ( canais == 3 && rowstride == ( largura * 3 ) ) {
+      size_t tamanho_linha_util = largura * sizeof( PixelRGB );
 
-        // #pragma omp parallel for
-        for (int y = 0; y < altura; y++) {
-            const guchar *origem_linha = pixels_1d + (y * rowstride);
-            memcpy(img->image[y], origem_linha, tamanho_linha_util);
-        }
-    } else {
-        // Caso a imagem tenha Alpha (4 canais) ou padding no rowstride,
-        // copiamos pixel a pixel pulando o canal A (transparência)
-        // #pragma omp parallel for
-        for (int y = 0; y < altura; y++) {
-            const guchar *origem_linha = pixels_1d + (y * rowstride);
-            for (int x = 0; x < largura; x++) {
-                const guchar *p = origem_linha + (x * canais);
-                img->image[y][x].r = p[0];
-                img->image[y][x].g = p[1];
-                img->image[y][x].b = p[2];
-            }
-        }
-    }
+      // #pragma omp parallel for
+      for ( int y = 0; y < altura; y++ ) {
+         const guchar *origem_linha = pixels_1d + ( y * rowstride );
+         memcpy( img->image[y], origem_linha, tamanho_linha_util );
+      }
+   } else {
+      // Caso a imagem tenha Alpha (4 canais) ou padding no rowstride,
+      // copiamos pixel a pixel pulando o canal A (transparência)
+      // #pragma omp parallel for
+      for ( int y = 0; y < altura; y++ ) {
+         const guchar *origem_linha = pixels_1d + ( y * rowstride );
+         for ( int x = 0; x < largura; x++ ) {
+            const guchar *p = origem_linha + ( x * canais );
+            img->image[y][x].r = p[0];
+            img->image[y][x].g = p[1];
+            img->image[y][x].b = p[2];
+         }
+      }
+   }
 }
 
-gboolean carregar_imagem_colorida_nativa(const char *caminho, ImagemColorida *img) {
-    g_return_val_if_fail(caminho != NULL, FALSE);
-    g_return_val_if_fail(img != NULL, FALSE);
+gboolean carregar_imagem_colorida_nativa( const char *caminho, ImagemColorida *img ) {
+   g_return_val_if_fail( caminho != NULL, FALSE );
+   g_return_val_if_fail( img != NULL, FALSE );
 
-    GError *erro = NULL;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(caminho, &erro);
+   GError *erro = NULL;
+   GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file( caminho, &erro );
 
-    if (!pixbuf) {
-        g_printerr("[ERRO] Ao carregar imagem (%s): %s\n", caminho, erro->message);
-        g_clear_error(&erro);
-        return FALSE;
-    }
+   if ( !pixbuf ) {
+      g_printerr( "[ERRO] Ao carregar imagem (%s): %s\n", caminho, erro->message );
+      g_clear_error( &erro );
+      return FALSE;
+   }
 
-    int largura = gdk_pixbuf_get_width(pixbuf);
-    int altura = gdk_pixbuf_get_height(pixbuf);
-    int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
-    int canais = gdk_pixbuf_get_n_channels(pixbuf); // 3 para RGB, 4 para RGBA
-    const guchar *pixels_1d = gdk_pixbuf_read_pixels(pixbuf);
+   int largura = gdk_pixbuf_get_width( pixbuf );
+   int altura = gdk_pixbuf_get_height( pixbuf );
+   int rowstride = gdk_pixbuf_get_rowstride( pixbuf );
+   int canais = gdk_pixbuf_get_n_channels( pixbuf ); // 3 para RGB, 4 para RGBA
+   const guchar *pixels_1d = gdk_pixbuf_read_pixels( pixbuf );
 
-    // Passamos o número de canais para a função auxiliar
-    reconstruir_matriz_colorida(pixels_1d, img, largura, altura, rowstride, canais);
+   // Passamos o número de canais para a função auxiliar
+   reconstruir_matriz_colorida( pixels_1d, img, largura, altura, rowstride, canais );
 
-    g_object_unref(pixbuf);
-    return TRUE;
+   g_object_unref( pixbuf );
+   return TRUE;
 }
 
 
@@ -349,8 +349,7 @@ void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, int x_in
 
 
 void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida *img,
-                                       int x_ini, int y_ini, int largura, int altura )
-{
+                                       int x_ini, int y_ini, int largura, int altura ) {
    if ( !IMG || !img || largura <= 0 || altura <= 0 ) return;
 
    // Proteção de limites rigorosa
@@ -572,7 +571,7 @@ void rgb2gray( ImagemColorida *PPM, ImagemCinza *PGM ) {
          unsigned char b = PPM->image[i][j].b;
 
          // Luminância Rec.709
-         PGM->image[i][j] = ( 2126*r + 7152*g + 722*b ) / 10000;
+         PGM->image[i][j] = ( 2126 * r + 7152 * g + 722 * b ) / 10000;
       }
    }
 
@@ -631,7 +630,7 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
          unsigned char g = buffer_gigante[idx + 1];
          unsigned char b = buffer_gigante[idx + 2];
 
-         int luminancia = ( 2126*r + 7152*g + 722*b ) / 10000;
+         int luminancia = ( 2126 * r + 7152 * g + 722 * b ) / 10000;
          IMG->image[i][j] = luminancia;
       }
    }

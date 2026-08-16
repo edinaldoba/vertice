@@ -12,8 +12,8 @@ void liberar_matriz_pixels( int **matriz, int nrow );
 void liberar_matriz_pixels_colorida( PixelRGB **matriz, int nrow );
 void liberar_imagem_imread( ImagemColorida *img );
 
-gboolean salvar_imagem_png_nativa(const char *caminho, const ImagemColorida *img);
-gboolean carregar_imagem_colorida_nativa(const char *caminho, ImagemColorida *img);
+gboolean salvar_imagem_png_nativa( const char *caminho, const ImagemColorida *img );
+gboolean carregar_imagem_colorida_nativa( const char *caminho, ImagemColorida *img );
 
 void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino );
 

@@ -360,7 +360,7 @@ typedef struct {
    char *caminho_banco_questoes;// ctx->caminho.banco_questoes
 } DadosCompilacaoAsync;
 
-static bool verificar_pdfs_latex_acervo_questoes(  InterfacePainel *painel, const char *tema, int qtd_subtemas, int falhas ) {
+static bool verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const char *tema, int qtd_subtemas, int falhas ) {
 
    if ( falhas == 0 ) {
       // --- ESTADO 1: SUCESSO TOTAL ---
@@ -400,7 +400,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
       // ======================================================================
 
       // 1. Prepara o array dinâmico com os nomes exatos dos PDFs gerados
-      g_auto(GStrv) arquivos_pdf = g_new0( char *, async_data->qtd_subtemas + 1 );
+      g_auto( GStrv ) arquivos_pdf = g_new0( char *, async_data->qtd_subtemas + 1 );
       int qtd_sucessos_reais = 0; // Contador paralelo
 
       for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
@@ -416,7 +416,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
 
       int falhas = async_data->qtd_subtemas - qtd_sucessos_reais;
 
-      if ( verificar_pdfs_latex_acervo_questoes(  async_data->painel, async_data->tema, async_data->qtd_subtemas, falhas ) ) {
+      if ( verificar_pdfs_latex_acervo_questoes( async_data->painel, async_data->tema, async_data->qtd_subtemas, falhas ) ) {
 
          // 2. Prepara o caminho absoluto e definitivo do arquivo final unificado
          g_autofree char *nome_arquivo = g_strdup_printf( "%s.pdf", async_data->tema );
@@ -424,14 +424,14 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
 
          // 3. Chama a sua função nativa passando o arquivo_saida blindado
          g_remove( arquivo_saida );
-         g_pdfunite( async_data->dir_compile, (const char **)arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
+         g_pdfunite( async_data->dir_compile, ( const char ** )arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
 
          // 4. Limpeza dos arquivos temporários
          for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
             apagar_arquivos_temporarios_latex_nativamente( async_data->dir_compile, async_data->subtemas[i].str, 5 );
          }
 
-         if( async_data->widget == async_data->botao_abrir ) {
+         if ( async_data->widget == async_data->botao_abrir ) {
             g_xdg_open( arquivo_saida );
          }
       }
@@ -483,7 +483,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
    GPid pid;
 
    g_autofree char *comando_interno = g_strdup_printf(
-         "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
+                                         "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
    char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
 
    if ( !g_spawn_async( dir_compile, argv, NULL,

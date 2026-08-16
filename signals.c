@@ -123,12 +123,13 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->botao.avaliacoes,        "clicked", G_CALLBACK( on_botao_relatorio_de_avalicoes_clicked ), ctx );
    g_signal_connect( ctx->botao.abrir,             "clicked", G_CALLBACK( on_botao_abrir_arquivos_de_dados_clicked ), ctx );
    g_signal_connect( ctx->botao.relatorio_final,   "clicked", G_CALLBACK( on_botao_relatorio_final_clicked ), ctx );
+   g_signal_connect( ctx->botao.atualizar_alunos,  "clicked", G_CALLBACK( on_botao_siaep_atualizar_alunos_clicked ), ctx );
 
    // Operação Crítica: Passa o ponteiro 'opt' para leitura e aplicação estável do cache físico (.dat)
    g_signal_connect( ctx->botao.carregar_dados,    "clicked", G_CALLBACK( on_botao_carregar_estado_aplicativo_clicked ), ctx );
    g_signal_connect( ctx->botao.gerar_prova,       "clicked", G_CALLBACK( on_botao_gerar_prova_clicked ), ctx );
    g_signal_connect( ctx->botao.processamento_img, "clicked", G_CALLBACK( on_botao_processar_imagens_clicked ), ctx );
-   g_signal_connect( ctx->botao.corrigir_prova,  "clicked", G_CALLBACK( on_botao_corrigir_prova_clicked ), ctx );
+   g_signal_connect( ctx->botao.corrigir_prova,    "clicked", G_CALLBACK( on_botao_corrigir_prova_clicked ), ctx );
 
    g_signal_connect( ctx->botao.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_botao_abrir_tema_clicked ), ctx );
    g_signal_connect( ctx->botao.compilar_latex_acervo, "clicked", G_CALLBACK( on_botao_compilar_questoes_clicked ), ctx );

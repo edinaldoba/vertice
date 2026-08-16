@@ -154,15 +154,16 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    }
 
    // --- [ COLUNA 4 ORIGINAL / DIÁRIO E MOTORES DE AÇÃO ] ---
-   ctx->botao.carregar_dados  = GTK_WIDGET( gtk_builder_get_object( builder, "button_carregar_dados" ) );
-   ctx->botao.frequencia      = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
-   ctx->botao.conteudos       = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
-   ctx->botao.avaliacoes      = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
-   ctx->botao.abrir           = GTK_WIDGET( gtk_builder_get_object( builder, "button_abrir" ) );
-   ctx->botao.relatorio_final = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
+   ctx->botao.carregar_dados   = GTK_WIDGET( gtk_builder_get_object( builder, "button_carregar_dados" ) );
+   ctx->botao.frequencia       = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
+   ctx->botao.conteudos        = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
+   ctx->botao.avaliacoes       = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
+   ctx->botao.abrir            = GTK_WIDGET( gtk_builder_get_object( builder, "button_abrir" ) );
+   ctx->botao.relatorio_final  = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
+   ctx->botao.atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
 
    ctx->botao.gerar_prova       = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
-   ctx->botao.corrigir_prova  = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
+   ctx->botao.corrigir_prova    = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
    ctx->botao.processamento_img = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
 
    ctx->latex.listbox_subtemas      = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );

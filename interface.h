@@ -72,6 +72,7 @@ typedef struct {
    GtkWidget *avaliacoes;              // Consolida as notas do período letivo
    GtkWidget *abrir;                   // Carrega arquivos base (.dat) do período ativo
    GtkWidget *relatorio_final;         // Consolida o fechamento anual/período
+   GtkWidget *atualizar_alunos;        // Atualiza a lista de alunos a partir de xml do siaep
 
    // =========================================================================
    // CICLO DE PRODUÇÃO: GERAÇÃO E CORREÇÃO AUTOMÁTICA DE PROVAS

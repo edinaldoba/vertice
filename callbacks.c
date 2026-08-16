@@ -23,6 +23,7 @@
 #include "mensagens.h"
 #include "dinamica.h"
 #include "assincrono.h"
+#include "seduc-ma.h"
 
 
 
@@ -203,6 +204,13 @@ void on_botao_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_
    AppContext *ctx = ( AppContext* ) user_data;
    if ( !ctx ) return;
    abrir_arquivos_de_dados( &ctx->painel, ctx );
+}
+
+void on_botao_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data ) {
+   ( void )widget;
+   AppContext *ctx = ( AppContext* ) user_data;
+   if ( !ctx ) return;
+   siaep_atualizar_alunos( &ctx->painel, ctx->diario );
 }
 
 

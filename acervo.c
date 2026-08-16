@@ -25,7 +25,8 @@ static bool executar_gerador_c_nativamente( const char *pasta_tema ) {
 
       // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
       char *argv[] = { ( char * )"sh", ( char * )"-c",
-                       ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL };
+                       ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
+                     };
       GError *erro = NULL;
 
       if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
@@ -188,9 +189,9 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    // 1. Delega a construção dos arquivos .tex para o Motor LaTeX
    for ( int i = 0; i < limite->subtemas; i++ ) {
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
-                                                      dados->tema,
-                                                      listas->subtemas[i].str,
-                                                      NULL );
+                                    dados->tema,
+                                    listas->subtemas[i].str,
+                                    NULL );
 
       motor_gerador_latex( pasta_tema, listas->subtemas[i].str, dados );
    }
@@ -244,9 +245,9 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
 
       // Criação dinâmica e 100% segura do caminho do subtema, unindo as pastas com '/'
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
-                                                      dados->tema,
-                                                      listas->subtemas[i].str,
-                                                      NULL );
+                                    dados->tema,
+                                    listas->subtemas[i].str,
+                                    NULL );
 
       // A função retorna true se o arquivo Q.c existia e foi processado
       if ( executar_gerador_c_nativamente( pasta_tema ) ) {
@@ -261,14 +262,14 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
       painel->format_titulo    = meu_gerador_variadico( "✔ Sucesso:" );
       painel->format_subtitulo = meu_gerador_variadico( "O mecanismo de diversificação foi executado." );
       painel->format_instrucao = meu_gerador_variadico( "As questões latex de %s foram atualizadas com sucesso...",
-                                                        dados->tema );
+                                 dados->tema );
       criar_mensagem_painel( SUCESSO, painel );
 
    } else {
       painel->format_titulo    = meu_gerador_variadico( "⚠ Atenção:" );
       painel->format_subtitulo = meu_gerador_variadico( "Nenhum arquivo \".c\" foi encontrado." );
       painel->format_instrucao = meu_gerador_variadico( "Mecanismo de diversificação ainda não implementado para %s...",
-                                                        dados->tema );
+                                 dados->tema );
       criar_mensagem_painel( AVISO, painel );
    }
 }

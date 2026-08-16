@@ -34,15 +34,6 @@ typedef enum {
    AVISO_ALUNO_INATIVO        = 1 << 3
 } StatusMapeamento;
 
-typedef enum {
-   ALUNO_TIPICO     = 1 << 0, // 1  (0001)
-   ALUNO_AUTISTA    = 1 << 1, // 2  (0010)
-   ALUNO_ADHD       = 1 << 2, // 4  (0100)
-   ALUNO_DEFICIENTE = 1 << 3, // 8  (1000)
-   ALUNO_LAUDADO    = 1 << 4, // 16 (0001 0000)
-   ALUNO_OBSERVACAO = 1 << 5  // 32 (0010 0000)
-} TipoAtipico;
-
 // char cor_latex[32];
 // switch ( diario[j].atipico ) {
 //     case ALUNO_AUTISTA:    sprintf( cor_latex, "\\color{blue!70}" );   break;
@@ -152,21 +143,9 @@ typedef struct {
 
 
 
-
-
-
-//=========================================================================================================//
-//             E S T R U T U R A    D E    D A D O S   -   B O L E T I M    A L U N O                      //
-//=========================================================================================================//
-typedef enum {
-   MATRICULA_REGULAR     = 1 << 0, // Aluno matriculado no começo do ano letivo
-   MATRICULA_INTERNA     = 1 << 1, // Aluno matriculado no meio do ano letivo vindo de outra turma da mesma escola
-   MATRICULA_EXTERNA     = 1 << 2, // Aluno matriculado no meio do ano letivo vindo de outra escola
-   TRANSFERENCIA_INTERNA = 1 << 3, // Aluno transferido da turma para outra turma da mesma escola
-   TRANSFERENCIA_EXTERNA = 1 << 4, // Aluno transferido da turma para outra escola
-   EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
-} SituacaoAluno;
-
+//-------------------------------------------------------------------------------------------//
+//          P L A N I L H A S    S I A E P                                                   //
+//-------------------------------------------------------------------------------------------//
 typedef struct {
     char aluno[64];
     char sexo; // M ou F
@@ -177,7 +156,12 @@ typedef struct {
     char cod_aluno[64];
     char sit[8];
 } AcessoTurmas;
+//-------------------------------------------------------------------------------------------//
 
+
+//=========================================================================================================//
+//             E S T R U T U R A    D E    D A D O S   -   B O L E T I M    A L U N O                      //
+//=========================================================================================================//
 typedef struct {
    char aluno[64];
    char sexo[16];
@@ -194,29 +178,48 @@ typedef struct {
    char email[64];
 } ContatoAluno;
 
+typedef enum {
+   PRESENTE          = 1 << 0, // Aluno presente e em sala de aula
+   AUSENTE           = 1 << 1, // Falta não justificada
+   FALTA_JUSTIFICADA = 1 << 2, // Ausência abonada por critério pedagógico ou atestado
+   FORA_DE_SALA      = 1 << 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
+   SUSPENSO          = 1 << 4, // Afastamento temporário por medida disciplinar da direção
+   DISPENSADO        = 1 << 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
+   FOI_EMBORA        = 1 << 6  // Evasão não autorizada do recinto escolar durante o período letivo
+} __attribute__((packed)) StatusAssiduidade;
+
+typedef enum {
+   SEM_SITUACAO          = 0,
+   MATRICULA_REGULAR     = 1 << 0, // Aluno matriculado no começo do ano letivo
+   MATRICULA_INTERNA     = 1 << 1, // Aluno matriculado no meio do ano letivo vindo de outra turma da mesma escola
+   MATRICULA_EXTERNA     = 1 << 2, // Aluno matriculado no meio do ano letivo vindo de outra escola
+   TRANSFERENCIA_INTERNA = 1 << 3, // Aluno transferido da turma para outra turma da mesma escola
+   TRANSFERENCIA_EXTERNA = 1 << 4, // Aluno transferido da turma para outra escola
+   EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
+} __attribute__((packed)) SituacaoAluno;
+
+typedef enum {
+   ALUNO_TIPICO     = 1 << 0, // 1  (0001)
+   ALUNO_AUTISTA    = 1 << 1, // 2  (0010)
+   ALUNO_TDAH       = 1 << 2, // 4  (0100)
+   ALUNO_DEFICIENTE = 1 << 3, // 8  (1000)
+   ALUNO_LAUDADO    = 1 << 4, // 16 (0001 0000)
+   ALUNO_OBSERVACAO = 1 << 5  // 32 (0010 0000)
+} __attribute__((packed)) TipoAtipico;
+
 typedef struct {
+
    char aluno[64];
-
-   int limite_corte;        // Formatação de impressão
-   int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
-   bool ativo;              // Status de matrícula global
-
-   // --- 6. Campos Legados (Para futura remoção) ---
-   int avaliacoes[4][10];
-   float media[4];
-} FichaAluno;
-
-typedef struct {
-   uint32_t cod_aluno; // Código do aluno (identificação única - SIAEP)
-
-   BiografiaAluno bio;
-
+   char sexo[16]; // Masculino ou Feminino
+   char nasc[16];
    SituacaoAluno sit;
 
-   int limite_corte;     // Formatação de impressão
-   int idx;              // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
-   gboolean ativo;    // Status de matrícula global
-   TipoAtipico atipico;  // Condição de adaptação curricular
+   int limite_corte;    // Formatação de impressão
+   int idx;             // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
+   gboolean ativo;      // Status de matrícula global
+   TipoAtipico atipico; // Condição de adaptação curricular
+
+   StatusAssiduidade freq[4][100];
 
    struct {
       float av;
@@ -231,7 +234,20 @@ typedef struct {
    int presencas[4];     // [4 Períodos]
    int faltas[4];        // [4 Períodos]
 
-} FichaAlunoAux;
+} __attribute__((packed)) FichaAlunoAux;
+
+
+typedef struct {
+   char aluno[64];
+
+   int limite_corte;        // Formatação de impressão
+   int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
+   bool ativo;              // Status de matrícula global
+
+   // --- 6. Campos Legados (Para futura remoção) ---
+   int avaliacoes[4][10];
+   float media[4];
+} FichaAluno;
 //=========================================================================================================//
 
 

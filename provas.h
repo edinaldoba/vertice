@@ -19,7 +19,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
             const CaminhoDiretorio *caminho, const DataHoje *data, const ItemTextoCurto *G );
 
 void compilacao_latex_e_manipulacao_de_arquivos( const FichaAluno *diario, const InterfaceDados *dados,
-                                                 const CaminhoDiretorio *caminho );
+      const CaminhoDiretorio *caminho );
 
 
 

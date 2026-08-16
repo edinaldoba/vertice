@@ -13,8 +13,12 @@
 # 3. Regra restritiva para a pasta 'suporte/'
 # Primeiro: Bloqueia TUDO dentro de suporte/
 suporte/*
-alunos/*
-siaep/*
+dados/alunos/*
+planilhas/*
+acervo/*
+!acervo/.gitkeep
+
+!planilhas/acesso
 
 # Segundo: Abre exceção (!) APENAS para o script dependencias.sh
 !suporte/dependencias.sh

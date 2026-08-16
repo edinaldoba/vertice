@@ -167,7 +167,7 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
       }
       // Assinalar alternativas para teste
       float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
-      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5+i, y_aleatorio );
+      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
    }
 
    if ( assinalar_nome_numero ) {

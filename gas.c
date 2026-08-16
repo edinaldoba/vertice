@@ -177,7 +177,7 @@ static void gas_populacao_inicial_uniforme( GasPopulacao *pop, const GasParametr
 
 
 static void gas_torneio( const GasPopulacao *pop, GasGenitores *gen, const int n_dim, const GasParametros *par,
-                  int( gas_comparar )( const void* a, const void* b ) ) {
+                         int( gas_comparar )( const void* a, const void* b ) ) {
    g_return_if_fail( pop && gen && par && gas_comparar );
 
    for ( int i = 0; i < par->n_gen; i++ ) {
@@ -397,9 +397,9 @@ static inline double gas_distancia( const double p1[2], const double p2[2] ) {
 // FUNÇÃO AUXILIAR: ERRO ORTOGONAL VIA PRODUTO ESCALAR NORMALIZADO
 // ============================================================================
 static double gas_erro_ortogonal( const double p0[2], const double p1[2],
-                                    const double p2[2], const double p3[2],
-                                    const double top_w, const double bot_w,
-                                    const double left_h, const double right_h ) {
+                                  const double p2[2], const double p3[2],
+                                  const double top_w, const double bot_w,
+                                  const double left_h, const double right_h ) {
 
    // Vetores partindo de cada vértice
    // Canto 0 (Top-Esq): Vetor para P1 e Vetor para P3
@@ -488,7 +488,7 @@ static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite
 // ============================================================================
 
 static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elite, const ImagemCinza *img,
-      const double w1, const int limiar, const int k ) {
+                                       const double w1, const int limiar, const int k ) {
    g_return_val_if_fail( x && img, 0.0 );
 
    // Pesos da combinação linear para gerações > 0 (podem ser ajustados depois)
@@ -562,7 +562,7 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
    // Passo 1: Calcular a dispersão global e o w1 oficial da Geração 0
    dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
    double proporcao_inicial = dispersao_media_global / disp_max;
-   double w1 = CLAMP( (1 - par->alfa) * proporcao_inicial + par->alfa, 0.0, 1.0 );
+   double w1 = CLAMP( ( 1 - par->alfa ) * proporcao_inicial + par->alfa, 0.0, 1.0 );
 
    // Passo 2: Avaliar todo mundo com o w1 perfeitamente sincronizado
    for ( int k = 0; k < par->n_obj; k++ ) {
@@ -601,7 +601,7 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
       // ----------------------------------------------------------------------
       dispersao_media_global = gas_mean( dispersao_media, par->n_obj );
       double proporcao = dispersao_media_global / disp_max;
-      w1 = CLAMP( (1 - par->alfa) * proporcao + par->alfa, 0.0, 1.0 );
+      w1 = CLAMP( ( 1 - par->alfa ) * proporcao + par->alfa, 0.0, 1.0 );
 
       // ----------------------------------------------------------------------
       // ETAPA 3: AVALIAÇÃO E EQUILÍBRIO DE NASH (Via Gauss-Seidel)

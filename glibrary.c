@@ -123,7 +123,7 @@ void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arq
    g_return_if_fail( qtd_arquivos > 0 );
 
    // g_auto(GStrv) aplica g_strfreev automaticamente ao final do escopo.
-   g_auto(GStrv) argv = g_new0( char *, qtd_arquivos + 3 );
+   g_auto( GStrv ) argv = g_new0( char *, qtd_arquivos + 3 );
 
    int pos = 0;
    argv[pos++] = g_strdup( "pdfunite" );
