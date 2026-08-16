@@ -1,0 +1,39 @@
+% QUESTAO
+Um triângulo equilátero está inscrito em uma circunferência de raio $R$ e circunscrito a uma outra de raio $r=2$\,m. Qual o valor de $R$?
+
+\parbox{0.39\linewidth}{
+
+% ALTERNATIVAS
+$R=4$\,m
+$R=3$\,m
+$R=2$\,m
+$R=1$\,m
+$R=5$\,m
+
+}\parbox{0.6\linewidth}{
+\begin{center}
+\vspace{-5mm}
+\begin{tikzpicture}[ rotate=0, >=latex ]
+\pgfmathsetmacro{\l}{1.5};
+\pgfmathsetmacro{\r}{\l/sqrt(3)};
+\pgfmathsetmacro{\R}{2*\r};
+
+\draw[thick] (-30:\R) -- (90:\R) -- (-150:\R) -- cycle;
+\draw[thick] (0,0) circle (\R);
+\draw[dashed] (0,0) circle (\r);
+\fill (0,0) circle (0.04);
+
+\draw[nodelabel={4pt}{\small$r$}] (0,-\r) -- (0,-2*\r);
+\draw[nodelabel={4pt}{\small$r$}] (0,0) -- (0,-\r);
+\draw[nodelabel={-4pt}{\small$r$}] (0,0) -- (0,\r);
+\draw[nodelabel={-4pt}{\small$r$}] (0,\r) -- (0,2*\r);
+
+\draw (0,-\r) rectangle +(-0.2,0.2);
+\fill ($(0,-\r)+(-0.1,0.1)$) circle (0.03);
+
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

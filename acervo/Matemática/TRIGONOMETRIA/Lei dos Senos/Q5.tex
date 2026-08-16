@@ -1,0 +1,35 @@
+% QUESTAO
+O valor do \^angulo $x$ na figura \'e:
+
+\parbox{0.28\linewidth}{
+
+% ALTERNATIVAS
+$45º$
+$30º$
+$60º$
+$15º$
+$75º$
+
+}\parbox{0.71\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[rotate=-43.7]
+\def\legA{$x$}
+\def\legB{}
+\def\legC{}
+\triangulo
+{}	              {6*sqrt(2)}	               {0}
+{}		  {12}	               {0}
+{}	              {10}	               {0}
+\draw[ thick, nodelabel={+11pt}{$6\sqrt{2}$} ] (B) -- (C);
+
+\circunferenciaCircunscrita
+
+\draw[ thick, nodelabel={-6pt}{$6$} ] (circuncentro) -- ($(circuncentro)+(\A+90:{0.5*\a/sin(\A)})$);
+
+\end{tikzpicture}
+\vspace{-6mm}
+\end{center}
+}
+
+

@@ -1,0 +1,37 @@
+% QUESTAO
+No triângulo $ABC$
+
+\hspace{-1mm}\tikz[>=latex,scale=0.163636,rotate=0,thick]{
+\pgfmathsetmacro{\a}{12};
+\pgfmathsetmacro{\b}{8};
+\pgfmathsetmacro{\c}{6};
+\pgfmathsetmacro{\d}{4};
+\pgfmathsetmacro{\p}{30};
+\coordinate (A) at (0,0);
+\coordinate (B) at (\p,0);
+\coordinate (C) at ({\a/(\a+\c)*\p},0.5*\p);
+\coordinate (D) at ($(A)!\b/(\a+\b)!(C)$);
+\coordinate (E) at ($(B)!\b/(\a+\b)!(C)$);
+\draw (A)--(B)--(C)--cycle (D)--(E);
+\node[above] at (C) {$A$};
+\node[left] at (A) {$B$};
+\node[right] at (B) {$C$};
+\node[left] at (D) {$D$};
+\node[right] at (E) {$E$};
+\node[left]  at ($(C)!0.4!(D)$) {$12$};
+\node[left]  at ($(A)!0.6!(D)$) {$8$};
+\node[right] at ($(C)!0.4!(E)$) {$x$};
+\node[right] at ($(B)!0.6!(E)$) {$4$};
+}
+
+temos $\overline{BC}\,//\,\overline{DE}$. Calcule $x$.
+
+% ALTERNATIVAS 6
+$x=6$
+$x=9$
+$x=16$
+$x=2$
+$x=12$
+
+
+

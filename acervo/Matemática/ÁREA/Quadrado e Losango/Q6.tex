@@ -1,0 +1,33 @@
+% QUESTAO
+A \'area do losango, em metros quadrados, \'e:
+
+\parbox{0.35\linewidth}{
+
+% ALTERNATIVAS
+$40$\,m$^2$
+$42$\,m$^2$
+$49$\,m$^2$
+$36$\,m$^2$
+$24$\,m$^2$
+
+}\parbox{0.64\linewidth}{
+\begin{center}
+\vspace{-3mm}
+\begin{tikzpicture}[ rotate=30.96, >=latex, scale=1.5 ]
+
+\pgfmathsetmacro{\dd}{6};
+\pgfmathsetmacro{\ddd}{10};
+
+\losango{\ddd}{\dd};
+
+\draw[dashed] (A) -- (B)   (C) -- (D);
+
+\rowlabel{0.5}{-90}{$5$}{0,0}{B};
+\rowlabel{-0.5}{0}{$4$}{0,0}{C};
+
+\end{tikzpicture}
+\vspace{-6mm}
+\end{center}
+}
+
+

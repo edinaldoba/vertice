@@ -1,0 +1,39 @@
+% QUESTAO
+O gráfico a seguir apresenta o movimento de reclamações no SAC de uma empresa em uma determinada semana. A linha tracejada informa o número de reclamações \textbf{recebidas} e a linha contínua o número de reclamações \textbf{resolvidas}.
+
+\begin{tikzpicture}[xscale=1, yscale=1]
+  \draw[CorSerie!40, xstep=5/6, ystep=0.5] (0,0) grid (5,3);
+\foreach \y in {0,5,10,15,20,25,30} {\node[left=1mm, scale=0.7] at (0,0.1*\y) {\y}; }
+\node[scale=0.7] at (5/6*0, -0.3-0.00) {dom};
+\node[scale=0.7] at (5/6*1, -0.3-0.04) {seg};
+\node[scale=0.7] at (5/6*2, -0.3-0.00) {ter};
+\node[scale=0.7] at (5/6*3, -0.3-0.04) {qua};
+\node[scale=0.7] at (5/6*4, -0.3-0.01) {qui};
+\node[scale=0.7] at (5/6*5, -0.3-0.01) {sex};
+\node[scale=0.7] at (5/6*6, -0.3-0.00) {sáb};
+  \draw[ultra thick, dashed, VermelhoLaser] (0*5/6, 0.0) -- (1*5/6, 3.0) -- (2*5/6, 1.0) -- (3*5/6, 1.5) -- (4*5/6, 0.5) -- (5*5/6, 2.0) -- (6*5/6, 2.5)  ;
+  \draw[ultra thick, VerdeEscola] (0*5/6, 2.0) -- (1*5/6, 1.0) -- (2*5/6, 3.0) -- (3*5/6, 0.0) -- (4*5/6, 0.5) -- (5*5/6, 1.5) -- (6*5/6, 2.5)  ;
+  \fill[VermelhoLaser] (0*5/6, 0.0) circle (2.5pt);
+  \fill[VerdeEscola] (0*5/6, 2.0) circle (2.5pt);
+  \fill[VermelhoLaser] (1*5/6, 3.0) circle (2.5pt);
+  \fill[VerdeEscola] (1*5/6, 1.0) circle (2.5pt);
+  \fill[VermelhoLaser] (2*5/6, 1.0) circle (2.5pt);
+  \fill[VerdeEscola] (2*5/6, 3.0) circle (2.5pt);
+  \fill[VermelhoLaser] (3*5/6, 1.5) circle (2.5pt);
+  \fill[VerdeEscola] (3*5/6, 0.0) circle (2.5pt);
+  \fill[VermelhoLaser] (4*5/6, 0.5) circle (2.5pt);
+  \fill[VerdeEscola] (4*5/6, 0.5) circle (2.5pt);
+  \fill[VermelhoLaser] (5*5/6, 2.0) circle (2.5pt);
+  \fill[VerdeEscola] (5*5/6, 1.5) circle (2.5pt);
+  \fill[VermelhoLaser] (6*5/6, 2.5) circle (2.5pt);
+  \fill[VerdeEscola] (6*5/6, 2.5) circle (2.5pt);
+\end{tikzpicture}
+
+Em quais dias da semana o número de reclamações resolvidas \textbf{excedeu} o de recebidas?
+
+% ALTERNATIVAS
+no domingo e na terça
+na segunda e na sexta
+na quinta e na quarta
+no domingo e na segunda
+na quinta e na sexta

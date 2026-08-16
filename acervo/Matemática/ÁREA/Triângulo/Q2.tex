@@ -1,0 +1,39 @@
+% QUESTAO
+A \'area do tri\^angulo, em metros, \'e:
+
+\parbox{0.35\linewidth}{
+
+% ALTERNATIVAS
+$21$\,m$^2$
+$18$\,m$^2$
+$24$\,m$^2$
+$25$\,m$^2$
+$16$\,m$^2$
+
+}\parbox{0.64\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[>=latex,rotate=-110]
+\def\legA{}
+\def\legB{}
+\def\legC{}
+\triangulo
+{}	              {sqrt(40)}	               {0}
+{}		  {sqrt(61)}	               {0}
+{}	              {7}	               {0}
+
+\coordinate (D) at (5,0);
+\draw[ nodelabel={-8pt}{$6$}, dashed ] (C) -- (D);
+
+\draw (D) rectangle +(-0.6*\raio,0.6*\raio);
+\fill ($(D)+(-0.3*\raio,0.3*\raio)$) circle (0.5*\raio mm);
+
+\draw[ nodelabel={-8pt}{$5$} ] (A) -- (D);
+\draw[ nodelabel={-8pt}{$2$} ] (D) -- (B);
+
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

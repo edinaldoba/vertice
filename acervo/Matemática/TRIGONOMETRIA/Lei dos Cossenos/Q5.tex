@@ -1,0 +1,41 @@
+% QUESTAO
+O valor da altura $h$, relativa ao lado $\overline{BC}$ do tri\^angulo abaixo, vale:
+
+\parbox{0.18\linewidth}{
+
+% ALTERNATIVAS
+$3$
+$4$
+$6$
+$1$
+$7$
+
+}\parbox{0.81\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[>=latex,scale=0.95]
+\def\legA{}
+\def\legB{}
+\def\legC{}
+\triangulo
+{$3\sqrt{5}$}	              {3*sqrt(5)}	               {0}
+{$5$}		  {5}	               {0}
+{}	              {8.1}	               {0}
+\node[left] at (A) {$B$};
+\node[right] at (B) {$C$};
+\node[above] at (C) {$A$};
+
+\coordinate (D) at (2.815432,0);
+\draw[ nodelabel={5pt}{$h$}, dashed ] (C) -- (D);
+
+\draw (D) rectangle +(0.6*\raio,0.6*\raio);
+\fill ($(D)+(0.3*\raio,0.3*\raio)$) circle (0.5*\raio mm);
+
+\rowlabel{0.6}{-90}{$10$}{A}{B};
+
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

@@ -1,0 +1,38 @@
+% QUESTAO
+Após determinar a base e a altura do triângulo abaixo, a sua área, em metros quadrados, fica:
+
+\parbox{0.4\linewidth}{
+
+% ALTERNATIVAS
+$9\sqrt{5}$ m$^2$
+$18\sqrt{5}$ m$^2$
+$4\sqrt{3}$ m$^2$
+$9\sqrt{2}$ m$^2$
+$18\sqrt{3}$ m$^2$
+
+}\parbox{0.59\linewidth}{
+\begin{center}
+\vspace{-6mm}
+\begin{tikzpicture}[ >=latex, scale=0.4 ]
+
+\coordinate (A) at (0,0);
+\coordinate (B) at (9,0);
+\coordinate (C) at (4,2*sqrt(5));
+\coordinate (D) at (4,0);
+
+\draw[dashed] (C) -- (D);
+\pgfmathsetmacro{\raio}{1};
+\draw (D) rectangle +(0.6*\raio,0.6*\raio);
+\fill ($(D)+(0.3*\raio,0.3*\raio)$) circle (0.5*\raio mm);
+
+\draw[thick] (A) -- (B);
+\draw[thick,nodelabel={-12pt}{$3\sqrt{5}$}] (B) -- (C);
+\draw[thick,nodelabel={-8pt}{$6$}] (C) -- (A);
+\draw[nodelabel={8pt}{$4$}] (A) -- (D);
+
+\end{tikzpicture}
+\vspace{-9mm}
+\end{center}
+}
+
+

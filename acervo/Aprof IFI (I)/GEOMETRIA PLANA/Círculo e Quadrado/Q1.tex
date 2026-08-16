@@ -1,0 +1,31 @@
+\noindent\parbox{\linewidth}{
+
+% QUESTAO
+O perímetro do quadrado $ABCD$ da figura abaixo é $144$\,cm. Calcule a área da região na cor cinza dessa figura.
+
+\parbox{0.55\linewidth}{
+
+% ALTERNATIVAS 4
+$1296-324\pi$ cm$^2$
+$1418-360\pi$ cm$^2$
+$1265-354\pi$ cm$^2$
+$1299-321\pi$ cm$^2$
+$1148-361\pi$ cm$^2$
+
+}\parbox{0.45\linewidth}{
+
+\tikz[thick]{
+\draw[dashed,fill=gray!50] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;
+\draw[fill=white] (0,0) circle (1) (2,0) circle (1) (2,2) circle (1) (0,2) circle (1);
+\draw[dashed] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;
+\fill (0,0) circle (2pt) (2,0) circle (2pt) (2,2) circle (2pt) (0,2) circle (2pt);
+\node at (-0.25,-0.25) {$A$};
+\node at (2.25,2.25) {$C$};
+\node at (2.25,-0.25) {$B$};
+\node at (-0.25,2.25) {$D$};
+} }
+
+
+}
+
+

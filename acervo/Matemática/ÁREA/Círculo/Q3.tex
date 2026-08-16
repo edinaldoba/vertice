@@ -1,0 +1,31 @@
+% QUESTAO
+A área do círculo e o comprimento da circunferência abaixo, são:
+
+\parbox{0.6\linewidth}{
+
+% ALTERNATIVAS
+$\frac{d^2\pi}{4}$ e $d\pi$
+$\frac{d^2\pi}{2}$ e $d\pi$
+$\frac{d^2\pi}{2}$ e $2d\pi$
+$\frac{3d^2\pi}{4}$ e $d\pi$
+$\frac{d^2\pi}{4}$ e $4d\pi$
+
+}\parbox{0.39\linewidth}{
+\begin{center}
+	\vspace{-9mm}
+	\begin{tikzpicture}[>=latex,scale=1.1,rotate=0]
+	\coordinate (O) at (0,0);   \fill (O) circle (0.4mm);
+	\coordinate (A) at (150:1);
+	\coordinate (B) at (-30:1);
+	\draw[thick] (O) circle (1);
+	\draw[thick] (A)--(B);
+	
+	\draw[ decorate, decoration={brace,raise=3pt} ]  (150:0.95) -- (-30:0.95);
+	\draw[nodelabel={12pt}{$d$}] (A) -- (B);
+	
+	\end{tikzpicture}
+	\vspace{-9mm}
+\end{center}
+}
+
+
