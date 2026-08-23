@@ -24,7 +24,7 @@ typedef struct {
    InterfaceListas  listas;
    FocoCoordenadas  foco;     // ◄ Por valor
    CaminhoDiretorio caminho;  // ◄ Por valor
-   DataHoje         data;     // ◄ Por valor
+   CalendarioData         data;     // ◄ Por valor
    FichaAluno       *diario;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
    GtkWidget        *botao_gerar;
    bool             sucesso;

@@ -9,7 +9,7 @@
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
 
 
-DataHoje data_de_hoje( void );
+CalendarioData data_de_hoje( void );
 long int mapear_data_para_id( int dia, int mes, int ano );
 void mapear_id_para_data( long int w, int *dia, int *mes, int *ano );
 int foco_periodo_corrente( int escalar_hoje );

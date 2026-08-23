@@ -125,6 +125,10 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->botao.relatorio_final,   "clicked", G_CALLBACK( on_botao_relatorio_final_clicked ), ctx );
    g_signal_connect( ctx->botao.atualizar_alunos,  "clicked", G_CALLBACK( on_botao_siaep_atualizar_alunos_clicked ), ctx );
 
+   g_signal_connect( ctx->calendario.calendario_data, "day-selected", G_CALLBACK( on_calendario_day_selected ), ctx );
+   g_signal_connect( ctx->calendario.entry_data,      "button-press-event",  G_CALLBACK( on_entry_data_button_press ), ctx );
+   g_signal_connect( ctx->calendario.entry_data,      "focus-out-event", G_CALLBACK( on_entry_data_focus_out ), ctx );
+
    // Operação Crítica: Passa o ponteiro 'opt' para leitura e aplicação estável do cache físico (.dat)
    g_signal_connect( ctx->botao.carregar_dados,    "clicked", G_CALLBACK( on_botao_carregar_estado_aplicativo_clicked ), ctx );
    g_signal_connect( ctx->botao.gerar_prova,       "clicked", G_CALLBACK( on_botao_gerar_prova_clicked ), ctx );

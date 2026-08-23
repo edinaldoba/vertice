@@ -312,10 +312,19 @@ button:hover label {
 entry {
     background-color: #37474F;
     color: #FFFFFF;
+    caret-color: #00aa00;
     font-family: 'Ubuntu Mono', monospace;
     font-weight: normal;
     padding: 4px 12px;
     border: 1px solid #455A64;
+    transition: all 200ms ease-in-out; /* Suaviza a transição de cor */
+}
+
+entry:focus {
+    background-image: none;            /* Mata o brilho azul/cinza padrão do tema */
+    border: 1px solid #00aa00;         /* A cor da borda quando ativo (Verde Vivo) */
+    outline: none;                     /* Remove o contorno pontilhado nativo do GTK */
+    box-shadow: 0 0 5px #00aa00; /* Cria um brilho neon suave ao redor */
 }
 
 entry label {
@@ -327,6 +336,37 @@ entry label {
 .entry-qtd-questoes-subtema {
     padding: 4px 16px;
 }
+
+
+
+popover,
+popover arrow {
+    background-image: none;
+    background-color: #005500; /* Precisa ter exatamente a mesma cor do corpo */
+    border: 1px solid #00aa00; /* Mantém a continuidade da linha verde */
+}
+
+calendar {
+    background-color: #1A232A;
+    color: #f0f0f0;
+    border-radius: 6px;
+    padding: 6px; /* Aumentado levemente para não grudar nas bordas */
+    border: 1px solid #005500; /* Borda sutil para dar profundidade */
+}
+
+calendar:indeterminate {
+    color: #556068; /* Cinza-azulado para harmonizar com o fundo escuro */
+}
+
+/* 5. Dia selecionado atualmente */
+calendar:selected {
+    background-color: #003d00;
+    border-radius: 4px;
+    border: 1px solid #aaff00;       /* Cria uma linha verde-limão ao redor */
+    box-shadow: inset 0 0 4px #00ff00; /* Cria um sombreamento interno */
+}
+
+
 
 /* --- ComboBox (Menus Suspensos) --- */
 combobox button,
@@ -507,6 +547,12 @@ radio:checked {
     border: 1px solid #37474F;
     border-radius: 6px;
 }
+.mini-card-avaliacoes {
+    background-color: #002f00;
+    padding: 4px 8px;
+    border: 1px solid #006d00;
+    border-radius: 6px;
+}
 
 
 /* --- Painel de Feedback Central --- */
@@ -596,3 +642,11 @@ messagedialog button.suggested-action {
 messagedialog button.suggested-action:hover {
     background-color: #283593;
 }
+
+
+
+
+
+
+
+

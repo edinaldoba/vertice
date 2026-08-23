@@ -10,11 +10,43 @@
 #include "seduc-ma.h"
 #include "comum.h"
 #include "basicas.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <glib/gstdio.h>
 #include <omp.h>
+#include <inttypes.h>
+
+
+
+// Agora a função retorna explicitamente uint32_t
+static uint32_t atou32_seguro( const char *num_string ) {
+   // 1. Defesa básica
+   if ( !num_string || num_string[0] == '\0' ) {
+      return 0;
+   }
+
+   char *fim_da_leitura;
+
+   // 2. Leitura de 64 bits sem sinal
+   guint64 numero_extraido = g_ascii_strtoull( num_string, &fim_da_leitura, 10 );
+
+   // 3. Validação de leitura
+   if ( num_string == fim_da_leitura ) {
+      return 0;
+   }
+
+   // 4. Proteção contra estouro exata para uint32_t (4.294.967.295)
+   // G_MAXUINT32 é uma constante segura da GLib
+   if ( numero_extraido > G_MAXUINT32 ) {
+      return ( uint32_t ) G_MAXUINT32;
+   }
+
+   // 5. Conversão limpa e segura
+   return ( uint32_t ) numero_extraido;
+}
+
 
 static SituacaoAluno situacao_aluno( const char *sit ) {
    g_return_val_if_fail( sit, SEM_SITUACAO );
@@ -47,7 +79,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao ) {
    while ( fread( &siaep, sizeof( AcessoTurmas ), 1, f_acesso ) == 1 ) {
 
       // Escopo da string de ORIGEM
-      g_autofree gchar *arquivo_origem = g_strdup_printf( "./planilhas/alunos/%s.bin", siaep.cod_aluno );
+      g_autofree gchar *arquivo_origem = g_strdup_printf( "./planilhas/alunos/%" PRIu32 ".bin", siaep.cod_aluno );
       FILE *f_origem = fopen( arquivo_origem, "rb" );
 
       if ( !f_origem ) continue;
@@ -64,14 +96,14 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao ) {
          ficha.ativo = ( ficha.sit & ( MATRICULA_INTERNA | MATRICULA_EXTERNA | MATRICULA_REGULAR ) ) != 0;
 
          // Escopo da string de DESTINO isolado para o g_autofree atuar perfeitamente
-         g_autofree gchar *arquivo_destino = g_strdup_printf( "./dados/alunos/%s.bin", siaep.cod_aluno );
+         g_autofree gchar *arquivo_destino = g_strdup_printf( "./dados/alunos/%" PRIu32 ".bin", siaep.cod_aluno );
          FILE *f_destino = fopen( arquivo_destino, "wb" );
 
          if ( f_destino ) {
             fwrite( &ficha, sizeof( FichaAlunoAux ), 1, f_destino );
             fclose( f_destino );
          } else {
-            g_printerr( "Falha ao gravar a ficha inicial do aluno %s\n", siaep.cod_aluno );
+            g_printerr( "Falha ao gravar a ficha inicial do aluno %" PRIu32 "\n", siaep.cod_aluno );
          }
       }
 
@@ -235,7 +267,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
 
          // Gravação do Binário de Acesso da Turma
          if ( f_acesso ) {
-            snprintf( siaep.cod_aluno, sizeof( siaep.cod_aluno ), "%s", colunas[2] );
+            siaep.cod_aluno = atou32_seguro( colunas[2] );
             snprintf( siaep.sit, sizeof( siaep.sit ), "%s", colunas[16] );
             fwrite( &siaep, sizeof( AcessoTurmas ), 1, f_acesso );
          }
@@ -270,7 +302,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
 void siaep_atualizar_alunos( InterfacePainel *painel, FichaAluno *diario ) {
    g_return_if_fail( painel && diario );
 
-   g_autofree gchar *diretorio_origem = g_strdup("./planilhas");
+   g_autofree gchar *diretorio_origem = g_strdup( "./planilhas" );
 
    g_autoptr( GError ) erro = NULL;
    g_autoptr( GDir ) dir = g_dir_open( diretorio_origem, 0, &erro );
@@ -320,10 +352,10 @@ void siaep_atualizar_alunos( InterfacePainel *painel, FichaAluno *diario ) {
 
 
 // Salva o estado atual do aluno da RAM direto para o disco
-void salvar_ficha_aluno( const FichaAluno *aluno, const gchar *cod_aluno ) {
+void salvar_ficha_aluno( const FichaAluno *aluno, uint32_t cod_aluno ) {
    g_return_if_fail( aluno && cod_aluno );
 
-   g_autofree gchar *caminho = g_strdup_printf( "./dados/alunos/%s.bin", cod_aluno );
+   g_autofree gchar *caminho = g_strdup_printf( "./dados/alunos/%" PRIu32 ".bin", cod_aluno );
 
    // 1. Abre, 2. Despeja a memória, 3. Fecha (Tudo em microssegundos)
    FILE *p = fopen( caminho, "wb" );
@@ -331,6 +363,6 @@ void salvar_ficha_aluno( const FichaAluno *aluno, const gchar *cod_aluno ) {
       fwrite( aluno, sizeof( FichaAluno ), 1, p );
       fclose( p );
    } else {
-      g_printerr( "Falha ao sincronizar o aluno %s no disco.\n", cod_aluno );
+      g_printerr( "Falha ao sincronizar o aluno %" PRIu32 " no disco.\n", cod_aluno );
    }
 }

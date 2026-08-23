@@ -318,6 +318,10 @@ void limpeza_final( AppContext *ctx ) {
       g_object_unref( ctx->provider );
       ctx->provider = NULL;
    }
+   // Quando o Vértice for fechado pelo usuário:
+   if ( ctx->calendario.popover_calendario ) {
+      g_object_unref( ctx->calendario.popover_calendario );
+   }
 
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );
 }

@@ -220,7 +220,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
 
    const InterfaceDados *dados  = &ctx->dados;
    const FichaAluno     *diario = ctx->diario;
-   const DataHoje       *data   = &ctx->data;
+   const CalendarioData       *data   = &ctx->data;
 
 
 

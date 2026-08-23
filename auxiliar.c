@@ -15,11 +15,11 @@
 
 
 
-DataHoje data_de_hoje( void ) {
+CalendarioData data_de_hoje( void ) {
    time_t mytime;
    mytime = time( NULL );
    struct tm tm = *localtime( &mytime );
-   DataHoje data;
+   CalendarioData data;
    data.dia = tm.tm_mday;
    data.mes = tm.tm_mon + 1;
    data.ano = tm.tm_year + 1900;

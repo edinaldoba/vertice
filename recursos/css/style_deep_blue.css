@@ -310,10 +310,19 @@ button:hover label {
 entry {
     background-color: #1E3E62;
     color: #FFFFFF;
+    caret-color: #00aaff;
     font-family: 'Ubuntu Mono', monospace;
     font-weight: normal;
     padding: 4px 12px;
     border: 1px solid #00557F;
+    transition: all 200ms ease-in-out; /* Suaviza a transição de cor */
+}
+
+entry:focus {
+    background-image: none;            /* Mata o brilho azul/cinza padrão do tema */
+    border: 1px solid #00aaff;         /* A cor da borda quando ativo (Verde Vivo) */
+    outline: none;                     /* Remove o contorno pontilhado nativo do GTK */
+    box-shadow: 0 0 5px #00aaff; /* Cria um brilho neon suave ao redor */
 }
 
 entry label {
@@ -325,6 +334,37 @@ entry label {
 .entry-qtd-questoes-subtema {
     padding: 4px 16px;
 }
+
+
+
+popover,
+popover arrow {
+    background-image: none;
+    background-color: #00557F; /* Precisa ter exatamente a mesma cor do corpo */
+    border: 1px solid #00aaff; /* Mantém a continuidade da linha verde */
+}
+
+calendar {
+    background-color: #0B192C;
+    color: #f0f0f0;
+    border-radius: 6px;
+    padding: 6px; /* Aumentado levemente para não grudar nas bordas */
+    border: 1px solid #00557F; /* Borda sutil para dar profundidade */
+}
+
+calendar:indeterminate {
+    color: #556068; /* Cinza-azulado para harmonizar com o fundo escuro */
+}
+
+/* 5. Dia selecionado atualmente */
+calendar:selected {
+    background-color: #1A237E;
+    border-radius: 4px;
+    border: 1px solid #aaffff;       /* Cria uma linha verde-limão ao redor */
+    box-shadow: inset 0 0 4px #00ffff; /* Cria um sombreamento interno */
+}
+
+
 
 /* --- ComboBox (Menus Suspensos) --- */
 combobox button,

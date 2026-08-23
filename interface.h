@@ -10,12 +10,22 @@
 
 
 typedef struct {
+   GtkWidget *entry_data;
+   GtkWidget *popover_calendario;
+   GtkWidget *calendario_data;
+} InterfaceCalendar;
+
+
+typedef struct {
    GtkWidget *ano;
    GtkWidget *disciplina;
    GtkWidget *escola;
    GtkWidget *turma;
    GtkWidget *periodo;
    GtkWidget *alunos;
+
+   GtkWidget *conteudo_tema;
+   GtkWidget *conteudo_descricao;
 
    GtkWidget *tema;
    GtkWidget *tema_espelho;
@@ -81,6 +91,10 @@ typedef struct {
    GtkWidget *gerar_prova;             // Dispara a montagem do documento LaTeX final
    GtkWidget *corrigir_prova;        // Interface para leitura automatizada de cartões-resposta
    GtkWidget *processamento_img;       // Processa os escaneamentos via rotinas de Visão Computacional
+
+   GtkWidget *presente;
+   GtkWidget *ausente;
+   GtkWidget *salvar;
 
 } InterfaceBotao;
 
@@ -191,7 +205,7 @@ typedef struct {
 
 typedef struct {
    FichaAluno *diario;
-   DataHoje data;
+   CalendarioData data;
    CaminhoDiretorio caminho;
 
    GtkWidget *window;
@@ -217,6 +231,8 @@ typedef struct {
    InterfacePainel painel;
 
    InterfaceCabecalho cabecalho;
+
+   InterfaceCalendar calendario;
 
    GRand *rand; // <- Ponteiro para o gerador de números aleatórios
 

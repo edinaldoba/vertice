@@ -17,6 +17,10 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
 void on_entry_cor_destaque_interface_changed( GtkWidget *widget, gpointer user_data );
 void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
+gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
+void on_calendario_day_selected( GtkWidget *widget, gpointer user_data );
+gboolean on_entry_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
+
 // =========================================================================
 // 2. EMISSÃO DE RELATÓRIOS E DIÁRIOS DE CLASSE
 // =========================================================================

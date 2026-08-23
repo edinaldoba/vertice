@@ -55,10 +55,9 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    GError *error = NULL;
 
    // Carrega a interface diretamente da memória interna (GResource)
-   char interface_glade[256];
-   snprintf( interface_glade, sizeof( interface_glade ), "%s/interface.glade", ctx->caminho.recursos_prefix );
-   gtk_builder_add_from_resource( builder, interface_glade, &error );
-   // gtk_builder_add_from_file( builder, "./recursos/interface.glade", &error );
+   // g_autofree gchar *interface_glade = g_build_filename( ctx->caminho.recursos_prefix, "interface.glade", NULL );
+   // gtk_builder_add_from_resource( builder, interface_glade, &error );
+   gtk_builder_add_from_file( builder, "./recursos/interface.glade", &error );
 
    if ( error != NULL ) {
       g_printerr( "🚨 Erro ao carregar a interface embutida do Glade: %s\n", error->message );
@@ -107,6 +106,11 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
+
+   ctx->calendario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
+   ctx->calendario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
+   ctx->calendario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
+   g_object_ref( ctx->calendario.popover_calendario );
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );

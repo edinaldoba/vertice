@@ -19,61 +19,6 @@
 #include "auxiliar.h"
 
 
-void interface_style( AppContext *ctx ) {
-   if ( !ctx ) return;
-
-   // Capturamos a screen global uma única vez no topo do escopo da função
-   GdkScreen *screen = gdk_screen_get_default();
-
-   /* ==========================================================================
-      🚀 1. BLINDAGEM DA MEMÓRIA E EXPURGO DO CSS ANTIGO
-      ========================================================================== */
-   if ( ctx->provider != NULL ) {
-      // Remove o vínculo do provedor de estilo da tela activa
-      gtk_style_context_remove_provider_for_screen( screen, GTK_STYLE_PROVIDER( ctx->provider ) );
-
-      // Decrementa o contador de referências do objeto GLib e zera o ponteiro
-      g_object_unref( ctx->provider );
-      ctx->provider = NULL;
-   }
-
-   /* ==========================================================================
-      🏛️ 2. CRIAÇÃO DO PROVEDOR E MAPEAMENTO DO ARQUIVO ALVO
-      ========================================================================== */
-   ctx->provider = gtk_css_provider_new();
-
-   char arquivo_css[256];
-   switch ( ctx->dados.interface_style ) {
-   case 0 :
-      snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
-      break;
-   case 1 :
-      snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_deep_blue.css", ctx->caminho.recursos_prefix );
-      break;
-   case 2 :
-   default:
-      snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_light.css", ctx->caminho.recursos_prefix );
-      break;
-   }
-
-   /* ==========================================================================
-      📥 3. CARREGAMENTO E INJEÇÃO NA MÁQUINA DE RENDERIZAÇÃO DO GTK
-      ========================================================================== */
-
-   // Como você está usando a função _load_from_resource, agora o caminho purista vai casar perfeitamente!
-   gtk_css_provider_load_from_resource( ctx->provider, arquivo_css );
-
-   // Aplica as novas diretrizes visuais na tela global
-   gtk_style_context_add_provider_for_screen(
-      screen,
-      GTK_STYLE_PROVIDER( ctx->provider ),
-      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
-   );
-}
-
-
-
-
 // void interface_style( AppContext *ctx ) {
 //    if ( !ctx ) return;
 //
@@ -82,13 +27,9 @@ void interface_style( AppContext *ctx ) {
 //
 //    /* ==========================================================================
 //       🚀 1. BLINDAGEM DA MEMÓRIA E EXPURGO DO CSS ANTIGO
-//       --------------------------------------------------------------------------
-//       Antes de alocar novos estilos, removemos o provedor anterior da tela e
-//       liberamos sua referência no Heap. Isso evita sobreposição de regras de
-//       estilo e vazamento de memória (Memory Leaks) nas trocas dinâmicas.
 //       ========================================================================== */
 //    if ( ctx->provider != NULL ) {
-//       // Remove o vínculo do provedor de estilo da tela ativa
+//       // Remove o vínculo do provedor de estilo da tela activa
 //       gtk_style_context_remove_provider_for_screen( screen, GTK_STYLE_PROVIDER( ctx->provider ) );
 //
 //       // Decrementa o contador de referências do objeto GLib e zera o ponteiro
@@ -98,35 +39,29 @@ void interface_style( AppContext *ctx ) {
 //
 //    /* ==========================================================================
 //       🏛️ 2. CRIAÇÃO DO PROVEDOR E MAPEAMENTO DO ARQUIVO ALVO
-//       --------------------------------------------------------------------------
-//       Os arquivos CSS controlam 100% da identidade visual do sistema (incluindo
-//       as janelas, caixas de diálogo e as barras superiores). Dispensamos
-//       qualquer alteração manual em GtkSettings para garantir a soberania do CSS.
 //       ========================================================================== */
 //    ctx->provider = gtk_css_provider_new();
 //
-//    const char *arquivo_css;
+//    char arquivo_css[256];
 //    switch ( ctx->dados.interface_style ) {
-//    case 0 : arquivo_css = "./recursos/css/style_dark_green.css"; break;
-//    case 1 : arquivo_css = "./recursos/css/style_deep_blue.css" ; break;
+//    case 0 :
+//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
+//       break;
+//    case 1 :
+//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_deep_blue.css", ctx->caminho.recursos_prefix );
+//       break;
 //    case 2 :
-//    default: arquivo_css = "./recursos/css/style_light.css"     ; break;
+//    default:
+//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_light.css", ctx->caminho.recursos_prefix );
+//       break;
 //    }
 //
 //    /* ==========================================================================
 //       📥 3. CARREGAMENTO E INJEÇÃO NA MÁQUINA DE RENDERIZAÇÃO DO GTK
-//       --------------------------------------------------------------------------
-//       Injetamos as regras com prioridade APPLICATION, o que força o motor do GTK
-//       a ignorar os temas padrões do sistema operacional (Debian/Ubuntu) e adotar
-//       as especificidades declaradas nas nossas folhas de estilo.
 //       ========================================================================== */
-//    GError *error = NULL;
-//    gtk_css_provider_load_from_path( ctx->provider, arquivo_css, &error );
 //
-//    if ( error != NULL ) {
-//       g_printerr( "🚨 Erro ao carregar o arquivo CSS (%s): %s\n", arquivo_css, error->message );
-//       g_clear_error( &error );
-//    }
+//    // Como você está usando a função _load_from_resource, agora o caminho purista vai casar perfeitamente!
+//    gtk_css_provider_load_from_resource( ctx->provider, arquivo_css );
 //
 //    // Aplica as novas diretrizes visuais na tela global
 //    gtk_style_context_add_provider_for_screen(
@@ -135,6 +70,78 @@ void interface_style( AppContext *ctx ) {
 //       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
 //    );
 // }
+
+
+
+
+void interface_style( AppContext *ctx ) {
+   if ( !ctx ) return;
+
+   // Capturamos a screen global uma única vez no topo do escopo da função
+   GdkScreen *screen = gdk_screen_get_default();
+
+   /* ==========================================================================
+      🚀 1. BLINDAGEM DA MEMÓRIA E EXPURGO DO CSS ANTIGO
+      --------------------------------------------------------------------------
+      Antes de alocar novos estilos, removemos o provedor anterior da tela e
+      liberamos sua referência no Heap. Isso evita sobreposição de regras de
+      estilo e vazamento de memória (Memory Leaks) nas trocas dinâmicas.
+      ========================================================================== */
+   if ( ctx->provider != NULL ) {
+      // Remove o vínculo do provedor de estilo da tela ativa
+      gtk_style_context_remove_provider_for_screen( screen, GTK_STYLE_PROVIDER( ctx->provider ) );
+
+      // Decrementa o contador de referências do objeto GLib e zera o ponteiro
+      g_object_unref( ctx->provider );
+      ctx->provider = NULL;
+   }
+
+   /* ==========================================================================
+      🏛️ 2. CRIAÇÃO DO PROVEDOR E MAPEAMENTO DO ARQUIVO ALVO
+      --------------------------------------------------------------------------
+      Os arquivos CSS controlam 100% da identidade visual do sistema (incluindo
+      as janelas, caixas de diálogo e as barras superiores). Dispensamos
+      qualquer alteração manual em GtkSettings para garantir a soberania do CSS.
+      ========================================================================== */
+   ctx->provider = gtk_css_provider_new();
+
+   const char *arquivo_css;
+   switch ( ctx->dados.interface_style ) {
+   case 0 :
+      arquivo_css = "./recursos/css/style_dark_green.css";
+      break;
+   case 1 :
+      arquivo_css = "./recursos/css/style_deep_blue.css" ;
+      break;
+   case 2 :
+   default:
+      arquivo_css = "./recursos/css/style_light.css"     ;
+      break;
+   }
+
+   /* ==========================================================================
+      📥 3. CARREGAMENTO E INJEÇÃO NA MÁQUINA DE RENDERIZAÇÃO DO GTK
+      --------------------------------------------------------------------------
+      Injetamos as regras com prioridade APPLICATION, o que força o motor do GTK
+      a ignorar os temas padrões do sistema operacional (Debian/Ubuntu) e adotar
+      as especificidades declaradas nas nossas folhas de estilo.
+      ========================================================================== */
+   GError *error = NULL;
+   gtk_css_provider_load_from_path( ctx->provider, arquivo_css, &error );
+
+   if ( error != NULL ) {
+      g_printerr( "🚨 Erro ao carregar o arquivo CSS (%s): %s\n", arquivo_css, error->message );
+      g_clear_error( &error );
+   }
+
+   // Aplica as novas diretrizes visuais na tela global
+   gtk_style_context_add_provider_for_screen(
+      screen,
+      GTK_STYLE_PROVIDER( ctx->provider ),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+   );
+
+}
 
 
 
@@ -871,12 +878,15 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    InterfaceListas   *listas   = &ctx->listas;
    InterfaceDados    *dados    = &ctx->dados;
    InterfaceHandlers *handlers = &ctx->handlers;
-   DataHoje          *data     = &ctx->data;
+   CalendarioData          *data     = &ctx->data;
 
    gtk_widget_set_name( ctx->entry.turma, "turma" );
 
    *data = data_de_hoje();
    long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
+
+   g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
+   gtk_entry_set_text( GTK_ENTRY( ctx->calendario.entry_data ), data_formatada );
 
    gtk_widget_set_name( ctx->entry.periodo, "momento" );
    foco->periodo = foco_periodo_corrente( escalar_hoje );

@@ -79,7 +79,7 @@ typedef struct {
 
 typedef struct {
    int dia, mes, ano;
-} DataHoje;
+} CalendarioData;
 
 typedef struct {
    char aluno[64];
@@ -147,15 +147,39 @@ typedef struct {
 //          P L A N I L H A S    S I A E P                                                   //
 //-------------------------------------------------------------------------------------------//
 typedef struct {
-    char aluno[64];
-    char sexo; // M ou F
-    char nasc[16];
-} FichaSiaep;
+   char aluno[64];
+   char sexo; // M ou F
+   char nasc[16];
+} __attribute__( ( packed ) ) FichaSiaep;
 
 typedef struct {
-    char cod_aluno[64];
-    char sit[8];
-} AcessoTurmas;
+   uint32_t cod_aluno;
+   char sit[8];
+} __attribute__( ( packed ) ) AcessoTurmas;
+
+typedef enum {
+   PRESENTE             = 1 << 0, // Aluno presente e em sala de aula
+   AUSENTE              = 1 << 1, // Falta não justificada
+   FALTA_JUSTIFICADA    = 1 << 2, // Ausência abonada por critério pedagógico ou atestado
+   DISPENSADO           = 1 << 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
+   FORA_DE_SALA         = 1 << 4, // Afastamento temporário por medida disciplinar da direção
+   FOI_EMBORA           = 1 << 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
+   ATIVIDADE_DOMICILIAR = 1 << 6,  // Evasão não autorizada do recinto escolar durante o período letivo
+   SUSPENSO             = 1 << 7  // Evasão não autorizada do recinto escolar durante o período letivo
+} __attribute__( ( packed ) ) StatusAssiduidade;
+
+typedef struct {
+   CalendarioData data;
+
+   struct {
+      char tema[64];
+      char descricao[256];
+   } conteudo;
+
+   // Assiduidade espelhada pelo índice fixo do aluno no binário da turma
+   StatusAssiduidade frequencia[64];
+
+} __attribute__( ( packed ) ) RegistroDiario;
 //-------------------------------------------------------------------------------------------//
 
 
@@ -170,23 +194,13 @@ typedef struct {
    char cpf[16];
    char pai[64];
    char mae[64];
-} BiografiaAluno;
+} __attribute__( ( packed ) ) BiografiaAluno;
 
 typedef struct {
    char resp[64]; // Responsável
    char celular[16];
    char email[64];
-} ContatoAluno;
-
-typedef enum {
-   PRESENTE          = 1 << 0, // Aluno presente e em sala de aula
-   AUSENTE           = 1 << 1, // Falta não justificada
-   FALTA_JUSTIFICADA = 1 << 2, // Ausência abonada por critério pedagógico ou atestado
-   FORA_DE_SALA      = 1 << 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
-   SUSPENSO          = 1 << 4, // Afastamento temporário por medida disciplinar da direção
-   DISPENSADO        = 1 << 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
-   FOI_EMBORA        = 1 << 6  // Evasão não autorizada do recinto escolar durante o período letivo
-} __attribute__((packed)) StatusAssiduidade;
+} __attribute__( ( packed ) ) ContatoAluno;
 
 typedef enum {
    SEM_SITUACAO          = 0,
@@ -196,7 +210,7 @@ typedef enum {
    TRANSFERENCIA_INTERNA = 1 << 3, // Aluno transferido da turma para outra turma da mesma escola
    TRANSFERENCIA_EXTERNA = 1 << 4, // Aluno transferido da turma para outra escola
    EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
-} __attribute__((packed)) SituacaoAluno;
+} __attribute__( ( packed ) ) SituacaoAluno;
 
 typedef enum {
    ALUNO_TIPICO     = 1 << 0, // 1  (0001)
@@ -205,7 +219,7 @@ typedef enum {
    ALUNO_DEFICIENTE = 1 << 3, // 8  (1000)
    ALUNO_LAUDADO    = 1 << 4, // 16 (0001 0000)
    ALUNO_OBSERVACAO = 1 << 5  // 32 (0010 0000)
-} __attribute__((packed)) TipoAtipico;
+} __attribute__( ( packed ) ) TipoAtipico;
 
 typedef struct {
 
@@ -218,8 +232,6 @@ typedef struct {
    int idx;             // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
    gboolean ativo;      // Status de matrícula global
    TipoAtipico atipico; // Condição de adaptação curricular
-
-   StatusAssiduidade freq[4][100];
 
    struct {
       float av;
@@ -234,8 +246,7 @@ typedef struct {
    int presencas[4];     // [4 Períodos]
    int faltas[4];        // [4 Períodos]
 
-} __attribute__((packed)) FichaAlunoAux;
-
+} __attribute__( ( packed ) ) FichaAlunoAux;
 
 typedef struct {
    char aluno[64];
