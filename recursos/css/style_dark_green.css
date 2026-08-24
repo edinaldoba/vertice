@@ -333,6 +333,12 @@ entry label {
     font-weight: normal;
 }
 
+/* Cor do fundo e do texto selecionado em QUALQUER GtkEntry */
+entry selection {
+    background-color: #6b8a6b; /* Cor do destaque/fundo da seleção */
+    color: #ffffff;          /* Cor da fonte do texto selecionado */
+}
+
 .entry-qtd-questoes-subtema {
     padding: 4px 16px;
 }
@@ -365,6 +371,42 @@ calendar:selected {
     border: 1px solid #aaff00;       /* Cria uma linha verde-limão ao redor */
     box-shadow: inset 0 0 4px #00ff00; /* Cria um sombreamento interno */
 }
+
+/* Estilo geral de TODAS as tabelas (GtkTreeView) */
+treeview {
+    background-color: #002f00;
+    color: #ffffff;
+    font-size: 20px;
+}
+
+/* Cores alternadas das linhas (Efeito Zebrado) */
+treeview:nth-child(even) {
+    background-color: #27353f;
+}
+
+treeview:nth-child(odd) {
+    background-color: #1A232A;
+}
+
+/* Linha selecionada pelo usuário */
+treeview:selected {
+    background-color: #005500;
+    color: #ffffff;
+}
+
+/* Estilo de todos os cabeçalhos de colunas (Data, C.H., Tema, Descrição) */
+treeview header label {
+    font-size: 20px;
+    font-weight: bold;
+    color: #81C784;
+}
+
+treeview header button {
+    background-color: #002f00;
+    border: none;
+    padding: 6px;
+}
+
 
 
 

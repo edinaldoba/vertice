@@ -627,8 +627,43 @@ bool carregar_estado_aplicativo( AppContext *ctx ) {
 
 
 
+// ============================================================================
+// FUNÇÃO AUXILIAR DE NEGÓCIO (Independente da Interface)
+// ============================================================================
+// Avalia a string digitada, formata corretamente e retorna uma nova string.
+// Se a data for inválida, retorna a data de hoje como fallback.
+// O chamador é responsável por liberar a memória (use g_autofree).
+gchar* validar_data( const gchar *texto ) {
+   int dia = 0, mes = 0, ano = 0;
+   gboolean data_valida = FALSE;
 
+   if ( texto != NULL ) {
+       // Extração flexível (Barras, 6 dígitos ou 8 dígitos)
+       if ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 ) {
+           data_valida = TRUE;
+       } else if ( sscanf( texto, "%02d%02d%02d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 6 ) {
+           data_valida = TRUE;
+       } else if ( sscanf( texto, "%02d%02d%04d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 8 ) {
+           data_valida = TRUE;
+       }
+   }
 
+   if ( data_valida ) {
+       // Expansão do ano de 2 dígitos para 4 dígitos
+       if ( ano < 100 ) {
+           ano += ( ano <= 69 ) ? 2000 : 1900;
+       }
+
+       // Valida pelo calendário gregoriano da GLib
+       if ( ano >= 1900 && ano <= 2100 && g_date_valid_dmy( dia, mes, ano ) ) {
+           return g_strdup_printf( "%02d/%02d/%04d", dia, mes, ano ); // SUCESSO
+       }
+   }
+
+   // MODO FALLBACK: Digitou algo não reconhecido ou inválido (ex: 31/02).
+   g_autoptr( GDateTime ) agora = g_date_time_new_now_local();
+   return g_date_time_format( agora, "%d/%m/%Y" );
+}
 
 
 
@@ -849,9 +884,9 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    limite->alunos = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
-   foco->aluno = obter_foco_inicial( limite->alunos, ctx->diario );
+   foco->aluno = obter_foco_inicial( limite->alunos, ctx->ficha );
 
-   popular_combo_box_generico( entry->alunos, ctx->diario, limite->alunos, foco->aluno, handlers->alunos, mapear_alunos );
+   popular_combo_box_generico( entry->alunos, ctx->ficha, limite->alunos, foco->aluno, handlers->alunos, mapear_alunos );
 
    painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
                               dados->escola, dados->turma, dados->disciplina, dados->ano, dados->periodo[0],
@@ -886,7 +921,12 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
-   gtk_entry_set_text( GTK_ENTRY( ctx->calendario.entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data_formatada );
+   snprintf( ctx->diario.data, sizeof(ctx->diario.data), "%s", data_formatada );
+
+   ctx->diario.n_horarios = 1;
+   g_autofree char *n_horarios = g_strdup_printf( "%d h", ctx->diario.n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
 
    gtk_widget_set_name( ctx->entry.periodo, "momento" );
    foco->periodo = foco_periodo_corrente( escalar_hoje );
@@ -1118,7 +1158,7 @@ void atualizar_periodo_interface( AppContext *ctx, const char *novo_periodo ) {
 //         char pasta_aluno[1200];
 //         // Formata: "01 - NOME DO ALUNO"
 //         snprintf(pasta_aluno, sizeof(pasta_aluno), "%s/%.2d - %s",
-//                  CaminhoDiretorio, i + 1, diario[i].aluno);
+//                  CaminhoDiretorio, i + 1, ficha[i].aluno);
 //
 //         // Cria a pasta do aluno de forma nativa e ultra-rápida
 //         if (mkdir(pasta_aluno, 0777) == 0) {

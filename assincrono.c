@@ -24,8 +24,8 @@ typedef struct {
    InterfaceListas  listas;
    FocoCoordenadas  foco;     // ◄ Por valor
    CaminhoDiretorio caminho;  // ◄ Por valor
-   CalendarioData         data;     // ◄ Por valor
-   FichaAluno       *diario;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
+   CalendarioData   data;     // ◄ Por valor
+   FichaAluno       *ficha;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
    GtkWidget        *botao_gerar;
    bool             sucesso;
 } ProvaThreadArgs;
@@ -34,9 +34,9 @@ typedef struct {
  * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
  * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha ou se n_alunos == 0.
  */
-static FichaAluno* clonar_diario_alunos( const FichaAluno *diario_original, int n_alunos ) {
+static FichaAluno* clonar_diario_alunos( const FichaAluno *ficha_original, int n_alunos ) {
    // 1. Validação geométrica elementar
-   if ( !diario_original || n_alunos <= 0 ) {
+   if ( !ficha_original || n_alunos <= 0 ) {
       return NULL;
    }
 
@@ -44,17 +44,17 @@ static FichaAluno* clonar_diario_alunos( const FichaAluno *diario_original, int 
    size_t tamanho_total = ( size_t )n_alunos * sizeof( FichaAluno );
 
    // 3. Alocação isolada na Heap
-   FichaAluno *diario_clonado = malloc( tamanho_total );
+   FichaAluno *ficha_clonado = malloc( tamanho_total );
 
-   if ( !diario_clonado ) {
+   if ( !ficha_clonado ) {
       g_printerr( "ERRO CRÍTICO: Falha de memória (malloc) ao clonar diário de alunos.\n" );
       return NULL;
    }
 
    // 4. Cópia física bruta dos dados (Blindagem estática bit a bit)
-   memcpy( diario_clonado, diario_original, tamanho_total );
+   memcpy( ficha_clonado, ficha_original, tamanho_total );
 
-   return diario_clonado;
+   return ficha_clonado;
 }
 
 // 🚀 A NOVA FUNÇÃO DE ENTRADA DO MOTOR:
@@ -69,7 +69,7 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->data    = ctx->data;
    args->painel  = ctx->painel;
    args->listas  = ctx->listas;
-   args->diario = clonar_diario_alunos( ctx->diario, ctx->dados.qtd_alunos_total );
+   args->ficha = clonar_diario_alunos( ctx->ficha, ctx->dados.qtd_alunos_total );
    args->botao_gerar = widget;
 
    pthread_t thread_id;
@@ -137,9 +137,9 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    g_print( "[Thread] Trabalho concluído. Iniciando desalocação do snapshot...\n" );
 
    // A. Libera o diário clonado que foi gerado especificamente para esta thread
-   if ( args->diario != NULL ) {
-      free( args->diario );
-      args->diario = NULL;
+   if ( args->ficha != NULL ) {
+      free( args->ficha );
+      args->ficha = NULL;
       g_print( "   ✔ Clone do Diário de Alunos desalocado da Heap.\n" );
    }
 
@@ -200,7 +200,7 @@ void* thread_gerar_prova_background( void *data ) {
 
    if ( args->sucesso ) {
 
-      prova( &args->dados, &args->foco, args->diario, &args->caminho, &args->data, G );
+      prova( &args->dados, &args->foco, args->ficha, &args->caminho, &args->data, G );
 
       salvar_estado_aplicativo( &args->dados, &args->foco, &args->caminho );
    }
@@ -351,8 +351,8 @@ void* thread_processar_imagens_background( void *data ) {
 typedef struct {
    char *tema;                  // ctx->dados.tema
    int qtd_subtemas;            // ctx->cascata.limite.subtemas
-   GtkWidget *botao_compilar;   // ctx->botao.compilar_latex_acervo
-   GtkWidget *botao_abrir;      // ctx->botao.abrir_pdf_acervo
+   GtkWidget *botao_compilar;   // ctx->button.compilar_latex_acervo
+   GtkWidget *botao_abrir;      // ctx->button.abrir_pdf_acervo
    GtkWidget *widget;
    ItemCombo *subtemas;         // ctx->listas.subtemas (typedef struct {char str[64];} ItemCombo;)
    InterfacePainel *painel;     // ctx->painel
@@ -459,16 +459,16 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
    g_return_if_fail( dir_compile != NULL );
    g_return_if_fail( ctx != NULL );
 
-   gtk_widget_set_sensitive( ctx->botao.abrir_pdf_acervo, FALSE );
-   gtk_widget_set_sensitive( ctx->botao.compilar_latex_acervo, FALSE );
+   gtk_widget_set_sensitive( ctx->button.abrir_pdf_acervo, FALSE );
+   gtk_widget_set_sensitive( ctx->button.compilar_latex_acervo, FALSE );
 
    DadosCompilacaoAsync *async_data = g_new( DadosCompilacaoAsync, 1 );
 
    // Mapeamento direto das variáveis essenciais
    async_data->tema                   = g_strdup( ctx->dados.tema );
    async_data->qtd_subtemas           = ctx->cascata.limite.subtemas;
-   async_data->botao_compilar         = ctx->botao.compilar_latex_acervo;
-   async_data->botao_abrir            = ctx->botao.abrir_pdf_acervo;
+   async_data->botao_compilar         = ctx->button.compilar_latex_acervo;
+   async_data->botao_abrir            = ctx->button.abrir_pdf_acervo;
    async_data->widget                 = widget;
    async_data->painel                 = painel;
    async_data->dir_compile            = g_strdup( dir_compile );

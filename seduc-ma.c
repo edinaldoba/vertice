@@ -72,38 +72,38 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao ) {
       return;
    }
 
-   AcessoTurmas siaep;
+   AcessoTurmas turmas;
    int i = 0; // Substitui o antigo 'n_linhas' do loop for
 
    // O loop lê diretamente até o fim do arquivo (EOF), poupando uma varredura no disco
-   while ( fread( &siaep, sizeof( AcessoTurmas ), 1, f_acesso ) == 1 ) {
+   while ( fread( &turmas, sizeof( AcessoTurmas ), 1, f_acesso ) == 1 ) {
 
       // Escopo da string de ORIGEM
-      g_autofree gchar *arquivo_origem = g_strdup_printf( "./planilhas/alunos/%" PRIu32 ".bin", siaep.cod_aluno );
+      g_autofree gchar *arquivo_origem = g_strdup_printf( "./planilhas/alunos/%" PRIu32 ".bin", turmas.cod_aluno );
       FILE *f_origem = fopen( arquivo_origem, "rb" );
 
       if ( !f_origem ) continue;
 
-      FichaSiaep diario;
-      if ( fread( &diario, sizeof( FichaSiaep ), 1, f_origem ) == 1 ) {
+      FichaSiaep siaep;
+      if ( fread( &siaep, sizeof( FichaSiaep ), 1, f_origem ) == 1 ) {
 
          FichaAlunoAux ficha = {0};
          ficha.idx = i;
-         snprintf( ficha.aluno, sizeof( ficha.aluno ), "%s", diario.aluno );
-         snprintf( ficha.nasc, sizeof( ficha.nasc ), "%s", diario.nasc );
-         snprintf( ficha.sexo, sizeof( ficha.sexo ), "%s", ( diario.sexo == 'M' ) ? "Masculino" : "Feminino" );
-         ficha.sit = situacao_aluno( siaep.sit );
+         snprintf( ficha.aluno, sizeof( ficha.aluno ), "%s", siaep.aluno );
+         snprintf( ficha.nasc, sizeof( ficha.nasc ), "%s", siaep.nasc );
+         snprintf( ficha.sexo, sizeof( ficha.sexo ), "%s", ( siaep.sexo == 'M' ) ? "Masculino" : "Feminino" );
+         ficha.sit = situacao_aluno( turmas.sit );
          ficha.ativo = ( ficha.sit & ( MATRICULA_INTERNA | MATRICULA_EXTERNA | MATRICULA_REGULAR ) ) != 0;
 
          // Escopo da string de DESTINO isolado para o g_autofree atuar perfeitamente
-         g_autofree gchar *arquivo_destino = g_strdup_printf( "./dados/alunos/%" PRIu32 ".bin", siaep.cod_aluno );
+         g_autofree gchar *arquivo_destino = g_strdup_printf( "./dados/alunos/%" PRIu32 ".bin", turmas.cod_aluno );
          FILE *f_destino = fopen( arquivo_destino, "wb" );
 
          if ( f_destino ) {
             fwrite( &ficha, sizeof( FichaAlunoAux ), 1, f_destino );
             fclose( f_destino );
          } else {
-            g_printerr( "Falha ao gravar a ficha inicial do aluno %" PRIu32 "\n", siaep.cod_aluno );
+            g_printerr( "Falha ao gravar a ficha inicial do aluno %" PRIu32 "\n", turmas.cod_aluno );
          }
       }
 
@@ -205,7 +205,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
    if ( !saida ) return FALSE;
 
    FILE *f_acesso = NULL;
-   AcessoTurmas siaep = {0};
+   AcessoTurmas turmas = {0};
    gboolean cabecalho_escrito = FALSE;
 
    // Variável para armazenar o nome da turma que será usado no renomeio final
@@ -249,10 +249,10 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
                   colunas[2], colunas[7], colunas[11], colunas[14], colunas[16] );
 
          // Gravação do Binário Diário
-         FichaSiaep diario = {0};
-         snprintf( diario.aluno, sizeof( diario.aluno ), "%s", colunas[7] );
-         diario.sexo = colunas[11][0]; // Pega a primeira letra do sexo
-         snprintf( diario.nasc, sizeof( diario.nasc ), "%s", colunas[14] );
+         FichaSiaep siaep = {0};
+         snprintf( siaep.aluno, sizeof( siaep.aluno ), "%s", colunas[7] );
+         siaep.sexo = colunas[11][0]; // Pega a primeira letra do sexo
+         snprintf( siaep.nasc, sizeof( siaep.nasc ), "%s", colunas[14] );
 
          g_autofree gchar *arquivo_bin = g_strdup_printf( "./planilhas/alunos/%s.bin", colunas[2] );
 
@@ -260,16 +260,16 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
          {
             FILE *p = fopen( arquivo_bin, "wb" );
             if ( p ) {
-               fwrite( &diario, sizeof( FichaSiaep ), 1, p );
+               fwrite( &siaep, sizeof( FichaSiaep ), 1, p );
                fclose( p );
             }
          }
 
          // Gravação do Binário de Acesso da Turma
          if ( f_acesso ) {
-            siaep.cod_aluno = atou32_seguro( colunas[2] );
-            snprintf( siaep.sit, sizeof( siaep.sit ), "%s", colunas[16] );
-            fwrite( &siaep, sizeof( AcessoTurmas ), 1, f_acesso );
+            turmas.cod_aluno = atou32_seguro( colunas[2] );
+            snprintf( turmas.sit, sizeof( turmas.sit ), "%s", colunas[16] );
+            fwrite( &turmas, sizeof( AcessoTurmas ), 1, f_acesso );
          }
       }
    }
@@ -299,8 +299,8 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls ) {
 
 
 
-void siaep_atualizar_alunos( InterfacePainel *painel, FichaAluno *diario ) {
-   g_return_if_fail( painel && diario );
+void siaep_atualizar_alunos( InterfacePainel *painel, FichaAluno *ficha ) {
+   g_return_if_fail( painel && ficha );
 
    g_autofree gchar *diretorio_origem = g_strdup( "./planilhas" );
 

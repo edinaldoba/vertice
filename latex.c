@@ -219,8 +219,8 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
 
 
    const InterfaceDados *dados  = &ctx->dados;
-   const FichaAluno     *diario = ctx->diario;
-   const CalendarioData       *data   = &ctx->data;
+   const FichaAluno     *ficha = ctx->ficha;
+   const CalendarioData *data   = &ctx->data;
 
 
 
@@ -327,7 +327,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
    fprintf( tex_file, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
 
    // Uso seguro de memória com g_autofree para a string em UpperCase
-   g_autofree gchar *nome_aluno = g_utf8_strup( diario[info->num - 1].aluno, -1 );
+   g_autofree gchar *nome_aluno = g_utf8_strup( ficha[info->num - 1].aluno, -1 );
    fprintf( tex_file, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, info->num );
 
    // Resultado Final

@@ -33,31 +33,31 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
    for ( int i = 0; i < 2; i++ ) {
       // Mapeamento de Colunas (Categoria 1: ID 12 = 2 colunas, ID 13 = 3 colunas)
       snprintf( id_string, sizeof( id_string ), "qtd_colunas_%.2d", i + 12 );
-      gtk_widget_set_name( ctx->opcao.qtd_colunas[i], id_string );
+      gtk_widget_set_name( ctx->radio.qtd_colunas[i], id_string );
 
       // Mapeamento de Separadores de Linha (Categoria 2: ID 21 = Ativo, ID 22 = Inativo)
       snprintf( id_string, sizeof( id_string ), "separadores_%.2d", i + 21 );
-      gtk_widget_set_name( ctx->opcao.separadores[i], id_string );
+      gtk_widget_set_name( ctx->radio.separadores[i], id_string );
 
       // Mapeamento de Fontes TeX (Categoria 3: ID 31 = Padrão, ID 32 = Alternativa)
       snprintf( id_string, sizeof( id_string ), "fonte_latex_%.2d", i + 31 );
-      gtk_widget_set_name( ctx->opcao.fonte_latex[i], id_string );
+      gtk_widget_set_name( ctx->radio.fonte_latex[i], id_string );
 
       // Mapeamento do Limite de Páginas (Categoria 4: ID 41 = 1 página, ID 42 = 2 páginas)
       snprintf( id_string, sizeof( id_string ), "qtd_paginas_%.2d", i + 41 );
-      gtk_widget_set_name( ctx->opcao.qtd_paginas[i], id_string );
+      gtk_widget_set_name( ctx->radio.qtd_paginas[i], id_string );
 
       // Mapeamento de Estilo do Cabeçalho TikZ (Categoria 5: ID 51 = Padrão, ID 52 = Reduzido)
       snprintf( id_string, sizeof( id_string ), "cabecalho_tipo_%.2d", i + 51 );
-      gtk_widget_set_name( ctx->opcao.cabecalho_tipo[i], id_string );
+      gtk_widget_set_name( ctx->radio.cabecalho_tipo[i], id_string );
    }
 
    for ( int i = 0; i < 3; i++ ) {
       // Mapeamento do Bloco de Avaliações (Categoria 6: IDs 61, 62 e 63 para Provas 1, 2 e 3)
       snprintf( id_string, sizeof( id_string ), "sequencia_prova_%.2d", i + 61 );
-      gtk_widget_set_name( ctx->opcao.avaliacao[i], id_string );
+      gtk_widget_set_name( ctx->radio.avaliacao[i], id_string );
       snprintf( id_string, sizeof( id_string ), "interface_style_%.2d", i + 70 );
-      gtk_widget_set_name( ctx->opcao.interface_style[i], id_string );
+      gtk_widget_set_name( ctx->radio.interface_style[i], id_string );
    }
 
 }
@@ -97,47 +97,67 @@ void app_signals_connect( gpointer user_data ) {
    // 3. SELETORES DE CONFIGURAÇÃO DO DOCUMENTO LATEX (OPÇÕES COMPILADAS)
    // =========================================================================
    for ( i = 0; i < 2 ; i++ ) {
-      g_signal_connect( ctx->opcao.qtd_colunas[i],    "toggled",
+      g_signal_connect( ctx->radio.qtd_colunas[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->opcao.separadores[i],    "toggled",
+      g_signal_connect( ctx->radio.separadores[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->opcao.fonte_latex[i],    "toggled",
+      g_signal_connect( ctx->radio.fonte_latex[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->opcao.qtd_paginas[i],    "toggled",
+      g_signal_connect( ctx->radio.qtd_paginas[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->opcao.cabecalho_tipo[i], "toggled",
+      g_signal_connect( ctx->radio.cabecalho_tipo[i], "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
    for ( i = 0; i < 3; i++ ) {
-      g_signal_connect( ctx->opcao.avaliacao[i],       "toggled",
+      g_signal_connect( ctx->radio.avaliacao[i],       "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->opcao.interface_style[i], "toggled",
+      g_signal_connect( ctx->radio.interface_style[i], "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
 
    // =========================================================================
    // 4. CONEXÃO DE SINAIS: CICLO PEDAGÓGICO E PRODUÇÃO DE DOCUMENTOS
    // =========================================================================
-   g_signal_connect( ctx->botao.frequencia,        "clicked", G_CALLBACK( on_botao_relatorio_de_frequencia_clicked ), ctx );
-   g_signal_connect( ctx->botao.conteudos,         "clicked", G_CALLBACK( on_botao_relatorio_de_conteudos_clicked ), ctx );
-   g_signal_connect( ctx->botao.avaliacoes,        "clicked", G_CALLBACK( on_botao_relatorio_de_avalicoes_clicked ), ctx );
-   g_signal_connect( ctx->botao.abrir,             "clicked", G_CALLBACK( on_botao_abrir_arquivos_de_dados_clicked ), ctx );
-   g_signal_connect( ctx->botao.relatorio_final,   "clicked", G_CALLBACK( on_botao_relatorio_final_clicked ), ctx );
-   g_signal_connect( ctx->botao.atualizar_alunos,  "clicked", G_CALLBACK( on_botao_siaep_atualizar_alunos_clicked ), ctx );
+   g_signal_connect( ctx->button.frequencia,        "clicked", G_CALLBACK( on_button_relatorio_de_frequencia_clicked ), ctx );
+   g_signal_connect( ctx->button.conteudos,         "clicked", G_CALLBACK( on_button_relatorio_de_conteudos_clicked ), ctx );
+   g_signal_connect( ctx->button.avaliacoes,        "clicked", G_CALLBACK( on_button_relatorio_de_avalicoes_clicked ), ctx );
+   g_signal_connect( ctx->button.abrir,             "clicked", G_CALLBACK( on_button_abrir_arquivos_de_dados_clicked ), ctx );
+   g_signal_connect( ctx->button.relatorio_final,   "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
+   g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
-   g_signal_connect( ctx->calendario.calendario_data, "day-selected", G_CALLBACK( on_calendario_day_selected ), ctx );
-   g_signal_connect( ctx->calendario.entry_data,      "button-press-event",  G_CALLBACK( on_entry_data_button_press ), ctx );
-   g_signal_connect( ctx->calendario.entry_data,      "focus-out-event", G_CALLBACK( on_entry_data_focus_out ), ctx );
+   g_signal_connect( ctx->registro_diario.calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->registro_diario.calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->registro_diario.calendario_data, "next-year" , G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->registro_diario.calendario_data, "prev-year" , G_CALLBACK( on_calendar_navigation ), ctx );
+
+   g_signal_connect( ctx->registro_diario.calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
+   g_signal_connect( ctx->registro_diario.entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
+   g_signal_connect( ctx->registro_diario.entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
+
+   g_signal_connect( ctx->registro_diario.stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios ), ctx );
+   g_signal_connect( ctx->registro_diario.stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios ), ctx );
+
+   g_signal_connect( ctx->registro_diario.descricao, "activate", G_CALLBACK(on_entry_salvar_conteudo_activate), ctx );
+   g_signal_connect( ctx->registro_diario.salvar,    "clicked" , G_CALLBACK(on_button_salvar_conteudo_clicked), ctx );
+
+   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK(on_button_frequencia_enter_notify_event), ctx );
+   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK(on_button_conteudos_enter_notify_event), ctx );
+   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event), ctx );
+
+   g_signal_connect( ctx->registro_diario.scrolled_window, "size-allocate",
+                     G_CALLBACK( on_scrolled_vertical_sizeallocate ), ctx );
+
+
 
    // Operação Crítica: Passa o ponteiro 'opt' para leitura e aplicação estável do cache físico (.dat)
-   g_signal_connect( ctx->botao.carregar_dados,    "clicked", G_CALLBACK( on_botao_carregar_estado_aplicativo_clicked ), ctx );
-   g_signal_connect( ctx->botao.gerar_prova,       "clicked", G_CALLBACK( on_botao_gerar_prova_clicked ), ctx );
-   g_signal_connect( ctx->botao.processamento_img, "clicked", G_CALLBACK( on_botao_processar_imagens_clicked ), ctx );
-   g_signal_connect( ctx->botao.corrigir_prova,    "clicked", G_CALLBACK( on_botao_corrigir_prova_clicked ), ctx );
+   g_signal_connect( ctx->button.carregar_dados,    "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
+   g_signal_connect( ctx->button.gerar_prova,       "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
+   g_signal_connect( ctx->button.processamento_img, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
+   g_signal_connect( ctx->button.corrigir_prova,    "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
 
-   g_signal_connect( ctx->botao.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_botao_abrir_tema_clicked ), ctx );
-   g_signal_connect( ctx->botao.compilar_latex_acervo, "clicked", G_CALLBACK( on_botao_compilar_questoes_clicked ), ctx );
-   g_signal_connect( ctx->botao.executar_gcc_acervo,   "clicked", G_CALLBACK( on_botao_atualizar_questoes_clicked ), ctx );
+   g_signal_connect( ctx->button.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
+   g_signal_connect( ctx->button.compilar_latex_acervo, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );
+   g_signal_connect( ctx->button.executar_gcc_acervo,   "clicked", G_CALLBACK( on_button_atualizar_questoes_clicked ), ctx );
 
 
    ctx->handlers.ano = g_signal_connect( ctx->entry.ano, "changed",

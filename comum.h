@@ -35,7 +35,7 @@ typedef enum {
 } StatusMapeamento;
 
 // char cor_latex[32];
-// switch ( diario[j].atipico ) {
+// switch ( ficha[j].atipico ) {
 //     case ALUNO_AUTISTA:    sprintf( cor_latex, "\\color{blue!70}" );   break;
 //     case ALUNO_ADHD:       sprintf( cor_latex, "\\color{orange!80}" ); break;
 //     case ALUNO_DEFICIENTE: sprintf( cor_latex, "\\color{green!60!black}" ); break;
@@ -44,7 +44,7 @@ typedef enum {
 //     default:               sprintf( cor_latex, "" ); break; // Aluno típico
 // }
 // // Na hora do fprintf do nome:
-// fprintf( p, "%.2d & %s%.25s & ...", j + 1, cor_latex, diario[j].aluno );
+// fprintf( p, "%.2d & %s%.25s & ...", j + 1, cor_latex, ficha[j].aluno );
 //=========================================================================================================//
 
 
@@ -169,17 +169,11 @@ typedef enum {
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
 typedef struct {
-   CalendarioData data;
-
-   struct {
-      char tema[64];
-      char descricao[256];
-   } conteudo;
-
-   // Assiduidade espelhada pelo índice fixo do aluno no binário da turma
-   StatusAssiduidade frequencia[64];
-
-} __attribute__( ( packed ) ) RegistroDiario;
+   char data[16];
+   int n_horarios;
+   char tema[32];
+   char descricao[128];
+} __attribute__( ( packed ) ) DadosRegistroDiario;
 //-------------------------------------------------------------------------------------------//
 
 
@@ -237,6 +231,8 @@ typedef struct {
       float av;
       float rec;
    } nota[4][5];         // [4 Períodos][5 Avaliações]
+
+   StatusAssiduidade frequencia[4][128]; // [4 Períodos][5 Avaliações]
 
    float rec_final;
    float conselho;

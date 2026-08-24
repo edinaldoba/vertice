@@ -648,11 +648,11 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
 
    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.nao_presencial ), rascunho->naopresencial );
    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.expor_dados ),    rascunho->expor );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->opcao.qtd_colunas[      rascunho->qtd_colunas - 2 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->opcao.separadores[      rascunho->separadores - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->opcao.fonte_latex[      rascunho->fonte_latex - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->opcao.qtd_paginas[      rascunho->qtd_paginas - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->opcao.cabecalho_tipo[   rascunho->cabecalho_tipo - 1 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_colunas[      rascunho->qtd_colunas - 2 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.separadores[      rascunho->separadores - 1 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.fonte_latex[      rascunho->fonte_latex - 1 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_paginas[      rascunho->qtd_paginas - 1 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.cabecalho_tipo[   rascunho->cabecalho_tipo - 1 ] ), TRUE );
 
    g_timeout_add( 30, bloquear_sinal_com_atraso, ctx );
 }

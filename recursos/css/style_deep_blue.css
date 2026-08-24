@@ -331,6 +331,12 @@ entry label {
     font-weight: normal;
 }
 
+/* Cor do fundo e do texto selecionado em QUALQUER GtkEntry */
+entry selection {
+    background-color: #3498db; /* Cor do destaque/fundo da seleção */
+    color: #ffffff;          /* Cor da fonte do texto selecionado */
+}
+
 .entry-qtd-questoes-subtema {
     padding: 4px 16px;
 }
@@ -362,6 +368,43 @@ calendar:selected {
     border-radius: 4px;
     border: 1px solid #aaffff;       /* Cria uma linha verde-limão ao redor */
     box-shadow: inset 0 0 4px #00ffff; /* Cria um sombreamento interno */
+}
+
+
+
+/* Estilo geral de TODAS as tabelas (GtkTreeView) */
+treeview {
+    background-color: #0f233b;
+    color: #ffffff;
+    font-size: 20px;
+}
+
+/* Cores alternadas das linhas (Efeito Zebrado) */
+treeview:nth-child(even) {
+    background-color: #1a3e67;
+}
+
+treeview:nth-child(odd) {
+    background-color: #0f233b;
+}
+
+/* Linha selecionada pelo usuário */
+treeview:selected {
+    background-color: #00007f;
+    color: #ffffff;
+}
+
+/* Estilo de todos os cabeçalhos de colunas (Data, C.H., Tema, Descrição) */
+treeview header label {
+    font-size: 20px;
+    font-weight: bold;
+    color: #00aaff;
+}
+
+treeview header button {
+    background-color: #00003f;
+    border: none;
+    padding: 6px;
 }
 
 
@@ -541,6 +584,12 @@ radio:checked {
     font-size: 16px;
     padding: 4px 8px;
     border: 1px solid #1E3E62;
+    border-radius: 6px;
+}
+.mini-card-avaliacoes {
+    background-color: #00003f;
+    padding: 4px 8px;
+    border: 1px solid #00009a;
     border-radius: 6px;
 }
 

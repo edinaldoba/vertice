@@ -177,13 +177,13 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
    (void)event;
    AppContext *ctx = ( AppContext * )user_data;
 
-   g_return_val_if_fail( widget && ctx && ctx->calendario.popover_calendario, FALSE );
+   g_return_val_if_fail( widget && ctx && ctx->registro_diario.popover_calendario, FALSE );
 
-   GtkPopover *popover = GTK_POPOVER( ctx->calendario.popover_calendario );
+   GtkPopover *popover = GTK_POPOVER( ctx->registro_diario.popover_calendario );
 
    gtk_popover_set_modal( popover, FALSE );
 
-   gtk_widget_set_can_focus( ctx->calendario.calendario_data, FALSE );
+   gtk_widget_set_can_focus( ctx->registro_diario.calendario_data, FALSE );
 
    // Ancora na caixa de texto e exibe
    gtk_popover_set_relative_to( popover, widget );
@@ -194,95 +194,190 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
 }
 
 
-// Sinal disparado ao clicar em um dia específico no calendário
-void on_calendario_day_selected( GtkWidget *widget, gpointer user_data ) {
+void on_calendar_navigation( GtkWidget *widget, gpointer user_data ) {
+   (void)user_data;
    g_return_if_fail( GTK_IS_CALENDAR( widget ) );
+
+   // Avisa para o calendário: "A próxima seleção de dia é falsa, ignore!"
+   g_object_set_data( G_OBJECT( widget ), "ignorar_dia", GINT_TO_POINTER( 1 ) );
+}
+
+
+// Sinal disparado ao clicar em um dia específico no calendário
+void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( ctx );
+   g_return_if_fail( GTK_IS_CALENDAR( widget ) && ctx );
 
-   // Variáveis estáticas lembram o estado entre os cliques
-   static guint mes_anterior = 99;
-   static guint ano_anterior = 0;
+   // 1. O PULO DO GATO: Tem uma flag pedindo para ignorar?
+   if ( GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "ignorar_dia" ) ) == 1 ) {
+       // Apaga a flag (reseta para 0) e aborta silenciosamente. O popover continua aberto!
+       g_object_set_data( G_OBJECT( widget ), "ignorar_dia", GINT_TO_POINTER( 0 ) );
+       return;
+   }
 
+   // 2. SUCESSO! Não tinha flag, então o professor realmente clicou com o mouse no dia!
    guint ano, mes, dia;
    gtk_calendar_get_date( GTK_CALENDAR( widget ), &ano, &mes, &dia );
 
-   // Inicializa na primeira vez
-   if ( mes_anterior == 99 ) {
-      mes_anterior = mes;
-      ano_anterior = ano;
-   }
+   g_autofree char *data_formatada = g_strdup_printf( "%02u/%02u/%04u", dia, mes + 1, ano );
+   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data_formatada );
 
-   // NAVEGAÇÃO: Se o mês ou o ano mudaram, o professor apenas mudou a página!
-   if ( mes != mes_anterior || ano != ano_anterior ) {
-      mes_anterior = mes;
-      ano_anterior = ano;
-      return; // Sai da função mantendo o popover ABERTO
-   }
-
-   // =========================================================
-   // SELEÇÃO REAL: O mês e o ano são os mesmos do estado anterior,
-   // então temos certeza que foi um clique no número de um dia.
-   // =========================================================
-
-   g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", dia, mes + 1, ano );
-   gtk_entry_set_text( GTK_ENTRY( ctx->calendario.entry_data ), data_formatada );
-
-   // Missão cumprida: esconde o popover suavemente
-   gtk_popover_popdown( GTK_POPOVER( ctx->calendario.popover_calendario ) );
+   gtk_popover_popdown( GTK_POPOVER( ctx->registro_diario.popover_calendario ) );
 }
 
 
 
-gboolean on_entry_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
+
+
+
+// ============================================================================
+// CALLBACK DO GTK (Focada apenas na Interface)
+// ============================================================================
+gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
    ( void )event;
    AppContext *ctx = ( AppContext * )user_data;
 
    g_return_val_if_fail( GTK_IS_ENTRY( widget ) && ctx, FALSE );
 
-   // 1. A PRIMEIRA AÇÃO DA PERDA DE FOCO:
-   // Se o professor clicou na interface vazia, clicou em outro campo ou deu Tab,
-   // o popover deve fechar imediatamente.
-   gtk_popover_popdown( GTK_POPOVER( ctx->calendario.popover_calendario ) );
+   // 1. A PRIMEIRA AÇÃO DA PERDA DE FOCO: Esconder o popover
+   gtk_popover_popdown( GTK_POPOVER( ctx->registro_diario.popover_calendario ) );
 
    GtkEntry *entry = GTK_ENTRY( widget );
-   const gchar *texto = gtk_entry_get_text( entry );
+   const gchar *texto_digitado = gtk_entry_get_text( entry );
 
-   int dia = 0, mes = 0, ano = 0;
-   gboolean data_valida = FALSE;
+   // 2. Delega todo o trabalho pesado e matemático para a função modular
+   g_autofree gchar *data_final = validar_data( texto_digitado );
 
-   // 2. Extração flexível (Barras, 6 dígitos ou 8 dígitos)
-   if ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 ) {
-      data_valida = TRUE;
-   } else if ( sscanf( texto, "%02d%02d%02d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 6 ) {
-      data_valida = TRUE;
-   } else if ( sscanf( texto, "%02d%02d%04d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 8 ) {
-      data_valida = TRUE;
+   // 3. Atualiza a interface apenas se for estritamente necessário
+   if ( g_strcmp0( texto_digitado, data_final ) != 0 ) {
+       gtk_entry_set_text( entry, data_final );
    }
 
-   if ( data_valida ) {
-      // Expansão do ano de 2 dígitos para 4 dígitos
-      if ( ano < 100 ) {
-         ano += ( ano <= 69 ) ? 2000 : 1900;
-      }
+   snprintf( ctx->diario.data, sizeof(ctx->diario.data), "%s", data_final );
 
-      // Valida pelo calendário gregoriano da GLib
-      if ( ano >= 1900 && ano <= 2100 && g_date_valid_dmy( dia, mes, ano ) ) {
-         g_autofree gchar *data_formatada = g_strdup_printf( "%02d/%02d/%04d", dia, mes, ano );
+   return FALSE;
+}
 
-         // Só reescreve se precisar corrigir formatação (evita eventos repetidos)
-         if ( g_strcmp0( texto, data_formatada ) != 0 ) {
-            gtk_entry_set_text( entry, data_formatada );
-         }
-         return FALSE;
-      }
+
+void on_button_stepper_menos_num_horarios( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+
+   if ( ctx->diario.n_horarios <= 1 ) return;
+
+   g_autofree char *n_horarios = g_strdup_printf( "%d h", --ctx->diario.n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
+}
+
+void on_button_stepper_mais_num_horarios( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+
+   // Carga horária igual a 3h é o máximo de aulas admitidas por registro_diario
+   if ( ctx->diario.n_horarios >= 3 ) {
+      ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Carga Horária Excedida" );
+      ctx->painel.format_subtitulo = meu_gerador_variadico( "O limite máximo permitido por registro é de %d horas / aula.", 3 );
+      ctx->painel.format_instrucao = meu_gerador_variadico( "%s", "Para cargas horárias diárias maiores, divida o conteúdo e faça múltiplos registros." );
+      criar_mensagem_painel( AVISO, &ctx->painel );
+
+      return; // Trava o incremento após emitir o aviso
    }
 
-   // MODO FALLBACK: Digitou algo não reconhecido. Puxa a data de hoje.
-   g_autoptr( GDateTime ) agora = g_date_time_new_now_local();
-   g_autofree gchar *hoje = g_date_time_format( agora, "%d/%m/%Y" );
+   g_autofree char *n_horarios = g_strdup_printf( "%d h", ++ctx->diario.n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
+}
 
-   gtk_entry_set_text( entry, hoje );
+
+
+
+
+static void salvar_conteudo( AppContext *ctx ) { // Única função auxiliar mantida em callbacks.c
+   g_return_if_fail( ctx );
+
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.descricao ) );
+
+   snprintf( ctx->diario.tema, sizeof(ctx->diario.tema), "%s", tema );
+   snprintf( ctx->diario.descricao, sizeof(ctx->diario.descricao), "%s", descricao );
+
+   GtkTreeIter iter;
+   GtkListStore *liststore = ctx->registro_diario.liststore_conteudo;
+   gtk_list_store_append( liststore, &iter );
+   gtk_list_store_set( liststore, &iter, 0, ctx->diario.data, 1, ctx->diario.n_horarios,
+                                         2, ctx->diario.tema, 3, ctx->diario.descricao, -1 );
+
+   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), "" ); // Geralmente o tema é o mesmo, por isso mantém
+
+   // g_autofree char *conteudo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+   // FILE *f = fopen( conteudo, "a" );
+   // fclose(f);
+}
+void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+   salvar_conteudo( ctx );
+   gtk_widget_grab_focus( ctx->registro_diario.descricao );
+}
+void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
+   salvar_conteudo( ctx );
+}
+
+
+
+void on_scrolled_vertical_sizeallocate( GtkWidget *widget, GdkRectangle *allocation, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_SCROLLED_WINDOW( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+   ( void )allocation;
+
+   GtkAdjustment *v_adj = gtk_scrolled_window_get_vadjustment( ctx->registro_diario.scrolled_window );
+   double max_v = gtk_adjustment_get_upper( v_adj ) - gtk_adjustment_get_page_size( v_adj );
+   if ( max_v > 0 ) {
+      gtk_adjustment_set_value( v_adj, max_v );
+   }
+}
+
+
+
+// ---------------------------------------------------------
+// No seu arquivo de domínio (ex: registro_diario.c)
+// ---------------------------------------------------------
+static void registro_diario_mudar_aba( AppContext *ctx, const char *nome_da_pagina ) {
+   // A mágica acontece aqui: troca a aba do GtkStack instantaneamente
+   gtk_stack_set_visible_child_name( GTK_STACK( ctx->registro_diario.stack_pages ), nome_da_pagina );
+}
+
+// ---------------------------------------------------------
+// No seu callbacks.c (Os Embrulhos)
+// ---------------------------------------------------------
+gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( widget && event && ctx , FALSE );
+
+   // Chama a função embrulhada passando o nome exato que está no Glade (Packing -> Name)
+   registro_diario_mudar_aba( ctx, "page_frequencia" );
+
+   // Retornar FALSE é vital! Isso diz ao GTK: "Eu vi o evento, mas deixe o sistema
+   // continuar processando para aplicar os efeitos CSS de :hover no botão".
+   return FALSE;
+}
+
+gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( widget && event &&  ctx, FALSE );
+
+   registro_diario_mudar_aba( ctx, "page_conteudo" );
+
+   return FALSE;
+}
+
+gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( widget && event &&  ctx, FALSE );
+
+   registro_diario_mudar_aba( ctx, "page_avaliacoes" );
 
    return FALSE;
 }
@@ -292,46 +387,46 @@ gboolean on_entry_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpoin
 
 
 
-void on_botao_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_de_avaliacoes( &ctx->painel, ctx );
 }
 
-void on_botao_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_de_conteudos( &ctx->painel, ctx );
 }
 
-void on_botao_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_de_frequencia( &ctx->painel, ctx );
 }
 
-void on_botao_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_final( &ctx->painel, ctx );
 }
 
-void on_botao_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext* ) user_data;
    if ( !ctx ) return;
    abrir_arquivos_de_dados( &ctx->painel, ctx );
 }
 
-void on_botao_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext* ) user_data;
    if ( !ctx ) return;
-   siaep_atualizar_alunos( &ctx->painel, ctx->diario );
+   siaep_atualizar_alunos( &ctx->painel, ctx->ficha );
 }
 
 
@@ -339,7 +434,7 @@ void on_botao_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_d
 
 
 
-void on_botao_abrir_tema_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_abrir_tema_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
@@ -347,7 +442,7 @@ void on_botao_abrir_tema_clicked( GtkWidget *widget, gpointer user_data ) {
 }
 
 
-void on_botao_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
@@ -355,7 +450,7 @@ void on_botao_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data )
 }
 
 
-void on_botao_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
@@ -367,7 +462,7 @@ void on_botao_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data 
 
 
 
-void on_botao_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
    // Recupera o ponteiro da estrutura AppContext enviada pelo sinal
@@ -390,7 +485,7 @@ void on_botao_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer us
 
 
 
-void on_botao_gerar_prova_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_gerar_prova_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
@@ -413,7 +508,7 @@ void on_botao_gerar_prova_clicked( GtkWidget *widget, gpointer user_data ) {
 
 
 
-void on_botao_processar_imagens_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
@@ -441,7 +536,7 @@ void on_botao_processar_imagens_clicked( GtkWidget *widget, gpointer user_data )
 
 
 
-void on_botao_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;

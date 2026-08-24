@@ -18,38 +18,47 @@ void on_entry_cor_destaque_interface_changed( GtkWidget *widget, gpointer user_d
 void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
 gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
-void on_calendario_day_selected( GtkWidget *widget, gpointer user_data );
-gboolean on_entry_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
+void on_calendar_navigation( GtkWidget *widget, gpointer user_data );
+void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
+gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
+void on_button_stepper_menos_num_horarios( GtkWidget *widget, gpointer user_data );
+void on_button_stepper_mais_num_horarios( GtkWidget *widget, gpointer user_data );
+void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data );
+void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data );
+void on_scrolled_vertical_sizeallocate( GtkWidget *widget, GdkRectangle *allocation, gpointer user_data );
+gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 
 // =========================================================================
 // 2. EMISSÃO DE RELATÓRIOS E DIÁRIOS DE CLASSE
 // =========================================================================
 // Gerenciam a leitura de arquivos locais e geração de planilhas/dados de acompanhamento
-void on_botao_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================
 // 3. CURADORIA E COMPILAÇÃO DE Acervo
 // =========================================================================
 // Manipulam o banco de dados pedagógico de temas e tópicos específicos
-void on_botao_abrir_tema_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_abrir_tema_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================
 // 4. MOTOR DE PRODUÇÃO (GERAÇÃO, PRODUÇÃO E CORREÇÃO)
 // =========================================================================
 // Ações finais pesadas que acionam o compilador TeX, processam imagens e geram PDFs
-void on_botao_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_botao_gerar_prova_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_gerar_prova_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_botao_processar_imagens_clicked( GtkWidget *widget, gpointer user_data );
-void on_botao_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================
 // 5. CONFIGURAÇÕES VISUAIS DA PROVA (RADIO BUTTONS - SELEÇÃO EXCLUSIVA)

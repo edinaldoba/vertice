@@ -107,10 +107,22 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
-   ctx->calendario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
-   ctx->calendario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
-   ctx->calendario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
-   g_object_ref( ctx->calendario.popover_calendario );
+   ctx->registro_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
+   ctx->registro_diario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
+   ctx->registro_diario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
+   g_object_ref( ctx->registro_diario.popover_calendario );
+
+   ctx->registro_diario.stepper_menos = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
+   ctx->registro_diario.n_horarios    = GTK_WIDGET( gtk_builder_get_object( builder, "label_n_horarios" ) );
+   ctx->registro_diario.stepper_mais  = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
+
+   ctx->registro_diario.tema      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
+   ctx->registro_diario.descricao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
+   ctx->registro_diario.salvar    = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+
+   ctx->registro_diario.stack_pages = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+   ctx->registro_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
+   ctx->registro_diario.scrolled_window = GTK_SCROLLED_WINDOW( gtk_builder_get_object( builder, "scrolled_window" ) );
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
@@ -125,50 +137,50 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->entry.tema         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
    ctx->entry.tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
 
-   ctx->botao.abrir_pdf_acervo      = GTK_WIDGET( gtk_builder_get_object( builder, "button_pdf_latex" ) );
-   ctx->botao.compilar_latex_acervo = GTK_WIDGET( gtk_builder_get_object( builder, "button_compilar" ) );
-   ctx->botao.executar_gcc_acervo   = GTK_WIDGET( gtk_builder_get_object( builder, "button_gcc" ) );
+   ctx->button.abrir_pdf_acervo      = GTK_WIDGET( gtk_builder_get_object( builder, "button_pdf_latex" ) );
+   ctx->button.compilar_latex_acervo = GTK_WIDGET( gtk_builder_get_object( builder, "button_compilar" ) );
+   ctx->button.executar_gcc_acervo   = GTK_WIDGET( gtk_builder_get_object( builder, "button_gcc" ) );
 
    // --- [ COLUNA 1 ORIGINAL / ABA CONFIGURAÇÕES LATEX (BOTÕES DE RÁDIO) ] ---
    char id_string[64];
    for ( int i = 0; i < 2; i++ ) {
       snprintf( id_string, sizeof( id_string ), "radio_colunas_%d", i + 1 );
-      ctx->opcao.qtd_colunas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.qtd_colunas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       snprintf( id_string, sizeof( id_string ), "radio_separadores_%d", i + 1 );
-      ctx->opcao.separadores[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.separadores[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       snprintf( id_string, sizeof( id_string ), "radio_fonte_%d", i + 1 );
-      ctx->opcao.fonte_latex[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.fonte_latex[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       snprintf( id_string, sizeof( id_string ), "radio_paginas_%d", i + 1 );
-      ctx->opcao.qtd_paginas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.qtd_paginas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       snprintf( id_string, sizeof( id_string ), "radio_cabecalho_%d", i + 1 );
-      ctx->opcao.cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 
    // Vetores de 3 opções (Avaliações e Estilos de Interface)
    for ( int i = 0; i < 3; i++ ) {
       snprintf( id_string, sizeof( id_string ), "radio_prova_%d", i + 1 );
-      ctx->opcao.avaliacao[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.avaliacao[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       snprintf( id_string, sizeof( id_string ), "radio_style_%d", i + 1 );
-      ctx->opcao.interface_style[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      ctx->radio.interface_style[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 
    // --- [ COLUNA 4 ORIGINAL / DIÁRIO E MOTORES DE AÇÃO ] ---
-   ctx->botao.carregar_dados   = GTK_WIDGET( gtk_builder_get_object( builder, "button_carregar_dados" ) );
-   ctx->botao.frequencia       = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
-   ctx->botao.conteudos        = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
-   ctx->botao.avaliacoes       = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
-   ctx->botao.abrir            = GTK_WIDGET( gtk_builder_get_object( builder, "button_abrir" ) );
-   ctx->botao.relatorio_final  = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
-   ctx->botao.atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
+   ctx->button.carregar_dados   = GTK_WIDGET( gtk_builder_get_object( builder, "button_carregar_dados" ) );
+   ctx->button.frequencia       = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
+   ctx->button.conteudos        = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
+   ctx->button.avaliacoes       = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
+   ctx->button.abrir            = GTK_WIDGET( gtk_builder_get_object( builder, "button_abrir" ) );
+   ctx->button.relatorio_final  = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
+   ctx->button.atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
 
-   ctx->botao.gerar_prova       = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
-   ctx->botao.corrigir_prova    = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
-   ctx->botao.processamento_img = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
+   ctx->button.gerar_prova       = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
+   ctx->button.corrigir_prova    = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
+   ctx->button.processamento_img = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
 
    ctx->latex.listbox_subtemas      = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
    ctx->provas.listbox_subtemas     = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas" ) );

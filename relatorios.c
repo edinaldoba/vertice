@@ -399,7 +399,7 @@ void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho 
 
 
 //########################################################################################################//
-void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *diario, const AppContext *ctx ) {
+void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *ficha, const AppContext *ctx ) {
    const FocoCoordenadas *foco = &( ctx->cascata.foco );
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
@@ -421,8 +421,8 @@ void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *diario,
    // Colocamos as notas na ordem exata em que aparecem no portal (n_aux)
    for ( j = 0; j < qtd_linhas_av_rec; j++ ) {
       for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-         idx = diario[i].idx;
-         n_aux[j][idx] = diario[i].avaliacoes[foco->periodo][j];
+         idx = ficha[i].idx;
+         n_aux[j][idx] = ficha[i].avaliacoes[foco->periodo][j];
       }
    }
 
@@ -460,15 +460,15 @@ void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *diario,
 
 
 //########################################################################################################//
-int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *diario, const InterfaceDados *dados,
+int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *ficha, const InterfaceDados *dados,
                                     const FocoCoordenadas *foco ) {
 
    int i, j, len;
 
    for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      diario[i].media[ foco->periodo ] = ( float )0;
+      ficha[i].media[ foco->periodo ] = ( float )0;
       for ( j = 0; j < 10; j++ ) {
-         diario[i].avaliacoes[ foco->periodo ][ j ] = -1;
+         ficha[i].avaliacoes[ foco->periodo ][ j ] = -1;
       }
    }
 
@@ -489,25 +489,25 @@ int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *diario, const 
          if ( len == dados->qtd_alunos_total ) {
             for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
                if ( notas[i] == '#' ) {
-                  diario[i].avaliacoes[foco->periodo][j] = 10;
+                  ficha[i].avaliacoes[foco->periodo][j] = 10;
                } else if ( notas[i] != '*' ) {
-                  diario[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
+                  ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
                }
             }
             // } else if ( len == 2 * dados->qtd_alunos_total ) {
             //    for ( i = 0; i < dados->qtd_alunos_total; i+=2 ) {
             //       if ( notas[i] == '#' && notas[i+1] == '#' ) {
-            //          diario[i].avaliacoes[foco->periodo][j] = 100;
+            //          ficha[i].avaliacoes[foco->periodo][j] = 100;
             //       } else if ( notas[i] != '*' || notas[i+1] != '*' ) {
-            //          diario[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
+            //          ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
             //       }
             //    }
             // } else if ( len == 3 * dados->qtd_alunos_total ) {
             //    for ( i = 0; i < dados->qtd_alunos_total; i+=3 ) {
             //       if ( notas[i] == '#' && notas[i+1] == '#' && notas[i+2] == '#' ) {
-            //          diario[i].avaliacoes[foco->periodo][j] = 1000;
+            //          ficha[i].avaliacoes[foco->periodo][j] = 1000;
             //       } else if ( notas[i] != '*' || notas[i+1] != '*' || notas[i+2] != '*' ) {
-            //          diario[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
+            //          ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
             //       }
             //    }
          } else {
@@ -524,12 +524,12 @@ int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *diario, const 
    int nota, rec;
    for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
       for ( j = 0; j < qtd_linhas; j += 2 ) {
-         nota = diario[i].avaliacoes[ foco->periodo ][ j ];
-         rec = ( qtd_linhas == j + 1 ) ? 0 : diario[i].avaliacoes[ foco->periodo ][ j + 1 ];
+         nota = ficha[i].avaliacoes[ foco->periodo ][ j ];
+         rec = ( qtd_linhas == j + 1 ) ? 0 : ficha[i].avaliacoes[ foco->periodo ][ j + 1 ];
          nota = ( rec > nota ) ? rec : nota;
-         diario[i].media[ foco->periodo ] += ( nota == -1 ) ? 0 : nota;
+         ficha[i].media[ foco->periodo ] += ( nota == -1 ) ? 0 : nota;
       }
-      diario[i].media[foco->periodo] /= ( float )qtd_av;
+      ficha[i].media[foco->periodo] /= ( float )qtd_av;
    }
 
    return qtd_linhas;
@@ -544,7 +544,7 @@ int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *diario, const 
 void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char *nome_base, const AppContext *ctx ) {
    if ( !ctx ) return;
    const InterfaceDados *dados = &( ctx->dados );
-   const FichaAluno *diario = ctx->diario;
+   const FichaAluno *ficha = ctx->ficha;
 
    char arquivo_tex[512];
    sprintf( arquivo_tex, "./dados/temporarios/%s.tex", nome_base );
@@ -600,15 +600,15 @@ void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char
    // 4. Loop da Lista de Alunos (Sua lógica de ativos/inativos)
    for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
 
-      if ( diario[j].ativo ) {
+      if ( ficha[j].ativo ) {
          fprintf( p, "%.2d & %.*s &%s&%s&%s&%s&%s&%s&%s&%s&%s&%s&{\\bf %s} \\\\\\hline\n",
-                  j + 1, diario[j].limite_corte, diario[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
                   notas[j][3].str, notas[j][4].str, notas[j][5].str, notas[j][6].str,
                   notas[j][7].str, notas[j][8].str, notas[j][9].str, media[j].str );
 
       } else {
          fprintf( p, "%.2d & \\textcolor{gray!70}{%.*s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\\\\\hline\n",
-                  j + 1, diario[j].limite_corte, diario[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
                   notas[j][3].str, notas[j][4].str, notas[j][5].str, notas[j][6].str,
                   notas[j][7].str, notas[j][8].str, notas[j][9].str );
       }
@@ -641,7 +641,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
    const CaminhoDiretorio *caminho = &ctx->caminho;
 
-   FichaAluno *diario = ctx->diario;
+   FichaAluno *ficha = ctx->ficha;
 
    char nome_base[64], arquivo[1024];
    sprintf( nome_base, "%s", "avaliações" );
@@ -650,13 +650,13 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 
-   int qtd_linhas_av_rec = carregar_avaliacoes_do_periodo( arquivo, diario, dados, foco );
+   int qtd_linhas_av_rec = carregar_avaliacoes_do_periodo( arquivo, ficha, dados, foco );
 
    if ( qtd_linhas_av_rec == -1 ) {
       return;
    }
 
-   gerar_arquivo_siaep_notas( qtd_linhas_av_rec, diario, ctx );
+   gerar_arquivo_siaep_notas( qtd_linhas_av_rec, ficha, ctx );
 
    snprintf( arquivo, sizeof( arquivo ), "%s/média.dat", caminho->dados );
    FILE *p = fopen( arquivo, "w" );
@@ -673,12 +673,12 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       for ( int j = 0; j < 10; j++ ) {
-         nota = diario[i].avaliacoes[ foco->periodo ][ j ];
+         nota = ficha[i].avaliacoes[ foco->periodo ][ j ];
          sprintf( snota, "%.1f", ( float )nota );
          // trocar_ponto_por_virgula( snota );
          sprintf( notas[i][j].str, "%s", ( nota == -1 ) ? "" : snota );
       }
-      med = diario[i].media[ foco->periodo ];
+      med = ficha[i].media[ foco->periodo ];
       sprintf( smedia, "%.2f", med );
       // trocar_ponto_por_virgula( smedia );
       sprintf( media[i].str, "%s", smedia );
@@ -714,7 +714,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const InterfaceListas *listas = &( ctx->listas );
-   const FichaAluno *diario = ctx->diario;
+   const FichaAluno *ficha = ctx->ficha;
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    int i, j;
@@ -780,7 +780,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
                   cons[i] = atof( nota );
                   break;
                default:
-                  if ( diario[i].ativo ) {
+                  if ( ficha[i].ativo ) {
 
                      sprintf( notas[i][j].str, "%s", nota );
                   } else {
@@ -863,12 +863,12 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
 
    for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-      if ( diario[j].ativo ) {
+      if ( ficha[j].ativo ) {
          fprintf( p1, "%.2d & %.*s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, diario[j].limite_corte, diario[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
       } else {
          fprintf( p1, "%.2d & \\textcolor{gray!50}{%.*s} & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, diario[j].limite_corte, diario[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
       }
    }
 
@@ -905,7 +905,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 //########################################################################################################//
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    const InterfaceDados  *dados   = &( ctx->dados );
-   const FichaAluno *diario = ctx->diario;
+   const FichaAluno *ficha = ctx->ficha;
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    char str[4000];
@@ -1037,7 +1037,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
       } else if ( strcmp( str, "\\foreach \\j in {%s}{\n" ) == 0 ) {
          snprintf( str1, sizeof str1, "%s", "" );
          for ( j = 0; j < fmin( dados->qtd_alunos_total, 27 ); j++ ) {
-            if ( !( diario[j].ativo ) ) {
+            if ( !( ficha[j].ativo ) ) {
                sprintf( str0, "%d,", j + 1 );
                snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
             }
@@ -1048,7 +1048,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
       } else if ( strcmp( str, "\\foreach \\j in {%s}{ \n" ) == 0 ) {
          snprintf( str1, sizeof str1, "%s", "" );
          for ( j = 27; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( diario[j].ativo ) ) {
+            if ( !( ficha[j].ativo ) ) {
                sprintf( str0, "%d,", j + 1 );
                snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
             }
@@ -1077,7 +1077,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
       } else if ( strcmp( str, "% FREQUENCIA I\n" ) == 0 ) {
          snprintf( str1, sizeof str1, "%s", "" );
          for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( diario[j].ativo ) ) {
+            if ( !( ficha[j].ativo ) ) {
                sprintf( str0, " \\OR \\i=%d", j + 1 );
                snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
             }
@@ -1091,7 +1091,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
       } else if ( strcmp( str, "% FREQUENCIA II\n" ) == 0 ) {
          snprintf( str1, sizeof str1, "%s", "" );
          for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( diario[j].ativo ) ) {
+            if ( !( ficha[j].ativo ) ) {
                sprintf( str0, " \\OR \\i=%d", j + 1 );
                snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
             }
@@ -1109,11 +1109,11 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          snprintf( str, sizeof str, "%s",  "\\def\\alunos{{" );
          snprintf( num, sizeof num, "%s",  "\\def\\num{{" );
          for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( diario[j].ativo ) {
-               sprintf( str0, "\"%.*s\",", diario[j].limite_corte, diario[j].aluno );
+            if ( ficha[j].ativo ) {
+               sprintf( str0, "\"%.*s\",", ficha[j].limite_corte, ficha[j].aluno );
                sprintf( num0, "\"%.2d\",", j + 1 );
             } else {
-               sprintf( str0, "\"{\\color{gray!50}%.*s}\",", diario[j].limite_corte, diario[j].aluno );
+               sprintf( str0, "\"{\\color{gray!50}%.*s}\",", ficha[j].limite_corte, ficha[j].aluno );
                sprintf( num0, "\"{\\color{gray!50}%.2d}\",", j + 1 );
             }
             snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
@@ -1131,7 +1131,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
             snprintf( P, sizeof P, "%s",  "\\def\\pres{{" );
             snprintf( F, sizeof F, "%s",  "\\def\\falt{{" );
             for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-               if ( diario[j].ativo ) {
+               if ( ficha[j].ativo ) {
                   sprintf( P0, "\"%d\",", pres[j] );
                   sprintf( F0, "\"%d\",", falt[j] );
                } else {

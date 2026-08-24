@@ -9,11 +9,29 @@
 #define NTI 10
 
 
+
 typedef struct {
+   //-- Calendário
    GtkWidget *entry_data;
    GtkWidget *popover_calendario;
    GtkWidget *calendario_data;
-} InterfaceCalendar;
+
+   //-- Carga Horária
+   GtkWidget *stepper_menos;
+   GtkWidget *stepper_mais;
+   GtkWidget *n_horarios;
+
+   //-- Registro do Conteúdo
+   GtkWidget *tema;
+   GtkWidget *descricao;
+
+   GtkWidget *salvar;
+
+   GtkWidget *stack_pages;
+   GtkListStore *liststore_conteudo;
+   GtkScrolledWindow *scrolled_window;
+
+} InterfaceRegistroDiario;
 
 
 typedef struct {
@@ -23,9 +41,6 @@ typedef struct {
    GtkWidget *turma;
    GtkWidget *periodo;
    GtkWidget *alunos;
-
-   GtkWidget *conteudo_tema;
-   GtkWidget *conteudo_descricao;
 
    GtkWidget *tema;
    GtkWidget *tema_espelho;
@@ -44,7 +59,7 @@ typedef struct {
    GtkWidget *cabecalho_tipo[2];        // Antes: cabecalho[2]
    GtkWidget *fonte_latex[2];           // Antes: fonte[2]
    GtkWidget *interface_style[3];
-} InterfaceOpcao;
+} InterfaceRadio;
 
 
 
@@ -96,7 +111,7 @@ typedef struct {
    GtkWidget *ausente;
    GtkWidget *salvar;
 
-} InterfaceBotao;
+} InterfaceButton;
 
 
 
@@ -204,14 +219,15 @@ typedef struct {
 
 
 typedef struct {
-   FichaAluno *diario;
+   FichaAluno *ficha;
+   DadosRegistroDiario diario;
    CalendarioData data;
    CaminhoDiretorio caminho;
 
    GtkWidget *window;
 
-   InterfaceBotao botao;
-   InterfaceOpcao opcao;
+   InterfaceButton button;
+   InterfaceRadio radio;
    InterfaceCheck check;
    InterfaceEntry entry;
 
@@ -232,7 +248,7 @@ typedef struct {
 
    InterfaceCabecalho cabecalho;
 
-   InterfaceCalendar calendario;
+   InterfaceRegistroDiario registro_diario;
 
    GRand *rand; // <- Ponteiro para o gerador de números aleatórios
 
@@ -283,6 +299,8 @@ gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const
 void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenadas *foco, const CaminhoDiretorio *caminho );
 
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
+
+gchar* validar_data( const gchar *texto );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 

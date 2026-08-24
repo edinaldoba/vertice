@@ -14,7 +14,7 @@ long int mapear_data_para_id( int dia, int mes, int ano );
 void mapear_id_para_data( long int w, int *dia, int *mes, int *ano );
 int foco_periodo_corrente( int escalar_hoje );
 
-int obter_foco_inicial( const int limite, const FichaAluno *diario );
+int obter_foco_inicial( const int limite, const FichaAluno *ficha );
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i );
 
 int quantidade_diretorios( const char *diretorio );

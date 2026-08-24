@@ -86,10 +86,10 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 
-int obter_foco_inicial( const int limite, const FichaAluno *diario ) {
+int obter_foco_inicial( const int limite, const FichaAluno *ficha ) {
    int i;
    for ( i = 0; i < limite; i++ ) {
-      if ( diario[i].ativo ) {
+      if ( ficha[i].ativo ) {
          break;
       }
    }
@@ -98,11 +98,11 @@ int obter_foco_inicial( const int limite, const FichaAluno *diario ) {
 }
 
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i ) {
-   const FichaAluno *diario = ( const FichaAluno * )ficha;
-   int len = calcular_len_limpo( diario[i].aluno, 30 );
+   const FichaAluno *ficha_aux = ( const FichaAluno * )ficha;
+   int len = calcular_len_limpo( ficha_aux[i].aluno, 30 );
    char aluno[64];
-   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, diario[i].aluno );
-   gtk_list_store_set( store, iter, 0, aluno, 1, diario[i].ativo, -1 );
+   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha_aux[i].aluno );
+   gtk_list_store_set( store, iter, 0, aluno, 1, ficha_aux[i].ativo, -1 );
 }
 
 
@@ -447,7 +447,7 @@ static double obter_largura_nome_mm( const char *texto, const char *fonte_desc )
    // return (double)largura_pango / (PANGO_SCALE * 3.78);
 }
 //----------------------------------------------------------------------------------------------------
-static void ajustar_nomes_tabelas( FichaAluno *diario, const InterfaceDados *dados ) {
+static void ajustar_nomes_tabelas( FichaAluno *ficha, const InterfaceDados *dados ) {
    char nome[64];
 
    // Definimos a fonte uma única vez fora do loop para deixar o código mais limpo
@@ -456,13 +456,13 @@ static void ajustar_nomes_tabelas( FichaAluno *diario, const InterfaceDados *dad
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
 
       // 1. Descobrimos a quantidade de caracteres reais (não bytes) do nome original
-      int max_chars = g_utf8_strlen( diario[i].aluno, -1 );
+      int max_chars = g_utf8_strlen( ficha[i].aluno, -1 );
 
       // 2. Usamos sua abstração para pegar os bytes exatos, já limpos de sujeiras finais
-      diario[i].limite_corte = calcular_len_limpo( diario[i].aluno, max_chars );
+      ficha[i].limite_corte = calcular_len_limpo( ficha[i].aluno, max_chars );
 
       // Monta o buffer seguro
-      snprintf( nome, sizeof( nome ), "%.*s", diario[i].limite_corte, diario[i].aluno );
+      snprintf( nome, sizeof( nome ), "%.*s", ficha[i].limite_corte, ficha[i].aluno );
 
       // Mede o tamanho físico em milímetros
       double largura = obter_largura_nome_mm( nome, fonte );
@@ -473,10 +473,10 @@ static void ajustar_nomes_tabelas( FichaAluno *diario, const InterfaceDados *dad
          max_chars--; // Avisamos: "Eu quero um caractere visual a menos"
 
          // A calcular_len_limpo converte essa nossa vontade visual em bytes seguros
-         diario[i].limite_corte = calcular_len_limpo( diario[i].aluno, max_chars );
+         ficha[i].limite_corte = calcular_len_limpo( ficha[i].aluno, max_chars );
 
          // Remonta o buffer com o novo limite
-         snprintf( nome, sizeof( nome ), "%.*s", diario[i].limite_corte, diario[i].aluno );
+         snprintf( nome, sizeof( nome ), "%.*s", ficha[i].limite_corte, ficha[i].aluno );
 
          // Mede novamente
          largura = obter_largura_nome_mm( nome, fonte );
@@ -532,8 +532,8 @@ static gchar* converter_nome_proprio( const gchar *nome_completo ) {
 void ajustar_nomes( const char *arquivo, AppContext *ctx ) {
    if ( !ctx ) return;
 
-   free( ctx->diario );
-   ctx->diario = NULL;
+   free( ctx->ficha );
+   ctx->ficha = NULL;
 
    InterfaceDados *dados = &( ctx->dados );
    FocoCoordenadas *foco = &( ctx->cascata.foco );
@@ -550,41 +550,41 @@ void ajustar_nomes( const char *arquivo, AppContext *ctx ) {
       return;
    }
 
-   ctx->diario = ( FichaAluno* ) calloc( dados->qtd_alunos_total, sizeof( FichaAluno ) );
-   FichaAluno *diario = ctx->diario;
+   ctx->ficha = ( FichaAluno* ) calloc( dados->qtd_alunos_total, sizeof( FichaAluno ) );
+   FichaAluno *ficha = ctx->ficha;
 
    int n1 = 0, n2 = 0;
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-      diario[i].idx = i;
+      ficha[i].idx = i;
 
       // 1. Lê diretamente para a string char padrão (aluno) usando fgets
-      if ( fgets( diario[i].aluno, sizeof( diario[i].aluno ), p ) == NULL ) break;
+      if ( fgets( ficha[i].aluno, sizeof( ficha[i].aluno ), p ) == NULL ) break;
 
-      int len = strlen( diario[i].aluno );
-      if ( len > 0 && diario[i].aluno[len - 1] == '\n' ) {
-         diario[i].aluno[--len] = '\0';
+      int len = strlen( ficha[i].aluno );
+      if ( len > 0 && ficha[i].aluno[len - 1] == '\n' ) {
+         ficha[i].aluno[--len] = '\0';
       }
 
       // 2. Os prefixos '*' e '>' ocupam 1 byte em UTF-8, lógica padrão funciona
-      if ( diario[i].aluno[0] == '*' ) n1++;
-      else if ( diario[i].aluno[0] == '>' ) n2++;
+      if ( ficha[i].aluno[0] == '*' ) n1++;
+      else if ( ficha[i].aluno[0] == '>' ) n2++;
 
-      diario[i].ativo = ( foco->periodo < 4 ) ? ( diario[i].aluno[0] != '*' ) : ( diario[i].aluno[0] == '>' );
+      ficha[i].ativo = ( foco->periodo < 4 ) ? ( ficha[i].aluno[0] != '*' ) : ( ficha[i].aluno[0] == '>' );
 
       // 3. Remove os marcadores copiando a string para o início (memmove nativo)
-      int salto = find_alpha_utf8( diario[i].aluno );
+      int salto = find_alpha_utf8( ficha[i].aluno );
       if ( salto > 0 ) {
-         memmove( diario[i].aluno, diario[i].aluno + salto, len - salto + 1 );
+         memmove( ficha[i].aluno, ficha[i].aluno + salto, len - salto + 1 );
       } else if ( salto == -1 && len > 0 ) {
-         diario[i].aluno[0] = '\0';
+         ficha[i].aluno[0] = '\0';
       }
 
       // 4. Aplica a conversão de capitalização (GLib)
-      gchar *nome_formatado = converter_nome_proprio( diario[i].aluno );
+      gchar *nome_formatado = converter_nome_proprio( ficha[i].aluno );
       if ( nome_formatado ) {
          // Copia de volta para a struct e libera a memória alocada pela GLib
-         g_strlcpy( diario[i].aluno, nome_formatado, sizeof( diario[i].aluno ) );
+         g_strlcpy( ficha[i].aluno, nome_formatado, sizeof( ficha[i].aluno ) );
          g_free( nome_formatado );
       }
    }
@@ -592,9 +592,9 @@ void ajustar_nomes( const char *arquivo, AppContext *ctx ) {
 
    dados->qtd_alunos_ativos = ( ( n2 != 0 ) || ( foco->periodo == 4 ) ) ? n2 : ( dados->qtd_alunos_total - n1 );
 
-   qsort( diario, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
+   qsort( ficha, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
 
-   ajustar_nomes_tabelas( diario, dados );
+   ajustar_nomes_tabelas( ficha, dados );
 }
 //====================================================================================================
 

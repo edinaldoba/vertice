@@ -172,7 +172,7 @@ void inicializacao_app_context( AppContext *ctx ) {
    if ( !ctx ) return;
 
    *ctx = ( AppContext ) {
-      .diario = NULL,
+      .ficha = NULL,
       .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
          .recursos_prefix = NULL
       },
@@ -283,9 +283,9 @@ void limpeza_final( AppContext *ctx ) {
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
 
    // A. Libera o Diário de Alunos (Heap)
-   if ( ctx->diario != NULL ) {
-      free( ctx->diario );
-      ctx->diario = NULL;
+   if ( ctx->ficha != NULL ) {
+      free( ctx->ficha );
+      ctx->ficha = NULL;
    }
 
    // B. Libera a matriz bidimensional de ponteiros do Acervo (Heap)
@@ -319,8 +319,8 @@ void limpeza_final( AppContext *ctx ) {
       ctx->provider = NULL;
    }
    // Quando o Vértice for fechado pelo usuário:
-   if ( ctx->calendario.popover_calendario ) {
-      g_object_unref( ctx->calendario.popover_calendario );
+   if ( ctx->registro_diario.popover_calendario ) {
+      g_object_unref( ctx->registro_diario.popover_calendario );
    }
 
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );
