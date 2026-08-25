@@ -1180,204 +1180,210 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 
-
-
-//########################################################################################################//
-void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
-   const InterfaceDados  *dados   = &( ctx->dados );
+static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
+   g_autoptr( GString ) conteudo_siaep = g_string_new( "" );
    const CascataControle *cascata = &( ctx->cascata );
-   const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   char str[3000];
-   sprintf( str, "%s/conteúdos.dat", caminho->dados );
-   if ( !verificar_estado_de_arquivo( str, painel, dados ) ) return;
-
-   FILE *p = fopen( str, "r" );
-
-   bool eh_recuperacao = ( dados->periodo[0] == 'R' );
-
-   char str0[1024], format[1000];
-
-   struct {
-      char str[5];
-   } Meses[12] = {{"jan"}, {"fev"}, {"mar"}, {"abr"}, {"mai"}, {"jun"}, {"jul"}, {"ago"}, {"set"}, {"out"}, {"nov"}, {"dez"}}, meses[3] = {{""}, {""}, {""}};
-
-   int i, j, k, idx, len, somach = 0, nn = 0, ad = 0, ap = 0, ndias[4] = {0, 0, 0, 0};
-
-   int offsets[] = {0, 1, 4}; // Onde começa cada disciplina (Só serve para uma única escola)
-
+   int offsets[] = { 0, 1, 4 };
    int index = offsets[ cascata->foco.disciplina % cascata->limite.disciplinas ] +
                cascata->foco.turma % cascata->limite.turmas;
 
    long int ( *id_h )[4] = id_horarios[index].ids;
 
-   while ( fgets( str, sizeof str, p ) != NULL ) nn++;
-   rewind( p );
+   for ( guint i = 0; i < registros->len; i++ ) {
+      DadosRegistroDiario *d = &g_array_index( registros, DadosRegistroDiario, i );
 
-   int dia[nn], mes[nn], ch[nn], nhoras[nn];
-   mes[0] = 1;
+      int dia = 0, mes = 0, ano = 0;
+      sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
-   struct {
-      char str[5000];
-   } linhas[nn];
+      int k = dia_da_semana( dia, mes, ano );
 
-   sprintf( str, "%s/siaep_cont.dat", caminho->relatorios );
-
-   FILE *p2 = fopen( str, "w+" );
-
-   for ( i = 0; i < nn; i++ ) {
-      if ( fgets( str, sizeof str, p ) == NULL ) {
-         fprintf( stderr, "Erro ao ler linha de configuração.\n" );
-      }
-      len = ( int )strlen( str );
-
-      dia[i] = ( str[0] - '0' ) * 10 + str[1] - '0';
-      mes[i] = ( str[2] - '0' ) * 10 + str[3] - '0';
-      ch[i] = str[5] - '0';
-
-      char *pontos = strchr( str, ':' );
-      pontos += 2;
-      idx = sdatefind( ':', str, len );
-
-      //----------- Gravação dos dados no arquivo SIAEP -----------//
-      k = dia_da_semana( dia[i], mes[i], ctx->data.ano );
       if ( k == 0 || k == 1 ) {
-         snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", " (ERRO: DATA DE SÁBADO OU DOMINGO)" );
-      } else if ( idx != -1 ) {
-         for ( j = 0; j < ch[i]; j++ ) {
-            if ( str[7] == 'r' || str[7] == 'b' ) {
-               break;
-            }
-            int num_aux = ( i > 0 && dia[i] == dia[i - 1] ) ? 1 : 0;
-            fprintf( p2, "%02d/%02d/%d;%ld;%d;%.*s;%s", dia[i], mes[i], ctx->data.ano, id_h[k - 2][j + num_aux],
-                     cascata->foco.periodo + 1, idx - 7, &str[7], pontos );
-         }
-      }
-      //----------------------------------------------------------//
-
-      somach += ch[i];
-      ap += ch[i];
-      ad += ch[i];
-      nhoras[i] = ( i > 0 ) ? nhoras[i - 1] + ch[i] : ch[i];
-      str[--len] = '\0';
-      if ( len > 7 ) {
-         if ( str[7] == 'b' ) {
-            ad -= ch[i];
-            sprintf( linhas[i].str, "{\\bf\\color{blue}%s}", &str[8] );
-         } else if ( str[7] == 'r' ) {
-            ad -= ch[i];
-            ap -= ch[i];
-            sprintf( linhas[i].str, "{\\bf\\color{red}%s}", &str[8] );
-         } else {
-            if ( mes[i] > ctx->data.mes ) {
-               ad -= ch[i];
-            } else if ( mes[i] == ctx->data.mes && dia[i] > ctx->data.dia ) {
-               ad -= ch[i];
-            }
-            j = sdatefind( ':', str, ( int )strlen( str ) );
-            sprintf( format, "\\textbf{%%.%ds} $-$ %%s", j - 7 );
-            sprintf( linhas[i].str, format, &str[7], &str[j + 1] );
-         }
+         g_string_append_printf( conteudo_siaep, " (ERRO: DATA DE SÁBADO OU DOMINGO %02d/%02d/%d)\n", dia, mes, ano );
       } else {
-         ad -= ch[i];
-         linhas[i].str[0] = '\0';
+         for ( int j = 0; j < d->n_horarios; j++ ) {
+            int num_aux = 0;
+            if ( i > 0 ) {
+               DadosRegistroDiario *anterior = &g_array_index( registros, DadosRegistroDiario, i - 1 );
+               int dia_ant = 0;
+               sscanf( anterior->data, "%d/", &dia_ant );
+               if ( dia == dia_ant ) num_aux = 1;
+            }
+
+            int len_tema = ( int )strlen( d->tema );
+
+            // Formato exigido pelo seu script Java: DD/MM/YYYY;ID;PERIODO;LEN_TEMA;TEMA;DESCRICAO
+            g_string_append_printf( conteudo_siaep, "%02d/%02d/%d;%ld;%d;%d;%s;%s\n",
+                                    dia, mes, ano,
+                                    id_h[k - 2][j + num_aux],
+                                    cascata->foco.periodo + 1,
+                                    len_tema, d->tema, d->descricao );
+         }
       }
    }
-   fclose( p );
-   fclose( p2 );
+
+   g_file_set_contents( caminho_saida, conteudo_siaep->str, -1, NULL );
+}
 
 
-   for ( i = 0; i < nn; i++ ) {
-      ndias[1] += ( mes[0] + 0 == mes[i] ) * ch[i];
-      ndias[2] += ( mes[0] + 1 == mes[i] ) * ch[i];
-      ndias[3] += ( mes[0] + 2 == mes[i] ) * ch[i];
-   }
+static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
+   g_autoptr( GString ) tex = g_string_new( "" );
+   const InterfaceDados *dados = &( ctx->dados );
+   bool eh_recuperacao = ( dados->periodo[0] == 'R' );
 
-   ndias[3] += ( ndias[1] + ndias[2] ) * ( ndias[3] != 0 );
-   ndias[2] += ndias[1] * ( ndias[2] != 0 );
+   int nn = registros->len;
+   int somach = 0, ad = 0, ap = 0;
+   int ndias[4] = {0, 0, 0, 0};
+   int mes_inicial = 0;
 
+   const char *Meses[] = { "", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez" };
 
-   snprintf( meses[0].str, sizeof meses[0].str, "%s", Meses[mes[0] - 1].str );
-   snprintf( meses[1].str, sizeof meses[1].str, "%s", Meses[mes[0]  ].str );
-   snprintf( meses[2].str, sizeof meses[2].str, "%s", Meses[mes[0] + 1].str );
+   g_autoptr( GString ) macros_cont = g_string_new( "\\def\\cont{{" );
+   g_autoptr( GString ) macros_nhoras = g_string_new( "\\def\\nhoras{{\"0\"," );
+   g_autoptr( GString ) macros_dia = g_string_new( "\\def\\dia{{" );
 
+   for ( int i = 0; i < nn; i++ ) {
+      DadosRegistroDiario *d = &g_array_index( registros, DadosRegistroDiario, i );
+      int dia = 0, mes = 0, ano = 0;
+      sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
+      if ( i == 0 ) mes_inicial = mes;
 
-   p = fopen( "./dados/templates/template_cont.tex", "r" );
+      somach += d->n_horarios;
+      ap += d->n_horarios; // Aulas Previstas
 
-   FILE *p1 = fopen( "./dados/temporarios/Conteúdos.tex", "w+" );
-
-   while ( fgets( str, sizeof str, p ) != NULL ) {
-      if ( strcmp( str, "% FONTE\n" ) == 0 ) {
-         if ( dados->fonte_latex == 1 )
-            fputs( "\\usepackage{cmbright}\n", p1 );
-         continue;
-      } else if ( strcmp( str, "\\pgfmathsetmacro{\\nn}{%d}\n" ) == 0 ) {
-         fprintf( p1, str, nn );
-         continue;
-      } else if ( strcmp( str, "\\pgfmathsetmacro{\\p}{277/%d}\n" ) == 0 ) {
-         if ( nn <= 22 ) {
-            fprintf( p1, str, 480 );
-            fprintf( p1, "\\pgfmathsetmacro{\\s}{%d}\n", 47 );
-         } else {
-            fprintf( p1, str, 10 * ( somach + 4 ) );
-            fprintf( p1, "\\pgfmathsetmacro{\\s}{%d}\n", somach + 3 );
-         }
-         continue;
-      } else if ( strncmp( str, "\\node[right] at (1,{-1-3*\\p/2})", 30 ) == 0 ) {
-         fprintf( p1, str, dados->escola );
-         continue;
-      } else if ( strncmp( str, "\\node[right] at (1,{-1-5*\\p/2})", 30 ) == 0 ) {
-         fprintf( p1, str, dados->turma );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt] at (13.5,{-1-\\p})", 35 ) == 0 ) {
-         fprintf( p1, str, dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt,above] at (10.5,-28.65)", 40 ) == 0 ) {
-         fprintf( p1, str, ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
-         continue;
-      } else if ( strcmp( str, "% DADOS\n" ) == 0 ) {
-
-         snprintf( str, sizeof str, "%s",  "\\def\\cont{{" );
-         for ( j = 0; j < nn; j++ ) {
-            snprintf( str0, sizeof( str0 ), "\"%s\",", linhas[j].str );
-            snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
-         }
-         snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", "\"\"}}\n" );
-         fputs( str, p1 );
-
-         snprintf( str, sizeof str, "%s",  "\\def\\nhoras{{\"0\"," );
-
-         for ( j = 0; j < nn; j++ ) {
-            sprintf( str0, "\"%d\",", nhoras[j] );
-            snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
-         }
-         snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", "\"\"}}\n" );
-         fputs( str, p1 );
-
-
-         fprintf( p1, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
-         fprintf( p1, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n", meses[0].str, meses[1].str, meses[2].str );
-
-         snprintf( str, sizeof str, "%s",  "\\def\\dia{{" );
-         for ( j = 0; j < nn; j++ ) {
-            sprintf( str0, "\"%.2d\",", dia[j] );
-            snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
-         }
-         snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", "\"\"}}\n" );
-         fputs( str, p1 );
-
-
-         continue;
+      // Regra de Aulas Dadas (ad) comparando com a data atual (Hoje)
+      if ( ano < ctx->data.ano ||
+            ( ano == ctx->data.ano && mes < ctx->data.mes ) ||
+            ( ano == ctx->data.ano && mes == ctx->data.mes && dia <= ctx->data.dia ) ) {
+         ad += d->n_horarios;
       }
 
-      fputs( str, p1 );
+      // Histograma de carga horária para renderização das chaves no LaTeX
+      if ( mes == mes_inicial ) ndias[1] += d->n_horarios;
+      else if ( mes == mes_inicial + 1 ) ndias[2] += d->n_horarios;
+      else if ( mes == mes_inicial + 2 ) ndias[3] += d->n_horarios;
+
+      // Montagem das macros de listas do LaTeX
+      g_string_append_printf( macros_cont, "\"\\textbf{%s} $-$ %s\",", d->tema, d->descricao );
+      g_string_append_printf( macros_nhoras, "\"%d\",", somach );
+      g_string_append_printf( macros_dia, "\"%02d\",", dia );
    }
 
+   g_string_append( macros_cont, "\"\"}}\n" );
+   g_string_append( macros_nhoras, "\"\"}}\n" );
+   g_string_append( macros_dia, "\"\"}}\n" );
+
+   // Acumulação visual do mês
+   if ( ndias[3] != 0 ) ndias[3] += ndias[1] + ndias[2];
+   if ( ndias[2] != 0 ) ndias[2] += ndias[1];
+
+   int valor_p = ( nn <= 22 ) ? 480 : 10 * ( somach + 4 );
+   int valor_s = ( nn <= 22 ) ? 47  : somach + 3;
+
+   // --- CONSTRUÇÃO DO DOCUMENTO LATEX ---
+   g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
+
+   if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
+
+   g_string_append_printf( tex,
+                           "\\usepackage[brazil]{babel}\n"
+                           "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                           "\\usepackage{tikz,ifthen,ulem,graphicx}\n"
+                           "\\usetikzlibrary{calc}\n"
+                           "\\pagestyle{empty}\n\n"
+                           "\\pgfmathsetmacro{\\nn}{%d}\n"
+                           "\\pgfmathsetmacro{\\p}{277/%d}\n"
+                           "\\pgfmathsetmacro{\\s}{%d}\n\n", nn, valor_p, valor_s );
+
+   g_string_append( tex, macros_cont->str );
+   g_string_append( tex, macros_nhoras->str );
+   g_string_append( tex, macros_dia->str );
+
+   int mes_1 = ( mes_inicial >= 1 && mes_inicial <= 12 ) ? mes_inicial : 1;
+   int mes_2 = ( mes_1 + 1 <= 12 ) ? mes_1 + 1 : 12;
+   int mes_3 = ( mes_1 + 2 <= 12 ) ? mes_1 + 2 : 12;
+
+   g_string_append_printf( tex, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
+   g_string_append_printf( tex, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n\n", Meses[mes_1], Meses[mes_2], Meses[mes_3] );
+
+   g_string_append_printf( tex,
+                           "\\begin{document}\n"
+                           "  \\noindent\\begin{tikzpicture}\n"
+                           "  \\fill (0,0) circle (0pt);\n"
+                           "  \\draw (1,-1) rectangle (20,-28.7);\n"
+                           "  \\draw (2,{-1-3*\\p}) -- (2,{-1-\\s*\\p})\n"
+                           "        ({2+\\p},{-1-3*\\p}) -- ({2+\\p},{-1-\\s*\\p})\n"
+                           "        (7,-1) -- (7,{-1-3*\\p})\n"
+                           "        (7,{-1-1.8*\\p}) -- (20,{-1-1.8*\\p})\n"
+                           "        (1,{-1-3*\\p}) -- (20,{-1-3*\\p})\n"
+                           "        (1,{-1-\\s*\\p}) -- (20,{-1-\\s*\\p});\n"
+                           "  \\node[right] at (7,{-1-2.45*\\p}) {\\LARGE\\it Conteúdos};\n"
+                           "  \\ifthenelse{\\nn>0}{\n"
+                           "    \\foreach \\i in {1,...,\\nn}{\n"
+                           "      \\node[inner sep=0pt] at ({2+\\p/2},{-1-(3+0.5*(\\nhoras[\\i-1]+\\nhoras[\\i]))*\\p}) {\\pgfmathparse{\\dia[\\i-1]}\\pgfmathresult};\n"
+                           "      \\node[right] at ({2+\\p},{-1-(3+0.5*(\\nhoras[\\i-1]+\\nhoras[\\i]))*\\p}) {\\parbox{17.15cm}{\\pgfmathparse{\\cont[\\i-1]}\\pgfmathresult}};\n"
+                           "      \\draw (2,{-1-\\p*(\\nhoras[\\i]+3)}) -- (20,{-1-\\p*(\\nhoras[\\i]+3)});\n"
+                           "    }\n"
+                           "    \\foreach \\i in {0,...,2} {\n"
+                           "      \\pgfmathsetmacro{\\t}{\\ndias[\\i+1]}\n"
+                           "      \\ifthenelse{\\t>0}{\n"
+                           "        \\draw (1,{-1-\\p*(3+\\ndias[\\i+1])}) -- (2,{-1-\\p*(3+\\ndias[\\i+1])});\n"
+                           "        \\node at (1.5,{-1-3*\\p-0.5*(\\ndias[\\i+1]+\\ndias[\\i])*\\p}) {\\Large\\pgfmathparse{\\mes[\\i]}\\pgfmathresult};\n"
+                           "      }{}\n"
+                           "    }\n"
+                           "  }{}\n"
+                           "  \\node[right] at (1,{-1-\\p/2}) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
+                           "  \\node[right] at (1,{-1-3*\\p/2}) {\\large\\bf\\underline{%s}};\n" // Escola
+                           "  \\node[right] at (1,{-1-5*\\p/2}) {\\large\\bf\\underline{%s}};\n" // Turma
+                           "  \\node[inner sep=0pt] at (13.5,{-1-\\p}) {\\bf\\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};\n" // Disciplina, a/o, periodo, ano
+                           "  \\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \\underline{\\,%02d\\,}/\\underline{\\,%02d\\,}/\\underline{\\,%d\\,} \\hspace{5mm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{5mm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{5mm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n"
+                           "  \\end{tikzpicture}\n"
+                           "\\end{document}\n",
+                           dados->escola, dados->turma, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
+                           ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+
+   g_file_set_contents( caminho_saida, tex->str, -1, NULL );
+}
+
+//########################################################################################################//
+void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
+   const InterfaceDados *dados = &( ctx->dados );
+   const CaminhoDiretorio *caminho = &( ctx->caminho );
+
+   g_autofree gchar *arquivo_binario = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+
+   // Opcional: Se 'verificar_estado_de_arquivo' não for compatível com binários, você pode ajustar
+   if ( !verificar_estado_de_arquivo( arquivo_binario, painel, dados ) ) return;
+
+   FILE *p = fopen( arquivo_binario, "rb" );
+   if ( !p ) {
+      fprintf( stderr, "[ERRO] Não foi possível ler o arquivo de dados: %s\n", arquivo_binario );
+      return;
+   }
+
+   // 1. Carrega todos os registros binários em um GArray (Estrutura Dinâmica da GLib)
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( DadosRegistroDiario ) );
+   DadosRegistroDiario d;
+
+   while ( fread( &d, sizeof( DadosRegistroDiario ), 1, p ) == 1 ) {
+      g_array_append_val( registros, d );
+   }
    fclose( p );
-   fclose( p1 );
 
+   if ( registros->len == 0 ) return;
 
+   // 2. Chama a geração do arquivo para o Script Java
+   g_autofree gchar *arquivo_siaep = g_build_filename( caminho->relatorios, "siaep_cont.dat", NULL );
+   gerar_arquivo_siaep_cont( ctx, registros, arquivo_siaep );
+
+   // 3. Chama a geração do arquivo LaTeX substituindo o template descontinuado
+   g_autofree gchar *arquivo_latex = g_build_filename( "dados", "temporarios", "Conteúdos.tex", NULL );
+   gerar_latex_conteudos( ctx, registros, arquivo_latex );
+
+   // 4. Dispara o compilador
    disparar_latex( "Conteúdos", caminho->relatorios, dados, caminho );
 }
 //########################################################################################################//

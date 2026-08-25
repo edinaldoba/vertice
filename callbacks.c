@@ -174,7 +174,7 @@ void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer us
 
 gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data ) {
    g_return_val_if_fail( GTK_IS_ENTRY( widget ), FALSE );
-   (void)event;
+   ( void )event;
    AppContext *ctx = ( AppContext * )user_data;
 
    g_return_val_if_fail( widget && ctx && ctx->registro_diario.popover_calendario, FALSE );
@@ -195,7 +195,7 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
 
 
 void on_calendar_navigation( GtkWidget *widget, gpointer user_data ) {
-   (void)user_data;
+   ( void )user_data;
    g_return_if_fail( GTK_IS_CALENDAR( widget ) );
 
    // Avisa para o calendário: "A próxima seleção de dia é falsa, ignore!"
@@ -210,9 +210,9 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
 
    // 1. O PULO DO GATO: Tem uma flag pedindo para ignorar?
    if ( GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "ignorar_dia" ) ) == 1 ) {
-       // Apaga a flag (reseta para 0) e aborta silenciosamente. O popover continua aberto!
-       g_object_set_data( G_OBJECT( widget ), "ignorar_dia", GINT_TO_POINTER( 0 ) );
-       return;
+      // Apaga a flag (reseta para 0) e aborta silenciosamente. O popover continua aberto!
+      g_object_set_data( G_OBJECT( widget ), "ignorar_dia", GINT_TO_POINTER( 0 ) );
+      return;
    }
 
    // 2. SUCESSO! Não tinha flag, então o professor realmente clicou com o mouse no dia!
@@ -250,16 +250,16 @@ gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *even
 
    // 3. Atualiza a interface apenas se for estritamente necessário
    if ( g_strcmp0( texto_digitado, data_final ) != 0 ) {
-       gtk_entry_set_text( entry, data_final );
+      gtk_entry_set_text( entry, data_final );
    }
 
-   snprintf( ctx->diario.data, sizeof(ctx->diario.data), "%s", data_final );
+   snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data_final );
 
    return FALSE;
 }
 
 
-void on_button_stepper_menos_num_horarios( GtkWidget *widget, gpointer user_data ) {
+void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
 
@@ -269,7 +269,7 @@ void on_button_stepper_menos_num_horarios( GtkWidget *widget, gpointer user_data
    gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
 }
 
-void on_button_stepper_mais_num_horarios( GtkWidget *widget, gpointer user_data ) {
+void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
 
@@ -291,53 +291,105 @@ void on_button_stepper_mais_num_horarios( GtkWidget *widget, gpointer user_data 
 
 
 
-static void salvar_conteudo( AppContext *ctx ) { // Única função auxiliar mantida em callbacks.c
-   g_return_if_fail( ctx );
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.tema ) );
-   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.descricao ) );
+// static void salvar_conteudo( AppContext *ctx ) {
+//    g_return_if_fail( ctx );
+//
+//    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.tema ) );
+//    const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.descricao ) );
+//
+//    // Previne salvar registros vazios
+//    if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
+//
+//    // Atualiza a struct de dados
+//    g_strlcpy( ctx->diario.tema, tema, sizeof( ctx->diario.tema ) );
+//    g_strlcpy( ctx->diario.descricao, descricao, sizeof( ctx->diario.descricao ) );
+//
+//    GtkListStore *liststore = ctx->registro_diario.liststore_conteudo;
+//    GtkTreeIter iter;
+//
+//    if ( ctx->registro_diario.editando ) {
+//       // MODO EDIÇÃO: Usa o iterador da linha selecionada
+//       iter = ctx->registro_diario.iter_em_edicao;
+//    } else {
+//       // MODO INSERÇÃO: Adiciona uma nova linha no final
+//       gtk_list_store_append( liststore, &iter );
+//    }
+//
+//    // Atualiza/Insere os valores no modelo (passando APENAS strings)
+//    gtk_list_store_set( liststore, &iter, 0, ctx->diario.data, 1, ctx->diario.n_horarios,
+//                                          2, ctx->diario.tema, 3, ctx->diario.descricao , -1 );
+//
+//    // Rola a visualização para a linha (útil tanto para edição quanto para novas linhas)
+//    GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
+//    gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ctx->registro_diario.treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
+//    gtk_tree_path_free( path );
+//
+//    // Reset de estado: limpa a seleção e volta ao modo de inclusão normal
+//    ctx->registro_diario.editando = FALSE;
+//    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->registro_diario.treeview_conteudo ) );
+//    gtk_tree_selection_unselect_all( selection );
+//
+//    gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), "" );
+// }
 
-   snprintf( ctx->diario.tema, sizeof(ctx->diario.tema), "%s", tema );
-   snprintf( ctx->diario.descricao, sizeof(ctx->diario.descricao), "%s", descricao );
-
-   GtkTreeIter iter;
-   GtkListStore *liststore = ctx->registro_diario.liststore_conteudo;
-   gtk_list_store_append( liststore, &iter );
-   gtk_list_store_set( liststore, &iter, 0, ctx->diario.data, 1, ctx->diario.n_horarios,
-                                         2, ctx->diario.tema, 3, ctx->diario.descricao, -1 );
-
-   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), "" ); // Geralmente o tema é o mesmo, por isso mantém
-
-   // g_autofree char *conteudo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
-   // FILE *f = fopen( conteudo, "a" );
-   // fclose(f);
-}
 void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
-   salvar_conteudo( ctx );
+
+   salvar_conteudo( &ctx->registro_diario, &ctx->diario, &ctx->caminho );
    gtk_widget_grab_focus( ctx->registro_diario.descricao );
 }
+
 void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
-   salvar_conteudo( ctx );
+
+   salvar_conteudo( &ctx->registro_diario, &ctx->diario, &ctx->caminho );
 }
 
-
-
-void on_scrolled_vertical_sizeallocate( GtkWidget *widget, GdkRectangle *allocation, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_SCROLLED_WINDOW( widget ) );
+void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data ) {
+   ( void )column; // Suprime aviso de variável não utilizada
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   ( void )allocation;
 
-   GtkAdjustment *v_adj = gtk_scrolled_window_get_vadjustment( ctx->registro_diario.scrolled_window );
-   double max_v = gtk_adjustment_get_upper( v_adj ) - gtk_adjustment_get_page_size( v_adj );
-   if ( max_v > 0 ) {
-      gtk_adjustment_set_value( v_adj, max_v );
+   GtkTreeModel *model = gtk_tree_view_get_model( treeview );
+   GtkTreeIter iter;
+
+   // Converte o path clicado em iterador
+   if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
+      g_autofree gchar *data = NULL;
+      guint ch = 0; // Tipo primitivo (sem g_autofree!)
+      g_autofree gchar *tema = NULL;
+      g_autofree gchar *descricao = NULL;
+
+      // Puxa os dados da linha ativada pelo clique duplo
+      gtk_tree_model_get( model, &iter, 0, &data, 1, &ch, 2, &tema, 3, &descricao, -1 );
+
+      if ( data ) {
+         gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data );
+         snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data );
+      }
+
+      if ( ch != 0 ) {
+         ctx->diario.n_horarios = ch;
+         g_autofree char *str_ch = g_strdup_printf( "%d h", ctx->diario.n_horarios );
+         gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), str_ch );
+      }
+
+      gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.tema ), tema ? tema : "" );
+      gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), descricao ? descricao : "" );
+
+      // Ativa o modo de edição com o iterador selecionado
+      ctx->registro_diario.iter_em_edicao = iter;
+      ctx->registro_diario.editando = TRUE;
+
+      // Dá o foco na descrição para o professor já poder alterar o texto
+      gtk_widget_grab_focus( ctx->registro_diario.descricao );
    }
 }
+
+
 
 
 
@@ -354,7 +406,7 @@ static void registro_diario_mudar_aba( AppContext *ctx, const char *nome_da_pagi
 // ---------------------------------------------------------
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_val_if_fail( widget && event && ctx , FALSE );
+   g_return_val_if_fail( widget && event && ctx, FALSE );
 
    // Chama a função embrulhada passando o nome exato que está no Glade (Packing -> Name)
    registro_diario_mudar_aba( ctx, "page_frequencia" );

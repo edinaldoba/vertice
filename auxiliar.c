@@ -638,3 +638,31 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
    // 5. Terceiro Critério: Desempate usando a sua lógica local
    return strcoll( turma_a, turma_b );
 }
+
+
+
+
+
+
+
+void gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice ) {
+   // Tenta abrir para leitura e atualização ("r+b" não apaga o arquivo existente)
+   FILE *f = fopen( caminho_arquivo, "r+b" );
+
+   // Se o arquivo não existir (primeiro salvamento da turma), cria um novo ("w+b")
+   if ( !f ) {
+      f = fopen( caminho_arquivo, "w+b" );
+      if ( !f ) {
+         fprintf( stderr, "[ERRO] Não foi possível criar o arquivo binário.\n" );
+         return;
+      }
+   }
+
+   // A MÁGICA: Pula (indice * 180 bytes) a partir do início do arquivo (SEEK_SET)
+   long offset = ( long )indice * sizeof( DadosRegistroDiario );
+   fseek( f, offset, SEEK_SET );
+
+   // Sobrescreve (ou adiciona se for o fim) exatamente aquele bloco de memória
+   fwrite( registro, sizeof( DadosRegistroDiario ), 1, f );
+   fclose( f );
+}

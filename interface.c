@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
+#include "comum.h"
 #include "interface.h"
 #include "basicas.h"
 #include "callbacks.h"
@@ -638,31 +639,107 @@ gchar* validar_data( const gchar *texto ) {
    gboolean data_valida = FALSE;
 
    if ( texto != NULL ) {
-       // Extração flexível (Barras, 6 dígitos ou 8 dígitos)
-       if ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 ) {
-           data_valida = TRUE;
-       } else if ( sscanf( texto, "%02d%02d%02d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 6 ) {
-           data_valida = TRUE;
-       } else if ( sscanf( texto, "%02d%02d%04d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 8 ) {
-           data_valida = TRUE;
-       }
+      // Extração flexível (Barras, 6 dígitos ou 8 dígitos)
+      if ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 ) {
+         data_valida = TRUE;
+      } else if ( sscanf( texto, "%02d%02d%02d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 6 ) {
+         data_valida = TRUE;
+      } else if ( sscanf( texto, "%02d%02d%04d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 8 ) {
+         data_valida = TRUE;
+      }
    }
 
    if ( data_valida ) {
-       // Expansão do ano de 2 dígitos para 4 dígitos
-       if ( ano < 100 ) {
-           ano += ( ano <= 69 ) ? 2000 : 1900;
-       }
+      // Expansão do ano de 2 dígitos para 4 dígitos
+      if ( ano < 100 ) {
+         ano += ( ano <= 69 ) ? 2000 : 1900;
+      }
 
-       // Valida pelo calendário gregoriano da GLib
-       if ( ano >= 1900 && ano <= 2100 && g_date_valid_dmy( dia, mes, ano ) ) {
-           return g_strdup_printf( "%02d/%02d/%04d", dia, mes, ano ); // SUCESSO
-       }
+      // Valida pelo calendário gregoriano da GLib
+      if ( ano >= 1900 && ano <= 2100 && g_date_valid_dmy( dia, mes, ano ) ) {
+         return g_strdup_printf( "%02d/%02d/%04d", dia, mes, ano ); // SUCESSO
+      }
    }
 
    // MODO FALLBACK: Digitou algo não reconhecido ou inválido (ex: 31/02).
    g_autoptr( GDateTime ) agora = g_date_time_new_now_local();
    return g_date_time_format( agora, "%d/%m/%Y" );
+}
+
+
+void salvar_conteudo( InterfaceRegistroDiario *registro_diario, DadosRegistroDiario *diario,
+                      const CaminhoDiretorio *caminho ) {
+   g_return_if_fail( diario && registro_diario );
+
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( registro_diario->tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( registro_diario->descricao ) );
+
+   if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
+
+   g_strlcpy( diario->tema, tema, sizeof( diario->tema ) );
+   g_strlcpy( diario->descricao, descricao, sizeof( diario->descricao ) );
+
+   GtkListStore *liststore = registro_diario->liststore_conteudo;
+   GtkTreeIter iter;
+
+   if ( registro_diario->editando ) {
+      iter = registro_diario->iter_em_edicao;
+   } else {
+      gtk_list_store_append( liststore, &iter );
+   }
+
+   // 1. Atualiza a interface
+   gtk_list_store_set( liststore, &iter, 0, diario->data, 1, diario->n_horarios, 2, diario->tema, 3, diario->descricao, -1 );
+
+   // =========================================================================
+   // 2. SINCRONIZA COM O BINÁRIO
+   // =========================================================================
+   // Pega o "caminho" da linha recém salva
+   GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
+
+   // Extrai o índice numérico (0, 1, 2...) a partir do caminho
+   int *indices = gtk_tree_path_get_indices( path );
+   int indice_linha = indices[0];
+
+   // Aqui você define/monta o caminho do arquivo binário da turma selecionada
+   g_autofree char *arquivo_turma = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+   gravar_diario_binario( arquivo_turma, diario, indice_linha );
+
+   // Rola para a célula
+   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( registro_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
+   gtk_tree_path_free( path );
+   // =========================================================================
+
+   registro_diario->editando = FALSE;
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( registro_diario->treeview_conteudo ) );
+   gtk_tree_selection_unselect_all( selection );
+
+   gtk_entry_set_text( GTK_ENTRY( registro_diario->descricao ), "" );
+}
+
+
+
+static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *registro_diario ) {
+   if ( !registro_diario || !caminho_arquivo ) return;
+
+   GtkListStore *liststore = registro_diario->liststore_conteudo;
+   gtk_list_store_clear( liststore );
+
+   FILE *f = fopen( caminho_arquivo, "rb" );
+   if ( !f ) return; // Arquivo não existe ainda, diário em branco
+
+   GtkTreeIter iter;
+   DadosRegistroDiario d;
+
+   // Lê bloco por bloco de 180 bytes e joga direto na tela
+   while ( fread( &d, sizeof( DadosRegistroDiario ), 1, f ) == 1 ) {
+      gtk_list_store_append( liststore, &iter );
+
+      // Mantemos a coluna 1 passando o inteiro (d.n_horarios) como acertamos antes
+      gtk_list_store_set( liststore, &iter, 0, d.data, 1, d.n_horarios, 2, d.tema,  3, d.descricao, -1 );
+   }
+
+   fclose( f );
 }
 
 
@@ -875,6 +952,10 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    InterfacePainel   *painel   = &ctx->painel;
    InterfaceHandlers *handlers = &ctx->handlers;
 
+   InterfaceRegistroDiario *registro_diario = &ctx->registro_diario;
+
+   g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+   carregar_diario_na_interface( caminho_arquivo, registro_diario );
 
    char arquivo[1024];
 
@@ -922,11 +1003,11 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
    gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data_formatada );
-   snprintf( ctx->diario.data, sizeof(ctx->diario.data), "%s", data_formatada );
+   snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data_formatada );
 
    ctx->diario.n_horarios = 1;
-   g_autofree char *n_horarios = g_strdup_printf( "%d h", ctx->diario.n_horarios );
-   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
+   g_autofree char *str_n_horarios = g_strdup_printf( "%d h", ctx->diario.n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), str_n_horarios );
 
    gtk_widget_set_name( ctx->entry.periodo, "momento" );
    foco->periodo = foco_periodo_corrente( escalar_hoje );

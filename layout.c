@@ -122,7 +122,8 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->registro_diario.stack_pages = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
    ctx->registro_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
-   ctx->registro_diario.scrolled_window = GTK_SCROLLED_WINDOW( gtk_builder_get_object( builder, "scrolled_window" ) );
+   ctx->registro_diario.scrolled_window = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
+   ctx->registro_diario.treeview_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );

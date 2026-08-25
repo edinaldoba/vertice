@@ -21,11 +21,11 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
 void on_calendar_navigation( GtkWidget *widget, gpointer user_data );
 void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
 gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
-void on_button_stepper_menos_num_horarios( GtkWidget *widget, gpointer user_data );
-void on_button_stepper_mais_num_horarios( GtkWidget *widget, gpointer user_data );
+void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data );
-void on_scrolled_vertical_sizeallocate( GtkWidget *widget, GdkRectangle *allocation, gpointer user_data );
+void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data );
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

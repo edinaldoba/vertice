@@ -361,7 +361,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkScrolledWindow">
+                          <object class="GtkScrolledWindow" id="scrolled_window_conteudo">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="shadow-type">in</property>
@@ -439,23 +439,87 @@
                       <object class="GtkBox" id="box_frequencia">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="orientation">vertical</property>
                         <property name="spacing">10</property>
                         <child>
-                          <object class="GtkComboBox" id="combo_alunos">
-                            <property name="width-request">410</property>
-                            <property name="height-request">43</property>
+                          <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="model">liststore1</property>
+                            <property name="spacing">10</property>
                             <child>
-                              <object class="GtkCellRendererText"/>
-                              <attributes>
-                                <attribute name="text">0</attribute>
-                              </attributes>
+                              <object class="GtkComboBox" id="combo_alunos">
+                                <property name="width-request">410</property>
+                                <property name="height-request">43</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="model">liststore1</property>
+                                <child>
+                                  <object class="GtkCellRendererText"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
+                                <style>
+                                  <class name="combo-box-text-normal"/>
+                                </style>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
                             </child>
-                            <style>
-                              <class name="combo-box-text-normal"/>
-                            </style>
+                            <child>
+                              <object class="GtkButton" id="button_presente">
+                                <property name="label" translatable="yes">P</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="button_ausente">
+                                <property name="label" translatable="yes">F</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkComboBoxText" id="combo_frequencia">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="active">0</property>
+                                <items>
+                                  <item id="0" translatable="yes">Presente</item>
+                                  <item id="1" translatable="yes">Ausente</item>
+                                  <item id="2" translatable="yes">Falta Justificada</item>
+                                  <item id="3" translatable="yes">Dispensado</item>
+                                  <item id="4" translatable="yes">Fora de Sala</item>
+                                  <item id="5" translatable="yes">Foi Embora</item>
+                                  <item id="6" translatable="yes">Atividade Domiciliar</item>
+                                  <item id="7" translatable="yes">Suspenso</item>
+                                </items>
+                                <style>
+                                  <class name="combo-box-text-normal"/>
+                                </style>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -464,54 +528,73 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkButton" id="button_presente">
-                            <property name="label" translatable="yes">P</property>
+                          <object class="GtkScrolledWindow" id="scrolled_window_frequencia">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
-                            <property name="receives-default">True</property>
+                            <property name="shadow-type">in</property>
+                            <child>
+                              <object class="GtkTreeView" id="treeview_frequencia">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="model">liststore_conteudo</property>
+                                <property name="search-column">0</property>
+                                <child internal-child="selection">
+                                  <object class="GtkTreeSelection"/>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">130</property>
+                                    <property name="title" translatable="yes">DATA</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">0</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="title" translatable="yes">CH</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">1</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="title" translatable="yes">NOME  DO  ALUNO</property>
+                                    <property name="expand">True</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">2</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">150</property>
+                                    <property name="title" translatable="yes">FREQUÊNCIA</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">3</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
                           </object>
                           <packing>
                             <property name="expand">True</property>
                             <property name="fill">True</property>
                             <property name="position">1</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkButton" id="button_ausente">
-                            <property name="label" translatable="yes">F</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="receives-default">True</property>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkComboBoxText" id="combo_frequencia">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="active">0</property>
-                            <items>
-                              <item id="0" translatable="yes">Presente</item>
-                              <item id="1" translatable="yes">Ausente</item>
-                              <item id="2" translatable="yes">Falta Justificada</item>
-                              <item id="3" translatable="yes">Dispensado</item>
-                              <item id="4" translatable="yes">Fora de Sala</item>
-                              <item id="5" translatable="yes">Foi Embora</item>
-                              <item id="6" translatable="yes">Atividade Domiciliar</item>
-                              <item id="7" translatable="yes">Suspenso</item>
-                            </items>
-                            <style>
-                              <class name="combo-box-text-normal"/>
-                            </style>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">3</property>
                           </packing>
                         </child>
                       </object>

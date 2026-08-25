@@ -29,7 +29,11 @@ typedef struct {
 
    GtkWidget *stack_pages;
    GtkListStore *liststore_conteudo;
-   GtkScrolledWindow *scrolled_window;
+   GtkWidget *scrolled_window;
+   GtkWidget *treeview_conteudo;
+
+   GtkTreeIter iter_em_edicao;
+   gboolean editando; // FALSE = Novo Registro, TRUE = Editando Existente
 
 } InterfaceRegistroDiario;
 
@@ -301,6 +305,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 gchar* validar_data( const gchar *texto );
+void salvar_conteudo( InterfaceRegistroDiario *registro_diario, DadosRegistroDiario *diario,
+                      const CaminhoDiretorio *caminho );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 
