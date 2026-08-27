@@ -382,7 +382,6 @@ treeview {
 /* Linha selecionada pelo usuário */
 treeview:selected {
     background-color: #00007f;
-    color: #ffffff;
 }
 
 /* Estilo de todos os cabeçalhos de colunas (Data, C.H., Tema, Descrição) */

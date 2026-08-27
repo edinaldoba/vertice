@@ -125,17 +125,6 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkSeparator">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -195,17 +184,6 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">2</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSeparator">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">3</property>
                   </packing>
                 </child>
                 <child>
@@ -315,6 +293,7 @@
                           <item translatable="yes">Aula Normal</item>
                           <item translatable="yes">Pedagógico</item>
                           <item translatable="yes">Feriado/Fac</item>
+                          <item translatable="yes">Aula Extra</item>
                         </items>
                       </object>
                       <packing>
@@ -409,7 +388,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">130</property>
+                                    <property name="fixed-width">112</property>
                                     <property name="title" translatable="yes">DATA</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
@@ -426,7 +405,6 @@
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
-                                        <attribute name="width">1</attribute>
                                         <attribute name="text">1</attribute>
                                         <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
@@ -905,17 +883,6 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkSeparator">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">13</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -1016,17 +983,6 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">14</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSeparator">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">15</property>
                   </packing>
                 </child>
                 <child>

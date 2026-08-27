@@ -711,6 +711,20 @@ int cor_texto_linha_liststore(const DadosRegistroDiario *diario, int tema_ativo,
       return 1;
    }
 
+   // =====================================================================
+   // 3. TIPO: Aula Extra
+   // =====================================================================
+   if (diario->tipo_registro == 3) {
+      if (tema_ativo == 1) { // Deep Blue
+         *cor_out = (GdkRGBA){ 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
+      } else if (tema_ativo == 2) { // Light
+         *cor_out = (GdkRGBA){ 0.62, 0.49, 0.10, 1.0 }; // ##9d7c19
+      } else { // Dark Green (Padrão)
+         *cor_out = (GdkRGBA){ 1.00, 0.84, 0.31, 1.0 }; // #FFD54F
+      }
+      return 1;
+   }
+
    return 0; // Fallback de segurança
 }
 

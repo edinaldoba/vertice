@@ -377,7 +377,7 @@ calendar:selected {
 
 /* Estilo geral de TODAS as tabelas (GtkTreeView) */
 treeview {
-    background-color: #ECEFF1;
+    background-color: #f3f6f8;
     color: #000000;
     font-size: 20px;
 }
@@ -385,7 +385,6 @@ treeview {
 /* Linha selecionada pelo usuário */
 treeview:selected {
     background-color: #a0c4ff;
-    color: #000000;
 }
 
 /* Estilo de todos os cabeçalhos de colunas (Data, C.H., Tema, Descrição) */
@@ -604,9 +603,9 @@ radio:checked {
 .sucesso-instrucao { color: #1A237E; font-size: 20px; font-weight: normal; }
 
 /* Variação: Aviso */
-.aviso-titulo    { color: #E65100; font-size: 28px; font-weight: bold; }
+.aviso-titulo    { color: #9d7c19; font-size: 28px; font-weight: bold; }
 .aviso-subtitulo { color: #5D4037; font-size: 24px; font-style: italic; }
-.aviso-instrucao { color: #BF360C; font-size: 20px; font-weight: normal; }
+.aviso-instrucao { color: #E65100; font-size: 20px; font-weight: normal; }
 
 /* Variação: Erro */
 .erro-titulo     { color: #C62828; font-size: 28px; font-weight: bold; }

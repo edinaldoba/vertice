@@ -126,7 +126,15 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
    ctx->ui_diario.scrolled_window = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
-   // gtk_tree_view_set_rules_hint( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), TRUE );
+   //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
+   GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), 1 );
+   gtk_tree_view_column_set_alignment( col_ch, 0.5 ); // Centraliza o título "CH"
+   GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
+   if ( renderers ) {
+      g_object_set( G_OBJECT( renderers->data ), "xalign", 0.5, NULL ); // Centraliza o número 1
+      g_list_free( renderers );
+   }
+   //----------------------------------------------------------------------
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );

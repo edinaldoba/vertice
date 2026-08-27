@@ -158,20 +158,21 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoTurmas;
 
 typedef enum {
-   PRESENTE             = 1 << 0, // Aluno presente e em sala de aula
-   AUSENTE              = 1 << 1, // Falta não justificada
-   FALTA_JUSTIFICADA    = 1 << 2, // Ausência abonada por critério pedagógico ou atestado
-   DISPENSADO           = 1 << 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
-   FORA_DE_SALA         = 1 << 4, // Afastamento temporário por medida disciplinar da direção
-   FOI_EMBORA           = 1 << 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
-   ATIVIDADE_DOMICILIAR = 1 << 6,  // Evasão não autorizada do recinto escolar durante o período letivo
-   SUSPENSO             = 1 << 7  // Evasão não autorizada do recinto escolar durante o período letivo
+   PRESENTE             = 0, // Aluno presente e em sala de aula
+   AUSENTE              = 1, // Falta não justificada
+   FALTA_JUSTIFICADA    = 2, // Ausência abonada por critério pedagógico ou atestado
+   DISPENSADO           = 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
+   FORA_DE_SALA         = 4, // Afastamento temporário por medida disciplinar da direção
+   FOI_EMBORA           = 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
+   ATIVIDADE_DOMICILIAR = 6, // Evasão não autorizada do recinto escolar durante o período letivo
+   SUSPENSO             = 7  // Evasão não autorizada do recinto escolar durante o período letivo
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
 typedef enum {
-    TIPO_REGISTRO_AULA_NORMAL = 0,
-    TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF
-    TIPO_REGISTRO_FERIADO     = 2  // Cor VERMELHA no PDF (Ignorado no SIAEP)
+    TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
+    TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
+    TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
+    TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
 } __attribute__( ( packed ) ) TipoRegistroDiario;
 
 typedef struct {

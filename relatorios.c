@@ -1250,11 +1250,13 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       if ( i == 0 ) mes_inicial = mes;
 
       somach += d->n_horarios;
-      ap += d->n_horarios; // Aulas Previstas
 
-      // Regra de Aulas Dadas (ad) comparando com a data atual (Hoje)
+      if ( d->tipo_registro == 0 ) {
+         ad += d->n_horarios; // Aulas Dadas
+      }
+
       if ( d->tipo_registro != 2 ) {
-         ad += d->n_horarios;
+         ap += d->n_horarios;  // Aulas Previstas
       }
 
       // Histograma de carga horária para renderização das chaves no LaTeX
@@ -1268,6 +1270,9 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 
       } else if ( d->tipo_registro == 2 ) {
          g_string_append_printf( macros_cont, "\"{\\color{red}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
+
+      } else if ( d->tipo_registro == 3 ) {
+         g_string_append_printf( macros_cont, "\"{\\color{olive}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
 
       } else {
          g_string_append_printf( macros_cont, "\"\\textbf{%s} $-$ %s\",", d->tema, d->descricao );

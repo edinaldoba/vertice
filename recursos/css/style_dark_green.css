@@ -374,7 +374,7 @@ calendar:selected {
 
 /* Estilo geral de TODAS as tabelas (GtkTreeView) */
 treeview {
-    background-color: #1A232A;
+    background-color: #222e38;
     color: #ffffff;
     font-size: 20px;
 }
@@ -382,8 +382,8 @@ treeview {
 /* Linha selecionada pelo usuário */
 treeview:selected {
     background-color: #005500;
-    color: #ffffff;
 }
+
 
 /* Estilo de todos os cabeçalhos de colunas (Data, C.H., Tema, Descrição) */
 treeview header label {
