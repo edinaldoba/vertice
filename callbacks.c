@@ -177,13 +177,13 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
    ( void )event;
    AppContext *ctx = ( AppContext * )user_data;
 
-   g_return_val_if_fail( widget && ctx && ctx->registro_diario.popover_calendario, FALSE );
+   g_return_val_if_fail( widget && ctx && ctx->ui_diario.popover_calendario, FALSE );
 
-   GtkPopover *popover = GTK_POPOVER( ctx->registro_diario.popover_calendario );
+   GtkPopover *popover = GTK_POPOVER( ctx->ui_diario.popover_calendario );
 
    gtk_popover_set_modal( popover, FALSE );
 
-   gtk_widget_set_can_focus( ctx->registro_diario.calendario_data, FALSE );
+   gtk_widget_set_can_focus( ctx->ui_diario.calendario_data, FALSE );
 
    // Ancora na caixa de texto e exibe
    gtk_popover_set_relative_to( popover, widget );
@@ -220,9 +220,9 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
    gtk_calendar_get_date( GTK_CALENDAR( widget ), &ano, &mes, &dia );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02u/%02u/%04u", dia, mes + 1, ano );
-   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data_formatada );
 
-   gtk_popover_popdown( GTK_POPOVER( ctx->registro_diario.popover_calendario ) );
+   gtk_popover_popdown( GTK_POPOVER( ctx->ui_diario.popover_calendario ) );
 }
 
 
@@ -240,7 +240,7 @@ gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *even
    g_return_val_if_fail( GTK_IS_ENTRY( widget ) && ctx, FALSE );
 
    // 1. A PRIMEIRA AÇÃO DA PERDA DE FOCO: Esconder o popover
-   gtk_popover_popdown( GTK_POPOVER( ctx->registro_diario.popover_calendario ) );
+   gtk_popover_popdown( GTK_POPOVER( ctx->ui_diario.popover_calendario ) );
 
    GtkEntry *entry = GTK_ENTRY( widget );
    const gchar *texto_digitado = gtk_entry_get_text( entry );
@@ -266,14 +266,14 @@ void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer u
    if ( ctx->diario.n_horarios <= 1 ) return;
 
    g_autofree char *n_horarios = g_strdup_printf( "%d h", --ctx->diario.n_horarios );
-   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), n_horarios );
 }
 
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
 
-   // Carga horária igual a 3h é o máximo de aulas admitidas por registro_diario
+   // Carga horária igual a 3h é o máximo de aulas admitidas por ui_diario
    if ( ctx->diario.n_horarios >= 3 ) {
       ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Carga Horária Excedida" );
       ctx->painel.format_subtitulo = meu_gerador_variadico( "O limite máximo permitido por registro é de %d horas / aula.", 3 );
@@ -284,68 +284,26 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
    }
 
    g_autofree char *n_horarios = g_strdup_printf( "%d h", ++ctx->diario.n_horarios );
-   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), n_horarios );
 }
 
 
 
 
 
-
-// static void salvar_conteudo( AppContext *ctx ) {
-//    g_return_if_fail( ctx );
-//
-//    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.tema ) );
-//    const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ctx->registro_diario.descricao ) );
-//
-//    // Previne salvar registros vazios
-//    if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
-//
-//    // Atualiza a struct de dados
-//    g_strlcpy( ctx->diario.tema, tema, sizeof( ctx->diario.tema ) );
-//    g_strlcpy( ctx->diario.descricao, descricao, sizeof( ctx->diario.descricao ) );
-//
-//    GtkListStore *liststore = ctx->registro_diario.liststore_conteudo;
-//    GtkTreeIter iter;
-//
-//    if ( ctx->registro_diario.editando ) {
-//       // MODO EDIÇÃO: Usa o iterador da linha selecionada
-//       iter = ctx->registro_diario.iter_em_edicao;
-//    } else {
-//       // MODO INSERÇÃO: Adiciona uma nova linha no final
-//       gtk_list_store_append( liststore, &iter );
-//    }
-//
-//    // Atualiza/Insere os valores no modelo (passando APENAS strings)
-//    gtk_list_store_set( liststore, &iter, 0, ctx->diario.data, 1, ctx->diario.n_horarios,
-//                                          2, ctx->diario.tema, 3, ctx->diario.descricao , -1 );
-//
-//    // Rola a visualização para a linha (útil tanto para edição quanto para novas linhas)
-//    GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
-//    gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ctx->registro_diario.treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
-//    gtk_tree_path_free( path );
-//
-//    // Reset de estado: limpa a seleção e volta ao modo de inclusão normal
-//    ctx->registro_diario.editando = FALSE;
-//    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->registro_diario.treeview_conteudo ) );
-//    gtk_tree_selection_unselect_all( selection );
-//
-//    gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), "" );
-// }
-
 void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
-   salvar_conteudo( &ctx->registro_diario, &ctx->diario, &ctx->caminho );
-   gtk_widget_grab_focus( ctx->registro_diario.descricao );
+   salvar_conteudo( &ctx->ui_diario, &ctx->diario, &ctx->caminho, ctx->dados.interface_style );
+   gtk_widget_grab_focus( ctx->ui_diario.descricao );
 }
 
 void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
-   salvar_conteudo( &ctx->registro_diario, &ctx->diario, &ctx->caminho );
+   salvar_conteudo( &ctx->ui_diario, &ctx->diario, &ctx->caminho, ctx->dados.interface_style );
 }
 
 void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data ) {
@@ -362,30 +320,33 @@ void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeV
       guint ch = 0; // Tipo primitivo (sem g_autofree!)
       g_autofree gchar *tema = NULL;
       g_autofree gchar *descricao = NULL;
+      guint tipo = 0; // Tipo de registro
 
       // Puxa os dados da linha ativada pelo clique duplo
-      gtk_tree_model_get( model, &iter, 0, &data, 1, &ch, 2, &tema, 3, &descricao, -1 );
+      gtk_tree_model_get( model, &iter, 0, &data, 1, &ch, 2, &tema, 3, &descricao, 4, &tipo, -1 );
 
       if ( data ) {
-         gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data );
+         gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data );
          snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data );
       }
 
       if ( ch != 0 ) {
          ctx->diario.n_horarios = ch;
          g_autofree char *str_ch = g_strdup_printf( "%d h", ctx->diario.n_horarios );
-         gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), str_ch );
+         gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), str_ch );
       }
 
-      gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.tema ), tema ? tema : "" );
-      gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.descricao ), descricao ? descricao : "" );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.tipo_registro ), tipo );
+
+      gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.tema ), tema ? tema : "" );
+      gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.descricao ), descricao ? descricao : "" );
 
       // Ativa o modo de edição com o iterador selecionado
-      ctx->registro_diario.iter_em_edicao = iter;
-      ctx->registro_diario.editando = TRUE;
+      ctx->ui_diario.iter_em_edicao = iter;
+      ctx->ui_diario.editando = TRUE;
 
       // Dá o foco na descrição para o professor já poder alterar o texto
-      gtk_widget_grab_focus( ctx->registro_diario.descricao );
+      gtk_widget_grab_focus( ctx->ui_diario.descricao );
    }
 }
 
@@ -394,11 +355,11 @@ void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeV
 
 
 // ---------------------------------------------------------
-// No seu arquivo de domínio (ex: registro_diario.c)
+// No seu arquivo de domínio (ex: ui_diario.c)
 // ---------------------------------------------------------
-static void registro_diario_mudar_aba( AppContext *ctx, const char *nome_da_pagina ) {
+static void ui_diario_mudar_aba( AppContext *ctx, const char *nome_da_pagina ) {
    // A mágica acontece aqui: troca a aba do GtkStack instantaneamente
-   gtk_stack_set_visible_child_name( GTK_STACK( ctx->registro_diario.stack_pages ), nome_da_pagina );
+   gtk_stack_set_visible_child_name( GTK_STACK( ctx->ui_diario.stack_pages ), nome_da_pagina );
 }
 
 // ---------------------------------------------------------
@@ -409,7 +370,7 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    g_return_val_if_fail( widget && event && ctx, FALSE );
 
    // Chama a função embrulhada passando o nome exato que está no Glade (Packing -> Name)
-   registro_diario_mudar_aba( ctx, "page_frequencia" );
+   ui_diario_mudar_aba( ctx, "page_frequencia" );
 
    // Retornar FALSE é vital! Isso diz ao GTK: "Eu vi o evento, mas deixe o sistema
    // continuar processando para aplicar os efeitos CSS de :hover no botão".
@@ -420,7 +381,7 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   registro_diario_mudar_aba( ctx, "page_conteudo" );
+   ui_diario_mudar_aba( ctx, "page_conteudo" );
 
    return FALSE;
 }
@@ -429,7 +390,7 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   registro_diario_mudar_aba( ctx, "page_avaliacoes" );
+   ui_diario_mudar_aba( ctx, "page_avaliacoes" );
 
    return FALSE;
 }

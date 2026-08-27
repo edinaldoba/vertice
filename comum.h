@@ -168,11 +168,18 @@ typedef enum {
    SUSPENSO             = 1 << 7  // Evasão não autorizada do recinto escolar durante o período letivo
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
+typedef enum {
+    TIPO_REGISTRO_AULA_NORMAL = 0,
+    TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF
+    TIPO_REGISTRO_FERIADO     = 2  // Cor VERMELHA no PDF (Ignorado no SIAEP)
+} __attribute__( ( packed ) ) TipoRegistroDiario;
+
 typedef struct {
    char data[16];
    int n_horarios;
    char tema[32];
    char descricao[128];
+   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
 } __attribute__( ( packed ) ) DadosRegistroDiario;
 //-------------------------------------------------------------------------------------------//
 

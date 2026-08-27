@@ -1193,6 +1193,8 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
    for ( guint i = 0; i < registros->len; i++ ) {
       DadosRegistroDiario *d = &g_array_index( registros, DadosRegistroDiario, i );
 
+      if( d->tipo_registro == 2 ) continue;
+
       int dia = 0, mes = 0, ano = 0;
       sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
@@ -1210,14 +1212,12 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
                if ( dia == dia_ant ) num_aux = 1;
             }
 
-            int len_tema = ( int )strlen( d->tema );
-
             // Formato exigido pelo seu script Java: DD/MM/YYYY;ID;PERIODO;LEN_TEMA;TEMA;DESCRICAO
-            g_string_append_printf( conteudo_siaep, "%02d/%02d/%d;%ld;%d;%d;%s;%s\n",
+            g_string_append_printf( conteudo_siaep, "%02d/%02d/%d;%ld;%d;%s;%s\n",
                                     dia, mes, ano,
                                     id_h[k - 2][j + num_aux],
                                     cascata->foco.periodo + 1,
-                                    len_tema, d->tema, d->descricao );
+                                    d->tema, d->descricao );
          }
       }
    }
@@ -1253,9 +1253,7 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       ap += d->n_horarios; // Aulas Previstas
 
       // Regra de Aulas Dadas (ad) comparando com a data atual (Hoje)
-      if ( ano < ctx->data.ano ||
-            ( ano == ctx->data.ano && mes < ctx->data.mes ) ||
-            ( ano == ctx->data.ano && mes == ctx->data.mes && dia <= ctx->data.dia ) ) {
+      if ( d->tipo_registro != 2 ) {
          ad += d->n_horarios;
       }
 
@@ -1265,9 +1263,18 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       else if ( mes == mes_inicial + 2 ) ndias[3] += d->n_horarios;
 
       // Montagem das macros de listas do LaTeX
-      g_string_append_printf( macros_cont, "\"\\textbf{%s} $-$ %s\",", d->tema, d->descricao );
-      g_string_append_printf( macros_nhoras, "\"%d\",", somach );
+      if ( d->tipo_registro == 1 ) {
+         g_string_append_printf( macros_cont, "\"{\\color{blue}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
+
+      } else if ( d->tipo_registro == 2 ) {
+         g_string_append_printf( macros_cont, "\"{\\color{red}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
+
+      } else {
+         g_string_append_printf( macros_cont, "\"\\textbf{%s} $-$ %s\",", d->tema, d->descricao );
+      }
+
       g_string_append_printf( macros_dia, "\"%02d\",", dia );
+      g_string_append_printf( macros_nhoras, "\"%d\",", somach );
    }
 
    g_string_append( macros_cont, "\"\"}}\n" );

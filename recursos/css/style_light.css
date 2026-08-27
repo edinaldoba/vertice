@@ -382,15 +382,6 @@ treeview {
     font-size: 20px;
 }
 
-/* Cores alternadas das linhas (Efeito Zebrado) */
-treeview:nth-child(even) {
-    background-color: #ECEFF1;
-}
-
-treeview:nth-child(odd) {
-    background-color: #ffffff;
-}
-
 /* Linha selecionada pelo usuário */
 treeview:selected {
     background-color: #a0c4ff;

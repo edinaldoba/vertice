@@ -125,28 +125,28 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->button.relatorio_final,   "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
    g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
-   g_signal_connect( ctx->registro_diario.calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->registro_diario.calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->registro_diario.calendario_data, "next-year", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->registro_diario.calendario_data, "prev-year", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->ui_diario.calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->ui_diario.calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->ui_diario.calendario_data, "next-year", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( ctx->ui_diario.calendario_data, "prev-year", G_CALLBACK( on_calendar_navigation ), ctx );
 
-   g_signal_connect( ctx->registro_diario.calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
-   g_signal_connect( ctx->registro_diario.entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
-   g_signal_connect( ctx->registro_diario.entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
+   g_signal_connect( ctx->ui_diario.calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
+   g_signal_connect( ctx->ui_diario.entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
+   g_signal_connect( ctx->ui_diario.entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
 
-   g_signal_connect( ctx->registro_diario.stepper_menos, "clicked",
+   g_signal_connect( ctx->ui_diario.stepper_menos, "clicked",
                      G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->registro_diario.stepper_mais,  "clicked",
+   g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked",
                      G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
 
-   g_signal_connect( ctx->registro_diario.descricao, "activate", G_CALLBACK( on_entry_salvar_conteudo_activate ), ctx );
-   g_signal_connect( ctx->registro_diario.salvar,    "clicked", G_CALLBACK( on_button_salvar_conteudo_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.descricao, "activate", G_CALLBACK( on_entry_salvar_conteudo_activate ), ctx );
+   g_signal_connect( ctx->ui_diario.salvar,    "clicked", G_CALLBACK( on_button_salvar_conteudo_clicked ), ctx );
 
    g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK( on_button_frequencia_enter_notify_event ), ctx );
    g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
    g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK( on_button_avaliacoes_enter_notify_event ), ctx );
 
-   g_signal_connect( ctx->registro_diario.treeview_conteudo, "row-activated",  G_CALLBACK( on_diario_row_activated ), ctx );
+   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",  G_CALLBACK( on_diario_row_activated ), ctx );
 
 
 

@@ -374,18 +374,9 @@ calendar:selected {
 
 /* Estilo geral de TODAS as tabelas (GtkTreeView) */
 treeview {
-    background-color: #002f00;
+    background-color: #1A232A;
     color: #ffffff;
     font-size: 20px;
-}
-
-/* Cores alternadas das linhas (Efeito Zebrado) */
-treeview:nth-child(even) {
-    background-color: #27353f;
-}
-
-treeview:nth-child(odd) {
-    background-color: #1A232A;
 }
 
 /* Linha selecionada pelo usuário */

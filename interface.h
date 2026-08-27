@@ -21,6 +21,9 @@ typedef struct {
    GtkWidget *stepper_mais;
    GtkWidget *n_horarios;
 
+   //-- Tipo de registro
+   GtkWidget *tipo_registro;
+
    //-- Registro do Conteúdo
    GtkWidget *tema;
    GtkWidget *descricao;
@@ -252,7 +255,7 @@ typedef struct {
 
    InterfaceCabecalho cabecalho;
 
-   InterfaceRegistroDiario registro_diario;
+   InterfaceRegistroDiario ui_diario;
 
    GRand *rand; // <- Ponteiro para o gerador de números aleatórios
 
@@ -305,8 +308,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 gchar* validar_data( const gchar *texto );
-void salvar_conteudo( InterfaceRegistroDiario *registro_diario, DadosRegistroDiario *diario,
-                      const CaminhoDiretorio *caminho );
+void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *diario,
+                      const CaminhoDiretorio *caminho, const int foco_estilo );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 

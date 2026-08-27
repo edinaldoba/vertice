@@ -10,6 +10,7 @@
 
 #include "auxiliar.h"
 #include "basicas.h"
+#include "comum.h"
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
 
@@ -666,3 +667,50 @@ void gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiar
    fwrite( registro, sizeof( DadosRegistroDiario ), 1, f );
    fclose( f );
 }
+
+
+
+// Supondo que você tenha um enum para os temas no seu AppContext ou cabeçalho:
+// typedef enum { TEMA_DARK_GREEN, TEMA_DEEP_BLUE, TEMA_LIGHT } TemaAtual;
+
+/*
+ * Retorna 1 (TRUE) se uma cor customizada foi atribuída,
+ * ou 0 (FALSE) se for aula normal (devendo usar a cor padrão).
+ */
+int cor_texto_linha_liststore(const DadosRegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out) {
+   if (!diario || !cor_out) return 0;
+
+   // Retorna imediatamente se for Aula Normal (usa a cor padrão do tema)
+   if (diario->tipo_registro == 0) return 0;
+
+   // =====================================================================
+   // 1. TIPO: Atividade Pedagógica
+   // =====================================================================
+   if (diario->tipo_registro == 1) {
+      if (tema_ativo == 1) { // Deep Blue
+         *cor_out = (GdkRGBA){ 0.50, 0.88, 1.00, 1.0 };
+      } else if (tema_ativo == 2) { // Light
+         *cor_out = (GdkRGBA){ 0.00, 0.00, 1.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = (GdkRGBA){ 0.39, 0.71, 0.96, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 2. TIPO: Feriado
+   // =====================================================================
+   if (diario->tipo_registro == 2) {
+      if (tema_ativo == 1) { // Deep Blue
+         *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
+      } else if (tema_ativo == 2) { // Light
+         *cor_out = (GdkRGBA){ 1.00, 0.00, 0.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = (GdkRGBA){ 0.90, 0.45, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   return 0; // Fallback de segurança
+}
+

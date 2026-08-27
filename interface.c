@@ -199,7 +199,8 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
 }
 
 
-
+static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
+                                          const int foco_estilo );
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
    InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
    InterfaceListas *listas = ( InterfaceListas * ) & ( ctx->listas );
@@ -227,6 +228,9 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
    case 7: // Interface Style
       dados->interface_style = valor;
       interface_style( ctx );
+      char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+      carregar_diario_na_interface( caminho_arquivo, &ctx->ui_diario, dados->interface_style );
+      g_free(caminho_arquivo);
       break;
    default:
       g_print( "Categoria desconhecida: %d\n", categoria );
@@ -667,29 +671,36 @@ gchar* validar_data( const gchar *texto ) {
 }
 
 
-void salvar_conteudo( InterfaceRegistroDiario *registro_diario, DadosRegistroDiario *diario,
-                      const CaminhoDiretorio *caminho ) {
-   g_return_if_fail( diario && registro_diario );
+void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *diario,
+                      const CaminhoDiretorio *caminho, const int foco_estilo ) {
+   g_return_if_fail( diario && ui_diario );
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( registro_diario->tema ) );
-   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( registro_diario->descricao ) );
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ui_diario->tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ui_diario->descricao ) );
 
    if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
 
    g_strlcpy( diario->tema, tema, sizeof( diario->tema ) );
    g_strlcpy( diario->descricao, descricao, sizeof( diario->descricao ) );
 
-   GtkListStore *liststore = registro_diario->liststore_conteudo;
+   GtkListStore *liststore = ui_diario->liststore_conteudo;
    GtkTreeIter iter;
 
-   if ( registro_diario->editando ) {
-      iter = registro_diario->iter_em_edicao;
+   if ( ui_diario->editando ) {
+      iter = ui_diario->iter_em_edicao;
    } else {
       gtk_list_store_append( liststore, &iter );
    }
 
-   // 1. Atualiza a interface
-   gtk_list_store_set( liststore, &iter, 0, diario->data, 1, diario->n_horarios, 2, diario->tema, 3, diario->descricao, -1 );
+   diario->tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->tipo_registro ) );
+
+   // Pega a cor já processada pelo tema e tipo de registro
+   GdkRGBA cor_texto;
+   int r = cor_texto_linha_liststore( diario, foco_estilo, &cor_texto );
+
+   // Passa a cor para a coluna 5
+   gtk_list_store_set( liststore, &iter, 0, diario->data,      1, diario->n_horarios,    2, diario->tema,
+                                         3, diario->descricao, 4, diario->tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
 
    // =========================================================================
    // 2. SINCRONIZA COM O BINÁRIO
@@ -706,23 +717,25 @@ void salvar_conteudo( InterfaceRegistroDiario *registro_diario, DadosRegistroDia
    gravar_diario_binario( arquivo_turma, diario, indice_linha );
 
    // Rola para a célula
-   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( registro_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
+   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
    gtk_tree_path_free( path );
    // =========================================================================
 
-   registro_diario->editando = FALSE;
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( registro_diario->treeview_conteudo ) );
+   ui_diario->editando = FALSE;
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) );
    gtk_tree_selection_unselect_all( selection );
 
-   gtk_entry_set_text( GTK_ENTRY( registro_diario->descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
 }
 
 
 
-static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *registro_diario ) {
-   if ( !registro_diario || !caminho_arquivo ) return;
+static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
+                                          const int foco_estilo )
+{
+   if ( !ui_diario || !caminho_arquivo ) return;
 
-   GtkListStore *liststore = registro_diario->liststore_conteudo;
+   GtkListStore *liststore = ui_diario->liststore_conteudo;
    gtk_list_store_clear( liststore );
 
    FILE *f = fopen( caminho_arquivo, "rb" );
@@ -735,11 +748,17 @@ static void carregar_diario_na_interface( const char *caminho_arquivo, Interface
    while ( fread( &d, sizeof( DadosRegistroDiario ), 1, f ) == 1 ) {
       gtk_list_store_append( liststore, &iter );
 
-      // Mantemos a coluna 1 passando o inteiro (d.n_horarios) como acertamos antes
-      gtk_list_store_set( liststore, &iter, 0, d.data, 1, d.n_horarios, 2, d.tema,  3, d.descricao, -1 );
-   }
+      GdkRGBA cor_texto;
+      int r = cor_texto_linha_liststore( &d, foco_estilo, &cor_texto);
 
+      gtk_list_store_set(liststore, &iter, 0, d.data,      1, d.n_horarios,    2, d.tema,
+                                           3, d.descricao, 4, d.tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1);
+   }
    fclose( f );
+
+   GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
+   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
+   gtk_tree_path_free( path );
 }
 
 
@@ -952,10 +971,10 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    InterfacePainel   *painel   = &ctx->painel;
    InterfaceHandlers *handlers = &ctx->handlers;
 
-   InterfaceRegistroDiario *registro_diario = &ctx->registro_diario;
+   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
    g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "conteudo.bin", NULL );
-   carregar_diario_na_interface( caminho_arquivo, registro_diario );
+   carregar_diario_na_interface( caminho_arquivo, ui_diario, dados->interface_style );
 
    char arquivo[1024];
 
@@ -1002,12 +1021,12 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
-   gtk_entry_set_text( GTK_ENTRY( ctx->registro_diario.entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data_formatada );
    snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data_formatada );
 
    ctx->diario.n_horarios = 1;
    g_autofree char *str_n_horarios = g_strdup_printf( "%d h", ctx->diario.n_horarios );
-   gtk_label_set_text( GTK_LABEL( ctx->registro_diario.n_horarios ), str_n_horarios );
+   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), str_n_horarios );
 
    gtk_widget_set_name( ctx->entry.periodo, "momento" );
    foco->periodo = foco_periodo_corrente( escalar_hoje );

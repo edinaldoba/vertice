@@ -107,23 +107,26 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
-   ctx->registro_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
-   ctx->registro_diario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
-   ctx->registro_diario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
-   g_object_ref( ctx->registro_diario.popover_calendario );
+   ctx->ui_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
+   ctx->ui_diario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
+   ctx->ui_diario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
+   g_object_ref( ctx->ui_diario.popover_calendario );
 
-   ctx->registro_diario.stepper_menos = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
-   ctx->registro_diario.n_horarios    = GTK_WIDGET( gtk_builder_get_object( builder, "label_n_horarios" ) );
-   ctx->registro_diario.stepper_mais  = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
+   ctx->ui_diario.stepper_menos = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
+   ctx->ui_diario.n_horarios    = GTK_WIDGET( gtk_builder_get_object( builder, "label_n_horarios" ) );
+   ctx->ui_diario.stepper_mais  = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
 
-   ctx->registro_diario.tema      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
-   ctx->registro_diario.descricao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
-   ctx->registro_diario.salvar    = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   ctx->ui_diario.tipo_registro = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
 
-   ctx->registro_diario.stack_pages = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
-   ctx->registro_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
-   ctx->registro_diario.scrolled_window = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
-   ctx->registro_diario.treeview_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
+   ctx->ui_diario.tema      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
+   ctx->ui_diario.descricao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
+   ctx->ui_diario.salvar    = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+
+   ctx->ui_diario.stack_pages = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+   ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
+   ctx->ui_diario.scrolled_window = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
+   ctx->ui_diario.treeview_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
+   // gtk_tree_view_set_rules_hint( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), TRUE );
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );

@@ -8,7 +8,7 @@
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkEntryBuffer" id="entrybuffer1"/>
-  <object class="GtkListStore" id="liststore1">
+  <object class="GtkListStore" id="liststore_aluno">
     <columns>
       <!-- column-name gchararray1 -->
       <column type="gchararray"/>
@@ -25,6 +25,22 @@
       <!-- column-name tema -->
       <column type="gchararray"/>
       <!-- column-name descricao -->
+      <column type="gchararray"/>
+      <!-- column-name tipo_registro -->
+      <column type="guint"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_frequencia">
+    <columns>
+      <!-- column-name DATA -->
+      <column type="gchararray"/>
+      <!-- column-name CH -->
+      <column type="guint"/>
+      <!-- column-name NOME -->
+      <column type="gchararray"/>
+      <!-- column-name FREQUÊNCIA -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -291,6 +307,23 @@
                       </packing>
                     </child>
                     <child>
+                      <object class="GtkComboBoxText" id="combo_tipo_registro">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="active">0</property>
+                        <items>
+                          <item translatable="yes">Aula Normal</item>
+                          <item translatable="yes">Pedagógico</item>
+                          <item translatable="yes">Feriado/Fac</item>
+                        </items>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">3</property>
+                      </packing>
+                    </child>
+                    <child>
                       <object class="GtkButton" id="button_salvar_conteudo">
                         <property name="label" translatable="yes">SALVAR</property>
                         <property name="visible">True</property>
@@ -300,7 +333,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">3</property>
+                        <property name="position">4</property>
                       </packing>
                     </child>
                   </object>
@@ -369,6 +402,7 @@
                               <object class="GtkTreeView" id="treeview_conteudo">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="margin-bottom">13</property>
                                 <property name="model">liststore_conteudo</property>
                                 <child internal-child="selection">
                                   <object class="GtkTreeSelection"/>
@@ -381,6 +415,7 @@
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">0</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -391,19 +426,22 @@
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
+                                        <attribute name="width">1</attribute>
                                         <attribute name="text">1</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">150</property>
+                                    <property name="fixed-width">200</property>
                                     <property name="title" translatable="yes">TEMA</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">2</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -416,8 +454,28 @@
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">3</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
+                                    <property name="resizable">True</property>
+                                    <property name="title" translatable="yes">TIPO  DE  REGISTRO</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">4</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
+                                    <property name="title" translatable="yes">COR</property>
                                   </object>
                                 </child>
                               </object>
@@ -452,7 +510,7 @@
                                 <property name="height-request">43</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="model">liststore1</property>
+                                <property name="model">liststore_aluno</property>
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
@@ -536,14 +594,13 @@
                               <object class="GtkTreeView" id="treeview_frequencia">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
-                                <property name="model">liststore_conteudo</property>
+                                <property name="model">liststore_frequencia</property>
                                 <property name="search-column">0</property>
                                 <child internal-child="selection">
                                   <object class="GtkTreeSelection"/>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">130</property>
                                     <property name="title" translatable="yes">DATA</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
@@ -567,7 +624,6 @@
                                 <child>
                                   <object class="GtkTreeViewColumn">
                                     <property name="title" translatable="yes">NOME  DO  ALUNO</property>
-                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -578,7 +634,6 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">150</property>
                                     <property name="title" translatable="yes">FREQUÊNCIA</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
