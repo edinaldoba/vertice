@@ -200,7 +200,7 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
 
 
 static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
-                                          const int foco_estilo );
+                                          const int foco_estilo, gboolean rolagem );
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
    InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
    InterfaceListas *listas = ( InterfaceListas * ) & ( ctx->listas );
@@ -229,7 +229,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       dados->interface_style = valor;
       interface_style( ctx );
       char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
-      carregar_diario_na_interface( caminho_arquivo, &ctx->ui_diario, dados->interface_style );
+      carregar_diario_na_interface( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );
       g_free(caminho_arquivo);
       break;
    default:
@@ -670,9 +670,50 @@ gchar* validar_data( const gchar *texto ) {
    return g_date_time_format( agora, "%d/%m/%Y" );
 }
 
+void remover_registro_diario( const char *caminho_arquivo, const int indice ) {
+
+   // Cria o array gerenciado automaticamente (não precisa de g_array_free no final)
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( DadosRegistroDiario ) );
+
+   // 1. CARREGAR TUDO
+   FILE *arquivo = fopen( caminho_arquivo, "rb" );
+   if ( arquivo != NULL ) {
+      DadosRegistroDiario temp;
+      while ( fread( &temp, sizeof( DadosRegistroDiario ), 1, arquivo ) == 1 ) {
+         g_array_append_val( registros, temp );
+      }
+      fclose( arquivo );
+   } else {
+      g_printerr( "Aviso: Nao foi possivel abrir o arquivo para leitura: %s\n", caminho_arquivo );
+      return;
+   }
+
+   // Validação de segurança para evitar crash
+   if ( indice < 0 || indice >= (int)registros->len ) {
+      g_printerr( "Erro: Indice %d fora dos limites (Total: %d)\n", indice, registros->len );
+      return;
+   }
+
+   // 2. REMOVER O REGISTRO NA MEMÓRIA
+   // A GLib automaticamente puxa todos os elementos subsequentes uma posição para trás
+   g_array_remove_index( registros, (guint)indice );
+
+   // 3. GRAVAR TUDO
+   arquivo = fopen( caminho_arquivo, "wb" );
+   if ( arquivo != NULL ) {
+      if ( registros->len > 0 ) {
+         fwrite( registros->data, sizeof( DadosRegistroDiario ), registros->len, arquivo );
+      }
+      fclose( arquivo );
+   } else {
+      g_printerr( "Erro: Nao foi possivel abrir o arquivo para gravacao: %s\n", caminho_arquivo );
+   }
+}
+
 
 void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *diario,
-                      const CaminhoDiretorio *caminho, const int foco_estilo ) {
+                      const CaminhoDiretorio *caminho, const int foco_estilo )
+{
    g_return_if_fail( diario && ui_diario );
 
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ui_diario->tema ) );
@@ -682,56 +723,56 @@ void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *d
 
    g_strlcpy( diario->tema, tema, sizeof( diario->tema ) );
    g_strlcpy( diario->descricao, descricao, sizeof( diario->descricao ) );
+   diario->tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->tipo_registro ) );
 
    GtkListStore *liststore = ui_diario->liststore_conteudo;
    GtkTreeIter iter;
 
+   // 1. OBTÉM ÍNDICE DE EDIÇÃO (SE EXISTIR)
+   int indice_antigo = -1;
    if ( ui_diario->editando ) {
-      iter = ui_diario->iter_em_edicao;
-   } else {
-      gtk_list_store_append( liststore, &iter );
+      GtkTreePath *path_antigo = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &ui_diario->iter_em_edicao );
+      indice_antigo = gtk_tree_path_get_indices( path_antigo )[0];
+      gtk_tree_path_free( path_antigo );
    }
 
-   diario->tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->tipo_registro ) );
+   // 2. SALVA NO BINÁRIO PRIMEIRO E DESCOBRE A POSIÇÃO CORRETA DA DATA
+   g_autofree char *arquivo_turma = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+   int novo_indice = gravar_diario_binario( arquivo_turma, diario, indice_antigo );
 
-   // Pega a cor já processada pelo tema e tipo de registro
+   // 3. ATUALIZA A INTERFACE VISUAL
+   if ( ui_diario->editando ) {
+      // Remove da posição antiga (que não obedece mais a ordem das datas)
+      gtk_list_store_remove( liststore, &ui_diario->iter_em_edicao );
+   }
+
+   // Insere cirurgicamente na posição correta ordenada
+   gtk_list_store_insert( liststore, &iter, novo_indice );
+
    GdkRGBA cor_texto;
    int r = cor_texto_linha_liststore( diario, foco_estilo, &cor_texto );
 
-   // Passa a cor para a coluna 5
-   gtk_list_store_set( liststore, &iter, 0, diario->data,      1, diario->n_horarios,    2, diario->tema,
-                                         3, diario->descricao, 4, diario->tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
+   gtk_list_store_set( liststore, &iter, 0, diario->data,
+                                       1, diario->n_horarios,
+                                       2, diario->tema,
+                                       3, diario->descricao,
+                                       4, diario->tipo_registro,
+                                       5, (r==0) ? NULL : &cor_texto, -1 );
 
-   // =========================================================================
-   // 2. SINCRONIZA COM O BINÁRIO
-   // =========================================================================
-   // Pega o "caminho" da linha recém salva
-   GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
-
-   // Extrai o índice numérico (0, 1, 2...) a partir do caminho
-   int *indices = gtk_tree_path_get_indices( path );
-   int indice_linha = indices[0];
-
-   // Aqui você define/monta o caminho do arquivo binário da turma selecionada
-   g_autofree char *arquivo_turma = g_build_filename( caminho->dados, "conteudo.bin", NULL );
-   gravar_diario_binario( arquivo_turma, diario, indice_linha );
-
-   // Rola para a célula
-   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
-   gtk_tree_path_free( path );
-   // =========================================================================
+   // 4. ROLA A TELA PARA ONDE O REGISTRO CAIU APÓS A ORDENAÇÃO
+   GtkTreePath *path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
+   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path_novo, NULL, FALSE, 0.0, 0.0 );
+   gtk_tree_path_free( path_novo );
 
    ui_diario->editando = FALSE;
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) );
-   gtk_tree_selection_unselect_all( selection );
-
+   gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) ) );
    gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
 }
 
 
 
 static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
-                                          const int foco_estilo )
+                                          const int foco_estilo, gboolean rolagem )
 {
    if ( !ui_diario || !caminho_arquivo ) return;
 
@@ -756,9 +797,11 @@ static void carregar_diario_na_interface( const char *caminho_arquivo, Interface
    }
    fclose( f );
 
-   GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
-   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
-   gtk_tree_path_free( path );
+   if ( rolagem ) {
+      GtkTreePath *path = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
+      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_path_free( path );
+   }
 }
 
 
@@ -974,7 +1017,7 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
    g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "conteudo.bin", NULL );
-   carregar_diario_na_interface( caminho_arquivo, ui_diario, dados->interface_style );
+   carregar_diario_na_interface( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
 
    char arquivo[1024];
 

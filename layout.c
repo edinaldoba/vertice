@@ -118,14 +118,15 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->ui_diario.tipo_registro = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
 
-   ctx->ui_diario.tema      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
-   ctx->ui_diario.descricao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
-   ctx->ui_diario.salvar    = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   ctx->ui_diario.tema             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
+   ctx->ui_diario.descricao        = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
+   ctx->ui_diario.salvar           = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   ctx->ui_diario.remover_registro = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
 
-   ctx->ui_diario.stack_pages = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+   ctx->ui_diario.stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
    ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
-   ctx->ui_diario.scrolled_window = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
-   ctx->ui_diario.treeview_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
+   ctx->ui_diario.scrolled_window    = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
+   ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), 1 );
    gtk_tree_view_column_set_alignment( col_ch, 0.5 ); // Centraliza o título "CH"
@@ -135,6 +136,8 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
       g_list_free( renderers );
    }
    //----------------------------------------------------------------------
+
+
 
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );

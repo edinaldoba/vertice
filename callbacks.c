@@ -288,6 +288,65 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 }
 
 
+void on_button_remover_registro_diario_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
+   GtkTreeModel *model;
+   GtkTreeIter iter;
+
+   if ( gtk_tree_selection_get_selected( selection, &model, &iter ) ) {
+      // 1. Obtém o caminho do registro selecionado para exclusão
+      GtkTreePath *path_remocao = gtk_tree_model_get_path( model, &iter );
+      int indice_removido = gtk_tree_path_get_indices( path_remocao )[0];
+
+      // 2. Verifica se o registro excluído é o mesmo que está em edição
+      if ( ctx->ui_diario.editando ) {
+         GtkTreePath *path_edicao = gtk_tree_model_get_path( model, &ctx->ui_diario.iter_em_edicao );
+
+         // Se os caminhos são idênticos, o usuário apagou a linha carregada no formulário
+         if ( gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
+            // Converte o formulário para modo de inserção (novo registro no final da fila)
+            ctx->ui_diario.editando = FALSE;
+         }
+         gtk_tree_path_free( path_edicao );
+      }
+
+      // 3. Remove fisicamente do disco e da memória
+      g_autofree char *arquivo_turma = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+      remover_registro_diario( arquivo_turma, indice_removido );
+
+      gtk_list_store_remove( GTK_LIST_STORE( model ), &iter );
+      gtk_tree_path_free( path_remocao );
+
+      // 4. Limpa a seleção visual
+      gtk_tree_selection_unselect_all( selection );
+   }
+}
+
+void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data ) {
+   AppContext *ctx = (AppContext *)user_data;
+
+   GtkTreeModel *model;
+   GtkTreeIter iter;
+
+   // 1. Verifica se existe linha selecionada
+   gboolean tem_selecao = gtk_tree_selection_get_selected( selection, &model, &iter );
+
+   // 2. Garante a classe CSS do botão
+   GtkStyleContext *context = gtk_widget_get_style_context( GTK_WIDGET( ctx->ui_diario.remover_registro ) );
+   if ( tem_selecao ) {
+      if ( !gtk_style_context_has_class( context, "botao-remover-ifood" ) ) {
+         gtk_style_context_add_class( context, "botao-remover-ifood" );
+      }
+   } else {
+      gtk_style_context_remove_class( context, "botao-remover-ifood" );
+   }
+
+}
+
+
 
 
 

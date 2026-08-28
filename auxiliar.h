@@ -34,7 +34,7 @@ void ajustar_nomes( const char *arquivo, AppContext *ctx );
 int ordenar_turmas_novo_em( const void* a, const void* b );
 
 
-void gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice );
+int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice_edicao );
 int cor_texto_linha_liststore(const DadosRegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out);
 
 

@@ -644,28 +644,64 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
 
 
 
+static gint comparar_datas_diario( gconstpointer a, gconstpointer b ) {
+   const DadosRegistroDiario *d1 = (const DadosRegistroDiario *)a;
+   const DadosRegistroDiario *d2 = (const DadosRegistroDiario *)b;
 
+   int dia1, mes1, ano1, dia2, mes2, ano2;
+   // Converte a string "27/08/2026" para inteiros separadamente
+   sscanf( d1->data, "%d/%d/%d", &dia1, &mes1, &ano1 );
+   sscanf( d2->data, "%d/%d/%d", &dia2, &mes2, &ano2 );
 
-void gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice ) {
-   // Tenta abrir para leitura e atualização ("r+b" não apaga o arquivo existente)
-   FILE *f = fopen( caminho_arquivo, "r+b" );
+   // Ordenação: Ano -> Mês -> Dia
+   if ( ano1 != ano2 ) return ano1 - ano2;
+   if ( mes1 != mes2 ) return mes1 - mes2;
+   return dia1 - dia2;
+}
 
-   // Se o arquivo não existir (primeiro salvamento da turma), cria um novo ("w+b")
-   if ( !f ) {
-      f = fopen( caminho_arquivo, "w+b" );
-      if ( !f ) {
-         fprintf( stderr, "[ERRO] Não foi possível criar o arquivo binário.\n" );
-         return;
+int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice_edicao ) {
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( DadosRegistroDiario ) );
+
+   // 1. CARREGA TUDO DO DISCO
+   FILE *f = fopen( caminho_arquivo, "rb" );
+   if ( f ) {
+      DadosRegistroDiario temp;
+      while ( fread( &temp, sizeof( DadosRegistroDiario ), 1, f ) == 1 ) {
+         g_array_append_val( registros, temp );
+      }
+      fclose( f );
+   }
+
+   // 2. ATUALIZA (Edição) OU ADICIONA (Novo)
+   if ( indice_edicao >= 0 && indice_edicao < (int)registros->len ) {
+      g_array_index( registros, DadosRegistroDiario, indice_edicao ) = *registro;
+   } else {
+      g_array_append_val( registros, *registro );
+   }
+
+   // 3. MÁGICA GLIB: Ordena cronologicamente todo o arquivo
+   g_array_sort( registros, comparar_datas_diario );
+
+   // 4. DESCOBRE O NOVO ÍNDICE PARA A INTERFACE
+   int novo_indice = -1;
+   for ( guint i = 0; i < registros->len; i++ ) {
+      DadosRegistroDiario *atual = &g_array_index( registros, DadosRegistroDiario, i );
+      // Compara dados únicos para localizar nossa struct após a bagunça da ordenação
+      if ( g_strcmp0( atual->data, registro->data ) == 0 && g_strcmp0( atual->descricao, registro->descricao ) == 0 ) {
+         novo_indice = (int)i;
       }
    }
 
-   // A MÁGICA: Pula (indice * 180 bytes) a partir do início do arquivo (SEEK_SET)
-   long offset = ( long )indice * sizeof( DadosRegistroDiario );
-   fseek( f, offset, SEEK_SET );
+   // 5. SOBRESCREVE ORDENADO NO DISCO
+   f = fopen( caminho_arquivo, "wb" );
+   if ( f ) {
+      if ( registros->len > 0 ) {
+         fwrite( registros->data, sizeof( DadosRegistroDiario ), registros->len, f );
+      }
+      fclose( f );
+   }
 
-   // Sobrescreve (ou adiciona se for o fim) exatamente aquele bloco de memória
-   fwrite( registro, sizeof( DadosRegistroDiario ), 1, f );
-   fclose( f );
+   return novo_indice;
 }
 
 

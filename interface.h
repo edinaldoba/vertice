@@ -38,6 +38,8 @@ typedef struct {
    GtkTreeIter iter_em_edicao;
    gboolean editando; // FALSE = Novo Registro, TRUE = Editando Existente
 
+   GtkWidget *remover_registro;
+
 } InterfaceRegistroDiario;
 
 
@@ -308,6 +310,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 gchar* validar_data( const gchar *texto );
+void remover_registro_diario( const char *caminho_arquivo, const int indice );
 void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *diario,
                       const CaminhoDiretorio *caminho, const int foco_estilo );
 
