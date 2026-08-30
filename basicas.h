@@ -16,8 +16,6 @@ int comparar_item_texto_curto( const void* a, const void* b );
 
 int comparar_item_combo( const void* a, const void* b );
 
-int comparar_ficha_aluno( const void* a, const void* b );
-
 int comparar_mapeamento_gabarito( const void* a, const void* b );
 
 int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,

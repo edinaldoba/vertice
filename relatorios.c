@@ -12,7 +12,7 @@
 #include "basicas.h"
 #include "interface.h"
 #include "mensagens.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 
 
 
@@ -399,53 +399,65 @@ void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho 
 
 
 //########################################################################################################//
-void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *ficha, const AppContext *ctx ) {
+static void gerar_arquivo_siaep_notas( const FichaAluno *ficha, const AppContext *ctx ) {
+   g_return_if_fail( ficha && ctx );
+
    const FocoCoordenadas *foco = &( ctx->cascata.foco );
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   char str[2048];
-   int i, j, idx, nota, nota_rec;
-   int n_aux[10][64] = {0};
+   int qtd_alunos = dados->qtd_alunos_total;
+   if ( qtd_alunos <= 0 ) return;
 
-   // Monta o caminho do arquivo de saída
-   sprintf( str, "%s/siaep_notas.dat", caminho->relatorios );
+   // 1. Montagem segura do caminho
+   g_autofree gchar *arquivo_saida = g_build_filename( caminho->relatorios, "siaep_notas.dat", NULL );
 
-   FILE *p = fopen( str, "w" );
+   FILE *p = fopen( arquivo_saida, "w" );
    if ( !p ) {
-      printf( "Erro ao criar arquivo SIAEP em: %s\n", str );
+      g_printerr( "Erro ao criar arquivo SIAEP em: %s\n", arquivo_saida );
       return;
    }
 
-   // Passo 1: Desfaz a ordenação alfabética usando o idx original
-   // Colocamos as notas na ordem exata em que aparecem no portal (n_aux)
-   for ( j = 0; j < qtd_linhas_av_rec; j++ ) {
-      for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-         idx = ficha[i].idx;
-         n_aux[j][idx] = ficha[i].avaliacoes[foco->periodo][j];
+   // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
+   g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
+   for ( int i = 0; i < qtd_alunos; i++ ) {
+      int idx = ficha[i].idx;
+      if ( idx >= 0 && idx < qtd_alunos ) {
+         ordem_original[idx] = &ficha[i];
       }
    }
 
-   // Passo 2: Exporta para o formato de pipe (|) para o JavaScript
-   for ( j = 0; j < qtd_linhas_av_rec; j++ ) {
-      for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-         // Lógica de recuperação (compara nota par com nota ímpar subsequente)
-         if ( j % 2 == 0 ) {
-            nota = n_aux[j][i];
-            nota_rec = n_aux[j + 1][i];
+   // 3. Exporta exatamente 10 linhas fixas (5 avaliações x 2: AV e REC)
+   for ( int j = 0; j < 10; j++ ) {
+
+      // Mapeia j (0 a 9) para o índice correto do vetor de notas (0 a 4)
+      int avaliacao_idx = j / 2;
+
+      for ( int i = 0; i < qtd_alunos; i++ ) {
+         const FichaAluno *aluno = ordem_original[i];
+
+         if ( !aluno ) {
+            fprintf( p, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
+            continue;
          }
 
-         // Tratamento de faltas (*) ou alunos que não fizeram a prova
-         if ( n_aux[j][i] == -1 ) {
-            fprintf( p, " %s", ( i == dados->qtd_alunos_total - 1 ) ? "\n" : "|" );
+         float nota_av  = aluno->nota[foco->periodo][avaliacao_idx].av;
+         float nota_rec = aluno->nota[foco->periodo][avaliacao_idx].rec;
+
+         // j par = Avaliação (av); j ímpar = Recuperação (rec)
+         float nota_atual = ( j % 2 == 0 ) ? nota_av : nota_rec;
+
+         // Tratamento de nota em branco (igual a -1.0)
+         if ( nota_atual < 0.0f ) {
+            fprintf( p, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
-         // Regra especial: se tirou >= 6 mas a recuperação foi maior, prevalece a recuperação
-         else if ( j % 2 == 0 && nota >= 6 && nota_rec > nota ) {
-            fprintf( p, "%d%s", nota_rec, ( i == dados->qtd_alunos_total - 1 ) ? "\n" : "|" );
+         // Regra especial: se tirou >= 6.0 na AV, mas a REC foi maior, prevalece a REC
+         else if ( j % 2 == 0 && nota_av >= 6.0f && nota_rec > nota_av ) {
+            fprintf( p, "%.2f%s", nota_rec, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
-         // Nota padrão
+         // Nota padrão (imprime com 2 casas decimais, ex: 10.00, 6.78, 4.90)
          else {
-            fprintf( p, "%d%s", n_aux[j][i], ( i == dados->qtd_alunos_total - 1 ) ? "\n" : "|" );
+            fprintf( p, "%.2f%s", nota_atual, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
       }
    }
@@ -459,99 +471,22 @@ void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *ficha, 
 
 
 
-//########################################################################################################//
-int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *ficha, const InterfaceDados *dados,
-                                    const FocoCoordenadas *foco ) {
-
-   int i, j, len;
-
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      ficha[i].media[ foco->periodo ] = ( float )0;
-      for ( j = 0; j < 10; j++ ) {
-         ficha[i].avaliacoes[ foco->periodo ][ j ] = -1;
-      }
-   }
-
-   char notas[256];
-   notas[0] = '\0';
-
-   FILE *p = fopen( arquivo_av, "r" );
-   if ( !p ) {
-      perror( "ERRO: Falha a abrir arquivo avaliações.dat" );
-      return -1;
-   }
-
-   j = 0;
-   while ( fgets( notas, sizeof notas, p ) != NULL ) {
-      notas[ strcspn( notas, "\r\n" ) ] = '\0';
-      len = strlen( notas );
-      if ( len > 0 ) {
-         if ( len == dados->qtd_alunos_total ) {
-            for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-               if ( notas[i] == '#' ) {
-                  ficha[i].avaliacoes[foco->periodo][j] = 10;
-               } else if ( notas[i] != '*' ) {
-                  ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
-               }
-            }
-            // } else if ( len == 2 * dados->qtd_alunos_total ) {
-            //    for ( i = 0; i < dados->qtd_alunos_total; i+=2 ) {
-            //       if ( notas[i] == '#' && notas[i+1] == '#' ) {
-            //          ficha[i].avaliacoes[foco->periodo][j] = 100;
-            //       } else if ( notas[i] != '*' || notas[i+1] != '*' ) {
-            //          ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
-            //       }
-            //    }
-            // } else if ( len == 3 * dados->qtd_alunos_total ) {
-            //    for ( i = 0; i < dados->qtd_alunos_total; i+=3 ) {
-            //       if ( notas[i] == '#' && notas[i+1] == '#' && notas[i+2] == '#' ) {
-            //          ficha[i].avaliacoes[foco->periodo][j] = 1000;
-            //       } else if ( notas[i] != '*' || notas[i+1] != '*' || notas[i+2] != '*' ) {
-            //          ficha[i].avaliacoes[foco->periodo][j] = notas[i] - '0';
-            //       }
-            //    }
-         } else {
-            fprintf( stderr, "\nAVISO: Comprimento da linha %d de avaliações.dat não é múltiplo do total de alunos dessa turma\n", j + 1 );
-         }
-      }
-      j++;
-   }
-   fclose( p );
-
-   /*------ ESSE TRECHO CALCULA A MÉDIA DO PERÍODO -------*/
-   int qtd_av = j / 2 + j % 2; // Quantidade de avaliações
-   int qtd_linhas = j;
-   int nota, rec;
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      for ( j = 0; j < qtd_linhas; j += 2 ) {
-         nota = ficha[i].avaliacoes[ foco->periodo ][ j ];
-         rec = ( qtd_linhas == j + 1 ) ? 0 : ficha[i].avaliacoes[ foco->periodo ][ j + 1 ];
-         nota = ( rec > nota ) ? rec : nota;
-         ficha[i].media[ foco->periodo ] += ( nota == -1 ) ? 0 : nota;
-      }
-      ficha[i].media[foco->periodo] /= ( float )qtd_av;
-   }
-
-   return qtd_linhas;
-}
-//########################################################################################################//
-
-
-
-
 
 //########################################################################################################//
-void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char *nome_base, const AppContext *ctx ) {
-   if ( !ctx ) return;
+static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->ficha );
    const InterfaceDados *dados = &( ctx->dados );
+   const FocoCoordenadas *foco = &( ctx->cascata.foco );
    const FichaAluno *ficha = ctx->ficha;
 
-   char arquivo_tex[512];
-   sprintf( arquivo_tex, "./dados/temporarios/%s.tex", nome_base );
-   FILE *p = fopen( arquivo_tex, "w+" );
-   if ( p == NULL ) return;
+   g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   int j;
+   FILE *p = fopen( arquivo_tex, "w+" );
+   if ( !p ) {
+      g_printerr( "Falha ao criar o arquivo LaTeX: %s\n", arquivo_tex );
+      return;
+   }
 
    // 1. Escrita do Preâmbulo e Configurações Iniciais
    fprintf( p,
@@ -559,10 +494,7 @@ void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char
             "\\usepackage[utf8]{inputenc}\n"
             "\\usepackage[T1]{fontenc}\n" );
 
-   // Seleção dinâmica da fonte conforme sua struct 'dados'
-   if ( dados->fonte_latex == 1 ) {
-      fputs( "\\usepackage{cmbright}\n", p );
-   }
+   if ( dados->fonte_latex == 1 ) fputs( "\\usepackage{cmbright}\n", p );
 
    fprintf( p,
             "\\usepackage[brazil]{babel}\n"
@@ -585,11 +517,10 @@ void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char
             "\\begin{document}\n" );
 
    // 2. Cálculo dinâmico do espaçamento vertical (spacing)
-   // Mantendo sua fórmula original para ajuste automático na página A4
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
    fprintf( p, "\\begin{spacing}{%.4f}\n", spacing );
 
-   // 3. Cabeçalho da Tabela (SEDUC / São Luís - MA)
+   // 3. Cabeçalho da Tabela
    fprintf( p,
             "\\noindent\\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\\hline\n"
             "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{11}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\\\\n"
@@ -597,27 +528,41 @@ void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char
             "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{7.5mm}{11pt}{\\bf Av1} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av2} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av3} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av4} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av5} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{11mm}{11pt}{\\bf Média}\\\\\\hline\n",
             dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
-   // 4. Loop da Lista de Alunos (Sua lógica de ativos/inativos)
-   for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
+   // 4. Loop da Lista de Alunos (Formatação On-the-Fly)
+   for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+      char s_notas[10][8] = {0};
+      char s_med[8] = {0};
+
+      // Extrai e converte as 5 avaliações
+      for ( int k = 0; k < 5; k++ ) {
+         float av  = ficha[j].nota[foco->periodo][k].av;
+         float rec = ficha[j].nota[foco->periodo][k].rec;
+
+         if ( av >= 0.0f ) snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "%.1f", av );
+         if ( rec >= 0.0f ) snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "%.1f", rec );
+      }
+
+      // Extrai a média processada na função principal
+      float med = ficha[j].relatorio[foco->periodo];
+      if ( med >= 0.0f ) snprintf( s_med, sizeof( s_med ), "%.2f", med );
 
       if ( ficha[j].ativo ) {
          fprintf( p, "%.2d & %.*s &%s&%s&%s&%s&%s&%s&%s&%s&%s&%s&{\\bf %s} \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
-                  notas[j][3].str, notas[j][4].str, notas[j][5].str, notas[j][6].str,
-                  notas[j][7].str, notas[j][8].str, notas[j][9].str, media[j].str );
-
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno,
+                  s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
+                  s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9], s_med );
       } else {
          fprintf( p, "%.2d & \\textcolor{gray!70}{%.*s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str,
-                  notas[j][3].str, notas[j][4].str, notas[j][5].str, notas[j][6].str,
-                  notas[j][7].str, notas[j][8].str, notas[j][9].str );
+                  j + 1, ficha[j].limite_corte, ficha[j].aluno,
+                  s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
+                  s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9] );
       }
    }
 
-   // 5. Rodapé (Assinatura e Data)
-   // Buscando a data atual ou a de dados->data
+   // 5. Rodapé
    char datatex[128];
-   sprintf( datatex, "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}", ctx->data.dia, ctx->data.mes, ctx->data.ano );
+   snprintf( datatex, sizeof(datatex), "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
+             ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
    fprintf( p,
             "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
@@ -628,69 +573,54 @@ void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char
 
    fclose( p );
 }
-//########################################################################################################//
 
-
-
-
-
-
-//########################################################################################################//
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
+   g_return_if_fail( painel && ctx && ctx->ficha );
+
    const InterfaceDados   *dados   = &ctx->dados;
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
    const CaminhoDiretorio *caminho = &ctx->caminho;
-
    FichaAluno *ficha = ctx->ficha;
 
-   char nome_base[64], arquivo[1024];
-   sprintf( nome_base, "%s", "avaliações" );
-   snprintf( arquivo, sizeof( arquivo ), "%s/%s.dat", caminho->dados, nome_base );
-   if ( !verificar_estado_de_arquivo( arquivo, painel, dados ) ) return;
+   gerar_arquivo_siaep_notas( ficha, ctx );
 
+   gboolean avaliacao_ativa[5] = { FALSE, FALSE, FALSE, FALSE, FALSE };
+   float soma_notas[dados->qtd_alunos_total];
 
-
-   int qtd_linhas_av_rec = carregar_avaliacoes_do_periodo( arquivo, ficha, dados, foco );
-
-   if ( qtd_linhas_av_rec == -1 ) {
-      return;
-   }
-
-   gerar_arquivo_siaep_notas( qtd_linhas_av_rec, ficha, ctx );
-
-   snprintf( arquivo, sizeof( arquivo ), "%s/média.dat", caminho->dados );
-   FILE *p = fopen( arquivo, "w" );
-   if ( !p ) {
-      fprintf( stderr, "ERRO: falha ao abrir arquivo %s", arquivo );
-      return;
-   }
-
-   StringNota notas[dados->qtd_alunos_total][10], media[dados->qtd_alunos_total];
-
-   int nota;
-   float med;
-   char snota[8], smedia[8];
-
+   // 1. Varredura e Identificação de colunas ativas
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-      for ( int j = 0; j < 10; j++ ) {
-         nota = ficha[i].avaliacoes[ foco->periodo ][ j ];
-         sprintf( snota, "%.1f", ( float )nota );
-         // trocar_ponto_por_virgula( snota );
-         sprintf( notas[i][j].str, "%s", ( nota == -1 ) ? "" : snota );
+      soma_notas[i] = 0.0f;
+
+      for ( int j = 0; j < 5; j++ ) {
+         float av  = ficha[i].nota[foco->periodo][j].av;
+         float rec = ficha[i].nota[foco->periodo][j].rec;
+
+         if ( av >= 0.0f || rec >= 0.0f ) {
+            avaliacao_ativa[j] = TRUE;
+         }
+
+         float max_nota = MAX( av, rec );
+         soma_notas[i] += ( max_nota < 0.0f ) ? 0.0f : max_nota;
       }
-      med = ficha[i].media[ foco->periodo ];
-      sprintf( smedia, "%.2f", med );
-      // trocar_ponto_por_virgula( smedia );
-      sprintf( media[i].str, "%s", smedia );
-      fprintf( p, "%s\n", ( med == 0.0 ) ? "" : smedia );
    }
 
-   fclose( p );
+   // 2. Cálculo do Divisor
+   int qtd_avaliacoes_validas = 0;
+   for ( int j = 0; j < 5; j++ ) {
+      if ( avaliacao_ativa[j] ) qtd_avaliacoes_validas++;
+   }
 
-   gerar_tex_avaliacoes( notas, media, nome_base, ctx );
+   float divisor = ( qtd_avaliacoes_validas > 0 ) ? ( float )qtd_avaliacoes_validas : 1.0f;
 
-   disparar_latex( nome_base, caminho->relatorios, dados, caminho );
+   // 3. Preenchimento da Média Final
+   for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
+      // Se não houver avaliações válidas na turma inteira, assina -1.0f para ocultar no TeX
+      ficha[i].relatorio[foco->periodo] = ( qtd_avaliacoes_validas == 0 ) ? -1.0f : ( soma_notas[i] / divisor );
+   }
 
+   // Chamada direta do Gerador LaTeX (Matrizes Strings obsoletas removidas)
+   gerar_tex_avaliacoes( "avaliações", ctx );
+   disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
 }
 //########################################################################################################//
 
@@ -1191,7 +1121,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
    long int ( *id_h )[4] = id_horarios[index].ids;
 
    for ( guint i = 0; i < registros->len; i++ ) {
-      DadosRegistroDiario *d = &g_array_index( registros, DadosRegistroDiario, i );
+      RegistroConteudo *d = &g_array_index( registros, RegistroConteudo, i );
 
       if( d->tipo_registro == 2 ) continue;
 
@@ -1206,7 +1136,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
          for ( int j = 0; j < d->n_horarios; j++ ) {
             int num_aux = 0;
             if ( i > 0 ) {
-               DadosRegistroDiario *anterior = &g_array_index( registros, DadosRegistroDiario, i - 1 );
+               RegistroConteudo *anterior = &g_array_index( registros, RegistroConteudo, i - 1 );
                int dia_ant = 0;
                sscanf( anterior->data, "%d/", &dia_ant );
                if ( dia == dia_ant ) num_aux = 1;
@@ -1243,7 +1173,7 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    g_autoptr( GString ) macros_dia = g_string_new( "\\def\\dia{{" );
 
    for ( int i = 0; i < nn; i++ ) {
-      DadosRegistroDiario *d = &g_array_index( registros, DadosRegistroDiario, i );
+      RegistroConteudo *d = &g_array_index( registros, RegistroConteudo, i );
       int dia = 0, mes = 0, ano = 0;
       sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
@@ -1377,10 +1307,10 @@ void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    }
 
    // 1. Carrega todos os registros binários em um GArray (Estrutura Dinâmica da GLib)
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( DadosRegistroDiario ) );
-   DadosRegistroDiario d;
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
+   RegistroConteudo d;
 
-   while ( fread( &d, sizeof( DadosRegistroDiario ), 1, p ) == 1 ) {
+   while ( fread( &d, sizeof( RegistroConteudo ), 1, p ) == 1 ) {
       g_array_append_val( registros, d );
    }
    fclose( p );

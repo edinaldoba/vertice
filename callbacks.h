@@ -27,7 +27,14 @@ void on_button_remover_registro_diario_clicked( GtkWidget *widget, gpointer user
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data );
-void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data );
+void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treeview, GtkTreePath *path,
+                                                              GtkTreeViewColumn *column, gpointer user_data );
+
+void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data );
+void on_button_presente_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data );
+
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

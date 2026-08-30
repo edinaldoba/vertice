@@ -157,6 +157,11 @@ const ItemCombo provas_sequencia[] = {
    {"Primeira"}, {"Segunda"}, {"Terceira"}
 };
 
+const ItemCombo status_assiduidade[] = {
+   {"Sem Status"}, {"Presente"}, {"Ausente"}, {"Falta Justificada"}, {"Dispensado"},
+   {"Fora de Sala"}, {"Foi Embora"}, {"Atividade Domiciliar"}, {"Suspenso"}
+};
+
 // Macros locais (só funcionam aqui dentro para alimentar a inicialização)
 #define LOCAL_4   (sizeof(periodos) / sizeof(periodos[0]))
 #define LOCAL_QTD_CORES      (sizeof(cores_destaque) / sizeof(cores_destaque[0]))
@@ -233,10 +238,11 @@ void inicializacao_app_context( AppContext *ctx ) {
          .turmas           = NULL,
          .disciplinas      = NULL,
 
-         .periodos          = periodos,
-         .cores_destaque    = cores_destaque,
-         .decoracoes_estilo = decoracoes_estilo,
-         .provas_sequencia  = provas_sequencia,
+         .periodos           = periodos,
+         .cores_destaque     = cores_destaque,
+         .decoracoes_estilo  = decoracoes_estilo,
+         .provas_sequencia   = provas_sequencia,
+         .status_assiduidade = status_assiduidade
       },
 
       .painel = {

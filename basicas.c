@@ -23,7 +23,7 @@
 #include "comum.h"
 #include "interface.h"
 #include "mensagens.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 
 
 
@@ -121,15 +121,6 @@ int comparar_item_combo( const void* a, const void* b ) {
 
 
 
-int comparar_ficha_aluno( const void* a, const void* b ) {
-   const FichaAlunoAux *arg1 = ( const FichaAlunoAux * )a;
-   const FichaAlunoAux *arg2 = ( const FichaAlunoAux * )b;
-
-   return strcoll( arg1->aluno, arg2->aluno );
-}
-
-
-
 
 int comparar_mapeamento_gabarito( const void* a, const void* b ) {
    const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
@@ -169,15 +160,15 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
 int contar_registros_binarios( const char *filepath, size_t tam ) {
    g_return_val_if_fail( filepath && tam > 0, 0 );
 
-   FILE *f = fopen( filepath, "rb" );
-   if ( !f ) return 0;
+   GStatBuf st;
 
-   fseek( f, 0, SEEK_END ); // Salta para o fim do arquivo (ou usar semplesmente "ab")
-   long bytes = ftell( f );
-   fclose( f );
+   // Consulta rápida aos metadados do disco sem abrir o arquivo
+   if ( g_stat( filepath, &st ) == 0 ) {
+      return ( int ) ( st.st_size / tam );
+   }
 
-   // Assumindo que RegistroGabarito tem 32 bytes (conforme nossa refatoração anterior)
-   return ( int )( bytes / tam );
+   // Retorna 0 caso o arquivo não exista ou falhe no acesso
+   return 0;
 }
 
 

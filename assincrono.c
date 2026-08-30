@@ -13,7 +13,7 @@
 #include "provas.h"
 #include "basicas.h"
 #include "imagens.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 
 
 

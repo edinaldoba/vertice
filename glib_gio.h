@@ -1,5 +1,5 @@
-#ifndef GLIBRARY_H
-#define GLIBRARY_H
+#ifndef GLIB_GIO_H
+#define GLIB_GIO_H
 
 #include <glib.h>
 #include "interface.h"
@@ -16,6 +16,8 @@ void g_system_async( const char *comando );
 void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arquivos, const char *saida );
 
 void g_pdflatex_parallel( const char *dir_compile );
+
+GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos );
 
 
 #endif

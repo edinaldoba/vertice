@@ -158,30 +158,11 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoTurmas;
 
 typedef enum {
-   PRESENTE             = 0, // Aluno presente e em sala de aula
-   AUSENTE              = 1, // Falta não justificada
-   FALTA_JUSTIFICADA    = 2, // Ausência abonada por critério pedagógico ou atestado
-   DISPENSADO           = 3, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
-   FORA_DE_SALA         = 4, // Afastamento temporário por medida disciplinar da direção
-   FOI_EMBORA           = 5, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
-   ATIVIDADE_DOMICILIAR = 6, // Evasão não autorizada do recinto escolar durante o período letivo
-   SUSPENSO             = 7  // Evasão não autorizada do recinto escolar durante o período letivo
-} __attribute__( ( packed ) ) StatusAssiduidade;
-
-typedef enum {
     TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
     TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
     TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
     TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
 } __attribute__( ( packed ) ) TipoRegistroDiario;
-
-typedef struct {
-   char data[16];
-   int n_horarios;
-   char tema[32];
-   char descricao[128];
-   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
-} __attribute__( ( packed ) ) DadosRegistroDiario;
 //-------------------------------------------------------------------------------------------//
 
 
@@ -223,46 +204,85 @@ typedef enum {
    ALUNO_OBSERVACAO = 1 << 5  // 32 (0010 0000)
 } __attribute__( ( packed ) ) TipoAtipico;
 
+typedef enum {
+   SEM_STATUS           = 0, // Status inicial padrão para todos os alunos
+   PRESENTE             = 1, // Aluno presente e em sala de aula
+   AUSENTE              = 2, // Falta não justificada
+   FALTA_JUSTIFICADA    = 3, // Ausência abonada por critério pedagógico ou atestado
+   DISPENSADO           = 4, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
+   FORA_DE_SALA         = 5, // Afastamento temporário por medida disciplinar da direção
+   FOI_EMBORA           = 6, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
+   ATIVIDADE_DOMICILIAR = 7, // Evasão não autorizada do recinto escolar durante o período letivo
+   SUSPENSO             = 8  // Evasão não autorizada do recinto escolar durante o período letivo
+} __attribute__( ( packed ) ) StatusAssiduidade;
+
 typedef struct {
+   char data[16];
+   int n_horarios;
+   char tema[32];
+   char descricao[128];
+   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
+} __attribute__( ( packed ) ) RegistroConteudo;
 
-   char aluno[64];
-   char sexo[16]; // Masculino ou Feminino
-   char nasc[16];
-   SituacaoAluno sit;
+typedef struct {
+   uint32_t cod_aluno; // Código único do aluno
+   SituacaoAluno sit;  // Situação do aluno
+   gboolean ativo;     // Status de matrícula global
+} __attribute__( ( packed ) ) AcessoFicha;
 
-   int limite_corte;    // Formatação de impressão
-   int idx;             // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
-   gboolean ativo;      // Status de matrícula global
+typedef struct {
+   char data[16];
+   int n_horarios;
+
+   struct {
+      uint32_t cod_aluno;
+      StatusAssiduidade status;
+   } frequencia[64]; // Máximo de 64 alunos por turma
+
+} __attribute__( ( packed ) ) RegistroFrequencia;
+
+typedef struct {
+   uint32_t cod_aluno;
+   char aluno[64];      // Nome do aluno
+   char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
+   char nasc[16];       // Data de nascimento do aluno
    TipoAtipico atipico; // Condição de adaptação curricular
 
+   // Dados preenchidos a posteriori conforme período selecionado
+   SituacaoAluno sit;   // Situação do aluno
+   gboolean ativo;      // Status de matrícula global
+
+   int limite_corte;    // Formatação de impressão
+   int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
+
+   //-- FREQUÊNCIA
+   int presencas[4];     // [4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
+   int ausencias[4];     // [4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
+
+   //-- AVALIAÇÕES (NOTAS)
    struct {
       float av;
       float rec;
    } nota[4][5];         // [4 Períodos][5 Avaliações]
-
-   StatusAssiduidade frequencia[4][128]; // [4 Períodos][5 Avaliações]
 
    float rec_final;
    float conselho;
 
    float relatorio[6];   // Médias dos 4 períodos + rec. final + conselho
 
-   int presencas[4];     // [4 Períodos]
-   int faltas[4];        // [4 Períodos]
+} __attribute__( ( packed ) ) FichaAluno;
 
-} __attribute__( ( packed ) ) FichaAlunoAux;
-
-typedef struct {
-   char aluno[64];
-
-   int limite_corte;        // Formatação de impressão
-   int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
-   bool ativo;              // Status de matrícula global
-
-   // --- 6. Campos Legados (Para futura remoção) ---
-   int avaliacoes[4][10];
-   float media[4];
-} FichaAluno;
+// typedef struct {
+//    char aluno[64];
+//
+//    int limite_corte;        // Formatação de impressão
+//    int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
+//    bool ativo;              // Status de matrícula global
+//
+//    // --- 6. Campos Legados (Para futura remoção) ---
+//    int avaliacoes[4][10];
+//    float media[4];
+// } FichaAluno;
 //=========================================================================================================//
 
 

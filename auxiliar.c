@@ -6,11 +6,15 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
 #include "auxiliar.h"
 #include "basicas.h"
 #include "comum.h"
+#include "interface.h"
+#include <inttypes.h>
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
 
@@ -87,6 +91,15 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 
+
+void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
+   const RegistroConteudo *registros = ( const RegistroConteudo * )dados;
+
+   // No Glade, a coluna 0 é string e a coluna 1 é guint.
+   gtk_list_store_set( store, iter, 0, registros[i].data, 1, ( guint )registros[i].n_horarios, -1 );
+}
+
+
 int obter_foco_inicial( const int limite, const FichaAluno *ficha ) {
    int i;
    for ( i = 0; i < limite; i++ ) {
@@ -97,7 +110,6 @@ int obter_foco_inicial( const int limite, const FichaAluno *ficha ) {
    int foco = ( i < limite ) ? i : 0;
    return foco;
 }
-
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i ) {
    const FichaAluno *ficha_aux = ( const FichaAluno * )ficha;
    int len = calcular_len_limpo( ficha_aux[i].aluno, 30 );
@@ -127,7 +139,7 @@ int quantidade_diretorios( const char *diretorio ) {
    while ( ( dp = readdir( dir ) ) != NULL ) {
 
       // 3. Ignora os seletores virtuais do Linux ("." e "..")
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 ) {
+      if ( strcmp(dp->d_name,".")==0 || strcmp(dp->d_name,"..")==0 || strcmp(dp->d_name,"alunos")==0 ) {
          continue;
       }
 
@@ -189,7 +201,7 @@ ItemCombo *carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( 
 
    while ( ( dp = readdir( dir ) ) != NULL && i < qtd_dir ) {
       // 3. Filtra os seletores de diretório virtuais nativos do Linux
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 ) {
+      if ( strcmp(dp->d_name,".")==0 || strcmp(dp->d_name,"..")==0 || strcmp(dp->d_name,"alunos")==0 ) {
          continue;
       }
 
@@ -379,228 +391,199 @@ static int alfabetica_lista_de_alunos( const void *a, const void *b ) {
    return strcoll( fa->aluno, fb->aluno );
 }
 //----------------------------------------------------------------------------------------------------
-static int find_alpha_utf8( const char *str ) {
-   const char *p = str;
-   while ( *p != '\0' ) {
-      gunichar c = g_utf8_get_char( p );
-      if ( g_unichar_isalpha( c ) ) {
-         return p - str; // Retorna o tamanho do salto exato em bytes
-      }
-      p = g_utf8_next_char( p ); // Avança de forma segura pelo UTF-8
-   }
-   return -1;
-}
-//----------------------------------------------------------------------------------------------------
-static gboolean eh_preposicao( const gchar *str ) {
-   g_return_val_if_fail( str, FALSE );
-   // Ex: retorna TRUE se for "de", "da", "dos", etc.
-   // Certifique-se de que sua função compare em minúsculas!
-   if ( g_ascii_strcasecmp( str, "de" ) == 0 ||
-         g_ascii_strcasecmp( str, "da" ) == 0 ||
-         g_ascii_strcasecmp( str, "dos" ) == 0 ||
-         g_ascii_strcasecmp( str, "das" ) == 0 ||
-         g_ascii_strcasecmp( str, "e" ) == 0 ) {
-      return TRUE;
-   }
-   return FALSE;
-}
-//----------------------------------------------------------------------------------------------------
-static int contar_linhas_arquivo( const char *arquivo ) {
-   FILE *p = fopen( arquivo, "r" );
-   if ( p == NULL ) {
-      return -1; // Retorna -1 se o arquivo não existir ou não puder ser aberto
-   }
+void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
+   g_return_if_fail( ctx );
 
-   int contador = 0;
-   int ch; // ⚠️ IMPORTANTE: Deve ser 'int' e não 'char' para capturar corretamente o EOF
+   // 1. Limpeza segura de memória (Substitui free e ctx->ficha = NULL)
+   g_clear_pointer( ( gpointer * ) &ctx->ficha, g_free );
 
-   // Varre o arquivo caractere por caractere até o Fim do Arquivo (EOF)
-   while ( ( ch = fgetc( p ) ) != EOF ) {
-      if ( ch == '\n' ) {
-         contador++;
-      }
-   }
+   InterfaceDados   *dados   = &ctx->dados;
+   CaminhoDiretorio *caminho = &ctx->caminho;
 
-   fclose( p );
+   g_autofree char *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
-   return contador;
-}
-//----------------------------------------------------------------------------------------------------
-static double obter_largura_nome_mm( const char *texto, const char *fonte_desc ) {
-   PangoFontMap *font_map = pango_cairo_font_map_get_default();
-   PangoContext *context = pango_font_map_create_context( font_map );
-   PangoLayout *layout = pango_layout_new( context );
+   // 2. Leitura massiva para a RAM (Bulk Read)
+   // Elimina a necessidade de 'contar_registros_binarios' e leituras sucessivas com fread.
+   gsize tamanho_arquivo = 0;
+   g_autofree AcessoFicha *buffer_acessos = NULL;
 
-   pango_layout_set_text( layout, texto, -1 );
+   dados->qtd_alunos_ativos = 0;
 
-   PangoFontDescription *desc = pango_font_description_from_string( fonte_desc ); // Ex: "Arial 11"
-   pango_layout_set_font_description( layout, desc );
-
-   int largura_pango;
-   pango_layout_get_size( layout, &largura_pango, NULL );
-
-   pango_font_description_free( desc );
-   g_object_unref( layout );
-   g_object_unref( context );
-
-   // Converte Pango Units para Milímetros
-   return ( double )largura_pango / ( PANGO_SCALE * 2.83465 );
-   // return (double)largura_pango / (PANGO_SCALE * 3.78);
-}
-//----------------------------------------------------------------------------------------------------
-static void ajustar_nomes_tabelas( FichaAluno *ficha, const InterfaceDados *dados ) {
-   char nome[64];
-
-   // Definimos a fonte uma única vez fora do loop para deixar o código mais limpo
-   const char *fonte = dados->fonte_latex == 1 ? "CMU Bright 11" : "CMU Serif 11";
-
-   for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-
-      // 1. Descobrimos a quantidade de caracteres reais (não bytes) do nome original
-      int max_chars = g_utf8_strlen( ficha[i].aluno, -1 );
-
-      // 2. Usamos sua abstração para pegar os bytes exatos, já limpos de sujeiras finais
-      ficha[i].limite_corte = calcular_len_limpo( ficha[i].aluno, max_chars );
-
-      // Monta o buffer seguro
-      snprintf( nome, sizeof( nome ), "%.*s", ficha[i].limite_corte, ficha[i].aluno );
-
-      // Mede o tamanho físico em milímetros
-      double largura = obter_largura_nome_mm( nome, fonte );
-
-      // 3. O Loop de Ajuste: Enquanto a largura estourar os 69.0 mm
-      while ( largura > 69.0 && max_chars > 0 ) {
-
-         max_chars--; // Avisamos: "Eu quero um caractere visual a menos"
-
-         // A calcular_len_limpo converte essa nossa vontade visual em bytes seguros
-         ficha[i].limite_corte = calcular_len_limpo( ficha[i].aluno, max_chars );
-
-         // Remonta o buffer com o novo limite
-         snprintf( nome, sizeof( nome ), "%.*s", ficha[i].limite_corte, ficha[i].aluno );
-
-         // Mede novamente
-         largura = obter_largura_nome_mm( nome, fonte );
-      }
-   }
-}
-//----------------------------------------------------------------------------------------------------
-static gchar* converter_nome_proprio( const gchar *nome_completo ) {
-   if ( !nome_completo || *nome_completo == '\0' ) return NULL;
-
-   // 1. Converte o nome inteiro para minúsculas primeiro para padronizar
-   gchar *nome_minusculo = g_utf8_strdown( nome_completo, -1 );
-
-   // 2. Divide a string em um array de palavras usando o espaço como delimitador
-   gchar **palavras = g_strsplit( nome_minusculo, " ", -1 );
-   g_free( nome_minusculo ); // Não precisamos mais da string inteira minúscula
-
-   // 3. Percorre cada palavra aplicando a regra
-   for ( int i = 0; palavras[i] != NULL; i++ ) {
-      // Pula espaços duplos (palavras vazias)
-      if ( palavras[i][0] == '\0' ) continue;
-
-      // Se for preposição, mantém minúscula (já está minúscula devido ao g_utf8_strdown)
-      if ( eh_preposicao( palavras[i] ) ) {
-         continue;
-      }
-
-      // Se NÃO for preposição, torna a primeira letra maiúscula
-      // Pegamos a primeira letra (lidando corretamente com UTF-8)
-      gchar *primeira_letra = g_utf8_strup( palavras[i], g_utf8_next_char( palavras[i] ) - palavras[i] );
-
-      // Pegamos o resto da palavra
-      const gchar *resto_palavra = g_utf8_next_char( palavras[i] );
-
-      // Juntamos a primeira letra maiúscula com o resto
-      gchar *palavra_capitalizada = g_strconcat( primeira_letra, resto_palavra, NULL );
-
-      // Substituímos no array de palavras e liberamos a memória temporária
-      g_free( palavras[i] );
-      palavras[i] = palavra_capitalizada;
-      g_free( primeira_letra );
-   }
-
-   // 4. Junta todas as palavras de volta em uma única string separada por espaços
-   gchar *resultado = g_strjoinv( " ", palavras );
-
-   // 5. Limpa o array da memória (muito importante na GLib!)
-   g_strfreev( palavras );
-
-   return resultado;
-}
-//----------------------------------------------------------------------------------------------------
-void ajustar_nomes( const char *arquivo, AppContext *ctx ) {
-   if ( !ctx ) return;
-
-   free( ctx->ficha );
-   ctx->ficha = NULL;
-
-   InterfaceDados *dados = &( ctx->dados );
-   FocoCoordenadas *foco = &( ctx->cascata.foco );
-
-   dados->qtd_alunos_total = contar_linhas_arquivo( arquivo );
-
-   if ( dados->qtd_alunos_total <= 0 ) {
-      dados->qtd_alunos_ativos = dados->qtd_alunos_total;
+   if ( !g_file_get_contents( arquivo_acesso, (gchar **)&buffer_acessos, &tamanho_arquivo, NULL ) ) {
+      // g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso ); // SILÊNCIO AQUI :-)
+      dados->qtd_alunos_total = dados->qtd_alunos_ativos;
       return;
    }
 
-   FILE *p = fopen( arquivo, "r" );
-   if ( p == NULL ) {
-      return;
-   }
+   // O tamanho exato do arquivo dividido pelo tamanho da struct nos dá a contagem perfeita
+   dados->qtd_alunos_total = tamanho_arquivo / sizeof( AcessoFicha );
 
-   ctx->ficha = ( FichaAluno* ) calloc( dados->qtd_alunos_total, sizeof( FichaAluno ) );
+
+   if ( dados->qtd_alunos_total == 0 ) return;
+
+   // 3. Alocação tipada nativa da GLib (Substitui o calloc)
+   ctx->ficha = g_new0( FichaAluno, dados->qtd_alunos_total );
    FichaAluno *ficha = ctx->ficha;
 
-   int n1 = 0, n2 = 0;
+   // 4. Cache do caminho base fora do loop para não recriar a mesma string dezenas de vezes
+   g_autofree char *dir_base_alunos = g_build_filename(".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL);
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-      ficha[i].idx = i;
 
-      // 1. Lê diretamente para a string char padrão (aluno) usando fgets
-      if ( fgets( ficha[i].aluno, sizeof( ficha[i].aluno ), p ) == NULL ) break;
+      // Pega os dados de acesso direto do buffer na memória
+      AcessoFicha *acesso = &buffer_acessos[i];
 
-      int len = strlen( ficha[i].aluno );
-      if ( len > 0 && ficha[i].aluno[len - 1] == '\n' ) {
-         ficha[i].aluno[--len] = '\0';
+      // Formata a string de forma direta com o diretório base
+      g_autofree char *ficha_aluno = g_strdup_printf( "%s/%" PRIu32 ".bin", dir_base_alunos, acesso->cod_aluno );
+
+      FILE *fa = fopen( ficha_aluno, "rb" );
+      if ( !fa ) {
+         g_printerr( "[Aviso] Ficha não encontrada para o aluno %" PRIu32 "\n", acesso->cod_aluno );
+         continue; // Evita que o programa tente fazer fread em fa = NULL (Segmentation Fault)
       }
 
-      // 2. Os prefixos '*' e '>' ocupam 1 byte em UTF-8, lógica padrão funciona
-      if ( ficha[i].aluno[0] == '*' ) n1++;
-      else if ( ficha[i].aluno[0] == '>' ) n2++;
-
-      ficha[i].ativo = ( foco->periodo < 4 ) ? ( ficha[i].aluno[0] != '*' ) : ( ficha[i].aluno[0] == '>' );
-
-      // 3. Remove os marcadores copiando a string para o início (memmove nativo)
-      int salto = find_alpha_utf8( ficha[i].aluno );
-      if ( salto > 0 ) {
-         memmove( ficha[i].aluno, ficha[i].aluno + salto, len - salto + 1 );
-      } else if ( salto == -1 && len > 0 ) {
-         ficha[i].aluno[0] = '\0';
+      if ( fread( &ficha[i], sizeof( FichaAluno ), 1, fa ) == 1 ) {
+         ficha[i].cod_aluno = acesso->cod_aluno;
+         ficha[i].idx = i;
+         ficha[i].sit = acesso->sit;
+         ficha[i].ativo = acesso->ativo;
+         if ( ficha[i].ativo ) {
+            dados->qtd_alunos_ativos++;
+         }
       }
 
-      // 4. Aplica a conversão de capitalização (GLib)
-      gchar *nome_formatado = converter_nome_proprio( ficha[i].aluno );
-      if ( nome_formatado ) {
-         // Copia de volta para a struct e libera a memória alocada pela GLib
-         g_strlcpy( ficha[i].aluno, nome_formatado, sizeof( ficha[i].aluno ) );
-         g_free( nome_formatado );
+      fclose( fa );
+   }
+
+   // 5. Ordenação Alfabética
+   qsort( ficha, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
+}
+//----------------------------------------------------------------------------------------------------
+
+
+
+
+
+// Note que agora passamos o idx_aluno diretamente
+void salvar_registro_binario_frequencia( const AppContext *ctx, const char *data, int idx_aluno, StatusAssiduidade status ) {
+   g_autofree char *arq = g_build_filename( ctx->caminho.dados, "frequencia.bin", NULL );
+   FILE *f = fopen( arq, "r+b" );
+   if ( !f ) f = fopen( arq, "w+b" );
+   if ( !f ) return;
+
+   RegistroFrequencia reg = {0};
+   long pos_inicial = -1;
+
+   while ( fread( &reg, sizeof( RegistroFrequencia ), 1, f ) == 1 ) {
+      if ( g_strcmp0( reg.data, data ) == 0 ) {
+         pos_inicial = ftell( f ) - sizeof( RegistroFrequencia );
+         break;
       }
    }
-   fclose( p );
 
-   dados->qtd_alunos_ativos = ( ( n2 != 0 ) || ( foco->periodo == 4 ) ) ? n2 : ( dados->qtd_alunos_total - n1 );
+   // Se for dia novo, vai pro final do arquivo com tudo zerado (SEM_STATUS)
+   if ( pos_inicial == -1 ) {
+      memset( &reg, 0, sizeof( RegistroFrequencia ) );
+      g_strlcpy( reg.data, data, sizeof( reg.data ) );
+      fseek( f, 0, SEEK_END );
+      pos_inicial = ftell( f );
+   }
 
-   qsort( ficha, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
+   // Injeção cirúrgica direta (Sem for-loops)
+   reg.frequencia[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+   reg.frequencia[idx_aluno].status = status;
 
-   ajustar_nomes_tabelas( ficha, dados );
+   fseek( f, pos_inicial, SEEK_SET );
+   fwrite( &reg, sizeof( RegistroFrequencia ), 1, f );
+   fclose( f );
 }
-//====================================================================================================
 
 
+// void salvar_registro_binario_frequencia( const AppContext *ctx, const char *data, int idx_aluno, StatusAssiduidade status ) {
+//    g_autofree char *arq = g_build_filename( ctx->caminho.dados, "frequencia.bin", NULL );
+//    g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroFrequencia ) );
+//
+//    // 1. CARREGA TUDO DO DISCO
+//    FILE *f = fopen( arq, "rb" );
+//    if ( f ) {
+//       RegistroFrequencia temp;
+//       while ( fread( &temp, sizeof( RegistroFrequencia ), 1, f ) == 1 ) {
+//          g_array_append_val( registros, temp );
+//       }
+//       fclose( f );
+//    }
+//
+//    // 2. BUSCA A DATA PARA ATUALIZAR (Edição) OU ADICIONAR (Novo)
+//    gboolean encontrou_data = FALSE;
+//    for ( guint i = 0; i < registros->len; i++ ) {
+//       RegistroFrequencia *reg = &g_array_index( registros, RegistroFrequencia, i );
+//
+//       if ( g_strcmp0( reg->data, data ) == 0 ) {
+//          // Sobrescreve o status e o código do aluno (corrige o registro caso o professor altere o combo e salve novamente)
+//          reg->frequencia[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+//          reg->frequencia[idx_aluno].status = status;
+//          encontrou_data = TRUE;
+//          break;
+//       }
+//    }
+//
+//    if ( !encontrou_data ) {
+//       // Cria um novo bloco zerado (graças ao {0}) para uma data que ainda não existia no binário
+//       RegistroFrequencia novo_reg = {0};
+//       g_strlcpy( novo_reg.data, data, sizeof( novo_reg.data ) );
+//       novo_reg.frequencia[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+//       novo_reg.frequencia[idx_aluno].status = status;
+//
+//       g_array_append_val( registros, novo_reg );
+//    }
+//
+//    // 3. MÁGICA GLIB: Ordena cronologicamente todo o array
+//    // (Usa a função comparar_datas_frequencia que criamos para a busca binária)
+//    g_array_sort( registros, comparar_datas_frequencia );
+//
+//    // 4. SOBRESCREVE ORDENADO NO DISCO
+//    f = fopen( arq, "wb" );
+//    if ( f ) {
+//       if ( registros->len > 0 ) {
+//          fwrite( registros->data, sizeof( RegistroFrequencia ), registros->len, f );
+//       }
+//       fclose( f );
+//    }
+// }
 
+
+RegistroConteudo *carregar_registros_de_frequencia( const char *arquivo, int *qtd_itens ) {
+   g_return_val_if_fail( arquivo != NULL && qtd_itens != NULL, NULL );
+   *qtd_itens = 0;
+
+   gsize tamanho_arquivo = 0;
+   g_autofree RegistroConteudo *buffer_disco = NULL;
+
+   if ( !g_file_get_contents( arquivo, (gchar **)&buffer_disco, &tamanho_arquivo, NULL ) ) {
+      return NULL; // Arquivo não existe ou não pôde ser lido
+   }
+
+   int total_registros = tamanho_arquivo / sizeof( RegistroConteudo );
+   if ( total_registros == 0 ) return NULL;
+
+   GArray *array_filtrado = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
+
+   for ( int i = 0; i < total_registros; i++ ) {
+      TipoRegistroDiario tipo = buffer_disco[i].tipo_registro;
+      if ( tipo == TIPO_REGISTRO_AULA_NORMAL || tipo == TIPO_REGISTRO_AULA_EXTRA ) {
+         g_array_append_val( array_filtrado, buffer_disco[i] );
+      }
+   }
+
+   *qtd_itens = array_filtrado->len;
+
+   if ( *qtd_itens == 0 ) {
+      g_array_free( array_filtrado, TRUE );
+      return NULL;
+   }
+
+   return ( RegistroConteudo * )g_array_free( array_filtrado, FALSE );
+}
 
 
 
@@ -644,9 +627,9 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
 
 
 
-static gint comparar_datas_diario( gconstpointer a, gconstpointer b ) {
-   const DadosRegistroDiario *d1 = (const DadosRegistroDiario *)a;
-   const DadosRegistroDiario *d2 = (const DadosRegistroDiario *)b;
+gint comparar_datas( gconstpointer a, gconstpointer b ) {
+   const RegistroConteudo *d1 = (const RegistroConteudo *)a;
+   const RegistroConteudo *d2 = (const RegistroConteudo *)b;
 
    int dia1, mes1, ano1, dia2, mes2, ano2;
    // Converte a string "27/08/2026" para inteiros separadamente
@@ -659,14 +642,14 @@ static gint comparar_datas_diario( gconstpointer a, gconstpointer b ) {
    return dia1 - dia2;
 }
 
-int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiario *registro, int indice_edicao ) {
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( DadosRegistroDiario ) );
+int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *registro, int indice_edicao ) {
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
 
    // 1. CARREGA TUDO DO DISCO
    FILE *f = fopen( caminho_arquivo, "rb" );
    if ( f ) {
-      DadosRegistroDiario temp;
-      while ( fread( &temp, sizeof( DadosRegistroDiario ), 1, f ) == 1 ) {
+      RegistroConteudo temp;
+      while ( fread( &temp, sizeof( RegistroConteudo ), 1, f ) == 1 ) {
          g_array_append_val( registros, temp );
       }
       fclose( f );
@@ -674,18 +657,18 @@ int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiari
 
    // 2. ATUALIZA (Edição) OU ADICIONA (Novo)
    if ( indice_edicao >= 0 && indice_edicao < (int)registros->len ) {
-      g_array_index( registros, DadosRegistroDiario, indice_edicao ) = *registro;
+      g_array_index( registros, RegistroConteudo, indice_edicao ) = *registro;
    } else {
       g_array_append_val( registros, *registro );
    }
 
    // 3. MÁGICA GLIB: Ordena cronologicamente todo o arquivo
-   g_array_sort( registros, comparar_datas_diario );
+   g_array_sort( registros, comparar_datas );
 
    // 4. DESCOBRE O NOVO ÍNDICE PARA A INTERFACE
    int novo_indice = -1;
    for ( guint i = 0; i < registros->len; i++ ) {
-      DadosRegistroDiario *atual = &g_array_index( registros, DadosRegistroDiario, i );
+      RegistroConteudo *atual = &g_array_index( registros, RegistroConteudo, i );
       // Compara dados únicos para localizar nossa struct após a bagunça da ordenação
       if ( g_strcmp0( atual->data, registro->data ) == 0 && g_strcmp0( atual->descricao, registro->descricao ) == 0 ) {
          novo_indice = (int)i;
@@ -696,7 +679,7 @@ int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiari
    f = fopen( caminho_arquivo, "wb" );
    if ( f ) {
       if ( registros->len > 0 ) {
-         fwrite( registros->data, sizeof( DadosRegistroDiario ), registros->len, f );
+         fwrite( registros->data, sizeof( RegistroConteudo ), registros->len, f );
       }
       fclose( f );
    }
@@ -713,7 +696,7 @@ int gravar_diario_binario( const char *caminho_arquivo, const DadosRegistroDiari
  * Retorna 1 (TRUE) se uma cor customizada foi atribuída,
  * ou 0 (FALSE) se for aula normal (devendo usar a cor padrão).
  */
-int cor_texto_linha_liststore(const DadosRegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out) {
+int cor_texto_linha_liststore(const RegistroConteudo *diario, int tema_ativo, GdkRGBA *cor_out) {
    if (!diario || !cor_out) return 0;
 
    // Retorna imediatamente se for Aula Normal (usa a cor padrão do tema)

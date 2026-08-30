@@ -347,9 +347,6 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
 }
 
 
-
-
-
 void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
@@ -365,48 +362,71 @@ void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) 
    salvar_conteudo( &ctx->ui_diario, &ctx->diario, &ctx->caminho, ctx->dados.interface_style );
 }
 
-void on_diario_row_activated( GtkTreeView *treeview, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data ) {
-   ( void )column; // Suprime aviso de variável não utilizada
+
+void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treeview, GtkTreePath *path,
+                                                              GtkTreeViewColumn *column, gpointer user_data ) {
+   ( void )column;
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
    GtkTreeModel *model = gtk_tree_view_get_model( treeview );
    GtkTreeIter iter;
 
-   // Converte o path clicado em iterador
    if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
-      g_autofree gchar *data = NULL;
-      guint ch = 0; // Tipo primitivo (sem g_autofree!)
-      g_autofree gchar *tema = NULL;
-      g_autofree gchar *descricao = NULL;
-      guint tipo = 0; // Tipo de registro
+      // Passa a responsabilidade do preenchimento para a função modular
+      carregar_registro_para_edicao( &ctx->ui_diario, &ctx->diario, &iter );
 
-      // Puxa os dados da linha ativada pelo clique duplo
-      gtk_tree_model_get( model, &iter, 0, &data, 1, &ch, 2, &tema, 3, &descricao, 4, &tipo, -1 );
-
-      if ( data ) {
-         gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data );
-         snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data );
-      }
-
-      if ( ch != 0 ) {
-         ctx->diario.n_horarios = ch;
-         g_autofree char *str_ch = g_strdup_printf( "%d h", ctx->diario.n_horarios );
-         gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), str_ch );
-      }
-
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.tipo_registro ), tipo );
-
-      gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.tema ), tema ? tema : "" );
-      gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.descricao ), descricao ? descricao : "" );
-
-      // Ativa o modo de edição com o iterador selecionado
-      ctx->ui_diario.iter_em_edicao = iter;
-      ctx->ui_diario.editando = TRUE;
-
-      // Dá o foco na descrição para o professor já poder alterar o texto
+      // Apenas gerencia a usabilidade visual
       gtk_widget_grab_focus( ctx->ui_diario.descricao );
    }
+}
+
+
+
+
+
+void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   GtkTreeIter iter;
+
+   GtkComboBox *combo = GTK_COMBO_BOX( widget );
+
+   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+      GtkTreeModel *model = gtk_combo_box_get_model( combo );
+      guint carga_horaria = 0;
+
+      // Lê o valor da coluna 1 (Configurada como guint no Glade)
+      gtk_tree_model_get( model, &iter, 1, &carga_horaria, -1 );
+
+      // Formata a string conforme o design e insere no Label
+      g_autofree char *str_horas = g_strdup_printf( "%u h", carga_horaria );
+      gtk_label_set_text( GTK_LABEL( ctx->ui_diario.label_ch ), str_horas );
+
+      on_combo_data_frequencia_changed_restore( ctx );
+   }
+}
+
+void on_button_presente_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+
+   // Passando o endereço do painel que está dentro do AppContext
+   salvar_frequencia( &ctx->painel, ctx, PRESENTE );
+}
+
+void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+
+   salvar_frequencia( &ctx->painel, ctx, AUSENTE );
+}
+
+void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+
+   StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ) );
+   salvar_frequencia( &ctx->painel, ctx, status );
 }
 
 
@@ -428,11 +448,11 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event && ctx, FALSE );
 
-   // Chama a função embrulhada passando o nome exato que está no Glade (Packing -> Name)
    ui_diario_mudar_aba( ctx, "page_frequencia" );
 
-   // Retornar FALSE é vital! Isso diz ao GTK: "Eu vi o evento, mas deixe o sistema
-   // continuar processando para aplicar os efeitos CSS de :hover no botão".
+   g_autofree char *arquivo_turma = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+   popular_datas( &ctx->ui_diario, arquivo_turma );
+
    return FALSE;
 }
 
@@ -441,6 +461,7 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
    ui_diario_mudar_aba( ctx, "page_conteudo" );
+   gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
 
    return FALSE;
 }
@@ -498,7 +519,7 @@ void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext* ) user_data;
    if ( !ctx ) return;
-   siaep_atualizar_alunos( &ctx->painel, ctx->ficha );
+   siaep_atualizar_alunos( &ctx->painel, ctx );
 }
 
 

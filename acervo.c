@@ -7,7 +7,7 @@
 #include "acervo.h"
 #include "comum.h"
 #include "basicas.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 #include "mensagens.h"
 #include "interface.h"
 #include "assincrono.h"

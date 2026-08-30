@@ -142,13 +142,24 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( selection, "changed", G_CALLBACK( on_diario_selection_changed ), ctx );
 
    g_signal_connect( ctx->ui_diario.descricao, "activate", G_CALLBACK( on_entry_salvar_conteudo_activate ), ctx );
-   g_signal_connect( ctx->ui_diario.salvar,    "clicked", G_CALLBACK( on_button_salvar_conteudo_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.salvar_conteudo, "clicked", G_CALLBACK( on_button_salvar_conteudo_clicked ), ctx );
 
-   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK( on_button_frequencia_enter_notify_event ), ctx );
+
+
+   ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
+                                                         G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
+   g_signal_connect( ctx->ui_diario.presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
+
+
+
+   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK(on_button_frequencia_enter_notify_event), ctx );
    g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
-   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK( on_button_avaliacoes_enter_notify_event ), ctx );
+   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event ), ctx );
 
-   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",  G_CALLBACK( on_diario_row_activated ), ctx );
+   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",
+                     G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
 
 
 

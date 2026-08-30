@@ -11,34 +11,52 @@
 
 
 typedef struct {
+
+
+   GtkWidget *stack_pages;
+
+   /*** CONTEÚDO ***/
+
    //-- Calendário
    GtkWidget *entry_data;
    GtkWidget *popover_calendario;
    GtkWidget *calendario_data;
 
-   //-- Carga Horária
+   //-- Carga horária
    GtkWidget *stepper_menos;
    GtkWidget *stepper_mais;
    GtkWidget *n_horarios;
 
-   //-- Tipo de registro
-   GtkWidget *tipo_registro;
+   //-- Janela com rolagem
+   GtkWidget *scrolled_window_conteudo;
+   GtkWidget *treeview_conteudo;
+   GtkListStore *liststore_conteudo;
 
    //-- Registro do Conteúdo
    GtkWidget *tema;
    GtkWidget *descricao;
-
-   GtkWidget *salvar;
-
-   GtkWidget *stack_pages;
-   GtkListStore *liststore_conteudo;
-   GtkWidget *scrolled_window;
-   GtkWidget *treeview_conteudo;
-
+   GtkWidget *salvar_conteudo;
+   GtkWidget *tipo_registro;
    GtkTreeIter iter_em_edicao;
    gboolean editando; // FALSE = Novo Registro, TRUE = Editando Existente
-
    GtkWidget *remover_registro;
+
+
+   /*** FREQUÊNCIA ***/
+
+   //-- Botões e combos
+   GtkWidget *combo_data;        // Datas de registros de aula normal e aula extra
+   GtkWidget *label_ch;
+   gulong handler_combo_data;
+   GtkWidget *combo_status;  // StatusAssiduidade
+   GtkWidget *salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
+   GtkWidget *presente;          // Botão para salvar StatusAssiduidade PRESENTE
+   GtkWidget *ausente;           // Botão para salvar StatusAssiduidade AUSENTE
+
+   //-- Janela com rolagem
+   GtkWidget *scrolled_window_frequencia;
+   GtkWidget *treeview_frequencia;
+   GtkListStore *liststore_frequencia;
 
 } InterfaceRegistroDiario;
 
@@ -139,6 +157,8 @@ typedef struct {
    const ItemCombo *cores_destaque;
    const ItemCombo *decoracoes_estilo;
    const ItemCombo *provas_sequencia;
+   const ItemCombo *status_assiduidade;
+
 } InterfaceListas;
 
 
@@ -229,7 +249,7 @@ typedef struct {
 
 typedef struct {
    FichaAluno *ficha;
-   DadosRegistroDiario diario;
+   RegistroConteudo diario;
    CalendarioData data;
    CaminhoDiretorio caminho;
 
@@ -277,11 +297,10 @@ typedef struct {
 
 
 
-
+void popular_datas( InterfaceRegistroDiario *ui_diario, const char *arquivo_turma );
 
 typedef void ( *ComboMapperFunc )( GtkListStore *store, GtkTreeIter *iter, const void *dados, int indice );
-void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, int foco,
-                                 gulong handler_id, ComboMapperFunc mapper );
+void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, gulong handler_id, ComboMapperFunc mapper );
 
 
 void interface_style( AppContext *ctx );
@@ -311,10 +330,13 @@ bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados
 
 gchar* validar_data( const gchar *texto );
 void remover_registro_diario( const char *caminho_arquivo, const int indice );
-void salvar_conteudo( InterfaceRegistroDiario *ui_diario, DadosRegistroDiario *diario,
+void salvar_conteudo( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diario,
                       const CaminhoDiretorio *caminho, const int foco_estilo );
+void carregar_registro_para_edicao( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diario, GtkTreeIter *iter );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
+void salvar_frequencia( InterfacePainel *painel, const AppContext *ctx, StatusAssiduidade status );
+void on_combo_data_frequencia_changed_restore( const AppContext *ctx );
 
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 

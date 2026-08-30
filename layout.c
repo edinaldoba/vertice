@@ -107,6 +107,9 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
+   ctx->ui_diario.stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+
+   //-- CONTEÚDOS
    ctx->ui_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
    ctx->ui_diario.popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
    ctx->ui_diario.calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
@@ -120,12 +123,11 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->ui_diario.tema             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
    ctx->ui_diario.descricao        = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
-   ctx->ui_diario.salvar           = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   ctx->ui_diario.salvar_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
    ctx->ui_diario.remover_registro = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
 
-   ctx->ui_diario.stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
    ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
-   ctx->ui_diario.scrolled_window    = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
+   ctx->ui_diario.scrolled_window_conteudo    = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), 1 );
@@ -134,6 +136,26 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    if ( renderers ) {
       g_object_set( G_OBJECT( renderers->data ), "xalign", 0.5, NULL ); // Centraliza o número 1
       g_list_free( renderers );
+   }
+   //----------------------------------------------------------------------
+
+   //-- FREQUÊNCIA
+   ctx->ui_diario.scrolled_window_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_frequencia" ) );
+   ctx->ui_diario.treeview_frequencia  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
+
+   ctx->ui_diario.combo_data        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
+   ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
+   ctx->ui_diario.salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
+   ctx->ui_diario.presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
+   ctx->ui_diario.ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
+   ctx->ui_diario.combo_status  = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
+   //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
+   GtkTreeViewColumn *col_num = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia ), 0 );
+   gtk_tree_view_column_set_alignment( col_num, 0.5 ); // Centraliza o título "CH"
+   GList *renderers_frequencia = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_num ) );
+   if ( renderers_frequencia ) {
+      g_object_set( G_OBJECT( renderers_frequencia->data ), "xalign", 0.5, NULL ); // Centraliza o número 1
+      g_list_free( renderers_frequencia );
    }
    //----------------------------------------------------------------------
 

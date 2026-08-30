@@ -2,7 +2,7 @@
 #include <glib/gstdio.h>
 
 #include "comum.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 #include "interface.h"
 #include "basicas.h"
 #include "mensagens.h"
@@ -188,6 +188,63 @@ void g_pdflatex_parallel( const char *dir_compile ) {
 
 
 
+/**
+ * Mapeia recursivamente todas as subpastas a partir de 'caminho_pai'.
+ * Adiciona cada caminho encontrado dentro do GPtrArray retornado.
+ */
+GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos ) {
+   if ( !caminho_pai ) return lista_caminhos;
+
+   if ( !lista_caminhos ) {
+      lista_caminhos = g_ptr_array_new_with_free_func( g_free );
+   }
+
+   g_autoptr( GFile ) dir = g_file_new_for_path( caminho_pai );
+   g_autoptr( GError ) erro = NULL;
+
+   g_autoptr( GFileEnumerator ) enumerator = g_file_enumerate_children(
+       dir,
+       G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_TYPE,
+       G_FILE_QUERY_INFO_NONE,
+       NULL,
+       &erro );
+
+   if ( erro ) {
+      g_printerr( "Erro ao abrir diretório '%s': %s\n", caminho_pai, erro->message );
+      return lista_caminhos;
+   }
+
+   // Laço infinito controlado com break para capturar erros de leitura do GIO
+   while ( TRUE ) {
+      GFileInfo *info = g_file_enumerator_next_file( enumerator, NULL, &erro );
+
+      // Proteção contra arquivos corrompidos ou sem permissão de leitura durante o ciclo
+      if ( erro ) {
+         g_printerr( "Erro ao ler item em '%s': %s\n", caminho_pai, erro->message );
+         g_clear_error( &erro );
+         break;
+      }
+
+      if ( !info ) break; // Atingiu o fim do diretório com sucesso
+
+      g_autoptr( GFileInfo ) info_ptr = info;
+      const char *nome = g_file_info_get_name( info_ptr );
+
+      // Barreira: Ignora pastas ocultas do sistema (ex: .git, .vscode, .config)
+      if ( nome[0] == '.' ) {
+         continue;
+      }
+
+      if ( g_file_info_get_file_type( info_ptr ) == G_FILE_TYPE_DIRECTORY ) {
+         gchar *caminho_subpasta = g_build_filename( caminho_pai, nome, NULL );
+
+         g_ptr_array_add( lista_caminhos, caminho_subpasta );
+         listar_subpastas_recursivo( caminho_subpasta, lista_caminhos );
+      }
+   }
+
+   return lista_caminhos;
+}
 
 
 

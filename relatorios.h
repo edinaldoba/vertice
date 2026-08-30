@@ -25,13 +25,6 @@ void atividades( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
 void atividadesQ( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
 void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
 
-void gerar_arquivo_siaep_notas( int qtd_linhas_av_rec, const FichaAluno *ficha, const AppContext *ctx );
-
-int carregar_avaliacoes_do_periodo( char *arquivo_av, FichaAluno *ficha,
-                                    const InterfaceDados *dados, const FocoCoordenadas *foco );
-
-void gerar_tex_avaliacoes( StringNota notas[][10], StringNota *media, const char *nome_base, const AppContext *ctx );
-
 void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arquivo_base,
                              const InterfaceDados *dados, const CaminhoDiretorio *caminho );
 

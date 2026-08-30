@@ -16,7 +16,7 @@
 #include "basicas.h"   // Para nFile e Files
 #include "gabaritos.h" // Para mudar_numero_na_imagem, gabaritos e imagens_corrigidas
 #include "mensagens.h"
-#include "glibrary.h"
+#include "glib_gio.h"
 #include "latex.h"
 #include "pds.h"
 #include "gas.h"

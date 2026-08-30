@@ -11,7 +11,7 @@
 #include <glib/gstdio.h>
 #include <omp.h>
 
-#include "glibrary.h"
+#include "glib_gio.h"
 #include "interface.h"
 #include "provas.h"
 #include "gabaritos.h"

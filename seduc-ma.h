@@ -6,7 +6,7 @@
 
 
 
-void siaep_atualizar_alunos( InterfacePainel *painel, FichaAluno *ficha );
+void siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx );
 
 void salvar_ficha_aluno( const FichaAluno *aluno, uint32_t cod_aluno );
 
