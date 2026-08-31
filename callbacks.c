@@ -399,9 +399,10 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       gtk_tree_model_get( model, &iter, 1, &carga_horaria, -1 );
 
       // Formata a string conforme o design e insere no Label
-      g_autofree char *str_horas = g_strdup_printf( "%u h", carga_horaria );
-      gtk_label_set_text( GTK_LABEL( ctx->ui_diario.label_ch ), str_horas );
+      g_autofree gchar *str_horas = meu_gerador_variadico( "<b>%u h</b>", carga_horaria );
+      gtk_label_set_markup( GTK_LABEL( ctx->ui_diario.label_ch ), str_horas );
 
+      salvar_frequencia( &ctx->chamada, ctx->path_save );
       on_combo_data_frequencia_changed_restore( ctx );
    }
 }
@@ -411,70 +412,73 @@ void on_button_presente_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
    // Passando o endereço do painel que está dentro do AppContext
-   salvar_frequencia( &ctx->painel, ctx, PRESENTE );
+   registrar_status_assiduidade_frequencia( &ctx->painel, ctx, PRESENTE );
 }
 
 void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
-   salvar_frequencia( &ctx->painel, ctx, AUSENTE );
+   registrar_status_assiduidade_frequencia( &ctx->painel, ctx, AUSENTE );
 }
 
 void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
-   StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ) );
-   salvar_frequencia( &ctx->painel, ctx, status );
+   StatusAssiduidade status = (StatusAssiduidade) gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ) );
+   registrar_status_assiduidade_frequencia( &ctx->painel, ctx, status );
 }
 
 
 
 
 
-// ---------------------------------------------------------
-// No seu arquivo de domínio (ex: ui_diario.c)
-// ---------------------------------------------------------
-static void ui_diario_mudar_aba( AppContext *ctx, const char *nome_da_pagina ) {
-   // A mágica acontece aqui: troca a aba do GtkStack instantaneamente
-   gtk_stack_set_visible_child_name( GTK_STACK( ctx->ui_diario.stack_pages ), nome_da_pagina );
+//------------------------------------------------------------------------------------------------------------------
+static gboolean ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) { // Única função auxiliar em callbacks.c
+   g_return_val_if_fail( GTK_IS_STACK( widget ) && nome_da_pagina, FALSE );
+   const gchar *pagina_atual = gtk_stack_get_visible_child_name( GTK_STACK( widget ) );
+   if ( g_strcmp0( pagina_atual, nome_da_pagina ) == 0 ) {
+      return FALSE;
+   } else {
+      gtk_stack_set_visible_child_name( GTK_STACK( widget ), nome_da_pagina );
+      return TRUE;
+   }
 }
-
-// ---------------------------------------------------------
-// No seu callbacks.c (Os Embrulhos)
-// ---------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event && ctx, FALSE );
 
-   ui_diario_mudar_aba( ctx, "page_frequencia" );
-
-   g_autofree char *arquivo_turma = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
-   popular_datas( &ctx->ui_diario, arquivo_turma );
+   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
+      // Deus que ajude!
+   }
 
    return FALSE;
 }
-
+//------------------------------------------------------------------------------------------------------------------
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   ui_diario_mudar_aba( ctx, "page_conteudo" );
-   gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
+   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_conteudo" ) ) {
+      gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
+   }
 
    return FALSE;
 }
-
+//------------------------------------------------------------------------------------------------------------------
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   ui_diario_mudar_aba( ctx, "page_avaliacoes" );
+   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_avaliacoes" ) ) {
+      // No futuro alguma coisa deverá ser posta aqui
+   }
 
    return FALSE;
 }
-
+//------------------------------------------------------------------------------------------------------------------
 
 
 

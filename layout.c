@@ -46,6 +46,16 @@ static void aplicar_estilo_cores_combo( GtkComboBox *combo ) {
 }
 
 
+static void treeview_alinhar_coluna_renderizada( GtkWidget *widget, int coluna, float alinhamento ) {
+   GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
+   gtk_tree_view_column_set_alignment( col_ch, alinhamento ); // Centraliza o título "CH"
+   GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
+   if ( renderers ) {
+      g_object_set( G_OBJECT( renderers->data ), "xalign", alinhamento, NULL ); // Centraliza o número 1
+      g_list_free( renderers );
+   }
+}
+
 
 //=====================================================================================================//
 //                                   ORQUESTRADOR MESTRE DA INTERFACE                                  //
@@ -129,19 +139,13 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
    ctx->ui_diario.scrolled_window_conteudo    = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
-   //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
-   GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ), 1 );
-   gtk_tree_view_column_set_alignment( col_ch, 0.5 ); // Centraliza o título "CH"
-   GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
-   if ( renderers ) {
-      g_object_set( G_OBJECT( renderers->data ), "xalign", 0.5, NULL ); // Centraliza o número 1
-      g_list_free( renderers );
-   }
-   //----------------------------------------------------------------------
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_conteudo, 1, 0.5 );
 
    //-- FREQUÊNCIA
    ctx->ui_diario.scrolled_window_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_frequencia" ) );
    ctx->ui_diario.treeview_frequencia  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 0, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 2, 0.5 );
 
    ctx->ui_diario.combo_data        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
    ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
@@ -149,15 +153,6 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
    ctx->ui_diario.ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
    ctx->ui_diario.combo_status  = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
-   //---------- CENTRALIZAR CH (não consegui fazer no glade)----------------
-   GtkTreeViewColumn *col_num = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia ), 0 );
-   gtk_tree_view_column_set_alignment( col_num, 0.5 ); // Centraliza o título "CH"
-   GList *renderers_frequencia = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_num ) );
-   if ( renderers_frequencia ) {
-      g_object_set( G_OBJECT( renderers_frequencia->data ), "xalign", 0.5, NULL ); // Centraliza o número 1
-      g_list_free( renderers_frequencia );
-   }
-   //----------------------------------------------------------------------
 
 
 

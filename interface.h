@@ -250,6 +250,16 @@ typedef struct {
 typedef struct {
    FichaAluno *ficha;
    RegistroConteudo diario;
+
+   RegistroFrequencia chamada;
+   /*
+    * Caminho estático do arquivo de persistência ativo.
+    * Mantém o diretório atual em memória para permitir que a função salvar_frequencia()
+    * descarregue os dados pendentes no disco (frequencia.bin) ANTES que as trocas de
+    * turma ou período atualizem a árvore de caminhos da aplicação.
+    */
+   gchar *path_save;
+
    CalendarioData data;
    CaminhoDiretorio caminho;
 
@@ -300,7 +310,8 @@ typedef struct {
 void popular_datas( InterfaceRegistroDiario *ui_diario, const char *arquivo_turma );
 
 typedef void ( *ComboMapperFunc )( GtkListStore *store, GtkTreeIter *iter, const void *dados, int indice );
-void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, gulong handler_id, ComboMapperFunc mapper );
+void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, int foco,
+                                 gulong handler_id, ComboMapperFunc mapper );
 
 
 void interface_style( AppContext *ctx );
@@ -335,8 +346,9 @@ void salvar_conteudo( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diar
 void carregar_registro_para_edicao( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diario, GtkTreeIter *iter );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
-void salvar_frequencia( InterfacePainel *painel, const AppContext *ctx, StatusAssiduidade status );
-void on_combo_data_frequencia_changed_restore( const AppContext *ctx );
+void salvar_frequencia( const RegistroFrequencia *nova_chamada, const gchar *path_save );
+void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
+void on_combo_data_frequencia_changed_restore( AppContext *ctx );
 
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 

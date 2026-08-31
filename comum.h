@@ -231,14 +231,14 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoFicha;
 
 typedef struct {
-   char data[16];
-   int n_horarios;
-
-   struct {
       uint32_t cod_aluno;
       StatusAssiduidade status;
-   } frequencia[64]; // Máximo de 64 alunos por turma
+} __attribute__( ( packed ) ) RegistroStatusAssiduidade;
 
+typedef struct {
+   char data[16];
+   int n_horarios;
+   RegistroStatusAssiduidade freq[64]; // Máximo de 64 alunos por turma
 } __attribute__( ( packed ) ) RegistroFrequencia;
 
 typedef struct {

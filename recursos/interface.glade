@@ -387,6 +387,7 @@
                         </child>
                         <child>
                           <object class="GtkBox">
+                            <property name="height-request">44</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="spacing">10</property>
@@ -536,6 +537,8 @@
                             <property name="spacing">10</property>
                             <child>
                               <object class="GtkComboBox" id="combo_data">
+                                <property name="width-request">170</property>
+                                <property name="height-request">44</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="model">liststore_data</property>
@@ -557,7 +560,7 @@
                             </child>
                             <child>
                               <object class="GtkBox">
-                                <property name="width-request">40</property>
+                                <property name="width-request">50</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-top">6</property>
@@ -566,6 +569,7 @@
                                   <object class="GtkLabel" id="label_ch_freq">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">ch</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -710,7 +714,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">50</property>
+                                    <property name="fixed-width">100</property>
                                     <property name="title" translatable="yes">Nº</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
@@ -734,8 +738,8 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">270</property>
-                                    <property name="title" translatable="yes">STATUS  ASSIDUIDADE</property>
+                                    <property name="fixed-width">200</property>
+                                    <property name="title" translatable="yes">ASSIDUIDADE</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>

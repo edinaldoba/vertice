@@ -5,6 +5,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <glib-unix.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,6 +24,7 @@
 // Protótipo local da função de inicialização
 void inicializacao_app_context( AppContext *ctx );
 void limpeza_final( AppContext *ctx );
+static gboolean tratar_sinais_unix( gpointer user_data );
 
 
 
@@ -91,7 +93,7 @@ static void activate( GtkApplication *app, gpointer user_data ) {
 //=====================================================================================================//
 int main( int argc, char *argv[] ) {
 
-   // 1. Define tudo para o padrão brasileiro (incluindo acentos e vírgula decimal)
+   // Define tudo para o padrão brasileiro (incluindo acentos e vírgula decimal)
    if ( !setlocale( LC_ALL, "pt_BR.UTF-8" ) ) {
       g_warning( "Aviso: O locale 'pt_BR.UTF-8' não está disponível no sistema. Usando padrão." );
    }
@@ -117,19 +119,23 @@ int main( int argc, char *argv[] ) {
       // Passa o ENDEREÇO (&ctx) do contexto para a função activate
       g_signal_connect( app, "activate", G_CALLBACK( activate ), &ctx );
 
+      // ADICIONA A CAPTURA SEGURA DOS SINAIS DE SISTEMA (Linux/Debian)
+      // SIGINT = Ctrl+C no terminal
+      // SIGTERM = Pedido de fechamento do sistema (Gerenciador de Tarefas)
+      g_unix_signal_add( SIGINT, tratar_sinais_unix, app );
+      g_unix_signal_add( SIGTERM, tratar_sinais_unix, app );
+
+      // O programa fica rodando aqui até a janela ser fechada OU g_application_quit ser chamado
       status = g_application_run( G_APPLICATION( app ), argc, argv );
+
       g_object_unref( app );
    } else {
       g_printerr( "Erro crítico: Não foi possível instanciar o objeto GtkApplication.\n" );
       status = EXIT_FAILURE;
    }
 
-   // HIGIENE DE MEMÓRIA: Libera o provider se ele terminou alocado (evita memory leak ao fechar)
-   if ( ctx.provider != NULL ) {
-      g_object_unref( ctx.provider );
-      ctx.provider = NULL; // Evita ponteiro solto (dangling pointer)
-   }
-
+   // HIGIENE DE MEMÓRIA
+   // Removi o bloco do ctx.provider daqui, pois ele já está dentro da sua limpeza_final()!
    limpeza_final( &ctx );
 
    return status;
@@ -276,7 +282,13 @@ void inicializacao_app_context( AppContext *ctx ) {
       .cabecalho = {
          .gestor    = NULL,
          .professor = NULL
-      }
+      },
+
+      .ui_diario = {
+         .handler_combo_data = 0
+      },
+
+      .path_save = NULL
    };
 }
 
@@ -287,6 +299,11 @@ void limpeza_final( AppContext *ctx ) {
    // 🛡️ HIGIENE DE MEMÓRIA FINAL (O que o unref do app não limpa sozinho)
    // =========================================================================
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
+
+   if ( ctx->path_save != NULL ) {
+      salvar_frequencia( &ctx->chamada, ctx->path_save );
+      g_free( ctx->path_save );
+   }
 
    // A. Libera o Diário de Alunos (Heap)
    if ( ctx->ficha != NULL ) {
@@ -332,4 +349,16 @@ void limpeza_final( AppContext *ctx ) {
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );
 }
 
+
+
+// 1. Função callback segura na esteira do GLib para interceptar sinais
+static gboolean tratar_sinais_unix( gpointer user_data ) {
+   GApplication *app = G_APPLICATION( user_data );
+   g_print( "\n[Sinal] Interrupção (Ctrl+C ou fechamento forçado) detectada! Encerrando graciosamente...\n" );
+
+   // Faz o quit no tipo base correto esperado pela GLib
+   g_application_quit( app );
+
+   return G_SOURCE_REMOVE;
+}
 
