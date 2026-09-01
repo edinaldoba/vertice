@@ -33,12 +33,17 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
 
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx );
 RegistroConteudo *carregar_datas_dos_registros_de_aula( const char *arquivo, int *qtd_itens );
+void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice );
+void remover_frequencia_por_data( const char *arquivo_freq, const char *data_alvo );
+gchar *formatar_data_extenso( const gchar *data_iso );
 
 int ordenar_turmas_novo_em( const void* a, const void* b );
 
 gint comparar_datas( gconstpointer a, gconstpointer b );
 int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *registro, int indice_edicao );
 int cor_texto_linha_liststore(const RegistroConteudo *diario, int tema_ativo, GdkRGBA *cor_out);
+
+int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGBA *cor_out );
 
 
 

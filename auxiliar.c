@@ -497,6 +497,109 @@ RegistroConteudo *carregar_datas_dos_registros_de_aula( const char *arquivo, int
 }
 
 
+void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice ) {
+   g_return_if_fail( caminho_arquivo );
+
+   g_autofree gchar *conteudo = NULL;
+   gsize tamanho = 0;
+   GError *erro = NULL;
+
+   // 1. Leitura atômica para a memória
+   if ( !g_file_get_contents( caminho_arquivo, &conteudo, &tamanho, &erro ) ) {
+      g_printerr( "Aviso: Nao foi possivel ler %s: %s\n", caminho_arquivo, erro->message );
+      g_clear_error( &erro );
+      return;
+   }
+
+   int total_registros = tamanho / sizeof( RegistroConteudo );
+
+   if ( indice < 0 || indice >= total_registros ) {
+      g_printerr( "Erro: Indice %d fora dos limites (Total: %d)\n", indice, total_registros );
+      return;
+   }
+
+   // 2. Filtragem usando GByteArray para abstrair a gestão do buffer
+   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho - sizeof( RegistroConteudo ) );
+   RegistroConteudo *buffer = ( RegistroConteudo * )conteudo;
+
+   for ( int i = 0; i < total_registros; i++ ) {
+      if ( i != indice ) {
+         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroConteudo ) );
+      }
+   }
+
+   // 3. Sobrescrita atômica segura
+   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )novo_conteudo->data, novo_conteudo->len, &erro ) ) {
+      g_printerr( "Erro: Nao foi possivel salvar %s: %s\n", caminho_arquivo, erro->message );
+      g_clear_error( &erro );
+   }
+}
+
+// Função auxiliar usando operações atômicas e arrays dinâmicos da GLib
+void remover_frequencia_por_data( const char *arquivo_freq, const char *data_alvo ) {
+   g_return_if_fail( arquivo_freq && data_alvo );
+
+   g_autofree gchar *conteudo = NULL;
+   gsize tamanho = 0;
+   GError *erro = NULL;
+
+   // 1. Leitura atômica para a memória
+   if ( !g_file_get_contents( arquivo_freq, &conteudo, &tamanho, &erro ) ) {
+      g_warning( "Aviso: Nao foi possivel ler %s: %s", arquivo_freq, erro->message );
+      g_clear_error( &erro );
+      return;
+   }
+
+   int total_registros = tamanho / sizeof( RegistroFrequencia );
+   if ( total_registros == 0 ) return;
+
+   // 2. Filtragem usando GByteArray
+   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho );
+   RegistroFrequencia *buffer = ( RegistroFrequencia * )conteudo;
+
+   for ( int i = 0; i < total_registros; i++ ) {
+      if ( g_strcmp0( buffer[i].data, data_alvo ) != 0 ) {
+         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroFrequencia ) );
+      }
+   }
+
+   // 3. Sobrescrita atômica segura (se todos forem removidos, salva arquivo zerado)
+   if ( !g_file_set_contents( arquivo_freq, ( const gchar * )novo_conteudo->data, novo_conteudo->len, &erro ) ) {
+      g_warning( "Erro: Nao foi possivel salvar %s: %s", arquivo_freq, erro->message );
+      g_clear_error( &erro );
+   }
+}
+
+
+
+/**
+ * Converte uma data no formato "AAAA/MM/DD" para "DD - mon - AAAA" (ex: "1983/10/11" -> "11 - out - 1983").
+ * Retorna uma nova string alocada dinamicamente que deve ser liberada com g_free() ou usada com g_autofree.
+ */
+gchar *formatar_data_extenso( const gchar *data_iso ) {
+   if ( !data_iso ) return NULL;
+
+   // 1. Divide a string "AAAA/MM/DD" usando as barras como separadores
+   g_auto( GStrv ) tokens = g_strsplit( data_iso, "/", 3 );
+
+   // Valida se a string possui exatamente 3 partes (Ano, Mês, Dia)
+   if ( !tokens || !tokens[0] || !tokens[1] || !tokens[2] ) {
+      return NULL;
+   }
+
+   int ano = ( int )g_ascii_strtoll( tokens[0], NULL, 10 );
+   int mes = ( int )g_ascii_strtoll( tokens[1], NULL, 10 );
+   int dia = ( int )g_ascii_strtoll( tokens[2], NULL, 10 );
+
+   // 2. Instancia um GDateTime local com os inteiros extraídos
+   g_autoptr( GDateTime ) dt = g_date_time_new_local( ano, mes, dia, 0, 0, 0.0 );
+   if ( !dt ) return NULL;
+
+   // 3. Formata usando os especificadores de formatação (%d = dia, %b = mês abreviado, %Y = ano)
+   // Por padrão, %b usa a localização do sistema (ex: "out" para outubro em pt_BR)
+   return g_date_time_format( dt, "%d - %b - %Y" );
+}
+
 
 
 // Esta função de ordenação é exclusiva para o combo das turmas
@@ -634,7 +737,7 @@ int cor_texto_linha_liststore(const RegistroConteudo *diario, int tema_ativo, Gd
       if (tema_ativo == 1) { // Deep Blue
          *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
       } else if (tema_ativo == 2) { // Light
-         *cor_out = (GdkRGBA){ 1.00, 0.00, 0.00, 1.0 };
+         *cor_out = (GdkRGBA){ 0.85, 0.00, 0.00, 1.0 };
       } else { // Dark Green (Padrão)
          *cor_out = (GdkRGBA){ 0.90, 0.45, 0.45, 1.0 };
       }
@@ -657,4 +760,76 @@ int cor_texto_linha_liststore(const RegistroConteudo *diario, int tema_ativo, Gd
 
    return 0; // Fallback de segurança
 }
+
+
+
+int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   // =====================================================================
+   // 1. STATUS COM COR PADRÃO (Retorna 0 para usar a cor nativa do tema)
+   // =====================================================================
+   if ( status == PRESENTE || status == FALTA_JUSTIFICADA || status == DISPENSADO ) {
+      return 0;
+   }
+
+   // =====================================================================
+   // 2. SEM STATUS: Alunos inativos
+   // =====================================================================
+   if ( status == SEM_STATUS ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Cinza azulado escuro)
+         *cor_out = (GdkRGBA){ 0.40, 0.45, 0.55, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light (Cinza padrão)
+         *cor_out = (GdkRGBA){ 0.60, 0.60, 0.60, 1.0 };
+      } else { // Dark Green - Padrão (Cinza esverdeado escuro)
+         *cor_out = (GdkRGBA){ 0.45, 0.50, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 3. ALERTAS AVERMELHADOS: Ausente e Suspenso
+   // =====================================================================
+   if ( status == AUSENTE || status == SUSPENSO ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = (GdkRGBA){ 0.85, 0.00, 0.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = (GdkRGBA){ 0.90, 0.45, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 4. AVISOS AMARELADOS: Fora de sala e Foi embora
+   // =====================================================================
+   if ( status == FORA_DE_SALA || status == FOI_EMBORA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = (GdkRGBA){ 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = (GdkRGBA){ 0.62, 0.49, 0.10, 1.0 }; // #9D7C19
+      } else { // Dark Green (Padrão)
+         *cor_out = (GdkRGBA){ 1.00, 0.84, 0.31, 1.0 }; // #FFD54F
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 5. DESTAQUE (ROXO/PÚRPURA): Atividade Domiciliar (Requer ação extra)
+   // =====================================================================
+   if ( status == ATIVIDADE_DOMICILIAR ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Lilás vibrante)
+         *cor_out = (GdkRGBA){ 0.80, 0.60, 0.95, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light (Roxo escuro)
+         *cor_out = (GdkRGBA){ 0.45, 0.15, 0.60, 1.0 };
+      } else { // Dark Green - Padrão (Púrpura suave)
+         *cor_out = (GdkRGBA){ 0.75, 0.55, 0.85, 1.0 };
+      }
+      return 1;
+   }
+
+   return 0; // Fallback de segurança
+}
+
 

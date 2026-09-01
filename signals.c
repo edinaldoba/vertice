@@ -136,7 +136,7 @@ void app_signals_connect( gpointer user_data ) {
 
    g_signal_connect( ctx->ui_diario.stepper_menos, "clicked", G_CALLBACK(on_button_stepper_menos_num_horarios_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked", G_CALLBACK(on_button_stepper_mais_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.remover_registro, "clicked", G_CALLBACK(on_button_remover_registro_diario_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.remover_registro, "clicked", G_CALLBACK(on_button_remover_conteudo_por_indice_clicked ), ctx );
    // Obtém o controle de seleção do TreeView
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
    g_signal_connect( selection, "changed", G_CALLBACK( on_diario_selection_changed ), ctx );

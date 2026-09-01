@@ -146,6 +146,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.treeview_frequencia  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 0, 0.5 );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 2, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 3, 0.5 );
 
    ctx->ui_diario.combo_data        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
    ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );

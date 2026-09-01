@@ -53,6 +53,8 @@ typedef struct {
    GtkWidget *presente;          // Botão para salvar StatusAssiduidade PRESENTE
    GtkWidget *ausente;           // Botão para salvar StatusAssiduidade AUSENTE
 
+   int limite_combo_alunos;
+
    //-- Janela com rolagem
    GtkWidget *scrolled_window_frequencia;
    GtkWidget *treeview_frequencia;
@@ -340,10 +342,9 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 gchar* validar_data( const gchar *texto );
-void remover_registro_diario( const char *caminho_arquivo, const int indice );
-void salvar_conteudo( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diario,
-                      const CaminhoDiretorio *caminho, const int foco_estilo );
-void carregar_registro_para_edicao( InterfaceRegistroDiario *ui_diario, RegistroConteudo *diario, GtkTreeIter *iter );
+void excluir_registro_diario( AppContext *ctx, int indice, const char *data, TipoRegistroDiario tipo );
+void salvar_conteudo( GtkWidget *widget, AppContext *ctx );
+void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 void salvar_frequencia( const RegistroFrequencia *nova_chamada, const gchar *path_save );

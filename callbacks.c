@@ -223,6 +223,8 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
    gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data_formatada );
 
    gtk_popover_popdown( GTK_POPOVER( ctx->ui_diario.popover_calendario ) );
+
+   gtk_widget_grab_focus( ctx->ui_diario.descricao );
 }
 
 
@@ -288,7 +290,12 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 }
 
 
-void on_button_remover_registro_diario_clicked( GtkWidget *widget, gpointer user_data ) {
+
+
+
+
+// Callback protegido contra memory leaks com g_autoptr
+void on_button_remover_conteudo_por_indice_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
 
@@ -296,33 +303,28 @@ void on_button_remover_registro_diario_clicked( GtkWidget *widget, gpointer user
    GtkTreeModel *model;
    GtkTreeIter iter;
 
-   if ( gtk_tree_selection_get_selected( selection, &model, &iter ) ) {
-      // 1. Obtém o caminho do registro selecionado para exclusão
-      GtkTreePath *path_remocao = gtk_tree_model_get_path( model, &iter );
-      int indice_removido = gtk_tree_path_get_indices( path_remocao )[0];
+   if ( !gtk_tree_selection_get_selected( selection, &model, &iter ) ) return;
 
-      // 2. Verifica se o registro excluído é o mesmo que está em edição
-      if ( ctx->ui_diario.editando ) {
-         GtkTreePath *path_edicao = gtk_tree_model_get_path( model, &ctx->ui_diario.iter_em_edicao );
+   g_autofree char *data_registro = NULL;
+   int tipo_registro;
+   gtk_tree_model_get( model, &iter, 0, &data_registro, 4, &tipo_registro, -1 );
 
-         // Se os caminhos são idênticos, o usuário apagou a linha carregada no formulário
-         if ( gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
-            // Converte o formulário para modo de inserção (novo registro no final da fila)
-            ctx->ui_diario.editando = FALSE;
-         }
-         gtk_tree_path_free( path_edicao );
+   // 1. g_autoptr cuida automaticamente do gtk_tree_path_free ao fim da função
+   g_autoptr( GtkTreePath ) path_remocao = gtk_tree_model_get_path( model, &iter );
+   int indice_removido = gtk_tree_path_get_indices( path_remocao )[0];
+
+   if ( ctx->ui_diario.editando ) {
+      g_autoptr( GtkTreePath ) path_edicao = gtk_tree_model_get_path( model, &ctx->ui_diario.iter_em_edicao );
+      if ( gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
+         ctx->ui_diario.editando = FALSE;
       }
-
-      // 3. Remove fisicamente do disco e da memória
-      g_autofree char *arquivo_turma = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
-      remover_registro_diario( arquivo_turma, indice_removido );
-
-      gtk_list_store_remove( GTK_LIST_STORE( model ), &iter );
-      gtk_tree_path_free( path_remocao );
-
-      // 4. Limpa a seleção visual
-      gtk_tree_selection_unselect_all( selection );
+      // Sem necessidade de free manual aqui
    }
+
+   excluir_registro_diario( ctx, indice_removido, data_registro, tipo_registro );
+
+   gtk_list_store_remove( GTK_LIST_STORE( model ), &iter );
+   gtk_tree_selection_unselect_all( selection );
 }
 
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data ) {
@@ -351,7 +353,7 @@ void on_button_salvar_conteudo_clicked( GtkWidget *widget, gpointer user_data ) 
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
-   salvar_conteudo( &ctx->ui_diario, &ctx->diario, &ctx->caminho, ctx->dados.interface_style );
+   salvar_conteudo( widget, ctx );
    gtk_widget_grab_focus( ctx->ui_diario.descricao );
 }
 
@@ -359,7 +361,7 @@ void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) 
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
-   salvar_conteudo( &ctx->ui_diario, &ctx->diario, &ctx->caminho, ctx->dados.interface_style );
+   salvar_conteudo( widget, ctx );
 }
 
 
@@ -373,8 +375,8 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
    GtkTreeIter iter;
 
    if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
-      // Passa a responsabilidade do preenchimento para a função modular
-      carregar_registro_para_edicao( &ctx->ui_diario, &ctx->diario, &iter );
+      // Passa o contexto completo para termos acesso a ctx->chamada e ctx->caminho
+      carregar_registro_para_edicao( ctx, &iter );
 
       // Apenas gerencia a usabilidade visual
       gtk_widget_grab_focus( ctx->ui_diario.descricao );
@@ -450,8 +452,22 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event && ctx, FALSE );
 
+   // 1. Bloqueia a navegação se houver uma edição de conteúdo aberta
+   if ( ctx->ui_diario.editando ) {
+      ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Edição em Andamento" );
+      ctx->painel.format_subtitulo = meu_gerador_variadico( "Registro de aula não salvo" );
+      ctx->painel.format_instrucao = meu_gerador_variadico( "Conclua as modificações e salve o conteúdo atual antes de alternar para a frequência." );
+      criar_mensagem_painel( AVISO, &ctx->painel );
+
+      // Retorna FALSE para o GTK continuar propagando o evento, mas a lógica para por aqui
+      return FALSE;
+   }
+
+   // 2. Permite a transição de aba se o estado estiver limpo
    if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
-      // Deus que ajude!
+      // No futuro alguma coisa deverá ser posta aqui, como:
+      // - Atualizar o limite do GtkComboBox de alunos
+      // - Pré-carregar a lista de frequência do dia selecionado
    }
 
    return FALSE;
@@ -806,7 +822,31 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   ctx->cascata.foco.aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+
+   int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+   if ( ativo < 0 ) return;
+
+   // 1. RESTRICAO: Se tentou pular para um aluno além do limite (qtd. renderizada no ListStore)
+   if ( ativo > ctx->ui_diario.limite_combo_alunos ) {
+      // Bloqueia temporariamente este callback para não gerar loop infinito
+      if ( ctx->handlers.alunos > 0 ) {
+         g_signal_handler_block( widget, ctx->handlers.alunos );
+      }
+
+      // Força o retorno visual para o índice máximo permitido
+      gtk_combo_box_set_active( GTK_COMBO_BOX( widget ), ctx->ui_diario.limite_combo_alunos );
+      ctx->cascata.foco.aluno = ctx->ui_diario.limite_combo_alunos;
+
+      // Desbloqueia o callback para voltar a ouvir cliques futuros
+      if ( ctx->handlers.alunos > 0 ) {
+         g_signal_handler_unblock( widget, ctx->handlers.alunos );
+      }
+
+      return;
+   }
+
+   // Se a navegação foi válida (dentro do limite), atualiza o foco normalmente
+   ctx->cascata.foco.aluno = ativo;
 }
 
 
