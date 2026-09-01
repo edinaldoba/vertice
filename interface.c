@@ -1117,8 +1117,7 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
                           2, nasc,
                           3, str_status,
                           4, riscar,
-                          5, (r==0) ? NULL : &cor_texto,
-                          -1 );
+                          5, (r==0) ? NULL : &cor_texto, -1 );
       idx_aluno++;
 
       // Processa inativos residuais na sequência e os espelha na RAM
@@ -1136,9 +1135,8 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
                              1, ctx->ficha[idx_aluno].aluno,
                              2, nasc,
                              3, ctx->listas.status_assiduidade[0].str,
-                             4,riscar,
-                             5, (r==0) ? NULL : &cor_texto,
-                             -1 );
+                             4, riscar,
+                             5, (r==0) ? NULL : &cor_texto, -1 );
          idx_aluno++;
       }
 
