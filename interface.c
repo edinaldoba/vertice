@@ -1269,8 +1269,13 @@ void on_combo_data_frequencia_changed_restore( AppContext *ctx ) {
    // =====================================================================
    // 4. AJUSTES FINAIS UI (Controle de navegação e Rolagem)
    // =====================================================================
-   ui_diario->limite_combo_alunos = linhas_renderizadas + 1;
-   ui_diario->foco_combo_alunos = linhas_renderizadas;
+   if ( linhas_renderizadas < ctx->dados.qtd_alunos_total ) {
+      ui_diario->limite_combo_alunos = linhas_renderizadas + 1;
+   } else {
+      ui_diario->limite_combo_alunos = ctx->dados.qtd_alunos_total;
+   }
+
+   ui_diario->foco_combo_alunos = ui_diario->limite_combo_alunos - 1;
    gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ui_diario->foco_combo_alunos );
 
    if ( linhas_renderizadas > 0 ) {

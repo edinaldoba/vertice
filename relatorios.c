@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "comum.h"
 #include "relatorios.h"
 #include "basicas.h"
 #include "interface.h"
@@ -833,276 +834,251 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 //########################################################################################################//
+static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx, GString *def_dia, GString *def_pres, GString *def_falt, GString *def_alunos, GString *def_num, int *ndias, int *meses_idx ) {
+   g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n" );
+
+   if ( ctx->dados.fonte_latex == 1 ) {
+      g_string_append( tex, "\\usepackage{cmbright}\n" );
+   }
+
+   g_string_append( tex,
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+      "\\usepackage{pdflscape,lscape,tikz,ifthen,ulem,graphicx}\n"
+      "\\usetikzlibrary{calc}\n"
+      "\\pagestyle{empty}\n\n"
+   );
+
+   g_string_append_printf( tex, "\\pgfmathsetmacro{\\nal}{%d}\n", ctx->dados.qtd_alunos_total );
+   g_string_append_printf( tex, "\\pgfmathsetmacro{\\nn}{%d}\n", ctx->diarios->len );
+   g_string_append( tex, "\\pgfmathsetmacro{\\p}{199/330}\n\n" );
+
+   // Macros de marcação de presença e falta nativas do Vértice
+   g_string_append( tex,
+      "\\newcommand{\\pa}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
+      "\\newcommand{\\pb}[2]{\\fill ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
+      "\\newcommand{\\pc}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.65-sqrt(3)/6)}) circle (1.5pt) ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt);}\n"
+      "\\newcommand{\\fa}[2]{\\node at ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) {F};}\n"
+      "\\newcommand{\\fb}[2]{\\node at ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.5)}) {\\scriptsize\\bf F}; \\node at ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.5)}) {\\scriptsize\\bf F};}\n"
+      "\\newcommand{\\fc}[2]{\\node at ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.65-sqrt(3)/6)}) {\\tiny\\bf F}; \\node at ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.65)}) {\\tiny\\bf F}; \\node at ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.65)}) {\\tiny\\bf F};}\n\n"
+   );
+
+   // Injeção direta dos arrays de dados
+   g_string_append( tex, def_alunos->str );
+   g_string_append( tex, def_num->str );
+   g_string_append( tex, def_pres->str );
+   g_string_append( tex, def_falt->str );
+   g_string_append( tex, def_dia->str );
+
+   const char *m_str[] = {"jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"};
+   g_string_append_printf( tex, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
+   g_string_append_printf( tex, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n",
+      ( meses_idx[0] > 0 ) ? m_str[meses_idx[0] - 1] : "",
+      ( meses_idx[1] > 0 ) ? m_str[meses_idx[1] - 1] : "",
+      ( meses_idx[2] > 0 ) ? m_str[meses_idx[2] - 1] : "" );
+
+   g_string_append( tex, "\\begin{document}\n\\begin{landscape}\n\n" );
+}
+//-------------------------------------------------------------------------------------------------------------
+static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext *ctx, int ad, int ap, GString *feriados, GString *marcacoes, GString *inativos ) {
+   int start = ( pagina == 1 ) ? 1 : 28;
+   int end = ( pagina == 1 ) ? 27 : 54;
+   int offset = ( pagina == 1 ) ? 0 : 27;
+
+   const InterfaceDados *dados = &ctx->dados;
+   gboolean eh_recuperacao = ( dados->periodo[0] == 'R' );
+
+   g_string_append( tex, "\\noindent\\begin{tikzpicture}\n\\fill (0,0) circle (0pt);\n\\draw (1,-1) rectangle (28.7,-20);\n" );
+   g_string_append( tex,
+      "\\draw (1.6,{-1.2-3*\\p}) -- (1.6,{-1.2-(27+3)*\\p})\n"
+      "(7,-1) -- (7,{-1.2-(27+3)*\\p})\n"
+      "(27.8,{-1.2-2*\\p}) -- (27.8,{-1.2-(27+3)*\\p})\n"
+      "(26.9,{-1.2-1*\\p}) -- (26.9,{-1.2-(27+3)*\\p});\n"
+      "\\node at (27.35,{-1.2-2.5*\\p}) {\\bf\\Large P};\n"
+      "\\node at (28.25,{-1.2-2.5*\\p}) {\\bf\\Large F};\n"
+      "\\draw (7,{-1.2-\\p}) -- (28.7,{-1.2-\\p})\n"
+      "(7,{-1.2-2*\\p}) -- (28.7,{-1.2-2*\\p});\n"
+   );
+
+   g_string_append( tex, "\\foreach \\i in {0,...,32}\n{\\draw ({7+\\i*\\p},{-1.2-2*\\p}) -- ({7+\\i*\\p},{-1.2-(27+3)*\\p});}\n" );
+
+   // Topo (Datas e Cabeçalhos de Meses)
+   g_string_append( tex,
+      "\\ifthenelse{\\nn>0}{\n"
+      "  \\foreach \\i in {1,...,\\nn}{\\node[inner sep=0pt] at ({7+\\p*(\\i-0.5)},{-1.2-\\p*2.5}) {\\pgfmathparse{\\dia[\\i-1]}\\pgfmathresult};}\n"
+      "  \\foreach \\i in {0,...,2}\n  {\n"
+      "    \\pgfmathsetmacro{\\t}{\\ndias[\\i+1]}\n"
+      "    \\ifthenelse{\\t>0}\n    {\n"
+      "      \\draw ({7+\\ndias[\\i+1]*\\p},{-1.2-\\p}) -- ({7+\\ndias[\\i+1]*\\p},{-1.2-2*\\p});\n"
+      "      \\node at ({7+0.5*(\\ndias[\\i+1]+\\ndias[\\i])*\\p},{-1.2-1.5*\\p}) {\\Large\\pgfmathparse{\\mes[\\i]}\\pgfmathresult};\n"
+      "    }{}\n  }\n"
+   );
+
+   // Colunas Finais (Presenças e Faltas Totais)
+   g_string_append_printf( tex,
+      "  \\foreach \\i in {%d,...,%d}{\n"
+      "    \\ifthenelse{\\i<\\nal\\OR\\i=\\nal}{\n"
+      "      \\node[inner sep=0pt] at (27.35,{-1.2-(2.5+\\i-%d)*\\p}) {\\bf\\pgfmathparse{\\pres[\\i-1]}\\pgfmathresult};\n"
+      "      \\node[inner sep=0pt] at (28.25,{-1.2-(2.5+\\i-%d)*\\p}) {\\bf\\pgfmathparse{\\falt[\\i-1]}\\pgfmathresult};\n"
+      "    }{}\n  }\n", start, end, offset, offset );
+
+   if ( inativos->len > 0 ) g_string_append( tex, inativos->str );
+   g_string_append( tex, "}{}\n" );
+
+   // Identificadores de Turma e Disciplina
+   g_string_append( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-0.6*(3*\\p+0.2)/3}) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n" );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-1.5*(3*\\p+0.2)/3}) {\\large\\bf\\underline{%s}};\n", dados->escola );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-2.4*(3*\\p+0.2)/3}) {\\large\\bf\\underline{%s}};\n", dados->turma );
+   g_string_append_printf( tex, "\\node[inner sep=0pt] at (17.85,{-1.05-(0.2+\\p)/2}) {\\bf\\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};\n",
+                           dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
+
+   g_string_append( tex, "\\foreach \\i in {0,...,27}\n{\\draw (1,{-1.2-\\p*(\\i+3)}) -- (28.7,{-1.2-\\p*(\\i+3)});\n}\n" );
+
+   // Nomes dos Alunos
+   g_string_append_printf( tex,
+      "\\foreach \\i in {%d,...,%d}{\n  \\ifthenelse{\\i<\\nal\\OR\\i=\\nal}{\n"
+      "    \\node[inner sep=0pt] at (1.3,{-1.2-\\p*(\\i-%d+2.5)}) {\\pgfmathparse{\\num[\\i-1]}\\pgfmathresult};\n"
+      "    \\node[inner sep=0pt,right] at (1.7,{-1.2-\\p*(\\i-%d+2.52)}) {\\pgfmathparse{\\alunos[\\i-1]}\\pgfmathresult};\n"
+      "  }{\\node[inner sep=0pt] at (1.3,{-1.2-\\p*(\\i-%d+2.5)}) {\\i};}\n}\n", start, end, offset, offset, offset );
+
+   // Rodapé com Totais e Injeção de Faltas/Feriados
+   if ( ctx->diarios->len > 0 ) {
+      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\,%d\\,} \\qquad Aulas previstas: \\underline{\\,%d\\,} \\qquad Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n",
+                              ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+   } else {
+      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\qquad} \\qquad Aulas previstas: \\underline{\\qquad} \\qquad Professor(a): \\underline{\\hspace{11cm}}};\n", ctx->data.ano );
+   }
+
+   g_string_append( tex, marcacoes->str );
+   g_string_append( tex, feriados->str );
+   g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+//------------------------------------------------------------------------------------------------------------------
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
-   const InterfaceDados  *dados   = &( ctx->dados );
-   const FichaAluno *ficha = ctx->ficha;
+   g_return_if_fail( painel && ctx && ctx->diarios );
+   const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   char str[4000];
-   sprintf( str, "%s/frequência.dat", caminho->dados );
-   if ( !verificar_estado_de_arquivo( str, painel, dados ) ) return;
+   // GStrings para evitar o inferno do sprintf/snprintf
+   g_autoptr( GString ) def_dia = g_string_new( "\\def\\dia{{" );
+   g_autoptr( GString ) def_pres = g_string_new( "\\def\\pres{{" );
+   g_autoptr( GString ) def_falt = g_string_new( "\\def\\falt{{" );
+   g_autoptr( GString ) def_alunos = g_string_new( "\\def\\alunos{{" );
+   g_autoptr( GString ) def_num = g_string_new( "\\def\\num{{" );
 
-   FILE *p = fopen( str, "r" );
+   g_autoptr( GString ) bloco_feriados = g_string_new( "% FERIADOS E PEDAGÓGICOS\n" );
+   g_autoptr( GString ) marcacoes_pg1 = g_string_new( "% MARCAÇÕES DE FREQUÊNCIA (PG 1)\n" );
+   g_autoptr( GString ) marcacoes_pg2 = g_string_new( "% MARCAÇÕES DE FREQUÊNCIA (PG 2)\n" );
+   g_autoptr( GString ) inativos_pg1 = g_string_new( "% ALUNOS INATIVOS (PG 1)\n" );
+   g_autoptr( GString ) inativos_pg2 = g_string_new( "% ALUNOS INATIVOS (PG 2)\n" );
 
-   bool eh_recuperacao = ( dados->periodo[0] == 'R' );
+   int falt[64] = {0};
+   int pres[64] = {0};
+   int ad = 0, ap = 0;
+   int ndias[4] = {0};
+   int meses_idx[3] = {0};
 
+   // 1. Processamento direto do GArray em RAM
+   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
 
+      int dia, mes, ano;
+      sscanf( r->data, "%d/%d/%d", &dia, &mes, &ano );
+      g_string_append_printf( def_dia, "\"%.2d\",", dia );
 
-   char num[3000], str0[128], num0[100], str1[1000], P[1000], F[1000], P0[100], F0[100];
+      // Lógica de separação dos meses
+      if ( meses_idx[0] == 0 ) meses_idx[0] = mes;
 
-   struct {
-      char str[5];
-   } Meses[12] = {{"jan"}, {"fev"}, {"mar"}, {"abr"}, {"mai"}, {"jun"}, {"jul"}, {"ago"}, {"set"}, {"out"}, {"nov"}, {"dez"}}, meses[3] = {{""}, {""}, {""}};
+      if ( mes == meses_idx[0] ) ndias[1]++;
+      else if ( mes == meses_idx[0] + 1 ) { meses_idx[1] = mes; ndias[2]++; }
+      else if ( mes == meses_idx[0] + 2 ) { meses_idx[2] = mes; ndias[3]++; }
 
-   int i, j, k, len, nn = 0, ad = 0, ap = 0, ndias[4] = {0, 0, 0, 0}, pres[dados->qtd_alunos_total], falt[dados->qtd_alunos_total];
+      int ch = r->qtd_aulas;
+      char char_macro = 'a' + ( ch - 1 );
+      if ( char_macro > 'c' ) char_macro = 'c';
 
-   memset( falt, 0, sizeof( falt ) ); // Zera todos os bytes do array
+      ap += ch; // Presume-se Aulas Previstas padrão
 
-   while ( fgets( str, sizeof str, p ) != NULL ) nn++;
-   rewind( p );
-
-   int dia[nn], mes[nn], ch[nn];
-   mes[0] = 1;
-
-   struct {
-      char str[5000];
-      bool t;
-   } colunas[nn];
-
-   for ( i = 0; i < nn; i++ ) {
-      if ( fgets( str, sizeof str, p ) == NULL ) {
-         fprintf( stderr, "Erro ao ler linha de configuração.\n" );
-      }
-      len = strlen( str );
-      str[ --len ] = '\0';
-      dia[i] = ( str[0] - '0' ) * 10 + str[1] - '0';
-      mes[i] = ( str[2] - '0' ) * 10 + str[3] - '0';
-      ch[i] = str[5] - '0';
-      ap += ch[i];
-      ad += ch[i];
-      snprintf( str1, sizeof str1, "%s", "" );
-      if ( len > 6 ) {
-         if ( str[7] == 'b' ) {
-            colunas[i].t = false;
-            ad -= ch[i];
-            sprintf( colunas[i].str, "\\node[rotate=90,inner sep=0pt,color=blue] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, &str[8] );
-         } else if ( str[7] == 'r' ) {
-            colunas[i].t = false;
-            ad -= ch[i];
-            ap -= ch[i];
-            sprintf( colunas[i].str, "\\node[rotate=90,inner sep=0pt,color=red] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, &str[8] );
-         } else {
-            colunas[i].t = true;
-            size_t tam = strlen( &str[7] ); // Calcula uma vez só
-            for ( j = 0; ( size_t )j < tam; j += 2 ) {
-               k = ( str[7 + j] - '0' ) * 10 + str[8 + j] - '0';
-               falt[k - 1] += ch[i];
-               sprintf( str0, " \\OR \\i=%d", k );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-            sprintf( colunas[i].str, "\\foreach \\i in {%%d,...,%%d}{  \\ifthenelse{ \\i=0%%s }{}{ \\ifthenelse{ \\i=0%s }{ \\f%c{\\i-%%d}{%d} }{ \\p%c{\\i-%%d}{%d}}}}\n", str1, 96 + ch[i], i, 96 + ch[i], i );
-         }
-      } else if ( str[6] == '*' ) {
-         colunas[i].t = true;
-         sprintf( colunas[i].str, "\\foreach \\i in {%%d,...,%%d}{ \\ifthenelse{ \\i=0%%s }{}{ \\ifthenelse{ \\i=0%s }{ \\f%c{\\i-%%d}{%d} }{ \\p%c{\\i-%%d}{%d}}}}\n", str1, 96 + ch[i], i, 96 + ch[i], i );
+      if ( r->tipo_registro == TIPO_REGISTRO_FERIADO ) {
+         ap -= ch; // Feriados anulam AP[cite: 2]
+         g_string_append_printf( bloco_feriados, "\\node[rotate=90,inner sep=0pt,color=red] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, r->tema );
+      } else if ( r->tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
+         // Atividades anulam AP, mas não contam como AD finalizadas (Conforme sua regra original 'b')[cite: 2]
+         g_string_append_printf( bloco_feriados, "\\node[rotate=90,inner sep=0pt,color=blue] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, r->tema );
       } else {
-         ad -= ch[i];
-         colunas[i].t = true;
-         snprintf( colunas[i].str, sizeof colunas[i].str, "%s", "" );
+         ad += ch; // Aulas Normais e Extras somam em Aulas Dadas
+
+         // Injeção explícita de Bolinhas e Letras F sem \foreach no LaTeX
+         for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+            if ( !ctx->ficha[j].ativo ) continue;
+
+            GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
+            int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo y para a Página 2[cite: 1]
+
+            if ( r->chamada[j].status == AUSENTE ) {
+               falt[j] += ch;
+               g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx, i );
+            } else {
+               g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx, i );
+            }
+         }
       }
-
-   }
-   fclose( p );
-
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      pres[i] = ad - falt[i];
    }
 
-   for ( i = 0; i < nn; i++ ) {
-      ndias[1] += ( mes[0] + 0 == mes[i] );
-      ndias[2] += ( mes[0] + 1 == mes[i] );
-      ndias[3] += ( mes[0] + 2 == mes[i] );
-   }
-
+   // 2. Acumulação das colunas mensais (Exatamente como na matemática original)[cite: 1]
    ndias[3] += ( ndias[1] + ndias[2] ) * ( ndias[3] != 0 );
    ndias[2] += ndias[1] * ( ndias[2] != 0 );
 
-   snprintf( meses[0].str, sizeof meses[0].str, "%s", Meses[mes[0] - 1].str );
-   snprintf( meses[1].str, sizeof meses[1].str, "%s", Meses[mes[0]  ].str );
-   snprintf( meses[2].str, sizeof meses[2].str, "%s", Meses[mes[0] + 1].str );
+   // Fechamento de Arrays e processamento dos Inativos
+   g_string_append( def_dia, "\"\"}}\n" );
 
+   for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+      pres[j] = ad - falt[j];
 
+      if ( ctx->ficha[j].ativo ) {
+         g_string_append_printf( def_alunos, "\"%.*s\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
+         g_string_append_printf( def_num, "\"%.2d\",", j + 1 );
+         g_string_append_printf( def_pres, "\"%d\",", pres[j] );
+         g_string_append_printf( def_falt, "\"%d\",", falt[j] );
+      } else {
+         g_string_append_printf( def_alunos, "\"{\\color{gray!50}%.*s}\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
+         g_string_append_printf( def_num, "\"{\\color{gray!50}%.2d}\",", j + 1 );
+         g_string_append( def_pres, "\"\"," );
+         g_string_append( def_falt, "\"\"," );
 
-   p = fopen( "./dados/templates/template_freq.tex", "r" );
+         // Desenha os traços cinzas por cima das linhas do aluno inativo[cite: 1]
+         GString *target = ( j < 27 ) ? inativos_pg1 : inativos_pg2;
+         int r_idx = ( j < 27 ) ? j : j - 27;
 
-   FILE *p1 = fopen( "./dados/temporarios/Frequência.tex", "w+" );
-
-   while ( fgets( str, sizeof str, p ) != NULL ) {
-      if ( strcmp( str, "% FONTE\n" ) == 0 ) {
-         if ( dados->fonte_latex == 1 )
-            fputs( "\\usepackage{cmbright}\n", p1 );
-         continue;
-      } else if ( strcmp( str, "\\pgfmathsetmacro{\\nal}{%d}\n" ) == 0 ) {
-         fprintf( p1, str, dados->qtd_alunos_total );
-         continue;
-      } else if ( strcmp( str, "\\pgfmathsetmacro{\\nn}{%d}\n" ) == 0 ) {
-         fprintf( p1, str, nn );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt,right] at (1.2,{-1-1.5*(3*\\p+0.2)/3})", 45 ) == 0 ) {
-         fprintf( p1, str, dados->escola );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt,right] at (1.2,{-1-2.4*(3*\\p+0.2)/3})", 45 ) == 0 ) {
-         fprintf( p1, str, dados->turma );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt] at (17.85,{-1.05-(0.2+\\p)/2})", 45 ) == 0 ) {
-         fprintf( p1, str, dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
-         continue;
-      } else if ( strncmp( str, "\\node[inner sep=0pt,above] at (14.85,-19.97)", 40 ) == 0 ) {
-         if ( nn > 0 ) {
-            fprintf( p1, str, ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
-         } else {
-            fprintf( p1, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\qquad} \\qquad Aulas previstas: \\underline{\\qquad} \\qquad Professor(a): \\underline{\\hspace{11cm}}};\n", ctx->data.ano );
-         }
-         continue;
-      } else if ( strcmp( str, "\\foreach \\j in {%s}{\n" ) == 0 ) {
-         snprintf( str1, sizeof str1, "%s", "" );
-         for ( j = 0; j < fmin( dados->qtd_alunos_total, 27 ); j++ ) {
-            if ( !( ficha[j].ativo ) ) {
-               sprintf( str0, "%d,", j + 1 );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-         }
-         str1[ strlen( str1 ) - 1 ] = '\0';
-         fprintf( p1, str, str1 );
-         continue;
-      } else if ( strcmp( str, "\\foreach \\j in {%s}{ \n" ) == 0 ) {
-         snprintf( str1, sizeof str1, "%s", "" );
-         for ( j = 27; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( ficha[j].ativo ) ) {
-               sprintf( str0, "%d,", j + 1 );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-         }
-         int len1 = strlen( str1 );
-         str1[( len1 <= 0 ) ? 0 : len1 - 1 ] = '\0'; // temos que ver isso aqui
-         fprintf( p1, str, str1 );
-         continue;
-      } else if ( strcmp( str, "\\ifthenelse{\\i=0%s}{}{\n" ) == 0 ) {
-         snprintf( str1, sizeof str1, "%s", "" );
-         for ( j = 0; j < nn; j++ ) {
-            if ( !colunas[j].t ) {
-               sprintf( str0, " \\OR \\i=%d", j + 1 );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-         }
-         fprintf( p1, str, str1 );
-         continue;
-      } else if ( strcmp( str, "% FERIADOS\n" ) == 0 ) {
-         for ( j = 0; j < nn; j++ ) {
-            if ( !colunas[j].t ) {
-               fputs( colunas[j].str, p1 );
-            }
-         }
-         continue;
-      } else if ( strcmp( str, "% FREQUENCIA I\n" ) == 0 ) {
-         snprintf( str1, sizeof str1, "%s", "" );
-         for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( ficha[j].ativo ) ) {
-               sprintf( str0, " \\OR \\i=%d", j + 1 );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-         }
-         for ( j = 0; j < nn; j++ ) {
-            if ( colunas[j].t && strlen( colunas[j].str ) != 0 ) {
-               fprintf( p1, colunas[j].str, 1, ( int )fmin( dados->qtd_alunos_total, 27 ), str1, 0, 0 );
-            }
-         }
-         continue;
-      } else if ( strcmp( str, "% FREQUENCIA II\n" ) == 0 ) {
-         snprintf( str1, sizeof str1, "%s", "" );
-         for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( !( ficha[j].ativo ) ) {
-               sprintf( str0, " \\OR \\i=%d", j + 1 );
-               snprintf( str1 + strlen( str1 ), sizeof( str1 ) - strlen( str1 ), "%s", str0 );
-            }
-         }
-         for ( j = 0; j < nn; j++ ) {
-            if ( colunas[j].t && strlen( colunas[j].str ) != 0 ) {
-               fprintf( p1, colunas[j].str, 28, dados->qtd_alunos_total, str1, 27, 27 );
-            }
-         }
-         continue;
-      } else if ( dados->qtd_alunos_total < 28 && strcmp( str, "% PAGINA 2\n" ) == 0 ) {
-         fputs( "\\end{landscape}\n\\end{document}\n\n\n", p1 );
-         break;
-      } else if ( strcmp( str, "% DADOS\n" ) == 0 ) {
-         snprintf( str, sizeof str, "%s",  "\\def\\alunos{{" );
-         snprintf( num, sizeof num, "%s",  "\\def\\num{{" );
-         for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( ficha[j].ativo ) {
-               sprintf( str0, "\"%.*s\",", ficha[j].limite_corte, ficha[j].aluno );
-               sprintf( num0, "\"%.2d\",", j + 1 );
-            } else {
-               sprintf( str0, "\"{\\color{gray!50}%.*s}\",", ficha[j].limite_corte, ficha[j].aluno );
-               sprintf( num0, "\"{\\color{gray!50}%.2d}\",", j + 1 );
-            }
-            snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
-            snprintf( num + strlen( num ), sizeof( num ) - strlen( num ), "%s", num0 );
-         }
-         snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", "\"\"}}\n" );
-         snprintf( num + strlen( num ), sizeof( num ) - strlen( num ), "%s", "\"\"}}\n" );
-
-         fputs( str, p1 );
-         fputs( num, p1 );
-
-
-         if ( nn > 0 ) {
-
-            snprintf( P, sizeof P, "%s",  "\\def\\pres{{" );
-            snprintf( F, sizeof F, "%s",  "\\def\\falt{{" );
-            for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-               if ( ficha[j].ativo ) {
-                  sprintf( P0, "\"%d\",", pres[j] );
-                  sprintf( F0, "\"%d\",", falt[j] );
-               } else {
-                  sprintf( P0, "\"\"," );
-                  sprintf( F0, "\"\"," );
-               }
-               snprintf( P + strlen( P ), sizeof( P ) - strlen( P ), "%s", P0 );
-               snprintf( F + strlen( F ), sizeof( F ) - strlen( F ), "%s", F0 );
-            }
-            snprintf( P + strlen( P ), sizeof( P ) - strlen( P ), "%s", "\"\"}}\n" );
-            snprintf( F + strlen( F ), sizeof( F ) - strlen( F ), "%s", "\"\"}}\n" );
-
-            fputs( P, p1 );
-            fputs( F, p1 );
-
-            fprintf( p1, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
-            fprintf( p1, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n", meses[0].str, meses[1].str, meses[2].str );
-
-            snprintf( str, sizeof str, "%s",  "\\def\\dia{{" );
-            for ( j = 0; j < nn; j++ ) {
-               sprintf( str0, "\"%.2d\",", dia[j] );
-               snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", str0 );
-            }
-            snprintf( str + strlen( str ), sizeof( str ) - strlen( str ), "%s", "\"\"}}\n" );
-            fputs( str, p1 );
-
-         }
-
-         continue;
+         g_string_append_printf( target, "\\foreach \\i in {1,...,33} { \\draw[line width=0.8pt,gray!50] ({7+(-0.8+\\i)*\\p},{-1.2-\\p*(2.8+%d)}) -- ({7+(-0.2+\\i)*\\p},{-1.2-\\p*(2.2+%d)}); }\n", r_idx, r_idx );
+         g_string_append_printf( target, "\\draw[line width=0.8pt,gray!50] ({27.35-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({27.35+0.3*\\p},{-1.2-(2.2+%d)*\\p}) ({28.25-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({28.25+0.3*\\p},{-1.2-(2.2+%d)*\\p});\n", r_idx, r_idx, r_idx, r_idx );
       }
-
-      fputs( str, p1 );
    }
 
-   fclose( p );
-   fclose( p1 );
+   g_string_append( def_alunos, "\"\"}}\n" );
+   g_string_append( def_num, "\"\"}}\n" );
+   g_string_append( def_pres, "\"\"}}\n" );
+   g_string_append( def_falt, "\"\"}}\n" );
 
+   // 3. Montagem do Arquivo LaTeX Final (Gerenciamento de Memória Dinâmico)
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Buffer otimizado
+
+   gerar_preambulo_latex_frequencia( tex, ctx, def_dia, def_pres, def_falt, def_alunos, def_num, ndias, meses_idx );
+
+   gerar_pagina_frequencia( tex, 1, ctx, ad, ap, bloco_feriados, marcacoes_pg1, inativos_pg1 );
+
+   if ( dados->qtd_alunos_total >= 28 ) {
+      g_string_append( tex, "\n\\newpage\n" );
+      gerar_pagina_frequencia( tex, 2, ctx, ad, ap, bloco_feriados, marcacoes_pg2, inativos_pg2 );
+   }
+
+   g_string_append( tex, "\n\\end{landscape}\n\\end{document}\n" );
+
+   // 4. Salvamento e Disparo Atômico
+   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", "Frequência.tex", NULL );
+   g_file_set_contents( arquivo_tex, tex->str, tex->len, NULL );
 
    disparar_latex( "Frequência", caminho->relatorios, dados, caminho );
-
-
 }
 //########################################################################################################//
 
