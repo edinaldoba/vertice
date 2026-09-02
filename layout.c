@@ -111,8 +111,8 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->entry.turma      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
    ctx->entry.disciplina = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
    ctx->entry.periodo    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_momento" ) );
-   ctx->entry.alunos     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
-   aplicar_estilo_cores_combo( GTK_COMBO_BOX( ctx->entry.alunos ) );
+   ctx->ui_diario.combo_alunos     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
+   aplicar_estilo_cores_combo( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
 
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
@@ -126,7 +126,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    g_object_ref( ctx->ui_diario.popover_calendario );
 
    ctx->ui_diario.stepper_menos = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
-   ctx->ui_diario.n_horarios    = GTK_WIDGET( gtk_builder_get_object( builder, "label_n_horarios" ) );
+   ctx->ui_diario.qtd_aulas    = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
    ctx->ui_diario.stepper_mais  = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
 
    ctx->ui_diario.tipo_registro = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );

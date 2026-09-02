@@ -142,7 +142,7 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( selection, "changed", G_CALLBACK( on_diario_selection_changed ), ctx );
 
    g_signal_connect( ctx->ui_diario.descricao, "activate", G_CALLBACK( on_entry_salvar_conteudo_activate ), ctx );
-   g_signal_connect( ctx->ui_diario.salvar_conteudo, "clicked", G_CALLBACK( on_button_salvar_conteudo_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.salvar_conteudo, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
 
 
 
@@ -213,7 +213,7 @@ void app_signals_connect( gpointer user_data ) {
 
 
 
-   ctx->handlers.alunos = g_signal_connect( G_OBJECT( ctx->entry.alunos ), "changed",
+   ctx->ui_diario.handler_combo_alunos = g_signal_connect( G_OBJECT( ctx->ui_diario.combo_alunos ), "changed",
                           G_CALLBACK( on_combo_alunos_changed ), ctx );
 
 

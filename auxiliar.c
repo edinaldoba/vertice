@@ -92,13 +92,6 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 
-void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
-   const RegistroConteudo *registros = ( const RegistroConteudo * )dados;
-
-   // No Glade, a coluna 0 é string e a coluna 1 é guint.
-   gtk_list_store_set( store, iter, 0, registros[i].data, 1, ( guint )registros[i].n_horarios, -1 );
-}
-
 
 int obter_foco_inicial( const int limite, const FichaAluno *ficha ) {
    int i;
@@ -461,40 +454,24 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 //----------------------------------------------------------------------------------------------------
 
 
+void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
+   // A função de mapeamento continua a mesma, pois o casting resolve a leitura
+   // do buffer interno do GArray com perfeição.
+   const RegistroDiario *registros = ( const RegistroDiario * )dados;
 
+   gboolean aula_normal = ( registros[i].tipo_registro == TIPO_REGISTRO_AULA_NORMAL );
+   gboolean aula_extra  = ( registros[i].tipo_registro == TIPO_REGISTRO_AULA_EXTRA );
 
-RegistroConteudo *carregar_datas_dos_registros_de_aula( const char *arquivo, int *qtd_itens ) {
-   g_return_val_if_fail( arquivo != NULL && qtd_itens != NULL, NULL );
-   *qtd_itens = 0;
+   gboolean tem_chamada = ( aula_normal || aula_extra );
 
-   gsize tamanho_arquivo = 0;
-   g_autofree RegistroConteudo *buffer_disco = NULL;
-
-   if ( !g_file_get_contents( arquivo, (gchar **)&buffer_disco, &tamanho_arquivo, NULL ) ) {
-      return NULL; // Arquivo não existe ou não pôde ser lido
-   }
-
-   int total_registros = tamanho_arquivo / sizeof( RegistroConteudo );
-   if ( total_registros == 0 ) return NULL;
-
-   GArray *array_filtrado = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
-
-   for ( int i = 0; i < total_registros; i++ ) {
-      TipoRegistroDiario tipo = buffer_disco[i].tipo_registro;
-      if ( tipo == TIPO_REGISTRO_AULA_NORMAL || tipo == TIPO_REGISTRO_AULA_EXTRA ) {
-         g_array_append_val( array_filtrado, buffer_disco[i] );
-      }
-   }
-
-   *qtd_itens = array_filtrado->len;
-
-   if ( *qtd_itens == 0 ) {
-      g_array_free( array_filtrado, TRUE );
-      return NULL;
-   }
-
-   return ( RegistroConteudo * )g_array_free( array_filtrado, FALSE );
+   gtk_list_store_set( store, iter,
+                       0, registros[i].data,
+                       1, ( guint )registros[i].qtd_aulas,
+                       2, tem_chamada, // FALSE (risca) se for Feriado/Pedagógico
+                       3, !tem_chamada,  // TRUE (trava seleção) se for Feriado/Pedagógico
+                       -1 );
 }
+
 
 
 void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice ) {
@@ -511,7 +488,7 @@ void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice 
       return;
    }
 
-   int total_registros = tamanho / sizeof( RegistroConteudo );
+   int total_registros = tamanho / sizeof( RegistroDiario );
 
    if ( indice < 0 || indice >= total_registros ) {
       g_printerr( "Erro: Indice %d fora dos limites (Total: %d)\n", indice, total_registros );
@@ -519,12 +496,12 @@ void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice 
    }
 
    // 2. Filtragem usando GByteArray para abstrair a gestão do buffer
-   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho - sizeof( RegistroConteudo ) );
-   RegistroConteudo *buffer = ( RegistroConteudo * )conteudo;
+   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho - sizeof( RegistroDiario ) );
+   RegistroDiario *buffer = ( RegistroDiario * )conteudo;
 
    for ( int i = 0; i < total_registros; i++ ) {
       if ( i != indice ) {
-         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroConteudo ) );
+         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroDiario ) );
       }
    }
 
@@ -641,9 +618,9 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
 
 
 
-gint comparar_datas( gconstpointer a, gconstpointer b ) {
-   const RegistroConteudo *d1 = (const RegistroConteudo *)a;
-   const RegistroConteudo *d2 = (const RegistroConteudo *)b;
+gint comparar_datas_diario( gconstpointer a, gconstpointer b ) {
+   const RegistroDiario *d1 = (const RegistroDiario *)a;
+   const RegistroDiario *d2 = (const RegistroDiario *)b;
 
    int dia1, mes1, ano1, dia2, mes2, ano2;
    // Converte a string "27/08/2026" para inteiros separadamente
@@ -656,14 +633,14 @@ gint comparar_datas( gconstpointer a, gconstpointer b ) {
    return dia1 - dia2;
 }
 
-int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *registro, int indice_edicao ) {
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
+int gravar_diario_binario( const char *caminho_arquivo, const RegistroDiario *registro, int indice_edicao ) {
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroDiario ) );
 
    // 1. CARREGA TUDO DO DISCO
    FILE *f = fopen( caminho_arquivo, "rb" );
    if ( f ) {
-      RegistroConteudo temp;
-      while ( fread( &temp, sizeof( RegistroConteudo ), 1, f ) == 1 ) {
+      RegistroDiario temp;
+      while ( fread( &temp, sizeof( RegistroDiario ), 1, f ) == 1 ) {
          g_array_append_val( registros, temp );
       }
       fclose( f );
@@ -671,18 +648,18 @@ int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *
 
    // 2. ATUALIZA (Edição) OU ADICIONA (Novo)
    if ( indice_edicao >= 0 && indice_edicao < (int)registros->len ) {
-      g_array_index( registros, RegistroConteudo, indice_edicao ) = *registro;
+      g_array_index( registros, RegistroDiario, indice_edicao ) = *registro;
    } else {
       g_array_append_val( registros, *registro );
    }
 
    // 3. MÁGICA GLIB: Ordena cronologicamente todo o arquivo
-   g_array_sort( registros, comparar_datas );
+   g_array_sort( registros, comparar_datas_diario );
 
    // 4. DESCOBRE O NOVO ÍNDICE PARA A INTERFACE
    int novo_indice = -1;
    for ( guint i = 0; i < registros->len; i++ ) {
-      RegistroConteudo *atual = &g_array_index( registros, RegistroConteudo, i );
+      RegistroDiario *atual = &g_array_index( registros, RegistroDiario, i );
       // Compara dados únicos para localizar nossa struct após a bagunça da ordenação
       if ( g_strcmp0( atual->data, registro->data ) == 0 && g_strcmp0( atual->descricao, registro->descricao ) == 0 ) {
          novo_indice = (int)i;
@@ -693,7 +670,7 @@ int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *
    f = fopen( caminho_arquivo, "wb" );
    if ( f ) {
       if ( registros->len > 0 ) {
-         fwrite( registros->data, sizeof( RegistroConteudo ), registros->len, f );
+         fwrite( registros->data, sizeof( RegistroDiario ), registros->len, f );
       }
       fclose( f );
    }
@@ -710,7 +687,7 @@ int gravar_diario_binario( const char *caminho_arquivo, const RegistroConteudo *
  * Retorna 1 (TRUE) se uma cor customizada foi atribuída,
  * ou 0 (FALSE) se for aula normal (devendo usar a cor padrão).
  */
-int cor_texto_linha_liststore(const RegistroConteudo *diario, int tema_ativo, GdkRGBA *cor_out) {
+int cor_texto_linha_liststore(const RegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out) {
    if (!diario || !cor_out) return 0;
 
    // Retorna imediatamente se for Aula Normal (usa a cor padrão do tema)

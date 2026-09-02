@@ -37,6 +37,8 @@
       <column type="gchararray"/>
       <!-- column-name ch -->
       <column type="guint"/>
+      <!-- column-name tipo_registro -->
+      <column type="gboolean"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_frequencia">
@@ -262,7 +264,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label_n_horarios">
+                                  <object class="GtkLabel" id="label_qtd_aulas">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <style>
@@ -498,6 +500,7 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
                                     <property name="resizable">True</property>
                                     <property name="title" translatable="yes">TIPO  DE  REGISTRO</property>
                                     <child>
@@ -550,6 +553,7 @@
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
+                                    <attribute name="sensitive">2</attribute>
                                     <attribute name="text">0</attribute>
                                   </attributes>
                                 </child>

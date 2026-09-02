@@ -20,6 +20,63 @@
 #include "auxiliar.h"
 
 
+
+
+
+// Callback executada periodicamente em segundo plano pelo loop principal da GLib
+static gboolean autosave_diario_cb( gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+
+   // Proteção básica contra ponteiros nulos ou encerramento
+   if ( !ctx ) return G_SOURCE_REMOVE;
+
+   // Só grava no disco se realmente houver alterações pendentes na RAM
+   if ( ctx->dados_modificados && ctx->path_save && ctx->diarios ) {
+      salvar_diario( ctx, FALSE );
+      ctx->dados_modificados = FALSE; // Reseta a flag após o sucesso
+      g_print( "[Autosave] Backup automático de '%s' realizado com sucesso.\n", ctx->path_save );
+   }
+
+   // Retorna G_SOURCE_CONTINUE para manter o temporizador rodando
+   return G_SOURCE_CONTINUE;
+}
+
+// Interrompe o temporizador da GLib com segurança
+void parar_autosave_diario( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   if ( ctx->autosave_timer_id > 0 ) {
+      g_source_remove( ctx->autosave_timer_id );
+      ctx->autosave_timer_id = 0;
+   }
+}
+
+// Inicia a contagem regressiva do Autosave (ex: a cada 5 minutos)
+static void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos ) {
+   g_return_if_fail( ctx );
+
+   // Cancela um temporizador anterior se já estiver rodando
+   parar_autosave_diario( ctx );
+
+   // Converte minutos para milissegundos (5 min * 60 s * 1000 ms)
+   guint intervalo_ms = intervalo_minutos * 60 * 1000;
+
+   // Registra a callback no Main Loop da GLib
+   ctx->autosave_timer_id = g_timeout_add( intervalo_ms, autosave_diario_cb, ctx );
+   ctx->dados_modificados = FALSE;
+}
+
+// Função centralizada para marcar a RAM como alterada
+static void marcar_diario_modificado( AppContext *ctx ) {
+   if ( ctx ) {
+      ctx->dados_modificados = TRUE;
+   }
+}
+
+
+
+
+
 // void interface_style( AppContext *ctx ) {
 //    if ( !ctx ) return;
 //
@@ -199,8 +256,11 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
 }
 
 
+//---------------------------------------------------------------------------------------------------------------
 static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
                                           const int foco_estilo, gboolean rolagem );
+static void carregar_frequencia( AppContext *ctx );
+//---------------------------------------------------------------------------------------------------------------
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
    InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
    InterfaceListas *listas = ( InterfaceListas * ) & ( ctx->listas );
@@ -228,10 +288,10 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
    case 7: // Interface Style
       dados->interface_style = valor;
       interface_style( ctx );
-      char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+      char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
       carregar_diario_na_interface( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );// Renderizar liststore
       g_free(caminho_arquivo);
-      on_combo_data_frequencia_changed_restore(ctx); // Renderizar liststore
+      carregar_frequencia( ctx ); // Renderizar liststore frequência
       break;
    default:
       g_print( "Categoria desconhecida: %d\n", categoria );
@@ -677,212 +737,213 @@ gchar* validar_data( const gchar *texto ) {
 
 // O Núcleo da Operação: Limpo e idêntico, usando a macro g_build_filename corretamente
 void excluir_registro_diario( AppContext *ctx, int indice, const char *data, TipoRegistroDiario tipo ) {
-   g_autofree char *arquivo_conteudo = g_build_filename( ctx->caminho.dados, "conteudo.bin", NULL );
+   g_autofree char *arquivo_conteudo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
    remover_conteudo_por_indice( arquivo_conteudo, indice );
 
    if ( tipo == TIPO_REGISTRO_AULA_NORMAL || tipo == TIPO_REGISTRO_AULA_EXTRA ) {
       g_autofree char *arquivo_frequencia = g_build_filename( ctx->caminho.dados, "frequencia.bin", NULL );
       remover_frequencia_por_data( arquivo_frequencia, data );
-      popular_datas( &ctx->ui_diario, arquivo_conteudo );
+      popular_datas( ctx );
    }
 }
 
 
 
-static gboolean tratar_registro_em_edicao( GtkWidget *widget, AppContext *ctx, GtkListStore *liststore, int *indice_antigo ) {
-   g_return_val_if_fail( ctx, FALSE );
+void registrar_aula( AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->diarios );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   const CaminhoDiretorio *caminho = &ctx->caminho;
-   RegistroConteudo *diario = &ctx->diario;
-
-   GtkTreePath *path_antigo = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &ui_diario->iter_em_edicao );
-   *indice_antigo = gtk_tree_path_get_indices( path_antigo )[0];
-   gtk_tree_path_free( path_antigo );
-
-   g_autofree gchar *data_antiga = NULL;
-   int n_horarios_antigo = 0;
-   int tipo_registro_antigo = 0;
-
-   gtk_tree_model_get( GTK_TREE_MODEL( liststore ), &ui_diario->iter_em_edicao,
-                        0, &data_antiga, 1, &n_horarios_antigo, 4, &tipo_registro_antigo, -1 );
-
-   g_autofree gchar *arquivo_freq = g_build_filename( caminho->dados, "frequencia.bin", NULL );
-
-   // =====================================================================
-   // REGRA DE NEGÓCIO: Feriados e Atividades Pedagógicas não têm chamada!
-   // =====================================================================
-   if ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO || diario->tipo_registro == TIPO_REGISTRO_FERIADO ) {
-      if ( data_antiga ) {
-         // Só avisa se estivermos mudando de uma aula com chamada para uma sem chamada
-         if ( tipo_registro_antigo == TIPO_REGISTRO_AULA_NORMAL || tipo_registro_antigo == TIPO_REGISTRO_AULA_EXTRA ) {
-
-            GtkWidget *widget_salvar = (widget == ui_diario->descricao) ? ui_diario->descricao : ui_diario->salvar_conteudo;
-            GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget_salvar ) );
-
-            // Mensagem refinada e específica para o contexto da frequência
-            g_autofree gchar *msg_alerta = meu_gerador_variadico(
-               "<b>Aviso de Remoção:</b>\n\n"
-               "Você está alterando uma aula que possui chamada para um dia sem registro (Feriado/Pedagógico).\n\n"
-               "Isso <b>excluirá permanentemente</b> a frequência dos alunos no dia <b>%s</b>.\n"
-               "Deseja continuar?", data_antiga
-            );
-
-            gboolean confirmar = mostrar_popup_confirmacao( janela_principal, "Aviso do Diário", msg_alerta );
-
-            // Se o professor clicar em "Não", a função retorna FALSE e cancela a edição
-            if ( !confirmar ) return FALSE;
-
-            remover_frequencia_por_data( arquivo_freq, data_antiga );
-         }
-      }
-      memset( &ctx->chamada, 0, sizeof( RegistroFrequencia ) );
-   }
-   // =====================================================================
-   // MOTOR DE SINCRONIZAÇÃO: Aula Normal ou Extra (Transfere os dados)
-   // =====================================================================
-   else if ( data_antiga && g_strcmp0( ctx->chamada.data, data_antiga ) == 0 ) {
-
-      gboolean mudou_data = ( g_strcmp0( data_antiga, diario->data ) != 0 );
-      gboolean mudou_horario = ( n_horarios_antigo != diario->n_horarios );
-
-      if ( mudou_data || mudou_horario ) {
-         // OBRIGATÓRIO: Apaga a frequência da data antiga para evitar que o registro se duplique
-         // e crie uma "frequência órfã" no sistema, garantindo que ela apenas "se mova".
-         if ( mudou_data ) {
-            remover_frequencia_por_data( arquivo_freq, data_antiga );
-         }
-
-         g_strlcpy( ctx->chamada.data, diario->data, sizeof( ctx->chamada.data ) );
-         ctx->chamada.n_horarios = diario->n_horarios;
-         salvar_frequencia( &ctx->chamada, arquivo_freq );
-      }
-   }
-
-   return TRUE; // Sucesso, permite prosseguir com o salvamento
-}
-
-
-void salvar_conteudo( GtkWidget *widget, AppContext *ctx ) {
-   g_return_if_fail( ctx );
-
-   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   const CaminhoDiretorio *caminho = &ctx->caminho;
-   RegistroConteudo *diario = &ctx->diario;
    const int foco_estilo = ctx->dados.interface_style;
-
-   g_return_if_fail( diario && ui_diario && caminho );
 
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ui_diario->tema ) );
    const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( ui_diario->descricao ) );
 
    if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
 
-   g_strlcpy( diario->tema, tema, sizeof( diario->tema ) );
-   g_strlcpy( diario->descricao, descricao, sizeof( diario->descricao ) );
-   diario->tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->tipo_registro ) );
+   // =====================================================================
+   // 1. MONTA A NOVA AULA (A frequência nasce zerada por padrão)
+   // =====================================================================
+   RegistroDiario nova_aula = {0};
+   g_strlcpy( nova_aula.tema, tema, sizeof( nova_aula.tema ) );
+   g_strlcpy( nova_aula.descricao, descricao, sizeof( nova_aula.descricao ) );
+   nova_aula.tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->tipo_registro ) );
 
-   GtkListStore *liststore = ui_diario->liststore_conteudo;
-   GtkTreeIter iter;
+   const gchar *str_data = gtk_entry_get_text( GTK_ENTRY( ui_diario->entry_data ) );
+   if ( str_data ) g_strlcpy( nova_aula.data, str_data, sizeof( nova_aula.data ) );
 
-   // 1. OBTÉM ÍNDICE DE EDIÇÃO E APLICA REGRAS (Agora respeita o botão Cancelar)
-   int indice_antigo = -1;
-   if ( ui_diario->editando ) {
-      // Se o usuário clicar em "Não" no popup, a função retorna silenciosamente
-      if ( !tratar_registro_em_edicao( widget, ctx, liststore, &indice_antigo ) ) {
-         return;
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( ui_diario->qtd_aulas ) );
+   if ( str_ch ) {
+      int temp_qtd = 0;
+      sscanf( str_ch, "%d", &temp_qtd );
+      nova_aula.qtd_aulas = temp_qtd; // Atribuição direta evita pegar o endereço (&) de membro packed
+   }
+
+   // =====================================================================
+   // 2. INSERE NA RAM E ORDENA
+   // =====================================================================
+   g_array_append_val( ctx->diarios, nova_aula );
+   g_array_sort( ctx->diarios, comparar_datas_diario );
+
+   marcar_diario_modificado( ctx ); // Para salvamento automático
+
+   // =====================================================================
+   // 3. DESCOBRE A POSIÇÃO PÓS-ORDENAÇÃO
+   // =====================================================================
+   int novo_indice = ctx->diarios->len - 1; // Fallback para o final
+   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+      // Checa data e tema para garantir que achou a aula certa em dias com múltiplas aulas
+      if ( g_strcmp0( r->data, nova_aula.data ) == 0 && g_strcmp0( r->tema, nova_aula.tema ) == 0 ) {
+         novo_indice = (int)i;
+         break;
       }
    }
 
-   // 2. SALVA NO BINÁRIO PRIMEIRO E DESCOBRE A POSIÇÃO CORRETA DA DATA
-   g_autofree char *arquivo_turma = g_build_filename( caminho->dados, "conteudo.bin", NULL );
-   int novo_indice = gravar_diario_binario( arquivo_turma, diario, indice_antigo );
-
-   popular_datas( ui_diario, arquivo_turma );
-
-   // 3. ATUALIZA A INTERFACE VISUAL
-   if ( ui_diario->editando ) {
-      gtk_list_store_remove( liststore, &ui_diario->iter_em_edicao );
-   }
+   // =====================================================================
+   // 4. INSERE CIRURGICAMENTE NA INTERFACE VISUAL
+   // =====================================================================
+   GtkListStore *liststore = ui_diario->liststore_conteudo;
+   GtkTreeIter iter;
 
    gtk_list_store_insert( liststore, &iter, novo_indice );
 
    GdkRGBA cor_texto;
-   int r = cor_texto_linha_liststore( diario, foco_estilo, &cor_texto );
+   int r = cor_texto_linha_liststore( &nova_aula, foco_estilo, &cor_texto );
 
-   gtk_list_store_set( liststore, &iter, 0, diario->data,      1, diario->n_horarios,    2, diario->tema,
-                                         3, diario->descricao, 4, diario->tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
+   gtk_list_store_set( liststore, &iter,
+                       0, nova_aula.data,      1, nova_aula.qtd_aulas,    2, nova_aula.tema,
+                       3, nova_aula.descricao, 4, nova_aula.tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
 
-   // 4. ROLA A TELA PARA ONDE O REGISTRO CAIU APÓS A ORDENAÇÃO
+   // =====================================================================
+   // 5. AJUSTES FINAIS DE UI
+   // =====================================================================
    GtkTreePath *path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
-   gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path_novo, NULL, FALSE, 0.0, 0.0 );
-   gtk_tree_path_free( path_novo );
+   if ( path_novo ) {
+      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_conteudo ), path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_path_free( path_novo );
+   }
 
-   ui_diario->editando = FALSE;
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) ) );
    gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), "" );
 }
 
 
 
 // 1. A FUNÇÃO MODULAR (Pode ir para um arquivo .c separado, como diario_ui.c)
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
-   g_return_if_fail( ctx && iter );
+   g_return_if_fail( ctx && ctx->diarios && iter );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   RegistroConteudo *diario = &ctx->diario;
    GtkTreeModel *model = GTK_TREE_MODEL( ui_diario->liststore_conteudo );
 
-   g_autofree gchar *data = NULL;
-   guint ch = 0;
-   g_autofree gchar *tema = NULL;
-   g_autofree gchar *descricao = NULL;
-   guint tipo = 0;
+   // 1. Descobre o índice da linha clicada na TreeView
+   GtkTreePath *path = gtk_tree_model_get_path( model, iter );
+   if ( !path ) return;
 
-   // Puxa os dados da linha selecionada
-   gtk_tree_model_get( model, iter, 0, &data, 1, &ch, 2, &tema, 3, &descricao, 4, &tipo, -1 );
+   int indice = gtk_tree_path_get_indices( path )[0];
+   gtk_tree_path_free( path );
 
-   // Zera a chamada na memória para garantir que não haja lixo de edições anteriores
-   memset( &ctx->chamada, 0, sizeof( RegistroFrequencia ) );
+   // Proteção de limites de segurança
+   if ( indice < 0 || ( guint )indice >= ctx->diarios->len ) return;
 
-   if ( data ) {
-      gtk_entry_set_text( GTK_ENTRY( ui_diario->entry_data ), data );
-      g_strlcpy( diario->data, data, sizeof( diario->data ) );
+   // 2. Busca a aula completa direto na memória RAM em O(1)
+   RegistroDiario *diario_edicao = &g_array_index( ctx->diarios, RegistroDiario, indice );
 
-      // =====================================================================
-      // INTEGRAÇÃO GLIB: Busca se existe frequência para essa data
-      // =====================================================================
-      g_autofree gchar *arquivo_freq = g_build_filename( ctx->caminho.dados, "frequencia.bin", NULL );
-      g_autofree gchar *conteudo = NULL;
-      gsize tamanho = 0;
+   // 3. Popula a interface visual rapidamente
+   gtk_entry_set_text( GTK_ENTRY( ui_diario->entry_data ), diario_edicao->data );
 
-      if ( g_file_get_contents( arquivo_freq, &conteudo, &tamanho, NULL ) ) {
-         int total = tamanho / sizeof( RegistroFrequencia );
-         RegistroFrequencia *buffer = ( RegistroFrequencia * )conteudo;
+   g_autofree gchar *str_ch = g_strdup_printf( "%d h", diario_edicao->qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( ui_diario->qtd_aulas ), str_ch );
 
-         for ( int i = 0; i < total; i++ ) {
-            if ( g_strcmp0( buffer[i].data, data ) == 0 ) {
-               // Achou! Carrega na memória RAM do app
-               ctx->chamada = buffer[i];
-               break;
-            }
-         }
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ui_diario->tipo_registro ), diario_edicao->tipo_registro );
+   gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), diario_edicao->tema );
+   gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), diario_edicao->descricao );
+
+   // 4. Atualiza o estado da aplicação
+   ui_diario->iter_em_edicao = *iter;
+   ui_diario->editando = TRUE;
+
+   // Sincroniza o ponteiro de trabalho do app para essa aula específica
+   ctx->diario = diario_edicao;
+}
+
+
+
+void modificar_registro_aula( AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->diarios );
+
+   InterfaceRegistroDiario *ui = &ctx->ui_diario;
+   GtkListStore *liststore = ui->liststore_conteudo;
+
+   g_autoptr(GtkTreePath) path_antigo = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &ui->iter_em_edicao );
+   if ( !path_antigo ) return;
+
+   int idx = gtk_tree_path_get_indices( path_antigo )[0];
+   if ( idx < 0 || ( guint )idx >= ctx->diarios->len ) return;
+
+   RegistroDiario *reg = &g_array_index( ctx->diarios, RegistroDiario, idx );
+
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( ui->tema ) );
+   const gchar *desc = gtk_entry_get_text( GTK_ENTRY( ui->descricao ) );
+
+   // Avaliação direta de buffer vazio
+   if ( !tema[0] && !desc[0] ) return;
+
+   g_strlcpy( reg->tema, tema, sizeof( reg->tema ) );
+   g_strlcpy( reg->descricao, desc, sizeof( reg->descricao ) );
+   reg->tipo_registro = gtk_combo_box_get_active( GTK_COMBO_BOX( ui->tipo_registro ) );
+
+   const gchar *str_data = gtk_entry_get_text( GTK_ENTRY( ui->entry_data ) );
+   if ( str_data ) g_strlcpy( reg->data, str_data, sizeof( reg->data ) );
+
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( ui->qtd_aulas ) );
+   if ( str_ch ) reg->qtd_aulas = (int)g_ascii_strtoll( str_ch, NULL, 10 );
+
+   // Clone na stack: g_array_sort invalida o ponteiro 'reg' ao mover blocos de memória
+   RegistroDiario reg_clone = *reg;
+
+   gtk_list_store_remove( liststore, &ui->iter_em_edicao );
+   g_array_sort( ctx->diarios, comparar_datas_diario );
+
+   int novo_indice = 0;
+   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+      if ( g_strcmp0( r->data, reg_clone.data ) == 0 &&
+            g_strcmp0( r->tema, reg_clone.tema ) == 0 &&
+            g_strcmp0( r->descricao, reg_clone.descricao ) == 0 ) {
+         novo_indice = ( int )i;
+         break;
       }
    }
 
-   if ( ch != 0 ) {
-      diario->n_horarios = ( int )ch;
-      g_autofree char *str_ch = g_strdup_printf( "%d h", diario->n_horarios );
-      gtk_label_set_text( GTK_LABEL( ui_diario->n_horarios ), str_ch );
+   GtkTreeIter iter;
+   gtk_list_store_insert( liststore, &iter, novo_indice );
+
+   GdkRGBA cor_texto;
+   int r_estilo = cor_texto_linha_liststore( &reg_clone, ctx->dados.interface_style, &cor_texto );
+
+   gtk_list_store_set( liststore, &iter,
+                     0, reg_clone.data,
+                     1, reg_clone.qtd_aulas,
+                     2, reg_clone.tema,
+                     3, reg_clone.descricao,
+                     4, reg_clone.tipo_registro,
+                     5, ( r_estilo == 0 ) ? NULL : &cor_texto,
+                     -1 );
+
+   g_autoptr(GtkTreePath) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
+   if ( path_novo ) {
+      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui->treeview_conteudo ), path_novo, NULL, FALSE, 0.0, 0.0 );
    }
 
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ui_diario->tipo_registro ), ( gint )tipo );
-   gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), tema ? tema : "" );
-   gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), descricao ? descricao : "" );
-
-   ui_diario->iter_em_edicao = *iter;
-   ui_diario->editando = TRUE;
+   ui->editando = FALSE;
+   gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( GTK_TREE_VIEW( ui->treeview_conteudo ) ) );
+   gtk_entry_set_text( GTK_ENTRY( ui->descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( ui->tema ), "" );
 }
+
+
 
 
 static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
@@ -920,8 +981,8 @@ static void carregar_diario_na_interface( const char *caminho_arquivo, Interface
       return;
    }
 
-   int total_registros = tamanho / sizeof( RegistroConteudo );
-   RegistroConteudo *registros = ( RegistroConteudo * )conteudo;
+   int total_registros = tamanho / sizeof( RegistroDiario );
+   RegistroDiario *registros = ( RegistroDiario * )conteudo;
    GtkTreeIter iter;
 
    // =====================================================================
@@ -935,7 +996,7 @@ static void carregar_diario_na_interface( const char *caminho_arquivo, Interface
 
       gtk_list_store_set( liststore, &iter,
                           0, registros[i].data,
-                          1, registros[i].n_horarios,
+                          1, registros[i].qtd_aulas,
                           2, registros[i].tema,
                           3, registros[i].descricao,
                           4, registros[i].tipo_registro,
@@ -963,23 +1024,48 @@ static void carregar_diario_na_interface( const char *caminho_arquivo, Interface
 
 
 
-void popular_datas( InterfaceRegistroDiario *ui_diario, const char *arquivo_turma ) {
-   g_return_if_fail( ui_diario && arquivo_turma );
+void popular_datas( AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->diarios );
 
-   int qtd_itens = 0;
-   RegistroConteudo *registros = carregar_datas_dos_registros_de_aula( arquivo_turma, &qtd_itens );
+   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
-   if ( registros && qtd_itens > 0 ) {
-      popular_combo_box_generico( ui_diario->combo_data, registros, qtd_itens, qtd_itens - 1,
+   // Puxa a quantidade de itens e os dados brutos diretamente da memória (GArray)
+   int qtd_itens = ( int )ctx->diarios->len;
+   ctx->diario = ( RegistroDiario * )ctx->diarios->data;
+
+   int foco = qtd_itens;
+
+   // Encontra a última aula que não seja feriado ou atividade pedagógica
+   if ( ctx->diario && qtd_itens > 0 ) {
+      do {
+         foco--;
+         if ( foco < 0 ) break;
+      } while ( ctx->diario[foco].tipo_registro == TIPO_REGISTRO_FERIADO ||
+                ctx->diario[foco].tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
+   }
+
+   if ( ctx->diario && qtd_itens > 0 && foco >= 0 ) {
+
+      popular_combo_box_generico( ui_diario->combo_data, ctx->diario, qtd_itens, foco,
                                   ui_diario->handler_combo_data, mapear_datas_frequencia );
+      GtkTreeIter iter;
+      GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_data );
+      if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+         GtkTreeModel *model = gtk_combo_box_get_model( combo );
+         guint qtd_aulas = 0;
+         gtk_tree_model_get( model, &iter, 1, &qtd_aulas, -1 );
+         g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>", qtd_aulas );
+         gtk_label_set_markup( GTK_LABEL( ctx->ui_diario.label_ch ), str_qtd_aulas );
+      }
 
    } else {
-      // Limpa visualmente se a turma estiver vazia
+      // Limpa visualmente se a turma estiver vazia ou só tiver feriados
       popular_combo_box_generico( ui_diario->combo_data, NULL, 0, 0,
                                   ui_diario->handler_combo_data, mapear_datas_frequencia );
+
       gtk_label_set_text( GTK_LABEL( ui_diario->label_ch ), "0 h" );
 
-      // Limpa a visualização anterior
+      // Limpa a visualização da TreeView
       GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_frequencia );
       GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
       gtk_list_store_clear( store_view );
@@ -987,65 +1073,13 @@ void popular_datas( InterfaceRegistroDiario *ui_diario, const char *arquivo_turm
 }
 
 
-void salvar_frequencia( const RegistroFrequencia *nova_chamada, const gchar *path_save ) {
-   g_return_if_fail( nova_chamada );
-   g_return_if_fail( path_save != NULL );
-
-   g_autofree gchar *conteudo = NULL;
-   gsize tamanho = 0;
-   GError *erro = NULL;
-
-   // Cria o array gerenciado automaticamente (não precisa de g_array_free no final)
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroFrequencia ) );
-
-   // 1. CARREGA TUDO DO DISCO (Leitura atômica, caso o arquivo já exista)
-   if ( g_file_test( path_save, G_FILE_TEST_EXISTS ) ) {
-      if ( g_file_get_contents( path_save, &conteudo, &tamanho, &erro ) ) {
-         int total_registros = tamanho / sizeof( RegistroFrequencia );
-         if ( total_registros > 0 ) {
-            // Injeta todo o bloco de memória lido no GArray de uma só vez (muito mais rápido que o fread em loop)
-            g_array_append_vals( registros, conteudo, total_registros );
-         }
-      } else {
-         g_warning( "Aviso: Nao foi possivel ler %s: %s", path_save, erro->message );
-         g_clear_error( &erro );
-      }
-   }
-
-   // 2. BUSCA A DATA PARA ATUALIZAR (Edição) OU ADICIONAR (Novo)
-   gboolean encontrou_data = FALSE;
-   for ( guint i = 0; i < registros->len; i++ ) {
-      RegistroFrequencia *reg = &g_array_index( registros, RegistroFrequencia, i );
-
-      // Verifica se a data que estamos tentando salvar já existe no arquivo
-      if ( g_strcmp0( reg->data, nova_chamada->data ) == 0 ) {
-         // Sobrescreve o registro da chamada INTEIRO de uma única vez em O(1)
-         *reg = *nova_chamada;
-         encontrou_data = TRUE;
-         break;
-      }
-   }
-
-   if ( !encontrou_data ) {
-      // Se a data não existia, anexa a estrutura completa recém-criada
-      g_array_append_val( registros, *nova_chamada );
-   }
-
-   // 3. MÁGICA GLIB: Ordena cronologicamente todo o array
-   g_array_sort( registros, comparar_datas );
-
-   // 4. SOBRESCREVE ORDENADO NO DISCO (Escrita atômica segura em arquivo temporário + rename)
-   gsize bytes_para_gravar = registros->len * sizeof( RegistroFrequencia );
-
-   if ( !g_file_set_contents( path_save, ( const gchar * )registros->data, bytes_para_gravar, &erro ) ) {
-      g_warning( "Erro: Nao foi possivel salvar %s: %s", path_save, erro->message );
-      g_clear_error( &erro );
-   }
-}
 
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status ) {
    g_return_if_fail( ctx && painel );
+
+   if ( ctx->diario == NULL ) return; // Retornar em silêncio
+
 
    // 1. Validação de segurança
    if ( status == SEM_STATUS ) {
@@ -1056,22 +1090,17 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
       return;
    }
 
-   // 2. Extrai índices e dados
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->entry.alunos ) );
-   if ( idx_aluno < 0 ) return;
+   // 2. Extrai índice do aluno
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
+   if ( idx_aluno < 0 || idx_aluno >= ctx->dados.qtd_alunos_total ) return;
 
-   GtkTreeIter iter_data;
-   g_autofree gchar *str_data = NULL;
-   if ( gtk_combo_box_get_active_iter( GTK_COMBO_BOX( ctx->ui_diario.combo_data ), &iter_data ) ) {
-      GtkTreeModel *model_data = gtk_combo_box_get_model( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-      gtk_tree_model_get( model_data, &iter_data, 0, &str_data, -1 );
-   }
-   if ( !str_data ) return;
+   // O ponteiro de trabalho já sabe exatamente em qual aula estamos
+   RegistroDiario *diario = ctx->diario;
 
-   // 3. Atualiza a RAM
-   g_strlcpy( ctx->chamada.data, str_data, sizeof( ctx->chamada.data ) );
-   ctx->chamada.freq[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
-   ctx->chamada.freq[idx_aluno].status = status;
+   // 3. Atualiza a RAM e aciona o gatilho do Autosave
+   diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+   diario->chamada[idx_aluno].status = status;
+   marcar_diario_modificado( ctx );
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
    GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
@@ -1108,7 +1137,7 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
       }
    } else {
       g_autofree gchar *nasc = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
-      gboolean riscar = !ctx->ficha[idx_aluno].ativo; // TRUE se inativo (Sem Status)
+      gboolean riscar = !ctx->ficha[idx_aluno].ativo;
 
       gtk_list_store_append( store_view, &iter_view );
       gtk_list_store_set( store_view, &iter_view,
@@ -1122,21 +1151,22 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
       // Processa inativos residuais na sequência e os espelha na RAM
       while ( idx_aluno < ctx->dados.qtd_alunos_total && !ctx->ficha[idx_aluno].ativo ) {
-         ctx->chamada.freq[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
-         ctx->chamada.freq[idx_aluno].status = SEM_STATUS;
+         diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+         diario->chamada[idx_aluno].status = SEM_STATUS;
 
-         nasc = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
-         riscar = !ctx->ficha[idx_aluno].ativo; // TRUE se inativo (Sem Status)
+         g_autofree gchar *nasc_inativo = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
+         gboolean riscar_inativo = !ctx->ficha[idx_aluno].ativo;
+         int r_inativo = cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_texto );
 
          GtkTreeIter iter_inativo;
          gtk_list_store_append( store_view, &iter_inativo );
          gtk_list_store_set( store_view, &iter_inativo,
                              0, idx_aluno + 1,
                              1, ctx->ficha[idx_aluno].aluno,
-                             2, nasc,
+                             2, nasc_inativo,
                              3, ctx->listas.status_assiduidade[0].str,
-                             4, riscar,
-                             5, (r==0) ? NULL : &cor_texto, -1 );
+                             4, riscar_inativo,
+                             5, (r_inativo==0) ? NULL : &cor_texto, -1 );
          idx_aluno++;
       }
 
@@ -1144,12 +1174,10 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    }
 
    // 6. ATUALIZA O LIMITE E AVANÇA O COMBO
-   // O limite exato é sempre a quantidade de itens já renderizados
-   ctx->ui_diario.limite_combo_alunos = gtk_tree_model_iter_n_children( model_view, NULL );
+   ctx->ui_diario.limite_combo_alunos = gtk_tree_model_iter_n_children( model_view, NULL ) + 1;
 
    if ( idx_aluno < ctx->dados.qtd_alunos_total ) {
-      // Como o limite foi expandido na linha acima, essa mudança passará pela validação do changed sem bloqueios
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->entry.alunos ), idx_aluno );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), idx_aluno );
    }
 
    // 7. Rola a tela (g_autoptr faz o gtk_tree_path_free nos bastidores)
@@ -1164,122 +1192,95 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
 
 
+
 void on_combo_data_frequencia_changed_restore( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   const gchar *path_save = ctx->path_save;
-   RegistroFrequencia *chamada = &ctx->chamada;
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
-   // 1. Obtém a data e horários selecionados na interface
-   GtkTreeIter iter_data;
-   g_autofree gchar *str_data = NULL;
-   int n_hor = 0;
-   GtkComboBox *combo_data = GTK_COMBO_BOX( ui_diario->combo_data );
+   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ui_diario->combo_data ) );
 
-   if ( gtk_combo_box_get_active_iter( combo_data, &iter_data ) ) {
-      GtkTreeModel *model = gtk_combo_box_get_model( combo_data );
-      gtk_tree_model_get( model, &iter_data, 0, &str_data, 1, &n_hor, -1 );
+   // =====================================================================
+   // 1. SINCRONIA: Aborta em segurança se o combo for inválido
+   // =====================================================================
+   if ( foco < 0 || ( guint )foco >= ctx->diarios->len ) {
+      ctx->diario = NULL;
+      gtk_list_store_clear( GTK_LIST_STORE( gtk_tree_view_get_model( GTK_TREE_VIEW( ui_diario->treeview_frequencia ) ) ) );
+      ctx->ui_diario.foco_combo_alunos = -1;
+      ctx->ui_diario.limite_combo_alunos = 0;
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ctx->ui_diario.foco_combo_alunos );
+      return;
    }
 
-   if ( !str_data ) return;
+   ctx->diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
+   RegistroDiario *diario = ctx->diario;
 
-   // 2. PREPARAÇÃO IMEDIATA DA MEMÓRIA RAM (O Espelho)
-   // Zera completamente o buffer antes de mais nada para não herdar lixo de outras datas
-   memset( chamada, 0, sizeof( RegistroFrequencia ) );
-   snprintf( chamada->data, sizeof( chamada->data ), "%s", str_data );
-   chamada->n_horarios = n_hor;
-
-   // 3. Limpa a visualização anterior
+   // =====================================================================
+   // 2. PREPARAÇÃO VISUAL: Limpa a tabela
+   // =====================================================================
    GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_frequencia );
    GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
    gtk_list_store_clear( store_view );
 
-   // 4. Busca histórico no disco sem retornar precocemente em caso de arquivo vazio
-   gsize length = 0;
-   g_autofree RegistroFrequencia *buffer = NULL;
-   int idx_encontrado = -1;
-
-   if ( g_file_get_contents( path_save, (gchar **)&buffer, &length, NULL ) ) {
-      size_t qtd_reg = length / sizeof( RegistroFrequencia );
-      if ( qtd_reg > 0 ) {
-         RegistroFrequencia chave = {0};
-         g_strlcpy( chave.data, str_data, sizeof( chave.data ) );
-         idx_encontrado = buscar_indice_bsearch( &chave, buffer, qtd_reg, sizeof(RegistroFrequencia), comparar_datas );
-      }
-   }
-
-   // 5. CÓPIA ATÔMICA EM O(1)
-   // Se o registro existe, joga a struct INTEIRA de uma vez para a RAM
-   if ( idx_encontrado >= 0 ) {
-      *chamada = buffer[idx_encontrado];
-   }
-
-   // 6. Renderização Visual baseada 100% no *chamada
-   int proximo_aluno_pendente = 0;
+   // =====================================================================
+   // 3. RENDERIZAÇÃO UNIFICADA E FILTRO DE PARADA (O(N))
+   // =====================================================================
    int linhas_renderizadas = 0;
 
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      int idx_st = chamada->freq[i].status;
+      gboolean ativo = ctx->ficha[i].ativo;
+      int status_atual = diario->chamada[i].status;
 
-      // PARADA VISUAL: Encerra a renderização caso ache um aluno ATIVO e com SEM_STATUS
-      if ( ctx->ficha[i].ativo && idx_st == SEM_STATUS ) {
-         proximo_aluno_pendente = i;
+      // 1. REGRA DE PARADA: Só interrompe a varredura se encontrar um aluno ATIVO e PENDENTE
+      if ( ativo && status_atual == SEM_STATUS ) {
          break;
       }
 
-      GtkTreeIter iter_view;
-      gtk_list_store_append( store_view, &iter_view );
+      // 2. PROCESSAMENTO AUTOMÁTICO DE INATIVOS:
+      // Se o aluno for inativo, garante que o código dele esteja salvo e atribui SEM_STATUS (0) na RAM
+      if ( !ativo ) {
+         diario->chamada[i].cod_aluno = ctx->ficha[i].cod_aluno;
+         diario->chamada[i].status = SEM_STATUS;
+         status_atual = SEM_STATUS;
+      }
 
-      const char *str_status = ctx->listas.status_assiduidade[idx_st].str;
+      // 3. RENDERIZAÇÃO NA TREEVIEW:
+      // Adiciona o aluno à lista (ativos com seus status e inativos com SEM_STATUS e riscados)
+      GtkTreeIter iter;
+      gtk_list_store_append( store_view, &iter );
 
       GdkRGBA cor_texto;
-      int r = cor_texto_linha_frequencia( idx_st, ctx->dados.interface_style, &cor_texto );
+      int tem_cor = cor_texto_linha_frequencia( status_atual, ctx->dados.interface_style, &cor_texto );
 
       g_autofree gchar *nasc = formatar_data_extenso( ctx->ficha[i].nasc );
-      gboolean riscar = !ctx->ficha[i].ativo; // TRUE se inativo (Sem Status)
 
-      gtk_list_store_set( store_view, &iter_view,
-                          0, i + 1,
-                          1, ctx->ficha[i].aluno,
-                          2, nasc,
-                          3, str_status,
-                          4, riscar,
-                          5, (r==0) ? NULL : &cor_texto,
-                          -1 );
+      gtk_list_store_set( store_view, &iter,
+                        0, i + 1,
+                        1, ctx->ficha[i].aluno,
+                        2, nasc,
+                        3, ctx->listas.status_assiduidade[status_atual].str,
+                        4, !ativo, // TRUE para aplicar o risco do GtkCellRendererText
+                        5, ( tem_cor == 0 ) ? NULL : &cor_texto,
+                        -1 );
 
-      proximo_aluno_pendente = i + 1;
       linhas_renderizadas++;
    }
 
-   // 7. Correção de Mira para Datas Novas
-   // Se a data está em branco, precisamos garantir que o combo aponte para o 1º aluno ATIVO
-   if ( idx_encontrado < 0 && linhas_renderizadas == 0 ) {
-      for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-         if ( ctx->ficha[i].ativo ) {
-            proximo_aluno_pendente = i;
-            break;
-         }
-      }
-   } else if ( proximo_aluno_pendente >= ctx->dados.qtd_alunos_total ) {
-      proximo_aluno_pendente = ctx->dados.qtd_alunos_total - 1;
-   }
-
-   // 8. Ajustes Finais UI
-   ui_diario->limite_combo_alunos = linhas_renderizadas;
-
-   if ( proximo_aluno_pendente < ctx->dados.qtd_alunos_total ) {
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->entry.alunos ), proximo_aluno_pendente );
-   }
+   // =====================================================================
+   // 4. AJUSTES FINAIS UI (Controle de navegação e Rolagem)
+   // =====================================================================
+   ui_diario->limite_combo_alunos = linhas_renderizadas + 1;
+   ui_diario->foco_combo_alunos = linhas_renderizadas;
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ui_diario->foco_combo_alunos );
 
    if ( linhas_renderizadas > 0 ) {
-      GtkTreePath *path_novo = gtk_tree_path_new_from_indices( linhas_renderizadas - 1, -1 );
-      if ( path_novo ) {
-         gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
-         gtk_tree_path_free( path_novo );
+      // Rola a exibição da TreeView para sempre mostrar o último aluno avaliado
+      GtkTreePath *path = gtk_tree_path_new_from_indices( linhas_renderizadas - 1, -1 );
+      if ( path ) {
+         gtk_tree_view_scroll_to_cell( tree_view, path, NULL, FALSE, 0.0, 0.0 );
+         gtk_tree_path_free( path );
       }
    }
-
 }
 
 
@@ -1467,13 +1468,70 @@ static void atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 
 
+void carregar_diario( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   // 1. Se já existir um diário de outra turma na RAM, liberamos a memória
+   if ( ctx->diarios ) {
+      g_array_unref( ctx->diarios );
+   }
+
+   // 2. Inicializa o array dinâmico vazio
+   ctx->diarios = g_array_new( FALSE, FALSE, sizeof( RegistroDiario ) );
+
+   if ( !ctx->path_save ) return;
+
+   // 3. Lê o arquivo de forma atômica direto para a memória
+   g_autofree gchar *conteudo = NULL;
+   gsize tamanho = 0;
+
+   if ( g_file_get_contents( ctx->path_save, &conteudo, &tamanho, NULL ) ) {
+      int total_registros = tamanho / sizeof( RegistroDiario );
+      if ( total_registros > 0 ) {
+         // Injeta o bloco bruto de memória dentro do GArray de uma só vez (muito rápido)
+         g_array_append_vals( ctx->diarios, conteudo, total_registros );
+
+         marcar_diario_modificado( ctx ); // Para salvamento automático
+      }
+   }
+}
+
+
+void salvar_diario( AppContext *ctx, gboolean final_save ) {
+   g_return_if_fail( ctx );
+
+   // 1. DESCARREGA OS DADOS PENDENTES
+   // Se havia um arquivo aberto e dados na RAM, salva antes de mudar a rota
+   if ( ctx->path_save && ctx->diarios ) {
+
+      // Opcional, mas de mestre: Garante que os registros sejam salvos no disco
+      // ordenados cronologicamente, independente de como o professor inseriu.
+      // GG, o ordenamento já está acontendendo a cada novo registro de aula
+      // g_array_sort( ctx->diarios, comparar_datas_diario );
+
+      gsize bytes_para_gravar = ctx->diarios->len * sizeof( RegistroDiario );
+      GError *erro = NULL;
+
+      // Escrita atômica segura no disco
+      if ( !g_file_set_contents( ctx->path_save, (const gchar *)ctx->diarios->data, bytes_para_gravar, &erro ) ) {
+         g_printerr( "Aviso: Falha ao salvar %s: %s\n", ctx->path_save, erro->message );
+         g_clear_error( &erro );
+      }
+   }
+
+   // 2. ATUALIZA O CAMINHO DE SALVAMENTO PARA O PRÓXIMO USO
+   if ( !final_save ) {
+      g_free( ctx->path_save );
+      ctx->path_save = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+   }
+}
+
+
 
 //==================================================================================================
 static void carregar_frequencia( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   CaminhoDiretorio        *caminho   = &ctx->caminho;
-   RegistroFrequencia      *chamada   = &ctx->chamada;
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
    GtkTreeIter iter;
@@ -1491,13 +1549,6 @@ static void carregar_frequencia( AppContext *ctx ) {
       g_autofree gchar *str_horas = meu_gerador_variadico( "<b>%u h</b>", carga_horaria );
       gtk_label_set_markup( GTK_LABEL( ui_diario->label_ch ), str_horas );
 
-      if ( ctx->path_save != NULL ) {
-         // Não entra aqui uma única vez, na cascata de inicialização do app
-         salvar_frequencia( chamada, ctx->path_save );
-      }
-      g_free( ctx->path_save );
-      ctx->path_save = g_build_filename( caminho->dados, "frequencia.bin", NULL ); // Comentário em interface.h
-
       on_combo_data_frequencia_changed_restore( ctx );
    }
 }
@@ -1507,28 +1558,31 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    InterfaceDados    *dados    = &ctx->dados;
    CaminhoDiretorio  *caminho  = &ctx->caminho;
-   InterfaceEntry    *entry    = &ctx->entry;
-   LimitesFiltro     *limite   = &ctx->cascata.limite;
    InterfacePainel   *painel   = &ctx->painel;
-   InterfaceHandlers *handlers = &ctx->handlers;
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
-   g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+   g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "diario.bin", NULL );
    carregar_diario_na_interface( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
    ui_diario->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
    acessar_e_carregar_ficha_dos_alunos_da_turma( ctx );
 
-   limite->alunos = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
+   int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
-   int foco = obter_foco_inicial( limite->alunos, ctx->ficha );
+   int foco = obter_foco_inicial( limite, ctx->ficha );
 
-   popular_combo_box_generico( entry->alunos, ctx->ficha, limite->alunos, foco, handlers->alunos, mapear_alunos );
+   popular_combo_box_generico( ui_diario->combo_alunos, ctx->ficha, limite, foco,
+                               ui_diario->handler_combo_alunos, mapear_alunos );
 
     // Precisa que a lista de alunos já esteja populada
-   popular_datas( ui_diario, caminho_arquivo );
-   carregar_frequencia( ctx );
+   salvar_diario( ctx, FALSE );
+   carregar_diario( ctx );
+   popular_datas( ctx );
+
+   on_combo_data_frequencia_changed_restore( ctx );
+
+   iniciar_autosave_diario( ctx, 5 );
 
 
    painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
@@ -1558,6 +1612,8 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    InterfaceHandlers *handlers = &ctx->handlers;
    CalendarioData          *data     = &ctx->data;
 
+
+
    gtk_widget_set_name( ctx->entry.turma, "turma" );
 
    popular_combo_box_text( ctx->ui_diario.combo_status, listas->status_assiduidade, 0, 9, 0 );
@@ -1567,11 +1623,9 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
    gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data_formatada );
-   snprintf( ctx->diario.data, sizeof( ctx->diario.data ), "%s", data_formatada );
 
-   ctx->diario.n_horarios = 1;
-   g_autofree char *str_n_horarios = g_strdup_printf( "%d h", ctx->diario.n_horarios );
-   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.n_horarios ), str_n_horarios );
+   g_autofree char *str_qtd_aulas = g_strdup_printf( "%d h", 1 );
+   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.qtd_aulas ), str_qtd_aulas );
 
    gtk_widget_set_name( ctx->entry.periodo, "momento" );
    foco->periodo = foco_periodo_corrente( escalar_hoje );

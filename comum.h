@@ -217,14 +217,6 @@ typedef enum {
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
 typedef struct {
-   char data[16];
-   int n_horarios;
-   char tema[32];
-   char descricao[128];
-   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
-} __attribute__( ( packed ) ) RegistroConteudo;
-
-typedef struct {
    uint32_t cod_aluno; // Código único do aluno
    SituacaoAluno sit;  // Situação do aluno
    gboolean ativo;     // Status de matrícula global
@@ -233,13 +225,22 @@ typedef struct {
 typedef struct {
       uint32_t cod_aluno;
       StatusAssiduidade status;
-} __attribute__( ( packed ) ) RegistroStatusAssiduidade;
+} __attribute__( ( packed ) ) RegistroChamada;
 
 typedef struct {
    char data[16];
-   int n_horarios;
-   RegistroStatusAssiduidade freq[64]; // Máximo de 64 alunos por turma
+   int qtd_aulas;
+   RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
 } __attribute__( ( packed ) ) RegistroFrequencia;
+
+typedef struct {
+   char data[16];
+   int qtd_aulas;
+   char tema[32];
+   char descricao[128];
+   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
+   RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
+} __attribute__( ( packed ) ) RegistroDiario;
 
 typedef struct {
    uint32_t cod_aluno;

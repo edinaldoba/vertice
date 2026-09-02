@@ -263,7 +263,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .turma            = 0,
          .disciplina       = 0,
          .periodo          = 0,
-         .alunos           = 0,
          .decoracao_estilo = 0,
          .cor_destaque     = 0,
          .tema   = 0
@@ -285,9 +284,12 @@ void inicializacao_app_context( AppContext *ctx ) {
       },
 
       .ui_diario = {
-         .handler_combo_data = 0
+         .handler_combo_data = 0,
+         .handler_combo_alunos = 0
       },
 
+      .diario    = NULL,
+      .diarios   = NULL,
       .path_save = NULL
    };
 }
@@ -295,17 +297,31 @@ void inicializacao_app_context( AppContext *ctx ) {
 
 
 void limpeza_final( AppContext *ctx ) {
+   if ( !ctx ) return;
+
    // =========================================================================
    // 🛡️ HIGIENE DE MEMÓRIA FINAL (O que o unref do app não limpa sozinho)
    // =========================================================================
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
 
+   parar_autosave_diario( ctx );
+
+   if ( ctx->diarios != NULL ) {
+      salvar_diario( ctx, TRUE );
+      g_array_unref( ctx->diarios );
+      ctx->diarios = NULL;
+   }
+   // DESASSOCIAR PONTEIRO DE TRABALHO
+   // Por ser apenas um alias para o elemento dentro de ctx->diarios, apenas zeramos o ponteiro
+   ctx->diario = NULL;
+
    if ( ctx->path_save != NULL ) {
-      salvar_frequencia( &ctx->chamada, ctx->path_save );
       g_free( ctx->path_save );
+      ctx->path_save = NULL;
    }
 
-   // A. Libera o Diário de Alunos (Heap)
+
+   // A. Libera o Ficha de Alunos (Heap)
    if ( ctx->ficha != NULL ) {
       free( ctx->ficha );
       ctx->ficha = NULL;

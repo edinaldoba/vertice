@@ -25,7 +25,7 @@ typedef struct {
    //-- Carga horária
    GtkWidget *stepper_menos;
    GtkWidget *stepper_mais;
-   GtkWidget *n_horarios;
+   GtkWidget *qtd_aulas;
 
    //-- Janela com rolagem
    GtkWidget *scrolled_window_conteudo;
@@ -53,7 +53,10 @@ typedef struct {
    GtkWidget *presente;          // Botão para salvar StatusAssiduidade PRESENTE
    GtkWidget *ausente;           // Botão para salvar StatusAssiduidade AUSENTE
 
+   GtkWidget *combo_alunos;
+   gulong handler_combo_alunos;
    int limite_combo_alunos;
+   int foco_combo_alunos;
 
    //-- Janela com rolagem
    GtkWidget *scrolled_window_frequencia;
@@ -69,7 +72,6 @@ typedef struct {
    GtkWidget *escola;
    GtkWidget *turma;
    GtkWidget *periodo;
-   GtkWidget *alunos;
 
    GtkWidget *tema;
    GtkWidget *tema_espelho;
@@ -136,10 +138,6 @@ typedef struct {
    GtkWidget *corrigir_prova;        // Interface para leitura automatizada de cartões-resposta
    GtkWidget *processamento_img;       // Processa os escaneamentos via rotinas de Visão Computacional
 
-   GtkWidget *presente;
-   GtkWidget *ausente;
-   GtkWidget *salvar;
-
 } InterfaceButton;
 
 
@@ -173,7 +171,6 @@ typedef struct {
    int turma;
    int disciplina;
    int periodo;
-   int aluno;
    int cor_destaque;
    int decoracao_estilo;
    int tema;
@@ -186,7 +183,6 @@ typedef struct {
    int turmas;
    int disciplinas;
    int periodos;
-   int alunos;
    int cores_destaque;
    int decoracoes_estilo;
    int temas;
@@ -209,7 +205,6 @@ typedef struct {
    gulong turma;
    gulong disciplina;
    gulong periodo;
-   gulong alunos;
    gulong cor_destaque;
    gulong decoracao_estilo;
    gulong tema;
@@ -251,7 +246,13 @@ typedef struct {
 
 typedef struct {
    FichaAluno *ficha;
-   RegistroConteudo diario;
+
+   RegistroDiario *diario; // Vou manter o ponteiro de trabalho dentro da struct principal
+   GArray *diarios; // Substitui o ponteiro cru. O motor GLib fará a gestão da RAM.
+
+   // --- CONTROLE DE AUTOSAVE ---
+   gboolean dados_modificados; // Registra se houve alteração na RAM desde o último salvamento
+   guint autosave_timer_id;   // Guarda a ID do temporizador registrado na GLib
 
    RegistroFrequencia chamada;
    /*
@@ -309,7 +310,9 @@ typedef struct {
 
 
 
-void popular_datas( InterfaceRegistroDiario *ui_diario, const char *arquivo_turma );
+void parar_autosave_diario( AppContext *ctx );
+
+void popular_datas( AppContext *ctx );
 
 typedef void ( *ComboMapperFunc )( GtkListStore *store, GtkTreeIter *iter, const void *dados, int indice );
 void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, int foco,
@@ -343,13 +346,18 @@ bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados
 
 gchar* validar_data( const gchar *texto );
 void excluir_registro_diario( AppContext *ctx, int indice, const char *data, TipoRegistroDiario tipo );
-void salvar_conteudo( GtkWidget *widget, AppContext *ctx );
+
+void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
+void modificar_registro_aula( AppContext *ctx );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
-void salvar_frequencia( const RegistroFrequencia *nova_chamada, const gchar *path_save );
+
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
 void on_combo_data_frequencia_changed_restore( AppContext *ctx );
+
+void carregar_diario( AppContext *ctx );
+void salvar_diario( AppContext *ctx, gboolean final_save );
 
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 

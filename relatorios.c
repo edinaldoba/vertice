@@ -1121,7 +1121,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
    long int ( *id_h )[4] = id_horarios[index].ids;
 
    for ( guint i = 0; i < registros->len; i++ ) {
-      RegistroConteudo *d = &g_array_index( registros, RegistroConteudo, i );
+      RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
 
       if( d->tipo_registro == 2 ) continue;
 
@@ -1133,10 +1133,10 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
       if ( k == 0 || k == 1 ) {
          g_string_append_printf( conteudo_siaep, " (ERRO: DATA DE SÁBADO OU DOMINGO %02d/%02d/%d)\n", dia, mes, ano );
       } else {
-         for ( int j = 0; j < d->n_horarios; j++ ) {
+         for ( int j = 0; j < d->qtd_aulas; j++ ) {
             int num_aux = 0;
             if ( i > 0 ) {
-               RegistroConteudo *anterior = &g_array_index( registros, RegistroConteudo, i - 1 );
+               RegistroDiario *anterior = &g_array_index( registros, RegistroDiario, i - 1 );
                int dia_ant = 0;
                sscanf( anterior->data, "%d/", &dia_ant );
                if ( dia == dia_ant ) num_aux = 1;
@@ -1173,26 +1173,26 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    g_autoptr( GString ) macros_dia = g_string_new( "\\def\\dia{{" );
 
    for ( int i = 0; i < nn; i++ ) {
-      RegistroConteudo *d = &g_array_index( registros, RegistroConteudo, i );
+      RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
       int dia = 0, mes = 0, ano = 0;
       sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
       if ( i == 0 ) mes_inicial = mes;
 
-      somach += d->n_horarios;
+      somach += d->qtd_aulas;
 
       if ( d->tipo_registro == 0 ) {
-         ad += d->n_horarios; // Aulas Dadas
+         ad += d->qtd_aulas; // Aulas Dadas
       }
 
       if ( d->tipo_registro != 2 ) {
-         ap += d->n_horarios;  // Aulas Previstas
+         ap += d->qtd_aulas;  // Aulas Previstas
       }
 
       // Histograma de carga horária para renderização das chaves no LaTeX
-      if ( mes == mes_inicial ) ndias[1] += d->n_horarios;
-      else if ( mes == mes_inicial + 1 ) ndias[2] += d->n_horarios;
-      else if ( mes == mes_inicial + 2 ) ndias[3] += d->n_horarios;
+      if ( mes == mes_inicial ) ndias[1] += d->qtd_aulas;
+      else if ( mes == mes_inicial + 1 ) ndias[2] += d->qtd_aulas;
+      else if ( mes == mes_inicial + 2 ) ndias[3] += d->qtd_aulas;
 
       // Montagem das macros de listas do LaTeX
       if ( d->tipo_registro == 1 ) {
@@ -1295,7 +1295,7 @@ void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   g_autofree gchar *arquivo_binario = g_build_filename( caminho->dados, "conteudo.bin", NULL );
+   g_autofree gchar *arquivo_binario = g_build_filename( caminho->dados, "diario.bin", NULL );
 
    // Opcional: Se 'verificar_estado_de_arquivo' não for compatível com binários, você pode ajustar
    if ( !verificar_estado_de_arquivo( arquivo_binario, painel, dados ) ) return;
@@ -1307,10 +1307,10 @@ void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    }
 
    // 1. Carrega todos os registros binários em um GArray (Estrutura Dinâmica da GLib)
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroConteudo ) );
-   RegistroConteudo d;
+   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroDiario ) );
+   RegistroDiario d;
 
-   while ( fread( &d, sizeof( RegistroConteudo ), 1, p ) == 1 ) {
+   while ( fread( &d, sizeof( RegistroDiario ), 1, p ) == 1 ) {
       g_array_append_val( registros, d );
    }
    fclose( p );
