@@ -23,10 +23,10 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
 gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
-void on_button_remover_conteudo_por_indice_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_remover_registro_diario_por_indice_clicked( GtkWidget *widget, gpointer user_data );
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );
-void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data );
+void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data );
 void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treeview, GtkTreePath *path,
                                                               GtkTreeViewColumn *column, gpointer user_data );
 

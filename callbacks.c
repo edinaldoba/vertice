@@ -298,15 +298,25 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 
 
 
+static RegistroDiario *indexar_array_diario( AppContext *ctx, int foco ) {
+   g_return_val_if_fail( ctx, NULL );
+
+   RegistroDiario *diario = NULL;
+
+   if ( ctx->diarios && foco >= 0 && ( guint )foco < ctx->diarios->len ) {
+      diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
+   }
+
+   return diario;
+}
 
 
 // Callback protegido contra memory leaks com g_autoptr
-void on_button_remover_conteudo_por_indice_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_remover_registro_diario_por_indice_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx && ctx->diarios );
 
-   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) );
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
    GtkTreeModel *model;
    GtkTreeIter iter;
 
@@ -319,29 +329,16 @@ void on_button_remover_conteudo_por_indice_clicked( GtkWidget *widget, gpointer 
 
    int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
 
-   // Proteção de limites da memória
-   if ( indice_remocao < 0 || ( guint )indice_remocao >= ctx->diarios->len ) return;
+   // 3. Delega a execução atômica para a função embrulhada
+   remover_registro_diario_por_indice( ctx, indice_remocao, model, &iter );
 
-   // 3. Cancela o modo de edição se o professor estiver apagando a aula que está editando
-   if ( ui_diario->editando ) {
-      g_autoptr( GtkTreePath ) path_edicao = gtk_tree_model_get_path( model, &ui_diario->iter_em_edicao );
-      if ( path_edicao && gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
-         ui_diario->editando = FALSE;
-         ctx->diario = NULL; // Protege o ponteiro de trabalho
-         gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), "" );
-         gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
-      }
-   }
-
-   // 4. REMOÇÃO ATÔMICA: RAM e Disco
-   g_array_remove_index( ctx->diarios, indice_remocao );
-
-   // 5. ATUALIZAÇÃO VISUAL: Remove da lista e tira a seleção
-   gtk_list_store_remove( GTK_LIST_STORE( model ), &iter );
-   gtk_tree_selection_unselect_all( selection );
-
-   // 6. SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
+   // 4. SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
    popular_datas( ctx );
+
+   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
+   ctx->diario = indexar_array_diario( ctx, foco );
+
+   ui_restaurar_frequencia_por_data( ctx );
 }
 
 
@@ -367,18 +364,6 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
 }
 
 
-static RegistroDiario *indexar_array_diario( AppContext *ctx, int foco ) {
-   g_return_val_if_fail( ctx, NULL );
-
-   RegistroDiario *diario = NULL;
-
-   if ( ctx->diarios && foco >= 0 && ( guint )foco < ctx->diarios->len ) {
-      diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
-   }
-
-   return diario;
-}
-
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
@@ -389,14 +374,15 @@ void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
    } else {
       registrar_aula( ctx );
    }
-   gtk_widget_grab_focus( ctx->ui_diario.descricao );
    popular_datas( ctx );
 
    int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
    ctx->diario = indexar_array_diario( ctx, foco );
+
+   ui_restaurar_frequencia_por_data( ctx );
 }
 
-void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) {
+void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
@@ -409,6 +395,8 @@ void on_entry_salvar_conteudo_activate( GtkWidget *widget, gpointer user_data ) 
 
    int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
    ctx->diario = indexar_array_diario( ctx, foco );
+
+   ui_restaurar_frequencia_por_data( ctx );
 }
 
 
@@ -454,7 +442,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       int foco = gtk_combo_box_get_active( combo );
       ctx->diario = indexar_array_diario( ctx, foco );
 
-      on_combo_data_frequencia_changed_restore( ctx );
+      ui_restaurar_frequencia_por_data( ctx );
    }
 }
 
@@ -513,28 +501,7 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
 
    // 2. Permite a transição de aba se o estado estiver limpo
    if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
-
-      int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-
-      ctx->diario = indexar_array_diario( ctx, foco );
-
-      /*
-       * TRATAMENTO DE CORRESPONDÊNCIA E FOCO (CASO DE BORDA: ALUNO 0 INATIVO)
-       *
-       * Se a aula selecionada for a mais recente da turma (último índice do GArray)
-       * e o primeiro aluno da chamada (índice 0) estiver INATIVO, a UI do GTK não
-       * consegue disparar o evento 'changed' padrão do 'combo_alunos', pois as regras
-       * de negócio impedem a seleção visual de alunos inativos.
-       *
-       * Como o sinal nativo do combo é suprimido, a TreeView de frequência não é renderizada.
-       *
-       * A execução forçada abaixo contorna essa limitação: lê a aula do GArray na RAM,
-       * renderiza os inativos iniciais com a formatação adequada (riscados) na UI e
-       * posiciona a mira do seletor diretamente sobre o PRIMEIRO ALUNO ATIVO da turma.
-       */
-      if ( !ctx->ficha[0].ativo && foco == ( int )ctx->diarios->len - 1 ) {
-         on_combo_data_frequencia_changed_restore( ctx );
-      }
+      // No futuro alguma coisa deverá ser posta aqui
    }
 
    return FALSE;
@@ -606,7 +573,10 @@ void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext* ) user_data;
    if ( !ctx ) return;
+
    siaep_atualizar_alunos( &ctx->painel, ctx );
+
+   atualizar_dados_e_alunos_ativos( ctx ); // Adicionei esta linhas em 3 de setembro de 2026
 }
 
 

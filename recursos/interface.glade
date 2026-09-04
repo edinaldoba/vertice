@@ -9,9 +9,11 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkListStore" id="liststore_aluno">
     <columns>
-      <!-- column-name gchararray1 -->
+      <!-- column-name nome_do_aluno -->
       <column type="gchararray"/>
-      <!-- column-name gboolean1 -->
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+      <!-- column-name riscar -->
       <column type="gboolean"/>
     </columns>
   </object>
@@ -649,6 +651,8 @@
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
+                                    <attribute name="sensitive">1</attribute>
+                                    <attribute name="strikethrough">2</attribute>
                                     <attribute name="text">0</attribute>
                                   </attributes>
                                 </child>
@@ -732,7 +736,6 @@
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">0</attribute>
-                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>

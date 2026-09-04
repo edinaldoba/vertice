@@ -254,7 +254,6 @@ typedef struct {
    gboolean dados_modificados; // Registra se houve alteração na RAM desde o último salvamento
    guint autosave_timer_id;   // Guarda a ID do temporizador registrado na GLib
 
-   RegistroFrequencia chamada;
    /*
     * Caminho estático do arquivo de persistência ativo.
     * Mantém o diretório atual em memória para permitir que a função salvar_frequencia()
@@ -345,8 +344,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
 bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 gchar* validar_data( const gchar *texto );
-void excluir_registro_diario( AppContext *ctx, int indice, const char *data, TipoRegistroDiario tipo );
 
+void remover_registro_diario_por_indice( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
 void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );
@@ -354,11 +353,12 @@ void modificar_registro_aula( AppContext *ctx );
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
-void on_combo_data_frequencia_changed_restore( AppContext *ctx );
+void ui_restaurar_frequencia_por_data( AppContext *ctx );
 
 void carregar_diario( AppContext *ctx );
 void salvar_diario( AppContext *ctx, gboolean final_save );
 
+void atualizar_dados_e_alunos_ativos( AppContext *ctx );
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 
 gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolean forcar_atualizacao );

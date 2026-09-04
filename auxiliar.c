@@ -14,6 +14,7 @@
 #include "basicas.h"
 #include "comum.h"
 #include "interface.h"
+#include "seduc-ma.h"
 #include <inttypes.h>
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
@@ -108,7 +109,11 @@ void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, i
    int len = calcular_len_limpo( ficha_aux[i].aluno, 30 );
    char aluno[64];
    snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha_aux[i].aluno );
-   gtk_list_store_set( store, iter, 0, aluno, 1, ficha_aux[i].ativo, -1 );
+
+   gtk_list_store_set( store, iter,
+                       0,  aluno,
+                       1,  ficha_aux[i].ativo,          // Sensibilidade
+                       2, !ficha_aux[i].ativo, -1 );   // Riscar nome
 }
 
 
@@ -373,9 +378,6 @@ void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total
 
 
 
-
-
-
 //====================================================================================================
 static int alfabetica_lista_de_alunos( const void *a, const void *b ) {
    const FichaAluno *fa = ( const FichaAluno * )a;
@@ -395,6 +397,11 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    g_autofree char *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
+   EstadoArquivo estado_arquivo = verificar_arquivo( arquivo_acesso );
+   if ( estado_arquivo == ARQUIVO_INEXISTENTE || estado_arquivo == ARQUIVO_VAZIO ) {
+      siaep_atualizar_alunos( &ctx->painel, ctx );
+   }
+
    // 2. Leitura massiva para a RAM (Bulk Read)
    // Elimina a necessidade de 'contar_registros_binarios' e leituras sucessivas com fread.
    gsize tamanho_arquivo = 0;
@@ -403,7 +410,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    dados->qtd_alunos_ativos = 0;
 
    if ( !g_file_get_contents( arquivo_acesso, (gchar **)&buffer_acessos, &tamanho_arquivo, NULL ) ) {
-      // g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso ); // SILÊNCIO AQUI :-)
+      g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso ); // SILÊNCIO AQUI :-)
       dados->qtd_alunos_total = dados->qtd_alunos_ativos;
       return;
    }
@@ -450,6 +457,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    // 5. Ordenação Alfabética
    qsort( ficha, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
+
 }
 //----------------------------------------------------------------------------------------------------
 
@@ -472,80 +480,6 @@ void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void
                        -1 );
 }
 
-
-
-void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice ) {
-   g_return_if_fail( caminho_arquivo );
-
-   g_autofree gchar *conteudo = NULL;
-   gsize tamanho = 0;
-   GError *erro = NULL;
-
-   // 1. Leitura atômica para a memória
-   if ( !g_file_get_contents( caminho_arquivo, &conteudo, &tamanho, &erro ) ) {
-      g_printerr( "Aviso: Nao foi possivel ler %s: %s\n", caminho_arquivo, erro->message );
-      g_clear_error( &erro );
-      return;
-   }
-
-   int total_registros = tamanho / sizeof( RegistroDiario );
-
-   if ( indice < 0 || indice >= total_registros ) {
-      g_printerr( "Erro: Indice %d fora dos limites (Total: %d)\n", indice, total_registros );
-      return;
-   }
-
-   // 2. Filtragem usando GByteArray para abstrair a gestão do buffer
-   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho - sizeof( RegistroDiario ) );
-   RegistroDiario *buffer = ( RegistroDiario * )conteudo;
-
-   for ( int i = 0; i < total_registros; i++ ) {
-      if ( i != indice ) {
-         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroDiario ) );
-      }
-   }
-
-   // 3. Sobrescrita atômica segura
-   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )novo_conteudo->data, novo_conteudo->len, &erro ) ) {
-      g_printerr( "Erro: Nao foi possivel salvar %s: %s\n", caminho_arquivo, erro->message );
-      g_clear_error( &erro );
-   }
-}
-
-// Função auxiliar usando operações atômicas e arrays dinâmicos da GLib
-void remover_frequencia_por_data( const char *arquivo_freq, const char *data_alvo ) {
-   g_return_if_fail( arquivo_freq && data_alvo );
-
-   g_autofree gchar *conteudo = NULL;
-   gsize tamanho = 0;
-   GError *erro = NULL;
-
-   // 1. Leitura atômica para a memória
-   if ( !g_file_get_contents( arquivo_freq, &conteudo, &tamanho, &erro ) ) {
-      g_warning( "Aviso: Nao foi possivel ler %s: %s", arquivo_freq, erro->message );
-      g_clear_error( &erro );
-      return;
-   }
-
-   int total_registros = tamanho / sizeof( RegistroFrequencia );
-   if ( total_registros == 0 ) return;
-
-   // 2. Filtragem usando GByteArray
-   g_autoptr( GByteArray ) novo_conteudo = g_byte_array_sized_new( tamanho );
-   RegistroFrequencia *buffer = ( RegistroFrequencia * )conteudo;
-
-   for ( int i = 0; i < total_registros; i++ ) {
-      if ( g_strcmp0( buffer[i].data, data_alvo ) != 0 ) {
-         g_byte_array_append( novo_conteudo, ( const guint8 * )&buffer[i], sizeof( RegistroFrequencia ) );
-      }
-   }
-
-   // 3. Sobrescrita atômica segura (se todos forem removidos, salva arquivo zerado)
-   if ( !g_file_set_contents( arquivo_freq, ( const gchar * )novo_conteudo->data, novo_conteudo->len, &erro ) ) {
-      g_warning( "Erro: Nao foi possivel salvar %s: %s", arquivo_freq, erro->message );
-      g_clear_error( &erro );
-   }
-}
 
 
 
@@ -746,7 +680,7 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
    // =====================================================================
    // 1. STATUS COM COR PADRÃO (Retorna 0 para usar a cor nativa do tema)
    // =====================================================================
-   if ( status == PRESENTE || status == FALTA_JUSTIFICADA || status == DISPENSADO ) {
+   if ( status == PRESENTE || status == FALTA_JUSTIFICADA ) {
       return 0;
    }
 
@@ -767,7 +701,7 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
    // =====================================================================
    // 3. ALERTAS AVERMELHADOS: Ausente e Suspenso
    // =====================================================================
-   if ( status == AUSENTE || status == SUSPENSO ) {
+   if ( status == AUSENTE || status == SUSPENSO || status == FOI_EMBORA ) {
       if ( tema_ativo == 1 ) { // Deep Blue
          *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
       } else if ( tema_ativo == 2 ) { // Light
@@ -781,7 +715,7 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
    // =====================================================================
    // 4. AVISOS AMARELADOS: Fora de sala e Foi embora
    // =====================================================================
-   if ( status == FORA_DE_SALA || status == FOI_EMBORA ) {
+   if ( status == FORA_DE_SALA || status == DISPENSADO ) {
       if ( tema_ativo == 1 ) { // Deep Blue
          *cor_out = (GdkRGBA){ 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
       } else if ( tema_ativo == 2 ) { // Light

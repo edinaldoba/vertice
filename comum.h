@@ -213,7 +213,8 @@ typedef enum {
    FORA_DE_SALA         = 5, // Afastamento temporário por medida disciplinar da direção
    FOI_EMBORA           = 6, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
    ATIVIDADE_DOMICILIAR = 7, // Evasão não autorizada do recinto escolar durante o período letivo
-   SUSPENSO             = 8  // Evasão não autorizada do recinto escolar durante o período letivo
+   SUSPENSO             = 8, // Evasão não autorizada do recinto escolar durante o período letivo
+   NOVO_ALUNO           = 9  // Novo aluno matriculados na turma
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
 typedef struct {
@@ -226,12 +227,6 @@ typedef struct {
       uint32_t cod_aluno;
       StatusAssiduidade status;
 } __attribute__( ( packed ) ) RegistroChamada;
-
-typedef struct {
-   char data[16];
-   int qtd_aulas;
-   RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
-} __attribute__( ( packed ) ) RegistroFrequencia;
 
 typedef struct {
    char data[16];

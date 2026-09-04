@@ -844,6 +844,7 @@ static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ct
    g_string_append( tex,
       "\\usepackage[brazil]{babel}\n"
       "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+      "\\usepackage[dvipsnames]{xcolor}\n"
       "\\usepackage{pdflscape,lscape,tikz,ifthen,ulem,graphicx}\n"
       "\\usetikzlibrary{calc}\n"
       "\\pagestyle{empty}\n\n"
@@ -855,6 +856,14 @@ static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ct
 
    // Macros de marcação de presença e falta nativas do Vértice
    g_string_append( tex,
+      "\\newcommand{\\suspenso}[2]{\\draw[red,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {S};}\n"
+      "\\newcommand{\\dispensado}[2]{\\draw[YellowOrange,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {D};}\n"
+      "\\newcommand{\\novoaluno}[2]{\\draw[gray,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {N};}\n"
+      "\\newcommand{\\faltajustificada}[2]{\\draw[Aquamarine,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FJ};}\n"
+      "\\newcommand{\\foiembora}[2]{\\draw[red,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FE};}\n"
+      "\\newcommand{\\foradesala}[2]{\\draw[YellowOrange,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FS};}\n"
+      "\\newcommand{\\atividadedomiciliar}[2]{\\draw[Orchid,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf AD};}\n"
+
       "\\newcommand{\\pa}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
       "\\newcommand{\\pb}[2]{\\fill ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
       "\\newcommand{\\pc}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.65-sqrt(3)/6)}) circle (1.5pt) ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt);}\n"
@@ -1015,11 +1024,37 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
             int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo y para a Página 2[cite: 1]
 
-            if ( r->chamada[j].status == AUSENTE ) {
+
+            if ( r->chamada[j].status == PRESENTE ) {
+               pres[j] += ch;
+               g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx+1, i );
+
+            } else if ( r->chamada[j].status == AUSENTE ) {
                falt[j] += ch;
-               g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx, i );
-            } else {
-               g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx, i );
+               g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx+1, i );
+
+            } else if ( r->chamada[j].status == FALTA_JUSTIFICADA ) {
+               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "falta", "justificada", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == DISPENSADO ) {
+               g_string_append_printf( target, "\\%s{%d}{%d}\n", "dispensado", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == FORA_DE_SALA ) {
+               g_string_append_printf( target, "\\%s%s%s{%d}{%d}\n", "fora", "de", "sala", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == FOI_EMBORA ) {
+               falt[j] += ch;
+               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "foi", "embora", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == ATIVIDADE_DOMICILIAR ) {
+               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "atividade", "domiciliar", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == SUSPENSO ) {
+               falt[j] += ch;
+               g_string_append_printf( target, "\\%s{%d}{%d}\n", "suspenso", r_idx+1, i );
+
+            } else if ( r->chamada[j].status == NOVO_ALUNO ) {
+               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "novo", "aluno", r_idx+1, i );
             }
          }
       }
@@ -1033,7 +1068,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    g_string_append( def_dia, "\"\"}}\n" );
 
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      pres[j] = ad - falt[j];
+      // pres[j] = ad - falt[j];
 
       if ( ctx->ficha[j].ativo ) {
          g_string_append_printf( def_alunos, "\"%.*s\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
@@ -1042,7 +1077,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          g_string_append_printf( def_falt, "\"%d\",", falt[j] );
       } else {
          g_string_append_printf( def_alunos, "\"{\\color{gray!50}%.*s}\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
-         g_string_append_printf( def_num, "\"{\\color{gray!50}%.2d}\",", j + 1 );
+         g_string_append_printf( def_num, "\"{\\color{black}%.2d}\",", j + 1 );
          g_string_append( def_pres, "\"\"," );
          g_string_append( def_falt, "\"\"," );
 
@@ -1050,8 +1085,8 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          GString *target = ( j < 27 ) ? inativos_pg1 : inativos_pg2;
          int r_idx = ( j < 27 ) ? j : j - 27;
 
-         g_string_append_printf( target, "\\foreach \\i in {1,...,33} { \\draw[line width=0.8pt,gray!50] ({7+(-0.8+\\i)*\\p},{-1.2-\\p*(2.8+%d)}) -- ({7+(-0.2+\\i)*\\p},{-1.2-\\p*(2.2+%d)}); }\n", r_idx, r_idx );
-         g_string_append_printf( target, "\\draw[line width=0.8pt,gray!50] ({27.35-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({27.35+0.3*\\p},{-1.2-(2.2+%d)*\\p}) ({28.25-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({28.25+0.3*\\p},{-1.2-(2.2+%d)*\\p});\n", r_idx, r_idx, r_idx, r_idx );
+         g_string_append_printf( target, "\\foreach \\i in {1,...,33} { \\draw[line width=0.8pt,gray!50] ({7+(-0.8+\\i)*\\p},{-1.2-\\p*(2.8+%d)}) -- ({7+(-0.2+\\i)*\\p},{-1.2-\\p*(2.2+%d)}); }\n", r_idx+1, r_idx+1 );
+         g_string_append_printf( target, "\\draw[line width=0.8pt,gray!50] ({27.35-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({27.35+0.3*\\p},{-1.2-(2.2+%d)*\\p}) ({28.25-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({28.25+0.3*\\p},{-1.2-(2.2+%d)*\\p});\n", r_idx+1, r_idx+1, r_idx+1, r_idx+1 );
       }
    }
 

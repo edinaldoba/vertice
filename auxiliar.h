@@ -32,8 +32,7 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres );
 void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho );
 
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx );
-void remover_conteudo_por_indice( const char *caminho_arquivo, const int indice );
-void remover_frequencia_por_data( const char *arquivo_freq, const char *data_alvo );
+
 gchar *formatar_data_extenso( const gchar *data_iso );
 
 int ordenar_turmas_novo_em( const void* a, const void* b );

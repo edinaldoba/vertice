@@ -165,7 +165,7 @@ const ItemCombo provas_sequencia[] = {
 
 const ItemCombo status_assiduidade[] = {
    {"Sem Status"}, {"Presente"}, {"Ausente"}, {"Falta Justificada"}, {"Dispensado"},
-   {"Fora de Sala"}, {"Foi Embora"}, {"Atividade Domiciliar"}, {"Suspenso"}
+   {"Fora de Sala"}, {"Foi Embora"}, {"Atividade Domiciliar"}, {"Suspenso"}, {"Novo Aluno"}
 };
 
 // Macros locais (só funcionam aqui dentro para alimentar a inicialização)

@@ -13,38 +13,6 @@
 
 
 
-// Essa função será chamada automaticamente pelo GTK para cada linha
-static void formatar_cor_aluno( GtkCellLayout *layout, GtkCellRenderer *cell,
-                                GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
-   ( void )layout;
-   ( void )data;
-   gboolean ativo;
-   // Lê a coluna 1 (booleana) criada lá no seu liststore1
-   gtk_tree_model_get( model, iter, 1, &ativo, -1 );
-
-   if ( !ativo ) {
-      g_object_set( cell, "sensitive", FALSE, "strikethrough", TRUE, NULL );
-   } else {
-      g_object_set( cell, "sensitive", TRUE, "strikethrough", FALSE, NULL );
-   }
-}
-
-static void aplicar_estilo_cores_combo( GtkComboBox *combo ) {
-   if ( !combo ) return;
-
-   GList *cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( combo ) );
-   if ( cells != NULL ) {
-      // Pega o primeiro renderer de célula encontrado (o GtkCellRendererText do Glade)
-      GtkCellRenderer *renderer = GTK_CELL_RENDERER( cells->data );
-
-      // Conecta a função que decide a cor dinamicamente
-      gtk_cell_layout_set_cell_data_func( GTK_CELL_LAYOUT( combo ), renderer,
-                                          formatar_cor_aluno, NULL, NULL );
-
-      g_list_free( cells ); // Boa prática: libera a lista gerada pelo GTK
-   }
-}
-
 
 static void treeview_alinhar_coluna_renderizada( GtkWidget *widget, int coluna, float alinhamento ) {
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
@@ -111,8 +79,6 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->entry.turma      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
    ctx->entry.disciplina = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
    ctx->entry.periodo    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_momento" ) );
-   ctx->ui_diario.combo_alunos     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
-   aplicar_estilo_cores_combo( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
 
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
@@ -150,6 +116,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->ui_diario.combo_data        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
    ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
+   ctx->ui_diario.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
    ctx->ui_diario.salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
    ctx->ui_diario.presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
    ctx->ui_diario.ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );

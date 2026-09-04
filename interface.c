@@ -257,9 +257,8 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
 
 
 //---------------------------------------------------------------------------------------------------------------
-static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
+static void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
                                           const int foco_estilo, gboolean rolagem );
-static void carregar_frequencia( AppContext *ctx );
 //---------------------------------------------------------------------------------------------------------------
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
    InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
@@ -289,9 +288,9 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       dados->interface_style = valor;
       interface_style( ctx );
       char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-      carregar_diario_na_interface( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );// Renderizar liststore
+      ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );
       g_free(caminho_arquivo);
-      carregar_frequencia( ctx ); // Renderizar liststore frequência
+      ui_restaurar_frequencia_por_data( ctx );
       break;
    default:
       g_print( "Categoria desconhecida: %d\n", categoria );
@@ -735,18 +734,44 @@ gchar* validar_data( const gchar *texto ) {
 
 
 
-// O Núcleo da Operação: Limpo e idêntico, usando a macro g_build_filename corretamente
-void excluir_registro_diario( AppContext *ctx, int indice, const char *data, TipoRegistroDiario tipo ) {
-   g_autofree char *arquivo_conteudo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-   remover_conteudo_por_indice( arquivo_conteudo, indice );
 
-   if ( tipo == TIPO_REGISTRO_AULA_NORMAL || tipo == TIPO_REGISTRO_AULA_EXTRA ) {
-      g_autofree char *arquivo_frequencia = g_build_filename( ctx->caminho.dados, "frequencia.bin", NULL );
-      remover_frequencia_por_data( arquivo_frequencia, data );
-      popular_datas( ctx );
+void remover_registro_diario_por_indice( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
+   g_return_if_fail( ctx && ctx->diarios && model && iter );
+
+   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
+
+   // 1. Proteção de limites da memória
+   if ( indice_remocao < 0 || ( guint )indice_remocao >= ctx->diarios->len ) return;
+
+   // 2. Cancela o modo de edição se o professor estiver apagando a aula que está editando
+   if ( ui_diario->editando ) {
+      g_autoptr( GtkTreePath ) path_remocao = gtk_tree_path_new_from_indices( indice_remocao, -1 );
+      g_autoptr( GtkTreePath ) path_edicao  = gtk_tree_model_get_path( model, &ui_diario->iter_em_edicao );
+
+      if ( path_edicao && gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
+         ui_diario->editando = FALSE;
+         ctx->diario = NULL; // Protege o ponteiro de trabalho
+
+         RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, indice_remocao );
+         gboolean tipo_feriado    = ( d->tipo_registro == TIPO_REGISTRO_FERIADO );
+         gboolean tipo_pedagogico = ( d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
+
+         if ( tipo_feriado || tipo_pedagogico ) {
+            gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), "" );
+         }
+         gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
+      }
    }
-}
 
+   // 3. REMOÇÃO ATÔMICA: RAM
+   g_array_remove_index( ctx->diarios, indice_remocao );
+
+   // 4. ATUALIZAÇÃO VISUAL: Remove da lista e limpa a seleção
+   gtk_list_store_remove( GTK_LIST_STORE( model ), iter );
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) );
+   gtk_tree_selection_unselect_all( selection );
+
+}
 
 
 void registrar_aula( AppContext *ctx ) {
@@ -776,6 +801,12 @@ void registrar_aula( AppContext *ctx ) {
       int temp_qtd = 0;
       sscanf( str_ch, "%d", &temp_qtd );
       nova_aula.qtd_aulas = temp_qtd; // Atribuição direta evita pegar o endereço (&) de membro packed
+   }
+
+   // INSERE OS CÓDIGOS DOS ALUNOS ANTES DE FAZER A CHAMADA
+   // O código do aluno é necessário para a verificação de novos alunos adicionados a turma
+   for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
+      nova_aula.chamada[i].cod_aluno = ctx->ficha[i].cod_aluno;
    }
 
    // =====================================================================
@@ -824,8 +855,19 @@ void registrar_aula( AppContext *ctx ) {
    }
 
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) ) );
+
    gtk_entry_set_text( GTK_ENTRY( ui_diario->descricao ), "" );
-   gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), "" );
+
+   RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, novo_indice );
+   gboolean tipo_feriado    = ( d->tipo_registro == TIPO_REGISTRO_FERIADO );
+   gboolean tipo_pedagogico = ( d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
+   if ( tipo_feriado || tipo_pedagogico ) {
+      gtk_entry_set_text( GTK_ENTRY( ui_diario->tema ), "" );
+      gtk_widget_grab_focus( ctx->ui_diario.tema );
+   } else {
+      gtk_widget_grab_focus( ctx->ui_diario.descricao );
+   }
+
 }
 
 
@@ -946,7 +988,7 @@ void modificar_registro_aula( AppContext *ctx ) {
 
 
 
-static void carregar_diario_na_interface( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
+static void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
                                           const int foco_estilo, gboolean rolagem ) {
    g_return_if_fail( caminho_arquivo && ui_diario );
 
@@ -1098,7 +1140,8 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    RegistroDiario *diario = ctx->diario;
 
    // 3. Atualiza a RAM e aciona o gatilho do Autosave
-   diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+   // O código do aluno agora é inserido para toda a turma durante o registro de uma nova aula
+   // diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
    diario->chamada[idx_aluno].status = status;
    marcar_diario_modificado( ctx );
 
@@ -1151,7 +1194,8 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
       // Processa inativos residuais na sequência e os espelha na RAM
       while ( idx_aluno < ctx->dados.qtd_alunos_total && !ctx->ficha[idx_aluno].ativo ) {
-         diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+         // O código do aluno agora é inserido para toda a turma durante o registro de uma nova aula
+         // diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
          diario->chamada[idx_aluno].status = SEM_STATUS;
 
          g_autofree gchar *nasc_inativo = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
@@ -1193,7 +1237,7 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
 
 
-void on_combo_data_frequencia_changed_restore( AppContext *ctx ) {
+void ui_restaurar_frequencia_por_data( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
@@ -1534,31 +1578,69 @@ void salvar_diario( AppContext *ctx, gboolean final_save ) {
 
 
 //==================================================================================================
-static void carregar_frequencia( AppContext *ctx ) {
+static void sincronizar_registro_diario_com_turma( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
+   // 1. Aborta se não houver registros carregados na memória
+   if ( !ctx->diarios || ctx->diarios->len == 0 ) return;
 
-   GtkTreeIter iter;
+   // 2. Acessa o primeiro registro diretamente do GArray em O(1)
+   RegistroDiario *primeiro_registro = &g_array_index( ctx->diarios, RegistroDiario, 0 );
 
-   GtkComboBox *combo = GTK_COMBO_BOX( ui_diario->combo_data );
+   // 3. Conta os alunos presentes no primeiro registro salvo na RAM
+   int qtd_diario = 0;
+   while ( qtd_diario < 64 && primeiro_registro->chamada[qtd_diario].cod_aluno != 0 ) {
+      qtd_diario++;
+   }
 
-   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
-      GtkTreeModel *model = gtk_combo_box_get_model( combo );
-      guint carga_horaria = 0;
+   // 4. Validação do Gatilho: Verifica mudanças na quantidade
+   gboolean precisa_sincronizar = ( qtd_diario != ctx->dados.qtd_alunos_total );
 
-      // Lê o valor da coluna 1 (Configurada como guint no Glade)
-      gtk_tree_model_get( model, &iter, 1, &carga_horaria, -1 );
+   // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
+   if ( !precisa_sincronizar ) {
+      for ( int k = 0; k < qtd_diario; k++ ) {
+         if ( primeiro_registro->chamada[k].cod_aluno != ctx->ficha[k].cod_aluno ) {
+            precisa_sincronizar = TRUE;
+            break;
+         }
+      }
+   }
 
-      // Formata a string conforme o design e insere no Label
-      g_autofree gchar *str_horas = meu_gerador_variadico( "<b>%u h</b>", carga_horaria );
-      gtk_label_set_markup( GTK_LABEL( ui_diario->label_ch ), str_horas );
+   if ( !precisa_sincronizar ) return; // Tudo em sincronia, aborta precocemente.
 
-      on_combo_data_frequencia_changed_restore( ctx );
+   // 6. Sincronização em Lote diretamente no GArray
+   for ( guint r = 0; r < ctx->diarios->len; r++ ) {
+
+      RegistroDiario *registro = &g_array_index( ctx->diarios, RegistroDiario, r );
+      RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
+
+      for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
+         uint32_t cod_alvo = ctx->ficha[k].cod_aluno;
+         nova_chamada[k].cod_aluno = cod_alvo; // Espelha a ordem da ficha atualizada
+
+         gboolean encontrou_aluno = FALSE;
+
+         // Varre a chamada antiga deste dia em busca do aluno
+         for ( int j = 0; j < 64 && registro->chamada[j].cod_aluno != 0; j++ ) {
+            if ( registro->chamada[j].cod_aluno == cod_alvo ) {
+               nova_chamada[k].status = registro->chamada[j].status; // Restaura o status
+               encontrou_aluno = TRUE;
+               break;
+            }
+         }
+
+         // Aplica a regra de negócio para novos alunos injetados pelo SIAEP
+         if ( !encontrou_aluno ) {
+            nova_chamada[k].status = NOVO_ALUNO;
+         }
+      }
+
+      // Substitui o bloco desatualizado pelo novo na memória do GArray
+      memcpy( registro->chamada, nova_chamada, sizeof( nova_chamada ) );
    }
 }
 //--------------------------------------------------------------------------------------------------
-static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
+void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
    InterfaceDados    *dados    = &ctx->dados;
@@ -1568,10 +1650,12 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
    g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "diario.bin", NULL );
-   carregar_diario_na_interface( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
+   ui_restaurar_registros_de_aula( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
    ui_diario->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
    acessar_e_carregar_ficha_dos_alunos_da_turma( ctx );
+
+   sincronizar_registro_diario_com_turma( ctx );
 
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
@@ -1585,7 +1669,7 @@ static void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    carregar_diario( ctx );
    popular_datas( ctx );
 
-   on_combo_data_frequencia_changed_restore( ctx );
+   ui_restaurar_frequencia_por_data( ctx );
 
    iniciar_autosave_diario( ctx, 5 );
 
