@@ -680,7 +680,7 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
    // =====================================================================
    // 1. STATUS COM COR PADRÃO (Retorna 0 para usar a cor nativa do tema)
    // =====================================================================
-   if ( status == PRESENTE || status == FALTA_JUSTIFICADA ) {
+   if ( status == PRESENTE ) {
       return 0;
    }
 
@@ -736,6 +736,20 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
          *cor_out = (GdkRGBA){ 0.45, 0.15, 0.60, 1.0 };
       } else { // Dark Green - Padrão (Púrpura suave)
          *cor_out = (GdkRGBA){ 0.75, 0.55, 0.85, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 5. DESTAQUE (ROXO/PÚRPURA): Atividade Domiciliar (Requer ação extra)
+   // =====================================================================
+   if ( status == FALTA_JUSTIFICADA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Verde-azulado / Turquesa vibrante)
+         *cor_out = (GdkRGBA){ 0.25, 0.85, 0.75, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light (Verde escuro / Floresta - alto contraste em fundo claro)
+         *cor_out = (GdkRGBA){ 0.15, 0.55, 0.25, 1.0 };
+      } else { // Dark Green - Padrão (Verde suave / Menta claro - legível em fundo escuro)
+         *cor_out = (GdkRGBA){ 0.50, 0.85, 0.55, 1.0 };
       }
       return 1;
    }

@@ -45,6 +45,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    // Captura a janela principal definida lá dentro do Glade
    ctx->window = GTK_WIDGET( gtk_builder_get_object( builder, "janela_principal" ) );
+   ctx->notebook = GTK_WIDGET( gtk_builder_get_object( builder, "notebook_principal" ) );
 
    gtk_window_set_application( GTK_WINDOW( ctx->window ), app );
 
@@ -99,7 +100,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->ui_diario.tema             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
    ctx->ui_diario.descricao        = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
-   ctx->ui_diario.salvar_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   ctx->ui_diario.btn_salvar_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
    ctx->ui_diario.remover_registro = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
 
    ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
@@ -114,13 +115,14 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 2, 0.5 );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, 3, 0.5 );
 
-   ctx->ui_diario.combo_data        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
-   ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
-   ctx->ui_diario.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
-   ctx->ui_diario.salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
+   ctx->ui_diario.combo_data            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
+   ctx->ui_diario.label_ch              = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
+   ctx->ui_diario.check_por_aluno       = GTK_WIDGET( gtk_builder_get_object( builder, "check_chamada_por_aluno" ) );
+   ctx->ui_diario.combo_alunos          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
+   ctx->ui_diario.btn_salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
    ctx->ui_diario.btn_presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
    ctx->ui_diario.btn_ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
-   ctx->ui_diario.combo_status  = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
+   ctx->ui_diario.combo_status          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
 
 
 

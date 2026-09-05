@@ -1008,55 +1008,86 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
       ap += ch; // Presume-se Aulas Previstas padrão
 
-      if ( r->tipo_registro == TIPO_REGISTRO_FERIADO ) {
-         ap -= ch; // Feriados anulam AP[cite: 2]
-         g_string_append_printf( bloco_feriados, "\\node[rotate=90,inner sep=0pt,color=red] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, r->tema );
-      } else if ( r->tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
-         // Atividades anulam AP, mas não contam como AD finalizadas (Conforme sua regra original 'b')[cite: 2]
-         g_string_append_printf( bloco_feriados, "\\node[rotate=90,inner sep=0pt,color=blue] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s};\n", i, r->tema );
-      } else {
-         ad += ch; // Aulas Normais e Extras somam em Aulas Dadas
+      g_autofree gchar *tema_upper = NULL;
+      g_autofree gchar *descricao_upper = NULL;
 
-         // Injeção explícita de Bolinhas e Letras F sem \foreach no LaTeX
-         for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-            if ( !ctx->ficha[j].ativo ) continue;
+      switch ( r->tipo_registro ) {
+         case TIPO_REGISTRO_FERIADO:
+            ap -= ch; // Feriados anulam Aulas Previstas
 
-            GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
-            int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo y para a Página 2[cite: 1]
+            tema_upper = g_utf8_strup( r->tema, -1 );
+            descricao_upper = g_utf8_strup( r->descricao, -1 );
 
+            g_string_append_printf( bloco_feriados,
+               "\\node[rotate=90,inner sep=0pt,color=red] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s $\\to$ %s};\n",
+               i, tema_upper, descricao_upper );
+            break;
 
-            if ( r->chamada[j].status == PRESENTE ) {
-               pres[j] += ch;
-               g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx+1, i );
+         case TIPO_REGISTRO_PEDAGOGICO:
+            tema_upper = g_utf8_strup( r->tema, -1 );
+            descricao_upper = g_utf8_strup( r->descricao, -1 );
 
-            } else if ( r->chamada[j].status == AUSENTE ) {
-               falt[j] += ch;
-               g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx+1, i );
+            g_string_append_printf( bloco_feriados,
+               "\\node[rotate=90,inner sep=0pt,color=blue] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s $\\to$ %s};\n",
+               i, tema_upper, descricao_upper );
+            break;
 
-            } else if ( r->chamada[j].status == FALTA_JUSTIFICADA ) {
-               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "falta", "justificada", r_idx+1, i );
+         default: // Aulas Normais e Extras
+            ad += ch; // Somam em Aulas Dadas
 
-            } else if ( r->chamada[j].status == DISPENSADO ) {
-               g_string_append_printf( target, "\\%s{%d}{%d}\n", "dispensado", r_idx+1, i );
+            // Injeção explícita de símbolos sem \foreach no TeX
+            for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+               if ( !ctx->ficha[j].ativo ) continue;
 
-            } else if ( r->chamada[j].status == FORA_DE_SALA ) {
-               g_string_append_printf( target, "\\%s%s%s{%d}{%d}\n", "fora", "de", "sala", r_idx+1, i );
+               GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
+               int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo Y para a Página 2
 
-            } else if ( r->chamada[j].status == FOI_EMBORA ) {
-               falt[j] += ch;
-               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "foi", "embora", r_idx+1, i );
+               switch ( r->chamada[j].status ) {
+                  case PRESENTE:
+                     pres[j] += ch;
+                     g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx + 1, i );
+                     break;
 
-            } else if ( r->chamada[j].status == ATIVIDADE_DOMICILIAR ) {
-               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "atividade", "domiciliar", r_idx+1, i );
+                  case AUSENTE:
+                     falt[j] += ch;
+                     g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx + 1, i );
+                     break;
 
-            } else if ( r->chamada[j].status == SUSPENSO ) {
-               falt[j] += ch;
-               g_string_append_printf( target, "\\%s{%d}{%d}\n", "suspenso", r_idx+1, i );
+                  case FALTA_JUSTIFICADA:
+                     g_string_append_printf( target, "\\faltajustificada{%d}{%d}\n", r_idx + 1, i );
+                     break;
 
-            } else if ( r->chamada[j].status == NOVO_ALUNO ) {
-               g_string_append_printf( target, "\\%s%s{%d}{%d}\n", "novo", "aluno", r_idx+1, i );
+                  case DISPENSADO:
+                     g_string_append_printf( target, "\\dispensado{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  case FORA_DE_SALA:
+                     g_string_append_printf( target, "\\foradesala{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  case FOI_EMBORA:
+                     falt[j] += ch;
+                     g_string_append_printf( target, "\\foiembora{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  case ATIVIDADE_DOMICILIAR:
+                     g_string_append_printf( target, "\\atividadedomiciliar{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  case SUSPENSO:
+                     falt[j] += ch;
+                     g_string_append_printf( target, "\\suspenso{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  case NOVO_ALUNO:
+                     g_string_append_printf( target, "\\novoaluno{%d}{%d}\n", r_idx + 1, i );
+                     break;
+
+                  default:
+                     break;
+               }
             }
-         }
+            break;
       }
    }
 

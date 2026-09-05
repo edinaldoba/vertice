@@ -12,7 +12,6 @@
 
 typedef struct {
 
-
    GtkWidget *stack_pages;
 
    /*** CONTEÚDO ***/
@@ -35,7 +34,7 @@ typedef struct {
    //-- Registro do Conteúdo
    GtkWidget *tema;
    GtkWidget *descricao;
-   GtkWidget *salvar_conteudo;
+   GtkWidget *btn_salvar_conteudo;
    GtkWidget *tipo_registro;
    GtkTreeIter iter_em_edicao;
    gboolean editando; // FALSE = Novo Registro, TRUE = Editando Existente
@@ -47,21 +46,23 @@ typedef struct {
    //-- Botões e combos
    GtkWidget *combo_data;        // Datas de registros de aula normal e aula extra
    GtkWidget *label_ch;
-   gulong handler_combo_data;
+   GtkWidget *check_por_aluno;
    GtkWidget *combo_status;  // StatusAssiduidade
-   GtkWidget *salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
+   GtkWidget *btn_salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
    GtkWidget *btn_presente;          // Botão para salvar StatusAssiduidade PRESENTE
    GtkWidget *btn_ausente;           // Botão para salvar StatusAssiduidade AUSENTE
 
    GtkWidget *combo_alunos;
-   gulong handler_combo_alunos;
-   int limite_combo_alunos;
-   int foco_combo_alunos;
 
    //-- Janela com rolagem
    GtkWidget *scrolled_window_frequencia;
    GtkWidget *treeview_frequencia;
    GtkListStore *liststore_frequencia;
+
+   gulong handler_combo_alunos;
+   gulong handler_combo_data;
+   int limite_combo_alunos;
+   int foco_combo_alunos;
 
 } InterfaceRegistroDiario;
 
@@ -266,6 +267,7 @@ typedef struct {
    CaminhoDiretorio caminho;
 
    GtkWidget *window;
+   GtkWidget *notebook;
 
    InterfaceButton button;
    InterfaceRadio radio;
@@ -353,7 +355,11 @@ void modificar_registro_aula( AppContext *ctx );
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
-void ui_restaurar_frequencia_por_data( AppContext *ctx );
+void renderizar_frequencia_por_data( AppContext *ctx );
+void renderizar_frequencia_por_aluno( AppContext *ctx );
+
+void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha );
+void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha );
 
 void carregar_diario( AppContext *ctx );
 void salvar_diario( AppContext *ctx, gboolean final_save );

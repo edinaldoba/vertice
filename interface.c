@@ -290,7 +290,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
       _ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );
       g_free(caminho_arquivo);
-      ui_restaurar_frequencia_por_data( ctx );
+      renderizar_frequencia_por_data( ctx );
       break;
    default:
       g_print( "Categoria desconhecida: %d\n", categoria );
@@ -1150,6 +1150,29 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    GtkTreeModel *model_view = GTK_TREE_MODEL( store_view );
    const char *str_status = ctx->listas.status_assiduidade[status].str;
 
+   GdkRGBA cor_texto;
+   int r = cor_texto_linha_frequencia( status, ctx->dados.interface_style, &cor_texto );
+
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+
+   if ( modo_por_aluno ) {
+      // === NOVO COMPORTAMENTO: Atualiza a linha da DATA e avança o combo de DATAS ===
+      int foco_data = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
+      g_autoptr( GtkTreePath ) path_edicao = gtk_tree_path_new_from_indices( foco_data, -1 );
+      GtkTreeIter iter;
+
+      // Altera apenas o status daquela aula na interface
+      if ( gtk_tree_model_get_iter( model_view, &iter, path_edicao ) ) {
+         gtk_list_store_set( store_view, &iter, 3, str_status, 5, (r==0) ? NULL : &cor_texto, -1 );
+      }
+
+      // Avança para o próximo dia (isso disparará o combo_data changed automaticamente)
+      if ( foco_data + 1 < (int)ctx->diarios->len ) {
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ), foco_data + 1 );
+      }
+      return; // Encerra aqui, pulando a lógica de avançar alunos
+   }
+
    // 4. VERIFICA SE O ALUNO JÁ ESTÁ NA TELA
    gboolean modo_edicao = FALSE;
    GtkTreeIter iter_view;
@@ -1167,9 +1190,6 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
          linha_alvo++;
       } while ( gtk_tree_model_iter_next( model_view, &iter_view ) );
    }
-
-   GdkRGBA cor_texto;
-   int r = cor_texto_linha_frequencia( status, ctx->dados.interface_style, &cor_texto );
 
    // 5. ATUALIZA A INTERFACE VISUAL E PROCESSA INATIVOS
    if ( modo_edicao ) {
@@ -1237,7 +1257,7 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
 
 
-void ui_restaurar_frequencia_por_data( AppContext *ctx ) {
+void renderizar_frequencia_por_data( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
@@ -1258,6 +1278,15 @@ void ui_restaurar_frequencia_por_data( AppContext *ctx ) {
 
    ctx->diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
    RegistroDiario *diario = ctx->diario;
+
+   // NOVA TRAVA: Se estiver no modo Aluno, atualizamos o ponteiro e rolamos a tela, mas abortamos a renderização geral.
+   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ui_diario->check_por_aluno ) ) ) {
+      g_autoptr( GtkTreePath ) path = gtk_tree_path_new_from_indices( foco, -1 );
+      if ( path ) {
+         gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui_diario->treeview_frequencia ), path, NULL, FALSE, 0.0, 0.0 );
+      }
+      return;
+   }
 
    // =====================================================================
    // 2. PREPARAÇÃO VISUAL: Limpa a tabela
@@ -1329,6 +1358,124 @@ void ui_restaurar_frequencia_por_data( AppContext *ctx ) {
          gtk_tree_view_scroll_to_cell( tree_view, path, NULL, FALSE, 0.0, 0.0 );
          gtk_tree_path_free( path );
       }
+   }
+}
+
+
+void renderizar_frequencia_por_aluno( AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->diarios );
+
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
+   if ( idx_aluno < 0 || idx_aluno >= ctx->dados.qtd_alunos_total ) return;
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
+   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+   gtk_list_store_clear( store_view );
+
+   gboolean riscar = !ctx->ficha[idx_aluno].ativo;
+   const char *nome_aluno = ctx->ficha[idx_aluno].aluno;
+   int proxima_data_pendente = 0;
+   gboolean achou_pendente = FALSE;
+
+   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
+      RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+
+      gboolean tipo_feriado    = ( diario->tipo_registro == TIPO_REGISTRO_FERIADO );
+      gboolean tipo_pedagogico = ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
+      if ( tipo_feriado || tipo_pedagogico ) continue;
+
+      int idx_st = diario->chamada[idx_aluno].status;
+
+      // Localiza a primeira aula sem chamada para este aluno
+      if ( idx_st == SEM_STATUS && !achou_pendente ) {
+         proxima_data_pendente = i;
+         achou_pendente = TRUE;
+      }
+
+      const char *str_status = ctx->listas.status_assiduidade[idx_st].str;
+      GdkRGBA cor_texto;
+      int r = cor_texto_linha_frequencia( idx_st, ctx->dados.interface_style, &cor_texto );
+
+      GtkTreeIter iter;
+      gtk_list_store_append( store_view, &iter );
+      gtk_list_store_set( store_view, &iter,
+                          0, idx_aluno + 1,
+                          1, nome_aluno,
+                          2, diario->data,       // Coluna 2 agora recebe a DATA
+                          3, str_status,
+                          4, riscar,
+                          5, ( r == 0 ) ? NULL : &cor_texto, -1 );
+   }
+
+   // Posiciona o combo_data e a rolagem visual na data pendente
+   if ( ctx->diarios->len > 0 ) {
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ), proxima_data_pendente );
+   }
+}
+
+
+
+void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha ) {
+   int linha_atual = 0;
+   int indice_real_diario = -1;
+   guint total_diarios = ctx->diarios->len;
+
+   for ( guint i = 0; i < total_diarios; i++ ) {
+      RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+
+      gboolean tipo_feriado    = ( diario->tipo_registro == TIPO_REGISTRO_FERIADO );
+      gboolean tipo_pedagogico = ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
+      if ( tipo_feriado || tipo_pedagogico ) continue;
+
+      if ( linha_atual == indice_linha ) {
+         indice_real_diario = ( int )i;
+         break;
+      }
+      linha_atual++;
+   }
+
+   if ( indice_real_diario >= 0 && ctx->ui_diario.combo_data ) {
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ), indice_real_diario );
+   }
+}
+
+void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha ) {
+   if ( indice_linha < 0 && indice_linha >= ctx->dados.qtd_alunos_total ) {
+      return;
+   }
+
+   if ( ctx->ficha[indice_linha].ativo ) {
+      // Aluno Ativo: sincroniza o combo normalmente
+      if ( ctx->ui_diario.combo_alunos ) {
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), indice_linha );
+      }
+   } else {
+      // ALUNO INATIVO: Lógica de repulsão magnética (Pulo Automático)
+      int foco_anterior = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
+      int target = -1;
+
+      if ( indice_linha > foco_anterior ) {
+         // Descendo (seta para baixo ou clique abaixo)
+         for ( int i = indice_linha + 1; i < ctx->dados.qtd_alunos_total; i++ ) {
+            if ( ctx->ficha[i].ativo ) { target = i; break; }
+         }
+      } else if ( indice_linha < foco_anterior ) {
+         // Subindo (seta para cima ou clique acima)
+         for ( int i = indice_linha - 1; i >= 0; i-- ) {
+            if ( ctx->ficha[i].ativo ) { target = i; break; }
+         }
+      }
+
+      // Se não encontrou ninguém na direção (ex: chegou no fim da lista e os últimos são inativos)
+      if ( target == -1 ) {
+         target = foco_anterior; // Volta para o porto seguro
+      }
+
+      // Força a TreeView a pular o inativo e focar no alvo válido.
+      // NOTA: Isso dispara 'cursor-changed' novamente de forma limpa,
+      // mas como 'target' é ativo, cairá no primeiro IF encerrando a recursão instantaneamente.
+      g_autoptr( GtkTreePath ) novo_path = gtk_tree_path_new_from_indices( target, -1 );
+      gtk_tree_view_set_cursor( treeview, novo_path, NULL, FALSE );
    }
 }
 
@@ -1671,7 +1818,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    _sincronizar_registro_diario_com_turma_siaep( ctx );
 
-   ui_restaurar_frequencia_por_data( ctx );
+   renderizar_frequencia_por_data( ctx );
 
    _iniciar_autosave_diario( ctx, 5 );
 

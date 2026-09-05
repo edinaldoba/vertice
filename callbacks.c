@@ -333,7 +333,7 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
          int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
          ctx->diario = _indexar_array_diario( ctx, foco );
 
-         ui_restaurar_frequencia_por_data( ctx );
+         renderizar_frequencia_por_data( ctx );
 
          // Retorna TRUE para indicar que o evento foi tratado/consumido
          return TRUE;
@@ -404,7 +404,7 @@ static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) 
    int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
    ctx->diario = _indexar_array_diario( ctx, foco );
 
-   ui_restaurar_frequencia_por_data( ctx );
+   renderizar_frequencia_por_data( ctx );
 }
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -464,7 +464,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       int foco = gtk_combo_box_get_active( combo );
       ctx->diario = _indexar_array_diario( ctx, foco );
 
-      ui_restaurar_frequencia_por_data( ctx );
+      renderizar_frequencia_por_data( ctx );
    }
 }
 
@@ -474,28 +474,39 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
 gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
 
-   // Validação inicial reforçada para garantir que os ponteiros principais existam
-   g_return_val_if_fail( GTK_IS_WINDOW(widget) && ctx && event && ctx->ui_diario.stack_pages, FALSE );
+   // 1. Validação inicial reforçada
+   g_return_val_if_fail( GTK_IS_WIDGET( widget ) && event && ctx, FALSE );
 
-   // 1. TRAVA DE NAVEGAÇÃO: Exige estar estritamente na aba "page_frequencia"
-   const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ctx->ui_diario.stack_pages ) );
-   if ( g_strcmp0( aba_ativa, "page_frequencia" ) != 0 ) {
-      return FALSE; // Ignora as teclas se estiver em outra aba
+   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
+   g_return_val_if_fail( ui_diario->stack_pages, FALSE );
+
+   // 2. TRAVA DE NAVEGAÇÃO CORRIGIDA: Exige estar estritamente no Aba de Relatórios (0) E na Frequência
+   gint pagina_atual = gtk_notebook_get_current_page( GTK_NOTEBOOK( ctx->notebook ) );
+   const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ui_diario->stack_pages ) );
+
+   // Se NÃO estiver na aba 0 OU NÃO estiver no stack frequencia, aborta.
+   if ( pagina_atual != 0 || g_strcmp0( aba_ativa, "page_frequencia" ) != 0 ) {
+      return FALSE;
    }
 
-   // 2. CAPTURA E SIMULAÇÃO DOS CLIQUES VIA TECLADO
+   // 3. CAPTURA E SIMULAÇÃO DOS CLIQUES VIA TECLADO
    switch ( gdk_keyval_to_lower( event->keyval ) ) {
       case GDK_KEY_p:
-         gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.btn_presente ) );
+         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_presente ) );
          return TRUE;
 
       case GDK_KEY_f:
-         gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.btn_ausente ) );
+         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_ausente ) );
          return TRUE;
 
-      // Pronto para escalar caso queira adicionar GDK_KEY_j (Falta Justificada), etc.
+      // Deixei o esqueleto pronto para a Justificada caso queira usar a tecla "J" no futuro
+      case GDK_KEY_j:
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 3 );
+         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+         return TRUE;
+
       default:
-         return FALSE;
+         return FALSE; // Permite que a digitação de outras teclas flua normalmente para o GTK
    }
 }
 
@@ -522,6 +533,66 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
    registrar_status_assiduidade_frequencia( &ctx->painel, ctx, status );
 }
 
+
+
+
+
+void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+
+   GtkToggleButton *togglebutton = GTK_TOGGLE_BUTTON( widget );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( togglebutton );
+
+   // A coluna 2 é a "NASCIMENTO" / "DATA AULA"
+   GtkTreeViewColumn *coluna = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia ), 2 );
+
+   if ( modo_por_aluno ) {
+      gtk_tree_view_column_set_title( coluna, "DATA  AULA" );
+      renderizar_frequencia_por_aluno( ctx );
+   } else {
+      gtk_tree_view_column_set_title( coluna, "NASCIMENTO" );
+      renderizar_frequencia_por_data( ctx );
+   }
+}
+
+
+
+
+void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+
+   // Validações de segurança iniciais
+   g_return_if_fail( ctx != NULL && ctx->diarios != NULL );
+   g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
+
+   GtkTreeView *treeview = GTK_TREE_VIEW( widget );
+
+   // 1. Obtém o caminho da linha atualmente focada
+   g_autoptr( GtkTreePath ) path = NULL;
+   gtk_tree_view_get_cursor( treeview, &path, NULL );
+   if ( !path ) return;
+
+   // 2. Extrai o índice numérico da linha visível na tela
+   int *indices = gtk_tree_path_get_indices( path );
+   if ( !indices ) return;
+
+   int indice_linha = indices[0];
+   gboolean modo_por_aluno = FALSE;
+
+   if ( ctx->ui_diario.check_por_aluno ) {
+      modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+   }
+
+   // 3. Roteamento de navegação baseado no modo ativo
+   if ( modo_por_aluno ) {
+      // MODO POR ALUNO: Mapeia a linha visível filtrada para o índice real do GArray
+      treeview_frequencia_navegar_modo_por_aluno( ctx, indice_linha );
+
+   } else {
+      // MODO NORMAL: A linha na TreeView representa um Aluno diretamente
+      treeview_frequencia_navegar_modo_normal( ctx, treeview, indice_linha );
+   }
+}
 
 
 
@@ -908,6 +979,7 @@ void on_scrolled_rolar_para_o_fim_sizeallocate( GtkWidget *widget, GdkRectangle 
 
 
 
+
 void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
@@ -916,8 +988,22 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
    if ( ativo < 0 ) return;
 
-   // 1. RESTRICAO: Se tentou pular para um aluno além do limite (qtd. renderizada no ListStore)
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+
+   // =================================================================
+   // MODO 1: POR ALUNO (Auditoria Livre)
+   // =================================================================
+   if ( modo_por_aluno ) {
+      ctx->ui_diario.foco_combo_alunos = ativo;
+      renderizar_frequencia_por_aluno( ctx );
+      return; // 🛑 Encerra aqui, não aplica nenhuma trava!
+   }
+
+   // =================================================================
+   // MODO 2: CHAMADA NORMAL (Navegação Restrita / Sequencial)
+   // =================================================================
    if ( ativo >= ctx->ui_diario.limite_combo_alunos ) {
+
       // Bloqueia temporariamente este callback para não gerar loop infinito
       if ( ctx->ui_diario.handler_combo_alunos > 0 ) {
          g_signal_handler_block( widget, ctx->ui_diario.handler_combo_alunos );
@@ -925,7 +1011,6 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
 
       // Força o retorno visual para o índice máximo permitido
       ctx->ui_diario.foco_combo_alunos = ctx->ui_diario.limite_combo_alunos - 1;
-
       gtk_combo_box_set_active( GTK_COMBO_BOX( widget ), ctx->ui_diario.foco_combo_alunos );
 
       // Desbloqueia o callback para voltar a ouvir cliques futuros
@@ -936,7 +1021,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
       return;
    }
 
-   // Se a navegação foi válida (dentro do limite), atualiza o foco normalmente
+   // Se a navegação foi válida (dentro do limite da chamada), atualiza o foco normalmente
    ctx->ui_diario.foco_combo_alunos = ativo;
 }
 
