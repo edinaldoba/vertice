@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <gdk/gdkkeysyms.h> // Certifique-se de incluir para ter acesso às chaves GDK_KEY_*
 
 #include "signals.h"
 #include "callbacks.h"
@@ -298,7 +299,7 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 
 
 
-static RegistroDiario *indexar_array_diario( AppContext *ctx, int foco ) {
+static RegistroDiario *_indexar_array_diario( AppContext *ctx, int foco ) {
    g_return_val_if_fail( ctx, NULL );
 
    RegistroDiario *diario = NULL;
@@ -311,35 +312,63 @@ static RegistroDiario *indexar_array_diario( AppContext *ctx, int foco ) {
 }
 
 
-// Callback protegido contra memory leaks com g_autoptr
-void on_button_remover_registro_diario_por_indice_clicked( GtkWidget *widget, gpointer user_data ) {
+
+static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, GtkTreeSelection *selection ) {
+   GtkTreeModel *model;
+   GtkTreeIter iter;
+
+   // Se houver uma linha selecionada, o GTK preenche 'model' e 'iter' aqui mesmo
+   if ( gtk_tree_selection_get_selected( selection, &model, &iter ) ) {
+      g_autoptr( GtkTreePath ) path_remocao = gtk_tree_model_get_path( model, &iter );
+
+      if ( path_remocao ) {
+         int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
+
+         // Delega a execução atômica para a função embrulhada
+         remover_registro_diario_selecionado( ctx, indice_remocao, model, &iter );
+
+         // SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
+         popular_datas( ctx );
+
+         int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
+         ctx->diario = _indexar_array_diario( ctx, foco );
+
+         ui_restaurar_frequencia_por_data( ctx );
+
+         // Retorna TRUE para indicar que o evento foi tratado/consumido
+         return TRUE;
+      }
+   }
+   return FALSE;
+}
+
+void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx && ctx->diarios );
 
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
-   GtkTreeModel *model;
-   GtkTreeIter iter;
 
-   // 1. Verifica se há algo selecionado
-   if ( !gtk_tree_selection_get_selected( selection, &model, &iter ) ) return;
-
-   // 2. Descobre o índice exato da linha (sincronizado 1:1 com o GArray)
-   g_autoptr( GtkTreePath ) path_remocao = gtk_tree_model_get_path( model, &iter );
-   if ( !path_remocao ) return;
-
-   int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
-
-   // 3. Delega a execução atômica para a função embrulhada
-   remover_registro_diario_por_indice( ctx, indice_remocao, model, &iter );
-
-   // 4. SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
-   popular_datas( ctx );
-
-   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-   ctx->diario = indexar_array_diario( ctx, foco );
-
-   ui_restaurar_frequencia_por_data( ctx );
+   // Chamada limpa e direta
+   _treeview_remover_registro_diario_selecionado( ctx, selection );
 }
+
+gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
+                                                                          gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( ctx && ctx->diarios, FALSE );
+
+   // Verifica se a tecla pressionada foi o DELETE
+   if ( event->keyval == GDK_KEY_Delete ) {
+      GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) );
+
+      // O retorno TRUE ou FALSE agora flui naturalmente
+      return _treeview_remover_registro_diario_selecionado( ctx, selection );
+   }
+
+   // Retorna FALSE para permitir que outras teclas (como setas para cima/baixo) funcionem normalmente
+   return FALSE;
+}
+
 
 
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data ) {
@@ -364,11 +393,7 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
 }
 
 
-
-void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
-
+static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) {
    if ( ctx->ui_diario.editando ) {
       modificar_registro_aula( ctx );
    } else {
@@ -377,26 +402,23 @@ void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
    popular_datas( ctx );
 
    int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-   ctx->diario = indexar_array_diario( ctx, foco );
+   ctx->diario = _indexar_array_diario( ctx, foco );
 
    ui_restaurar_frequencia_por_data( ctx );
+}
+
+void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+
+   _treeview_adicionar_ou_modificar_registro_diario( ctx );
 }
 
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
-   if ( ctx->ui_diario.editando ) {
-      modificar_registro_aula( ctx );
-   } else {
-      registrar_aula( ctx );
-   }
-   popular_datas( ctx );
-
-   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-   ctx->diario = indexar_array_diario( ctx, foco );
-
-   ui_restaurar_frequencia_por_data( ctx );
+   _treeview_adicionar_ou_modificar_registro_diario( ctx );
 }
 
 
@@ -440,9 +462,40 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       gtk_label_set_markup( GTK_LABEL( ctx->ui_diario.label_ch ), str_qtd_aulas );
 
       int foco = gtk_combo_box_get_active( combo );
-      ctx->diario = indexar_array_diario( ctx, foco );
+      ctx->diario = _indexar_array_diario( ctx, foco );
 
       ui_restaurar_frequencia_por_data( ctx );
+   }
+}
+
+
+
+
+gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+
+   // Validação inicial reforçada para garantir que os ponteiros principais existam
+   g_return_val_if_fail( GTK_IS_WINDOW(widget) && ctx && event && ctx->ui_diario.stack_pages, FALSE );
+
+   // 1. TRAVA DE NAVEGAÇÃO: Exige estar estritamente na aba "page_frequencia"
+   const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ctx->ui_diario.stack_pages ) );
+   if ( g_strcmp0( aba_ativa, "page_frequencia" ) != 0 ) {
+      return FALSE; // Ignora as teclas se estiver em outra aba
+   }
+
+   // 2. CAPTURA E SIMULAÇÃO DOS CLIQUES VIA TECLADO
+   switch ( gdk_keyval_to_lower( event->keyval ) ) {
+      case GDK_KEY_p:
+         gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.btn_presente ) );
+         return TRUE;
+
+      case GDK_KEY_f:
+         gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.btn_ausente ) );
+         return TRUE;
+
+      // Pronto para escalar caso queira adicionar GDK_KEY_j (Falta Justificada), etc.
+      default:
+         return FALSE;
    }
 }
 
@@ -474,7 +527,7 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
 
 
 //------------------------------------------------------------------------------------------------------------------
-static gboolean ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) { // Única função auxiliar em callbacks.c
+static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) {
    g_return_val_if_fail( GTK_IS_STACK( widget ) && nome_da_pagina, FALSE );
    const gchar *pagina_atual = gtk_stack_get_visible_child_name( GTK_STACK( widget ) );
    if ( g_strcmp0( pagina_atual, nome_da_pagina ) == 0 ) {
@@ -500,7 +553,7 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    }
 
    // 2. Permite a transição de aba se o estado estiver limpo
-   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
    }
 
@@ -511,7 +564,7 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_conteudo" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_conteudo" ) ) {
       gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
    }
 
@@ -522,7 +575,7 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   if ( ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_avaliacoes" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_avaliacoes" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
    }
 

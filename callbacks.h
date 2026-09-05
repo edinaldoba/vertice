@@ -23,7 +23,8 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
 gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
-void on_button_remover_registro_diario_por_indice_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data );
+gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data );
@@ -31,6 +32,7 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
                                                               GtkTreeViewColumn *column, gpointer user_data );
 
 void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data );
+gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
 void on_button_presente_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data );

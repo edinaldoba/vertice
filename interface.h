@@ -50,8 +50,8 @@ typedef struct {
    gulong handler_combo_data;
    GtkWidget *combo_status;  // StatusAssiduidade
    GtkWidget *salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
-   GtkWidget *presente;          // Botão para salvar StatusAssiduidade PRESENTE
-   GtkWidget *ausente;           // Botão para salvar StatusAssiduidade AUSENTE
+   GtkWidget *btn_presente;          // Botão para salvar StatusAssiduidade PRESENTE
+   GtkWidget *btn_ausente;           // Botão para salvar StatusAssiduidade AUSENTE
 
    GtkWidget *combo_alunos;
    gulong handler_combo_alunos;
@@ -345,7 +345,7 @@ bool verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados
 
 gchar* validar_data( const gchar *texto );
 
-void remover_registro_diario_por_indice( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
+void remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
 void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );

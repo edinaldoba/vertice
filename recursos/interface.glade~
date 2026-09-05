@@ -736,7 +736,6 @@
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">0</attribute>
-                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>

@@ -118,8 +118,8 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.label_ch          = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
    ctx->ui_diario.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
    ctx->ui_diario.salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
-   ctx->ui_diario.presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
-   ctx->ui_diario.ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
+   ctx->ui_diario.btn_presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
+   ctx->ui_diario.btn_ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
    ctx->ui_diario.combo_status  = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
 
 

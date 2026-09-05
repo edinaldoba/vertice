@@ -136,7 +136,10 @@ void app_signals_connect( gpointer user_data ) {
 
    g_signal_connect( ctx->ui_diario.stepper_menos, "clicked", G_CALLBACK(on_button_stepper_menos_num_horarios_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked", G_CALLBACK(on_button_stepper_mais_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.remover_registro, "clicked", G_CALLBACK(on_button_remover_registro_diario_por_indice_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.remover_registro, "clicked",
+                     G_CALLBACK( on_button_remover_registro_diario_selecionado_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.treeview_conteudo, "key-press-event",
+                     G_CALLBACK( on_treeview_remover_registro_diario_selecionado_key_press_event ), ctx );
    // Obtém o controle de seleção do TreeView
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
    g_signal_connect( selection, "changed", G_CALLBACK( on_diario_selection_changed ), ctx );
@@ -148,8 +151,10 @@ void app_signals_connect( gpointer user_data ) {
 
    ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
                                                          G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
-   g_signal_connect( ctx->ui_diario.presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
+   g_signal_connect( ctx->window, "key-press-event",
+                  G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
    g_signal_connect( ctx->ui_diario.salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
 
 
