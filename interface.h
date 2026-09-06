@@ -12,8 +12,6 @@
 
 typedef struct {
 
-   GtkWidget *stack_pages;
-
    /*** CONTEÚDO ***/
 
    //-- Calendário
@@ -63,6 +61,26 @@ typedef struct {
    gulong handler_combo_data;
    int limite_combo_alunos;
    int foco_combo_alunos;
+
+   /*** AVALIAÇÕES ***/
+
+   //-- Cabeçalho das Avaliações (As 5 pares de Entrys da imagem)
+   GtkWidget *entry_av[5];           // Nomes/Pesos das avaliações (Av1 .. Av5)
+   GtkWidget *entry_rec[5];          // Nomes/Pesos das recuperações (Rec1 .. Rec5)
+
+   //-- Seleção de Avaliação Ativa
+   GtkWidget *combo_avaliacao_ativa; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
+
+   //-- Janela com rolagem e Tabela de Notas
+   GtkWidget *scrolled_window_avaliacoes;
+   GtkWidget *treeview_avaliacoes;
+   GtkListStore *liststore_avaliacoes;
+   GtkCellRenderer *renderer_nota_av;  // Editor editável para a nota principal
+   GtkCellRenderer *renderer_nota_rec; // Editor editável para a recuperação
+
+   //-- Handlers e Sinalizadores de Controle
+   gulong handler_combo_avaliacao;
+   int avaliacao_foco_ativa;          // Guardião do índice da avaliação ativa (0 a 9)
 
 } InterfaceRegistroDiario;
 
@@ -246,10 +264,11 @@ typedef struct {
 
 
 typedef struct {
-   FichaAluno *ficha;
+   // FichaAluno *ficha;
 
    RegistroDiario *diario; // Vou manter o ponteiro de trabalho dentro da struct principal
    GArray *diarios; // Substitui o ponteiro cru. O motor GLib fará a gestão da RAM.
+   GArray *fichas;
 
    // --- CONTROLE DE AUTOSAVE ---
    gboolean dados_modificados; // Registra se houve alteração na RAM desde o último salvamento
@@ -268,6 +287,7 @@ typedef struct {
 
    GtkWidget *window;
    GtkWidget *notebook;
+   GtkWidget *stack_pages;
 
    InterfaceButton button;
    InterfaceRadio radio;

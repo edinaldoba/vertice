@@ -478,11 +478,11 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
    g_return_val_if_fail( GTK_IS_WIDGET( widget ) && event && ctx, FALSE );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   g_return_val_if_fail( ui_diario->stack_pages, FALSE );
+   g_return_val_if_fail( ctx->stack_pages, FALSE );
 
    // 2. TRAVA DE NAVEGAÇÃO CORRIGIDA: Exige estar estritamente no Aba de Relatórios (0) E na Frequência
    gint pagina_atual = gtk_notebook_get_current_page( GTK_NOTEBOOK( ctx->notebook ) );
-   const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ui_diario->stack_pages ) );
+   const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ctx->stack_pages ) );
 
    // Se NÃO estiver na aba 0 OU NÃO estiver no stack frequencia, aborta.
    if ( pagina_atual != 0 || g_strcmp0( aba_ativa, "page_frequencia" ) != 0 ) {
@@ -624,7 +624,7 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    }
 
    // 2. Permite a transição de aba se o estado estiver limpo
-   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_frequencia" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
    }
 
@@ -635,7 +635,7 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_conteudo" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_conteudo" ) ) {
       gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
    }
 
@@ -646,7 +646,7 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
-   if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_avaliacoes" ) ) {
+   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_avaliacoes" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
    }
 

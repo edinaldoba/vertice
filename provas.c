@@ -36,7 +36,7 @@ void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados )
 
 
 
-void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const FichaAluno *ficha,
+void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GArray *fichas,
                                  const InterfaceDados *dados, const CalendarioData *data ) {
 
 
@@ -110,13 +110,15 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
       fprintf( p1, "\\node[inner sep=0pt] at (1.3,{-2-\\p*(%d+0.5)}) {%02d};\n", i, i );
 
       // Nome e Status (C decide a cor e o texto aqui)
-      if ( ficha[idx_aluno].ativo ) {
+      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, idx_aluno );
+
+      if ( ficha->ativo ) {
          fprintf( p1, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {%.*s};\n",
-                  i, ficha[idx_aluno].limite_corte, ficha[idx_aluno].aluno );
+                  i, ficha->limite_corte, ficha->aluno );
       } else {
          const char *motivo = ( dados->periodo[0] == 'R' ) ? "Aprovado(a) na Média" : "Não Frequenta";
          fprintf( p1, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {\\color{gray!50}%.*s};\n",
-                  i, ficha[idx_aluno].limite_corte, ficha[idx_aluno].aluno );
+                  i, ficha->limite_corte, ficha->aluno );
          fprintf( p1, "\\node[inner sep=0pt,color=gray!80,right] at (7.1,{-2-\\p*(%d+0.5)}) {%s};\n", i, motivo );
       }
    }
@@ -132,7 +134,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
 
 //========================================================================================================//
-void imagens_para_prova( const int i, int numero, const FichaAluno *ficha,
+void imagens_para_prova( const int i, int numero, const GArray *fichas,
                          const InterfaceDados *dados, const FocoCoordenadas *foco ) {
    char arquivo[256];
    FILE *p;
@@ -160,7 +162,8 @@ void imagens_para_prova( const int i, int numero, const FichaAluno *ficha,
 
    // \pagebreak, \hspace e \vfill foram removidos.
    // Eles geravam "enchimento" (padding) invisível.
-   quadro_de_respostas( p, ficha[numero - 1].aluno, numero, i, direcao, true, dados, foco );
+   const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, numero - 1 );
+   quadro_de_respostas( p, ficha->aluno, numero, i, direcao, true, dados, foco );
 
    fprintf( p, "\\end{document}\n" );
 
@@ -174,15 +177,17 @@ void imagens_para_prova( const int i, int numero, const FichaAluno *ficha,
 
 //========================================================================================================//
 void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const InterfaceDados *dados, const FocoCoordenadas *foco,
-               const FichaAluno *ficha, const CalendarioData *data, const ItemTextoCurto *G ) {
+               const GArray *fichas, const CalendarioData *data, const ItemTextoCurto *G ) {
 
    int letra, j = 0, jj, k, q;
 
    uint8_t id;
 
    k = 0;
+   const FichaAluno *ficha = NULL;
    for ( jj = 0; jj < dados->qtd_alunos_total; jj++ ) {
-      if ( ficha[jj].ativo ) {
+      ficha = &g_array_index( fichas, FichaAluno, jj );
+      if ( ficha->ativo ) {
          k++;
       }
       if ( i + 1 == k ) {
@@ -191,7 +196,7 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
    }
 
    if ( dados->naopresencial ) {
-      imagens_para_prova( i, jj + 1, ficha, dados, foco );
+      imagens_para_prova( i, jj + 1, fichas, dados, foco );
    }
 
    char strg[128];
@@ -275,7 +280,7 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
                   strncmp( str, "\\node[inner sep=0pt,right,color=blue] at (2.1,-1.61) {", 54 ) == 0 ||
                   strncmp( str, "\\node[inner sep=0pt,right,color=CorSerie] at (2.1,-3.12) {", 57 ) == 0 ) {
          if ( !dados->naopresencial ) continue;
-         fprintf( pp, str, ficha[jj].aluno );
+         fprintf( pp, str, ficha->aluno );
          continue;
       } else if ( strncmp( str, "\\node[inner sep=0pt,right,color=blue] at (16.4,-2.96) {", 54 ) == 0 ||
                   strncmp( str, "\\node[inner sep=0pt,right,color=blue] at (16.4,-1.61) {", 54 ) == 0 ||
@@ -461,14 +466,14 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
    while ( fgets( str, sizeof str, pm ) != NULL ) {
       if ( strcmp( str, "% RESPOSTAS\n" ) == 0 && dados->qtd_paginas == 1 ) {
          fputs( "\\begin{center}\n", pp );
-         quadro_de_respostas( pp, ficha[jj].aluno, jj + 1, i, direcao, dados->naopresencial, dados, foco );
+         quadro_de_respostas( pp, ficha->aluno, jj + 1, i, direcao, dados->naopresencial, dados, foco );
          fputs( "\\end{center}\n", pp );
          fputs( "\\end{multicols}\n\\end{document}", pp );
          break;
       } else if ( strcmp( str, "% RESPOSTAS\n" ) == 0 && dados->qtd_paginas == 2 ) {
          // fputs( "\\hspace{-10mm}\\begin{center}\n", pp );
          fputs( "\\noindent\\hspace{-3mm}", pp );
-         quadro_de_respostas( pp, ficha[jj].aluno, jj + 1, i, direcao, dados->naopresencial, dados, foco );
+         quadro_de_respostas( pp, ficha->aluno, jj + 1, i, direcao, dados->naopresencial, dados, foco );
          // fputs( "\\end{center}\n", pp );
          continue;
       }
@@ -486,11 +491,11 @@ void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const Inter
 
 
 //========================================================================================================//
-void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const FichaAluno *ficha,
+void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArray *fichas,
             const CaminhoDiretorio *caminho, const CalendarioData *data, const ItemTextoCurto *G ) {
 
    char titulo_prova[512];
-   gerar_tex_lista_frequencia( "./dados/temporarios/frequencia.tex", titulo_prova, ficha, dados, data );
+   gerar_tex_lista_frequencia( "./dados/temporarios/frequencia.tex", titulo_prova, fichas, dados, data );
 
    char pasta_tema[1000], questao[2000], modelo_pvo[1000];
 
@@ -541,7 +546,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
 
       file_permute( pb, dados->total_questoes );
 
-      provinha( pm, pb, ii, titulo_prova, dados, foco, ficha, data, G );
+      provinha( pm, pb, ii, titulo_prova, dados, foco, fichas, data, G );
 
       for ( i = 0; i < dados->total_questoes; i++ ) {
          fclose( pb[i] );
@@ -552,7 +557,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const Fich
 
    }
 
-   compilacao_latex_e_manipulacao_de_arquivos( ficha, dados, caminho );
+   compilacao_latex_e_manipulacao_de_arquivos( fichas, dados, caminho );
 
 
 }
@@ -588,7 +593,7 @@ static void copiar_arquivos_prova_externamente( const InterfaceDados *dados, con
 }
 
 //========================================================================================================//
-static void copiar_arquivos_prova_nao_presencial( const FichaAluno *ficha, const InterfaceDados *dados,
+static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const InterfaceDados *dados,
       const CaminhoDiretorio *caminho ) {
    g_autofree char *diretorio_provas  = NULL;
    g_autofree char *diretorio_imagens = NULL;
@@ -618,7 +623,8 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *ficha, const
    int cont_ativos = 0;
 
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      if ( ficha[j].ativo ) {
+      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, j );
+      if ( ficha->ativo ) {
          mapa_ativos[cont_ativos++] = j;
       }
    }
@@ -627,19 +633,20 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *ficha, const
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < cont_ativos; i++ ) {
       int aluno_idx = mapa_ativos[i];
+      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, aluno_idx );
 
       // Exportação do PDF da Prova
       g_autofree char *thread_origem = g_strdup_printf( "./dados/temporarios/prova%.2d.pdf", i );
-      g_autofree char *nome_arquivo_pdf = g_strdup_printf( "%.2d - %s.pdf", aluno_idx + 1, ficha[aluno_idx].aluno );
+      g_autofree char *nome_arquivo_pdf = g_strdup_printf( "%.2d - %s.pdf", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_destino = g_build_filename( diretorio_provas, nome_arquivo_pdf, NULL );
 
       if ( !gio_copiar_arquivo( thread_origem, thread_destino ) ) {
-         g_printerr( "[ERRO] Falha ao salvar prova do aluno %s\n", ficha[aluno_idx].aluno );
+         g_printerr( "[ERRO] Falha ao salvar prova do aluno %s\n", ficha->aluno );
       }
 
       // Conversão e exportação da Imagem (A conversão consome CPU, por isso brilha no OpenMP)
       g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/img%.2d.pdf", i );
-      g_autofree char *nome_arquivo_png = g_strdup_printf( "%.2d - %s.png", aluno_idx + 1, ficha[aluno_idx].aluno );
+      g_autofree char *nome_arquivo_png = g_strdup_printf( "%.2d - %s.png", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
       if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 6.0 ) ) {
@@ -659,14 +666,14 @@ static void copiar_arquivos_prova_nao_presencial( const FichaAluno *ficha, const
 
 
 //========================================================================================================//
-void compilacao_latex_e_manipulacao_de_arquivos( const FichaAluno *ficha, const InterfaceDados *dados,
+void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const InterfaceDados *dados,
       const CaminhoDiretorio *caminho ) {
 
    // 1. Compilação paralela do LaTeX
    g_pdflatex_parallel( "./dados/temporarios" );
 
    if ( dados->naopresencial ) {
-      copiar_arquivos_prova_nao_presencial( ficha, dados, caminho );
+      copiar_arquivos_prova_nao_presencial( fichas, dados, caminho );
    }
 
    // =========================================================================

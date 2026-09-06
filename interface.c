@@ -361,8 +361,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
    const FocoCoordenadas *foco  = &ctx->cascata.foco;
 
    // 2. g_autofree: Libera o destino automaticamente não importa como a função acabe
-   g_autofree
-   char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino: %s\n", destino );
@@ -806,7 +805,8 @@ void registrar_aula( AppContext *ctx ) {
    // INSERE OS CÓDIGOS DOS ALUNOS ANTES DE FAZER A CHAMADA
    // O código do aluno é necessário para a verificação de novos alunos adicionados a turma
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      nova_aula.chamada[i].cod_aluno = ctx->ficha[i].cod_aluno;
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      nova_aula.chamada[i].cod_aluno = ficha->cod_aluno;
    }
 
    // =====================================================================
@@ -1140,8 +1140,6 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    RegistroDiario *diario = ctx->diario;
 
    // 3. Atualiza a RAM e aciona o gatilho do Autosave
-   // O código do aluno agora é inserido para toda a turma durante o registro de uma nova aula
-   // diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
    diario->chamada[idx_aluno].status = status;
    _marcar_diario_modificado( ctx );
 
@@ -1192,46 +1190,51 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    }
 
    // 5. ATUALIZA A INTERFACE VISUAL E PROCESSA INATIVOS
+   FichaAluno *ficha = NULL;
+
    if ( modo_edicao ) {
       gtk_list_store_set( store_view, &iter_view, 3, str_status, 5, (r==0) ? NULL : &cor_texto, -1 );
-      idx_aluno++;
-      while ( idx_aluno < ctx->dados.qtd_alunos_total && !ctx->ficha[idx_aluno].ativo ) {
-         idx_aluno++;
+
+      // Inicia a busca a partir do próximo índice
+      for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
+         ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+         if ( ficha->ativo ) break;
       }
+
    } else {
-      g_autofree gchar *nasc = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
-      gboolean riscar = !ctx->ficha[idx_aluno].ativo;
+      ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+      g_autofree gchar *nasc = formatar_data_extenso( ficha->nasc );
+      gboolean riscar = !ficha->ativo;
 
       gtk_list_store_append( store_view, &iter_view );
       gtk_list_store_set( store_view, &iter_view,
                           0, idx_aluno + 1,
-                          1, ctx->ficha[idx_aluno].aluno,
+                          1, ficha->aluno,
                           2, nasc,
                           3, str_status,
                           4, riscar,
                           5, (r==0) ? NULL : &cor_texto, -1 );
-      idx_aluno++;
 
-      // Processa inativos residuais na sequência e os espelha na RAM
-      while ( idx_aluno < ctx->dados.qtd_alunos_total && !ctx->ficha[idx_aluno].ativo ) {
-         // O código do aluno agora é inserido para toda a turma durante o registro de uma nova aula
-         // diario->chamada[idx_aluno].cod_aluno = ctx->ficha[idx_aluno].cod_aluno;
+
+      for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
+
+         ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+         if ( ficha->ativo ) break;
+
          diario->chamada[idx_aluno].status = SEM_STATUS;
 
-         g_autofree gchar *nasc_inativo = formatar_data_extenso( ctx->ficha[idx_aluno].nasc );
-         gboolean riscar_inativo = !ctx->ficha[idx_aluno].ativo;
+         g_autofree gchar *nasc_inativo = formatar_data_extenso( ficha->nasc );
          int r_inativo = cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_texto );
 
          GtkTreeIter iter_inativo;
          gtk_list_store_append( store_view, &iter_inativo );
          gtk_list_store_set( store_view, &iter_inativo,
                              0, idx_aluno + 1,
-                             1, ctx->ficha[idx_aluno].aluno,
+                             1, ficha->aluno,
                              2, nasc_inativo,
                              3, ctx->listas.status_assiduidade[0].str,
-                             4, riscar_inativo,
+                             4, !ficha->ativo,
                              5, (r_inativo==0) ? NULL : &cor_texto, -1 );
-         idx_aluno++;
       }
 
       linha_alvo = gtk_tree_model_iter_n_children( model_view, NULL ) - 1;
@@ -1276,8 +1279,7 @@ void renderizar_frequencia_por_data( AppContext *ctx ) {
       return;
    }
 
-   ctx->diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
-   RegistroDiario *diario = ctx->diario;
+   RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
 
    // NOVA TRAVA: Se estiver no modo Aluno, atualizamos o ponteiro e rolamos a tela, mas abortamos a renderização geral.
    if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ui_diario->check_por_aluno ) ) ) {
@@ -1301,18 +1303,18 @@ void renderizar_frequencia_por_data( AppContext *ctx ) {
    int linhas_renderizadas = 0;
 
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      gboolean ativo = ctx->ficha[i].ativo;
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
       int status_atual = diario->chamada[i].status;
 
       // 1. REGRA DE PARADA: Só interrompe a varredura se encontrar um aluno ATIVO e PENDENTE
-      if ( ativo && status_atual == SEM_STATUS ) {
+      if ( ficha->ativo && status_atual == SEM_STATUS ) {
          break;
       }
 
       // 2. PROCESSAMENTO AUTOMÁTICO DE INATIVOS:
       // Se o aluno for inativo, garante que o código dele esteja salvo e atribui SEM_STATUS (0) na RAM
-      if ( !ativo ) {
-         diario->chamada[i].cod_aluno = ctx->ficha[i].cod_aluno;
+      if ( !ficha->ativo ) {
+         // diario->chamada[i].cod_aluno = ficha->cod_aluno;
          diario->chamada[i].status = SEM_STATUS;
          status_atual = SEM_STATUS;
       }
@@ -1325,14 +1327,14 @@ void renderizar_frequencia_por_data( AppContext *ctx ) {
       GdkRGBA cor_texto;
       int tem_cor = cor_texto_linha_frequencia( status_atual, ctx->dados.interface_style, &cor_texto );
 
-      g_autofree gchar *nasc = formatar_data_extenso( ctx->ficha[i].nasc );
+      g_autofree gchar *nasc = formatar_data_extenso( ficha->nasc );
 
       gtk_list_store_set( store_view, &iter,
                         0, i + 1,
-                        1, ctx->ficha[i].aluno,
+                        1, ficha->aluno,
                         2, nasc,
                         3, ctx->listas.status_assiduidade[status_atual].str,
-                        4, !ativo, // TRUE para aplicar o risco do GtkCellRendererText
+                        4, !ficha->ativo, // TRUE para aplicar o risco do GtkCellRendererText
                         5, ( tem_cor == 0 ) ? NULL : &cor_texto,
                         -1 );
 
@@ -1372,8 +1374,8 @@ void renderizar_frequencia_por_aluno( AppContext *ctx ) {
    GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
    gtk_list_store_clear( store_view );
 
-   gboolean riscar = !ctx->ficha[idx_aluno].ativo;
-   const char *nome_aluno = ctx->ficha[idx_aluno].aluno;
+   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+
    int proxima_data_pendente = 0;
    gboolean achou_pendente = FALSE;
 
@@ -1400,10 +1402,10 @@ void renderizar_frequencia_por_aluno( AppContext *ctx ) {
       gtk_list_store_append( store_view, &iter );
       gtk_list_store_set( store_view, &iter,
                           0, idx_aluno + 1,
-                          1, nome_aluno,
+                          1, ficha->aluno,
                           2, diario->data,       // Coluna 2 agora recebe a DATA
                           3, str_status,
-                          4, riscar,
+                          4, !ficha->ativo,   // Riscar
                           5, ( r == 0 ) ? NULL : &cor_texto, -1 );
    }
 
@@ -1416,6 +1418,8 @@ void renderizar_frequencia_por_aluno( AppContext *ctx ) {
 
 
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha ) {
+   g_return_if_fail( ctx );
+
    int linha_atual = 0;
    int indice_real_diario = -1;
    guint total_diarios = ctx->diarios->len;
@@ -1440,11 +1444,16 @@ void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indi
 }
 
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha ) {
+   g_return_if_fail( ctx && treeview );
+
    if ( indice_linha < 0 && indice_linha >= ctx->dados.qtd_alunos_total ) {
       return;
    }
 
-   if ( ctx->ficha[indice_linha].ativo ) {
+   FichaAluno *ficha = NULL;
+   ficha = &g_array_index( ctx->fichas, FichaAluno, indice_linha );
+
+   if ( ficha->ativo ) {
       // Aluno Ativo: sincroniza o combo normalmente
       if ( ctx->ui_diario.combo_alunos ) {
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), indice_linha );
@@ -1457,12 +1466,14 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
       if ( indice_linha > foco_anterior ) {
          // Descendo (seta para baixo ou clique abaixo)
          for ( int i = indice_linha + 1; i < ctx->dados.qtd_alunos_total; i++ ) {
-            if ( ctx->ficha[i].ativo ) { target = i; break; }
+            ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+            if ( ficha->ativo ) { target = i; break; }
          }
       } else if ( indice_linha < foco_anterior ) {
          // Subindo (seta para cima ou clique acima)
          for ( int i = indice_linha - 1; i >= 0; i-- ) {
-            if ( ctx->ficha[i].ativo ) { target = i; break; }
+            ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+            if ( ficha->ativo ) { target = i; break; }
          }
       }
 
@@ -1746,7 +1757,8 @@ static void _sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
    if ( !precisa_sincronizar ) {
       for ( int k = 0; k < qtd_fichas; k++ ) {
-         if ( primeiro_registro->chamada[k].cod_aluno != ctx->ficha[k].cod_aluno ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
             precisa_sincronizar = TRUE;
             break;
          }
@@ -1764,7 +1776,8 @@ static void _sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
       RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
 
       for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
-         uint32_t cod_alvo = ctx->ficha[k].cod_aluno;
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         uint32_t cod_alvo = ficha->cod_aluno;
          nova_chamada[k].cod_aluno = cod_alvo; // Espelha a ordem da ficha atualizada
 
          gboolean encontrou_aluno = FALSE;
@@ -1806,9 +1819,9 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
-   int foco = obter_foco_inicial( limite, ctx->ficha );
+   int foco = obter_foco_inicial( limite, ctx );
 
-   popular_combo_box_generico( ui_diario->combo_alunos, ctx->ficha, limite, foco,
+   popular_combo_box_generico( ui_diario->combo_alunos, ctx->fichas, limite, foco,
                                ui_diario->handler_combo_alunos, mapear_alunos );
 
     // Precisa que a lista de alunos já esteja populada

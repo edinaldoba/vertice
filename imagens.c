@@ -15,6 +15,7 @@
 #include "imgcore.h"
 #include "basicas.h"   // Para nFile e Files
 #include "gabaritos.h" // Para mudar_numero_na_imagem, gabaritos e imagens_corrigidas
+#include "interface.h"
 #include "mensagens.h"
 #include "glib_gio.h"
 #include "latex.h"
@@ -438,8 +439,11 @@ static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, 
 
 
 static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *info, const int qtd_linhas,
-      const FichaAluno *ficha, const InterfaceDados *dados,
-      const CaminhoDiretorio *caminho ) {
+                                                     const AppContext *ctx) {
+
+   const InterfaceDados *dados = &ctx->dados;
+   const CaminhoDiretorio *caminho = &ctx->caminho;
+
    g_autofree char *diretorio_imagens = NULL;
 
    // 1. Construção simplificada: Não precisamos criar o diretório "Notas" separadamente.
@@ -465,9 +469,10 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
 
       if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
          int num_aluno = info[i].num;
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, num_aluno - 1 );
 
          g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", i );
-         g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha[num_aluno - 1].aluno );
+         g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
          g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
          if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 1.5 ) ) {
@@ -533,8 +538,9 @@ static void atualizar_arquivo_avaliacoes_dat( char *linha_notas, const Interface
 }
 
 
-static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const InterfaceDados *dados,
-      const FichaAluno *ficha ) {
+static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const AppContext *ctx ) {
+
+   const InterfaceDados *dados = &ctx->dados;
 
    // 1º TESTE (Crítico): O número da folha protege o array 'diario'
    if ( info->num <= 0 || info->num > dados->qtd_alunos_total ) {
@@ -546,8 +552,10 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info,
       return ERRO_ID_GABARITO_INVALIDO;
    }
 
+   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, info->num - 1 );
+
    // 3º TESTE (Regra de Negócio): Se chegou aqui, a memória está segura!
-   if ( ficha[info->num - 1].ativo == false ) {
+   if ( ficha->ativo == FALSE ) {
       return STATUS_PROVA_OK | AVISO_ALUNO_INATIVO; // Acumula os estados perfeitamente
    }
 
@@ -561,7 +569,6 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    const InterfaceDados   *dados   = &ctx->dados;
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
    const CaminhoDiretorio *caminho = &ctx->caminho;
-   const FichaAluno       *diario  =  ctx->ficha;
 
    char nome_bin[64];
    nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), foco->turma, foco->disciplina, foco->periodo, dados->iprova );
@@ -627,7 +634,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < qtd_linhas; i++ ) {
 
-      StatusMapeamento status = validar_prova_escaneada( &info[i], dados, diario );
+      StatusMapeamento status = validar_prova_escaneada( &info[i], ctx );
       info[i].status = status;
 
       // Se o status POSSUI (OK) OU POSSUI (INATIVO)
@@ -666,7 +673,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    g_pdflatex_parallel( "./dados/temporarios" );
 
    if ( dados->naopresencial ) {
-      copiar_arquivos_correcao_nao_presencial( info, qtd_linhas, diario, dados, caminho );
+      copiar_arquivos_correcao_nao_presencial( info, qtd_linhas, ctx );
    }
 
    // ====================================================================================

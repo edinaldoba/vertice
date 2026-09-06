@@ -183,7 +183,6 @@ void inicializacao_app_context( AppContext *ctx ) {
    if ( !ctx ) return;
 
    *ctx = ( AppContext ) {
-      .ficha = NULL,
       .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
          .recursos_prefix = NULL
       },
@@ -322,9 +321,9 @@ void limpeza_final( AppContext *ctx ) {
 
 
    // A. Libera o Ficha de Alunos (Heap)
-   if ( ctx->ficha != NULL ) {
-      free( ctx->ficha );
-      ctx->ficha = NULL;
+   if ( ctx->fichas != NULL ) {
+      g_array_unref( ctx->fichas );
+      ctx->fichas = NULL;
    }
 
    // B. Libera a matriz bidimensional de ponteiros do Acervo (Heap)

@@ -400,8 +400,8 @@ void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho 
 
 
 //########################################################################################################//
-static void gerar_arquivo_siaep_notas( const FichaAluno *ficha, const AppContext *ctx ) {
-   g_return_if_fail( ficha && ctx );
+static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
+   g_return_if_fail( ctx );
 
    const FocoCoordenadas *foco = &( ctx->cascata.foco );
    const InterfaceDados *dados = &( ctx->dados );
@@ -422,9 +422,10 @@ static void gerar_arquivo_siaep_notas( const FichaAluno *ficha, const AppContext
    // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
-      int idx = ficha[i].idx;
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      int idx = ficha->idx;
       if ( idx >= 0 && idx < qtd_alunos ) {
-         ordem_original[idx] = &ficha[i];
+         ordem_original[idx] = ficha;
       }
    }
 
@@ -475,10 +476,9 @@ static void gerar_arquivo_siaep_notas( const FichaAluno *ficha, const AppContext
 
 //########################################################################################################//
 static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->ficha );
+   g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados *dados = &( ctx->dados );
    const FocoCoordenadas *foco = &( ctx->cascata.foco );
-   const FichaAluno *ficha = ctx->ficha;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
@@ -531,30 +531,31 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx )
 
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
       char s_notas[10][8] = {0};
       char s_med[8] = {0};
 
       // Extrai e converte as 5 avaliações
       for ( int k = 0; k < 5; k++ ) {
-         float av  = ficha[j].nota[foco->periodo][k].av;
-         float rec = ficha[j].nota[foco->periodo][k].rec;
+         float av  = ficha->nota[foco->periodo][k].av;
+         float rec = ficha->nota[foco->periodo][k].rec;
 
          if ( av >= 0.0f ) snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "%.1f", av );
          if ( rec >= 0.0f ) snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "%.1f", rec );
       }
 
       // Extrai a média processada na função principal
-      float med = ficha[j].relatorio[foco->periodo];
+      float med = ficha->relatorio[foco->periodo];
       if ( med >= 0.0f ) snprintf( s_med, sizeof( s_med ), "%.2f", med );
 
-      if ( ficha[j].ativo ) {
+      if ( ficha->ativo ) {
          fprintf( p, "%.2d & %.*s &%s&%s&%s&%s&%s&%s&%s&%s&%s&%s&{\\bf %s} \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno,
+                  j + 1, ficha->limite_corte, ficha->aluno,
                   s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
                   s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9], s_med );
       } else {
          fprintf( p, "%.2d & \\textcolor{gray!70}{%.*s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno,
+                  j + 1, ficha->limite_corte, ficha->aluno,
                   s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
                   s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9] );
       }
@@ -576,25 +577,25 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx )
 }
 
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel && ctx && ctx->ficha );
+   g_return_if_fail( painel && ctx && ctx->fichas );
 
    const InterfaceDados   *dados   = &ctx->dados;
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
    const CaminhoDiretorio *caminho = &ctx->caminho;
-   FichaAluno *ficha = ctx->ficha;
 
-   gerar_arquivo_siaep_notas( ficha, ctx );
+   gerar_arquivo_siaep_notas( ctx );
 
    gboolean avaliacao_ativa[5] = { FALSE, FALSE, FALSE, FALSE, FALSE };
    float soma_notas[dados->qtd_alunos_total];
 
    // 1. Varredura e Identificação de colunas ativas
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
       soma_notas[i] = 0.0f;
 
       for ( int j = 0; j < 5; j++ ) {
-         float av  = ficha[i].nota[foco->periodo][j].av;
-         float rec = ficha[i].nota[foco->periodo][j].rec;
+         float av  = ficha->nota[foco->periodo][j].av;
+         float rec = ficha->nota[foco->periodo][j].rec;
 
          if ( av >= 0.0f || rec >= 0.0f ) {
             avaliacao_ativa[j] = TRUE;
@@ -616,7 +617,8 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    // 3. Preenchimento da Média Final
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       // Se não houver avaliações válidas na turma inteira, assina -1.0f para ocultar no TeX
-      ficha[i].relatorio[foco->periodo] = ( qtd_avaliacoes_validas == 0 ) ? -1.0f : ( soma_notas[i] / divisor );
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      ficha->relatorio[foco->periodo] = ( qtd_avaliacoes_validas == 0 ) ? -1.0f : ( soma_notas[i] / divisor );
    }
 
    // Chamada direta do Gerador LaTeX (Matrizes Strings obsoletas removidas)
@@ -645,7 +647,6 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const InterfaceListas *listas = &( ctx->listas );
-   const FichaAluno *ficha = ctx->ficha;
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    int i, j;
@@ -696,6 +697,8 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
       if ( p[j] ) {
          i = 0;
+         const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+
          while ( fgets( nota, sizeof( nota ), p[j] ) != NULL ) {
             if ( nota[0] != '\n' ) {
 
@@ -711,8 +714,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
                   cons[i] = atof( nota );
                   break;
                default:
-                  if ( ficha[i].ativo ) {
-
+                  if ( ficha->ativo ) {
                      sprintf( notas[i][j].str, "%s", nota );
                   } else {
                      sprintf( notas[i][j].str, "\\textcolor{gray!50}{%s}", nota );
@@ -794,12 +796,13 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
 
    for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
-      if ( ficha[j].ativo ) {
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+      if ( ficha->ativo ) {
          fprintf( p1, "%.2d & %.*s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+                  j + 1, ficha->limite_corte, ficha->aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
       } else {
          fprintf( p1, "%.2d & \\textcolor{gray!50}{%.*s} & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, ficha[j].limite_corte, ficha[j].aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+                  j + 1, ficha->limite_corte, ficha->aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
       }
    }
 
@@ -1037,7 +1040,8 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
             // Injeção explícita de símbolos sem \foreach no TeX
             for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-               if ( !ctx->ficha[j].ativo ) continue;
+               const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+               if ( !ficha->ativo ) continue;
 
                GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
                int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo Y para a Página 2
@@ -1100,14 +1104,15 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       // pres[j] = ad - falt[j];
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
 
-      if ( ctx->ficha[j].ativo ) {
-         g_string_append_printf( def_alunos, "\"%.*s\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
+      if ( ficha->ativo ) {
+         g_string_append_printf( def_alunos, "\"%.*s\",", ficha->limite_corte, ficha->aluno );
          g_string_append_printf( def_num, "\"%.2d\",", j + 1 );
          g_string_append_printf( def_pres, "\"%d\",", pres[j] );
          g_string_append_printf( def_falt, "\"%d\",", falt[j] );
       } else {
-         g_string_append_printf( def_alunos, "\"{\\color{gray!50}%.*s}\",", ctx->ficha[j].limite_corte, ctx->ficha[j].aluno );
+         g_string_append_printf( def_alunos, "\"{\\color{gray!50}%.*s}\",", ficha->limite_corte, ficha->aluno );
          g_string_append_printf( def_num, "\"{\\color{black}%.2d}\",", j + 1 );
          g_string_append( def_pres, "\"\"," );
          g_string_append( def_falt, "\"\"," );

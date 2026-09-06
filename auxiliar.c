@@ -94,26 +94,30 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 
-int obter_foco_inicial( const int limite, const FichaAluno *ficha ) {
+int obter_foco_inicial( const int limite, const AppContext *ctx ) {
    int i;
    for ( i = 0; i < limite; i++ ) {
-      if ( ficha[i].ativo ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      if ( ficha->ativo ) {
          break;
       }
    }
    int foco = ( i < limite ) ? i : 0;
    return foco;
 }
-void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i ) {
-   const FichaAluno *ficha_aux = ( const FichaAluno * )ficha;
-   int len = calcular_len_limpo( ficha_aux[i].aluno, 30 );
+void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
+   const GArray *fichas = ( const GArray * )dados;
+
+   const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, i );
+
+   int len = calcular_len_limpo( ficha->aluno, 30 );
    char aluno[64];
-   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha_aux[i].aluno );
+   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha->aluno );
 
    gtk_list_store_set( store, iter,
                        0,  aluno,
-                       1,  ficha_aux[i].ativo,          // Sensibilidade
-                       2, !ficha_aux[i].ativo, -1 );   // Riscar nome
+                       1,  ficha->ativo,          // Sensibilidade
+                       2, !ficha->ativo, -1 );   // Riscar nome
 }
 
 
@@ -389,8 +393,11 @@ static int alfabetica_lista_de_alunos( const void *a, const void *b ) {
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   // 1. Limpeza segura de memória (Substitui free e ctx->ficha = NULL)
-   g_clear_pointer( ( gpointer * ) &ctx->ficha, g_free );
+   // 1. Limpeza segura do GArray anterior
+   if ( ctx->fichas ) {
+      g_array_unref( ctx->fichas );
+      ctx->fichas = NULL;
+   }
 
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
@@ -402,62 +409,56 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
       siaep_atualizar_alunos( &ctx->painel, ctx );
    }
 
-   // 2. Leitura massiva para a RAM (Bulk Read)
-   // Elimina a necessidade de 'contar_registros_binarios' e leituras sucessivas com fread.
    gsize tamanho_arquivo = 0;
    g_autofree AcessoFicha *buffer_acessos = NULL;
-
    dados->qtd_alunos_ativos = 0;
 
    if ( !g_file_get_contents( arquivo_acesso, (gchar **)&buffer_acessos, &tamanho_arquivo, NULL ) ) {
-      g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso ); // SILÊNCIO AQUI :-)
+      g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso );
       dados->qtd_alunos_total = dados->qtd_alunos_ativos;
       return;
    }
 
-   // O tamanho exato do arquivo dividido pelo tamanho da struct nos dá a contagem perfeita
    dados->qtd_alunos_total = tamanho_arquivo / sizeof( AcessoFicha );
-
-
    if ( dados->qtd_alunos_total == 0 ) return;
 
-   // 3. Alocação tipada nativa da GLib (Substitui o calloc)
-   ctx->ficha = g_new0( FichaAluno, dados->qtd_alunos_total );
-   FichaAluno *ficha = ctx->ficha;
+   // 3. Inicialização do GArray já com o tamanho exato pré-alocado (mais rápido)
+   ctx->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
 
-   // 4. Cache do caminho base fora do loop para não recriar a mesma string dezenas de vezes
    g_autofree char *dir_base_alunos = g_build_filename(".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL);
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-
-      // Pega os dados de acesso direto do buffer na memória
       AcessoFicha *acesso = &buffer_acessos[i];
-
-      // Formata a string de forma direta com o diretório base
       g_autofree char *ficha_aluno = g_strdup_printf( "%s/%" PRIu32 ".bin", dir_base_alunos, acesso->cod_aluno );
 
       FILE *fa = fopen( ficha_aluno, "rb" );
       if ( !fa ) {
          g_printerr( "[Aviso] Ficha não encontrada para o aluno %" PRIu32 "\n", acesso->cod_aluno );
-         continue; // Evita que o programa tente fazer fread em fa = NULL (Segmentation Fault)
+         continue;
       }
 
-      if ( fread( &ficha[i], sizeof( FichaAluno ), 1, fa ) == 1 ) {
-         ficha[i].cod_aluno = acesso->cod_aluno;
-         ficha[i].idx = i;
-         ficha[i].sit = acesso->sit;
-         ficha[i].ativo = acesso->ativo;
-         if ( ficha[i].ativo ) {
+      // Cria uma ficha temporária zerada para receber os dados
+      FichaAluno temp_ficha = {0};
+
+      if ( fread( &temp_ficha, sizeof( FichaAluno ), 1, fa ) == 1 ) {
+         temp_ficha.cod_aluno = acesso->cod_aluno;
+         temp_ficha.idx = i;
+         temp_ficha.sit = acesso->sit;
+         temp_ficha.ativo = acesso->ativo;
+
+         if ( temp_ficha.ativo ) {
             dados->qtd_alunos_ativos++;
          }
+
+         // Anexa a cópia da ficha direto no GArray
+         g_array_append_val( ctx->fichas, temp_ficha );
       }
 
       fclose( fa );
    }
 
-   // 5. Ordenação Alfabética
-   qsort( ficha, dados->qtd_alunos_total, sizeof( FichaAluno ), alfabetica_lista_de_alunos );
-
+   // 5. Ordenação Alfabética nativa do GArray
+   g_array_sort( ctx->fichas, alfabetica_lista_de_alunos );
 }
 //----------------------------------------------------------------------------------------------------
 

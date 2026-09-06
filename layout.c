@@ -84,7 +84,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
-   ctx->ui_diario.stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+   ctx->stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
 
    //-- CONTEÚDOS
    ctx->ui_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );

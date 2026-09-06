@@ -16,7 +16,7 @@ int foco_periodo_corrente( int escalar_hoje );
 
 void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i );
 
-int obter_foco_inicial( const int limite, const FichaAluno *ficha );
+int obter_foco_inicial( const int limite, const AppContext *ctx );
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i );
 
 int quantidade_diretorios( const char *diretorio );

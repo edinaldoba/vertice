@@ -25,7 +25,7 @@ typedef struct {
    FocoCoordenadas  foco;     // ◄ Por valor
    CaminhoDiretorio caminho;  // ◄ Por valor
    CalendarioData   data;     // ◄ Por valor
-   FichaAluno       *ficha;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
+   GArray           *fichas;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
    GtkWidget        *botao_gerar;
    bool             sucesso;
 } ProvaThreadArgs;
@@ -34,27 +34,20 @@ typedef struct {
  * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
  * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha ou se n_alunos == 0.
  */
-static FichaAluno* clonar_diario_alunos( const FichaAluno *ficha_original, int n_alunos ) {
+static GArray* clonar_diario_alunos( GArray *fichas_originais ) {
    // 1. Validação geométrica elementar
-   if ( !ficha_original || n_alunos <= 0 ) {
+   if ( !fichas_originais || fichas_originais->len == 0 ) {
       return NULL;
    }
 
-   // 2. Cálculo exato do bloco de memória necessário para a turma toda
-   size_t tamanho_total = ( size_t )n_alunos * sizeof( FichaAluno );
+   // 2. Criação do novo GArray independente e zerado
+   // FALSE = não precisa de terminador nulo, TRUE = limpa com zeros
+   GArray *fichas_clone = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), fichas_originais->len );
 
-   // 3. Alocação isolada na Heap
-   FichaAluno *ficha_clonado = malloc( tamanho_total );
+   // 3. Cópia física bruta (Block Copy) bit a bit dos elementos internos
+   g_array_append_vals( fichas_clone, fichas_originais->data, fichas_originais->len );
 
-   if ( !ficha_clonado ) {
-      g_printerr( "ERRO CRÍTICO: Falha de memória (malloc) ao clonar diário de alunos.\n" );
-      return NULL;
-   }
-
-   // 4. Cópia física bruta dos dados (Blindagem estática bit a bit)
-   memcpy( ficha_clonado, ficha_original, tamanho_total );
-
-   return ficha_clonado;
+   return fichas_clone;
 }
 
 // 🚀 A NOVA FUNÇÃO DE ENTRADA DO MOTOR:
@@ -69,7 +62,7 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->data    = ctx->data;
    args->painel  = ctx->painel;
    args->listas  = ctx->listas;
-   args->ficha = clonar_diario_alunos( ctx->ficha, ctx->dados.qtd_alunos_total );
+   args->fichas = clonar_diario_alunos( ctx->fichas );
    args->botao_gerar = widget;
 
    pthread_t thread_id;
@@ -137,9 +130,9 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    g_print( "[Thread] Trabalho concluído. Iniciando desalocação do snapshot...\n" );
 
    // A. Libera o diário clonado que foi gerado especificamente para esta thread
-   if ( args->ficha != NULL ) {
-      free( args->ficha );
-      args->ficha = NULL;
+   if ( args->fichas != NULL ) {
+      g_array_unref( args->fichas );
+      args->fichas = NULL;
       g_print( "   ✔ Clone do Diário de Alunos desalocado da Heap.\n" );
    }
 
@@ -200,7 +193,7 @@ void* thread_gerar_prova_background( void *data ) {
 
    if ( args->sucesso ) {
 
-      prova( &args->dados, &args->foco, args->ficha, &args->caminho, &args->data, G );
+      prova( &args->dados, &args->foco, args->fichas, &args->caminho, &args->data, G );
 
       salvar_estado_aplicativo( &args->dados, &args->foco, &args->caminho );
    }

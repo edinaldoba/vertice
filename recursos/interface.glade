@@ -875,7 +875,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av5</property>
+                                    <property name="placeholder-text" translatable="yes">Av1</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -890,7 +890,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec5</property>
+                                    <property name="placeholder-text" translatable="yes">Rec1</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -920,7 +920,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av4</property>
+                                    <property name="placeholder-text" translatable="yes">Av2</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -935,7 +935,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec4</property>
+                                    <property name="placeholder-text" translatable="yes">Rec2</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1010,7 +1010,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av2</property>
+                                    <property name="placeholder-text" translatable="yes">Av4</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1025,7 +1025,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec2</property>
+                                    <property name="placeholder-text" translatable="yes">Rec4</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1055,7 +1055,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av1</property>
+                                    <property name="placeholder-text" translatable="yes">Av5</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1070,7 +1070,7 @@
                                     <property name="can-focus">True</property>
                                     <property name="max-length">4</property>
                                     <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec1</property>
+                                    <property name="placeholder-text" translatable="yes">Rec5</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
