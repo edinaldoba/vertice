@@ -25,6 +25,7 @@
 #include "dinamica.h"
 #include "assincrono.h"
 #include "seduc-ma.h"
+#include "ui_diario.h"
 
 
 
@@ -318,7 +319,7 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
          // SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
          popular_datas( ctx );
 
-         renderizar_frequencia_modo_normal( ctx );
+         renderizar_frequencia_modo_normal( ctx, FALSE );
 
          // Retorna TRUE para indicar que o evento foi tratado/consumido
          return TRUE;
@@ -386,7 +387,7 @@ static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) 
    }
    popular_datas( ctx );
 
-   renderizar_frequencia_modo_normal( ctx );
+   renderizar_frequencia_modo_normal( ctx, FALSE );
 }
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -453,7 +454,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
       if( via_codigo ) return;
 
-      renderizar_frequencia_modo_normal( ctx );
+      renderizar_frequencia_modo_normal( ctx, FALSE );
 
       rolagem_automatica_treeview_frequencia( ctx );
 
@@ -491,9 +492,13 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
          gtk_button_clicked( GTK_BUTTON( ui_diario->btn_ausente ) );
          return TRUE;
 
-      // Deixei o esqueleto pronto para a Justificada caso queira usar a tecla "J" no futuro
       case GDK_KEY_j:
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 3 );
+         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+         return TRUE;
+
+      case GDK_KEY_n:
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 9 );
          gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
          return TRUE;
 
@@ -540,10 +545,10 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
 
    if ( modo_por_aluno ) {
       gtk_tree_view_column_set_title( coluna, "DATA  AULA" );
-      renderizar_frequencia_modo_por_aluno( ctx );
+      renderizar_frequencia_modo_por_aluno( ctx, FALSE );
    } else {
       gtk_tree_view_column_set_title( coluna, "NASCIMENTO" );
-      renderizar_frequencia_modo_normal( ctx );
+      renderizar_frequencia_modo_normal( ctx, FALSE );
    }
 }
 
@@ -1013,7 +1018,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    // =================================================================
    gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
    if ( modo_por_aluno ) {
-      renderizar_frequencia_modo_por_aluno( ctx );
+      renderizar_frequencia_modo_por_aluno( ctx, FALSE );
    } else {
       rolagem_automatica_treeview_frequencia( ctx );
    }

@@ -14,8 +14,6 @@ long int mapear_data_para_id( int dia, int mes, int ano );
 void mapear_id_para_data( long int w, int *dia, int *mes, int *ano );
 int foco_periodo_corrente( int escalar_hoje );
 
-void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i );
-
 int obter_foco_inicial( const int limite, const AppContext *ctx );
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *ficha, int i );
 
@@ -33,15 +31,7 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
 
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx );
 
-gchar *formatar_data_extenso( const gchar *data_iso );
-
 int ordenar_turmas_novo_em( const void* a, const void* b );
-
-gint comparar_datas_diario( gconstpointer a, gconstpointer b );
-int gravar_diario_binario( const char *caminho_arquivo, const RegistroDiario *registro, int indice_edicao );
-int cor_texto_linha_liststore(const RegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out);
-
-int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGBA *cor_out );
 
 
 

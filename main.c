@@ -17,6 +17,7 @@
 
 #include "mensagens.h"
 #include "callbacks.h"
+#include "ui_diario.h"
 
 
 
