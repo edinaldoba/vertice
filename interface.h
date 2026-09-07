@@ -264,9 +264,7 @@ typedef struct {
 
 
 typedef struct {
-   // FichaAluno *ficha;
 
-   RegistroDiario *diario; // Vou manter o ponteiro de trabalho dentro da struct principal
    GArray *diarios; // Substitui o ponteiro cru. O motor GLib fará a gestão da RAM.
    GArray *fichas;
 
@@ -375,11 +373,14 @@ void modificar_registro_aula( AppContext *ctx );
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
-void renderizar_frequencia_por_data( AppContext *ctx );
-void renderizar_frequencia_por_aluno( AppContext *ctx );
+void renderizar_frequencia_modo_normal( AppContext *ctx );
+void renderizar_frequencia_modo_por_aluno( AppContext *ctx );
 
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha );
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha );
+
+void rolagem_automatica_treeview_frequencia( const AppContext *ctx );
+void selecionar_combo_status( const AppContext *ctx );
 
 void carregar_diario( AppContext *ctx );
 void salvar_diario( AppContext *ctx, gboolean final_save );

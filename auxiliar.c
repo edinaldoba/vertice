@@ -106,7 +106,11 @@ int obter_foco_inicial( const int limite, const AppContext *ctx ) {
    return foco;
 }
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
+   g_return_if_fail( store && iter && dados );
+
    const GArray *fichas = ( const GArray * )dados;
+
+   if ( ( guint )i >= fichas->len ) return;
 
    const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, i );
 
@@ -464,20 +468,25 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
 
 void mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
-   // A função de mapeamento continua a mesma, pois o casting resolve a leitura
-   // do buffer interno do GArray com perfeição.
-   const RegistroDiario *registros = ( const RegistroDiario * )dados;
+   g_return_if_fail( store && iter && dados );
 
-   gboolean aula_normal = ( registros[i].tipo_registro == TIPO_REGISTRO_AULA_NORMAL );
-   gboolean aula_extra  = ( registros[i].tipo_registro == TIPO_REGISTRO_AULA_EXTRA );
+   // Cast elegante com 'const' para respeitar a imutabilidade do callback
+   const GArray *diarios = ( const GArray * )dados;
 
-   gboolean tem_chamada = ( aula_normal || aula_extra );
+   // Proteção de limites de memória
+   if ( ( guint )i >= diarios->len ) return;
+
+   // Ponteiro de trabalho local (exatamente como combinamos)
+   const RegistroDiario *diario = &g_array_index( diarios, RegistroDiario, i );
+
+   gboolean tem_chamada = ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
+                            diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA );
 
    gtk_list_store_set( store, iter,
-                       0, registros[i].data,
-                       1, ( guint )registros[i].qtd_aulas,
-                       2, tem_chamada, // FALSE (risca) se for Feriado/Pedagógico
-                       3, !tem_chamada,  // TRUE (trava seleção) se for Feriado/Pedagógico
+                       0, diario->data,
+                       1, ( guint )diario->qtd_aulas,
+                       2, tem_chamada,   // FALSE (risca nome/desativa) se for Feriado/Pedagógico
+                       3, !tem_chamada,  // TRUE (trava seleção visual) se for Feriado/Pedagógico
                        -1 );
 }
 

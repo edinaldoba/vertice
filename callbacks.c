@@ -299,18 +299,6 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 
 
 
-static RegistroDiario *_indexar_array_diario( AppContext *ctx, int foco ) {
-   g_return_val_if_fail( ctx, NULL );
-
-   RegistroDiario *diario = NULL;
-
-   if ( ctx->diarios && foco >= 0 && ( guint )foco < ctx->diarios->len ) {
-      diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
-   }
-
-   return diario;
-}
-
 
 
 static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, GtkTreeSelection *selection ) {
@@ -330,10 +318,7 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
          // SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
          popular_datas( ctx );
 
-         int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-         ctx->diario = _indexar_array_diario( ctx, foco );
-
-         renderizar_frequencia_por_data( ctx );
+         renderizar_frequencia_modo_normal( ctx );
 
          // Retorna TRUE para indicar que o evento foi tratado/consumido
          return TRUE;
@@ -401,10 +386,7 @@ static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) 
    }
    popular_datas( ctx );
 
-   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_data ) );
-   ctx->diario = _indexar_array_diario( ctx, foco );
-
-   renderizar_frequencia_por_data( ctx );
+   renderizar_frequencia_modo_normal( ctx );
 }
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -412,6 +394,8 @@ void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
+
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ), FALSE );
 }
 
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
@@ -419,6 +403,8 @@ void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
+
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ), FALSE );
 }
 
 
@@ -450,6 +436,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
 
    GtkComboBox *combo = GTK_COMBO_BOX( widget );
 
+   // verifica se o combo box possui atualmente um item selecionado e, em caso afirmativo, preenche o iterador (iter)
    if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
       GtkTreeModel *model = gtk_combo_box_get_model( combo );
       guint qtd_aulas = 0;
@@ -461,10 +448,15 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>", qtd_aulas );
       gtk_label_set_markup( GTK_LABEL( ctx->ui_diario.label_ch ), str_qtd_aulas );
 
-      int foco = gtk_combo_box_get_active( combo );
-      ctx->diario = _indexar_array_diario( ctx, foco );
+      selecionar_combo_status( ctx );
 
-      renderizar_frequencia_por_data( ctx );
+      gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
+      if( via_codigo ) return;
+
+      renderizar_frequencia_modo_normal( ctx );
+
+      rolagem_automatica_treeview_frequencia( ctx );
+
    }
 }
 
@@ -548,10 +540,10 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
 
    if ( modo_por_aluno ) {
       gtk_tree_view_column_set_title( coluna, "DATA  AULA" );
-      renderizar_frequencia_por_aluno( ctx );
+      renderizar_frequencia_modo_por_aluno( ctx );
    } else {
       gtk_tree_view_column_set_title( coluna, "NASCIMENTO" );
-      renderizar_frequencia_por_data( ctx );
+      renderizar_frequencia_modo_normal( ctx );
    }
 }
 
@@ -988,41 +980,43 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
    if ( ativo < 0 ) return;
 
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+   selecionar_combo_status( ctx );
 
-   // =================================================================
-   // MODO 1: POR ALUNO (Auditoria Livre)
-   // =================================================================
-   if ( modo_por_aluno ) {
+   gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
+   if( via_codigo ) {
       ctx->ui_diario.foco_combo_alunos = ativo;
-      renderizar_frequencia_por_aluno( ctx );
-      return; // 🛑 Encerra aqui, não aplica nenhuma trava!
+      return;
    }
 
    // =================================================================
-   // MODO 2: CHAMADA NORMAL (Navegação Restrita / Sequencial)
+   // MODO 1: CHAMADA NORMAL (Navegação Restrita / Sequencial)
    // =================================================================
    if ( ativo >= ctx->ui_diario.limite_combo_alunos ) {
-
-      // Bloqueia temporariamente este callback para não gerar loop infinito
       if ( ctx->ui_diario.handler_combo_alunos > 0 ) {
          g_signal_handler_block( widget, ctx->ui_diario.handler_combo_alunos );
       }
 
-      // Força o retorno visual para o índice máximo permitido
       ctx->ui_diario.foco_combo_alunos = ctx->ui_diario.limite_combo_alunos - 1;
       gtk_combo_box_set_active( GTK_COMBO_BOX( widget ), ctx->ui_diario.foco_combo_alunos );
 
-      // Desbloqueia o callback para voltar a ouvir cliques futuros
       if ( ctx->ui_diario.handler_combo_alunos > 0 ) {
          g_signal_handler_unblock( widget, ctx->ui_diario.handler_combo_alunos );
       }
-
       return;
    }
 
    // Se a navegação foi válida (dentro do limite da chamada), atualiza o foco normalmente
    ctx->ui_diario.foco_combo_alunos = ativo;
+
+   // =================================================================
+   // MODO 2: POR ALUNO (Auditoria Livre)
+   // =================================================================
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+   if ( modo_por_aluno ) {
+      renderizar_frequencia_modo_por_aluno( ctx );
+   } else {
+      rolagem_automatica_treeview_frequencia( ctx );
+   }
 }
 
 

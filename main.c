@@ -287,7 +287,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .handler_combo_alunos = 0
       },
 
-      .diario    = NULL,
       .diarios   = NULL,
       .path_save = NULL
    };
@@ -310,10 +309,8 @@ void limpeza_final( AppContext *ctx ) {
       g_array_unref( ctx->diarios );
       ctx->diarios = NULL;
    }
-   // DESASSOCIAR PONTEIRO DE TRABALHO
-   // Por ser apenas um alias para o elemento dentro de ctx->diarios, apenas zeramos o ponteiro
-   ctx->diario = NULL;
 
+   // DESASSOCIAR PONTEIRO DE TRABALHO
    if ( ctx->path_save != NULL ) {
       g_free( ctx->path_save );
       ctx->path_save = NULL;

@@ -471,7 +471,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
          int num_aluno = info[i].num;
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, num_aluno - 1 );
 
-         g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", i );
+         g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", num_aluno );
          g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
          g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
