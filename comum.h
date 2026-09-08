@@ -268,17 +268,11 @@ typedef struct {
 
 } __attribute__( ( packed ) ) FichaAluno;
 
-// typedef struct {
-//    char aluno[64];
-//
-//    int limite_corte;        // Formatação de impressão
-//    int idx;                 // Na Vértice sempre ordem alfabética (idx siaep de origem preservado)
-//    bool ativo;              // Status de matrícula global
-//
-//    // --- 6. Campos Legados (Para futura remoção) ---
-//    int avaliacoes[4][10];
-//    float media[4];
-// } FichaAluno;
+// Estrutura para descrever o "Cabeçalho" de cada avaliação
+typedef struct {
+   char nome_av[32];     // Ex: "Prova Escrita", "Seminário"
+   gboolean ativa;       // TRUE = visível/calculada, FALSE = invisível/riscada no combo
+} MetaAvaliacao;
 //=========================================================================================================//
 
 

@@ -28,4 +28,8 @@ void selecionar_combo_status( const AppContext *ctx );
 void carregar_diario( AppContext *ctx );
 void salvar_diario( AppContext *ctx, gboolean final_save );
 
+// AVALIAÇÕES
+void popover_adicionar_avaliacao( AppContext *ctx, const char *texto );
+void popover_editar_avaliacao( AppContext *ctx, const char *texto );
+
 #endif

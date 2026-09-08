@@ -430,15 +430,16 @@ void registrar_aula( AppContext *ctx ) {
    // =====================================================================
    // 4. INSERE CIRURGICAMENTE NA INTERFACE VISUAL
    // =====================================================================
-   GtkListStore *liststore = ui_diario->liststore_conteudo;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_conteudo );
+   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
    GtkTreeIter iter;
 
-   gtk_list_store_insert( liststore, &iter, novo_indice );
+   gtk_list_store_insert( store_view, &iter, novo_indice );
 
    GdkRGBA cor_texto;
    int r = _cor_texto_linha_liststore( &nova_aula, foco_estilo, &cor_texto );
 
-   gtk_list_store_set( liststore, &iter,
+   gtk_list_store_set( store_view, &iter,
                        0, nova_aula.data,      1, nova_aula.qtd_aulas,    2, nova_aula.tema,
                        3, nova_aula.descricao, 4, nova_aula.tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
 
@@ -474,10 +475,12 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    g_return_if_fail( ctx && ctx->diarios && iter );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
-   GtkTreeModel *model = GTK_TREE_MODEL( ui_diario->liststore_conteudo );
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_conteudo );
+   GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
 
    // 1. Descobre o índice da linha clicada na TreeView
-   GtkTreePath *path = gtk_tree_model_get_path( model, iter );
+   GtkTreePath *path = gtk_tree_model_get_path( model_view, iter );
    if ( !path ) return;
 
    int indice = gtk_tree_path_get_indices( path )[0];
@@ -510,9 +513,11 @@ void modificar_registro_aula( AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->diarios );
 
    InterfaceRegistroDiario *ui = &ctx->ui_diario;
-   GtkListStore *liststore = ui->liststore_conteudo;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ui->treeview_conteudo );
+   GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
-   g_autoptr(GtkTreePath) path_antigo = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &ui->iter_em_edicao );
+   g_autoptr(GtkTreePath) path_antigo = gtk_tree_model_get_path( model_view, &ui->iter_em_edicao );
    if ( !path_antigo ) return;
 
    int idx = gtk_tree_path_get_indices( path_antigo )[0];
@@ -539,7 +544,7 @@ void modificar_registro_aula( AppContext *ctx ) {
    // Clone na stack: g_array_sort invalida o ponteiro 'reg' ao mover blocos de memória
    RegistroDiario reg_clone = *reg;
 
-   gtk_list_store_remove( liststore, &ui->iter_em_edicao );
+   gtk_list_store_remove( store_view, &ui->iter_em_edicao );
    g_array_sort( ctx->diarios, _comparar_datas_diario );
 
    int novo_indice = 0;
@@ -554,12 +559,12 @@ void modificar_registro_aula( AppContext *ctx ) {
    }
 
    GtkTreeIter iter;
-   gtk_list_store_insert( liststore, &iter, novo_indice );
+   gtk_list_store_insert( store_view, &iter, novo_indice );
 
    GdkRGBA cor_texto;
    int r_estilo = _cor_texto_linha_liststore( &reg_clone, ctx->dados.interface_style, &cor_texto );
 
-   gtk_list_store_set( liststore, &iter,
+   gtk_list_store_set( store_view, &iter,
                      0, reg_clone.data,
                      1, reg_clone.qtd_aulas,
                      2, reg_clone.tema,
@@ -587,8 +592,9 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
 
    g_return_if_fail( caminho_arquivo && ui_diario );
 
-   GtkTreeView *treeview = GTK_TREE_VIEW( ui_diario->treeview_conteudo );
-   GtkListStore *liststore = ui_diario->liststore_conteudo;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_conteudo );
+   GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
    // =====================================================================
    // 1. SALVA A POSIÇÃO EXATA DA TELA (Antes do clear)
@@ -596,10 +602,10 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
    GtkTreePath *path_topo = NULL;
    if ( !rolagem ) {
       // Captura o path da linha que está perfeitamente no topo visível no momento
-      gtk_tree_view_get_visible_range( treeview, &path_topo, NULL );
+      gtk_tree_view_get_visible_range( tree_view, &path_topo, NULL );
    }
 
-   gtk_list_store_clear( liststore );
+   gtk_list_store_clear( store_view );
 
    EstadoArquivo estado = verificar_arquivo( caminho_arquivo );
    if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
@@ -626,12 +632,12 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
    // 3. RENDERIZAÇÃO
    // =====================================================================
    for ( int i = 0; i < total_registros; i++ ) {
-      gtk_list_store_append( liststore, &iter );
+      gtk_list_store_append( store_view, &iter );
 
       GdkRGBA cor_texto;
       int r = _cor_texto_linha_liststore( &registros[i], foco_estilo, &cor_texto );
 
-      gtk_list_store_set( liststore, &iter,
+      gtk_list_store_set( store_view, &iter,
                           0, registros[i].data,
                           1, registros[i].qtd_aulas,
                           2, registros[i].tema,
@@ -645,13 +651,13 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
    // =====================================================================
    if ( rolagem && total_registros > 0 ) {
       // Comportamento normal: rola para o último item adicionado
-      g_autoptr( GtkTreePath ) path_fim = gtk_tree_model_get_path( GTK_TREE_MODEL( liststore ), &iter );
+      g_autoptr( GtkTreePath ) path_fim = gtk_tree_model_get_path( model_view, &iter );
       if ( path_fim ) {
-         gtk_tree_view_scroll_to_cell( treeview, path_fim, NULL, FALSE, 0.0, 0.0 );
+         gtk_tree_view_scroll_to_cell( tree_view, path_fim, NULL, FALSE, 0.0, 0.0 );
       }
    } else if ( !rolagem && path_topo ) {
       // Comportamento de atualização visual: devolve para a mesma posição!
-      gtk_tree_view_scroll_to_cell( treeview, path_topo, NULL, TRUE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( tree_view, path_topo, NULL, TRUE, 0.0, 0.0 );
       gtk_tree_path_free( path_topo ); // Libera a memória após o uso
    }
 }
@@ -686,9 +692,9 @@ void popular_datas( AppContext *ctx ) {
       GtkComboBox *combo = GTK_COMBO_BOX( ui_diario->combo_data );
 
       if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
-         GtkTreeModel *model = gtk_combo_box_get_model( combo );
+         GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
          guint qtd_aulas = 0;
-         gtk_tree_model_get( model, &iter, 1, &qtd_aulas, -1 );
+         gtk_tree_model_get( model_view, &iter, 1, &qtd_aulas, -1 );
 
          g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>", qtd_aulas );
          gtk_label_set_markup( GTK_LABEL( ui_diario->label_ch ), str_qtd_aulas );
@@ -703,9 +709,9 @@ void popular_datas( AppContext *ctx ) {
 
       // Limpa a visualização da TreeView de forma segura
       GtkTreeView *tree_view = GTK_TREE_VIEW( ui_diario->treeview_frequencia );
-      GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
-      if ( model ) {
-         gtk_list_store_clear( GTK_LIST_STORE( model ) );
+      GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
+      if ( model_view ) {
+         gtk_list_store_clear( GTK_LIST_STORE( model_view ) );
       }
 
       // SE NÃO HÁ AULAS REGISTRADAS, ENTÃO O COMBO DOS ALUNOS DEVE SER OCULTADO
@@ -734,14 +740,15 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
                                        int tem_cor, GdkRGBA *cor_texto ) {
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
-   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+   GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
    // 1. Atualiza o status visual usando o índice filtrado (idx_linha_liststore)
    int idx_linha_liststore = _indexar_liststore_modo_por_aluno( ctx->diarios, idx_aula );
    g_autoptr( GtkTreePath ) path = gtk_tree_path_new_from_indices( idx_linha_liststore, -1 );
    GtkTreeIter iter;
 
-   if ( gtk_tree_model_get_iter( GTK_TREE_MODEL( store_view ), &iter, path ) ) {
+   if ( gtk_tree_model_get_iter( model_view, &iter, path ) ) {
       gtk_list_store_set( store_view, &iter,
                           3, str_status,
                           5, tem_cor ? cor_texto : NULL,
@@ -769,8 +776,8 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                                     const char *str_status, int tem_cor, GdkRGBA *cor_texto ) {
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
-   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
-   GtkTreeModel *model_view = GTK_TREE_MODEL( store_view );
+   GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
    gboolean modo_edicao = FALSE;
    GtkTreeIter iter_view;
@@ -1239,4 +1246,119 @@ void salvar_diario( AppContext *ctx, gboolean final_save ) {
       g_free( ctx->path_save );
       ctx->path_save = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
    }
+}
+
+
+// AVALIAÇÕES
+
+void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
+   g_return_if_fail( ctx != NULL );
+   g_return_if_fail( texto != NULL );
+
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
+   GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
+
+   // 1. Regra de Limite
+   int total = gtk_tree_model_iter_n_children( model_view, NULL );
+   if ( total >= 5 ) {
+      g_print( "⚠ Limite de 5 avaliações atingido.\n" );
+      return;
+   }
+
+   gboolean riscar = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_desativar_avaliacao ) );
+
+   MetaAvaliacao meta = {0};
+   g_strlcpy( meta.nome_av, texto, sizeof( meta.nome_av ) );
+   meta.ativa = !riscar;
+
+   // 2. Manipulação de Binário (Anexar ao final)
+   g_autofree char *arquivo = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
+   gsize tamanho_atual = 0;
+   gchar *conteudo_atual = NULL;
+   GError *erro = NULL;
+
+   g_file_get_contents( arquivo, &conteudo_atual, &tamanho_atual, NULL );
+
+   // Expande o buffer para caber o novo registro
+   gsize novo_tamanho = tamanho_atual + sizeof( MetaAvaliacao );
+   gchar *novo_conteudo = g_malloc0( novo_tamanho );
+
+   if ( conteudo_atual ) {
+      memcpy( novo_conteudo, conteudo_atual, tamanho_atual );
+   }
+
+   memcpy( novo_conteudo + tamanho_atual, &meta, sizeof( MetaAvaliacao ) );
+
+   if ( !g_file_set_contents( arquivo, novo_conteudo, novo_tamanho, &erro ) ) {
+      g_print( "Erro ao salvar o binário: %s\n", erro->message );
+      g_clear_error( &erro );
+   }
+
+   g_free( conteudo_atual );
+   g_free( novo_conteudo );
+
+   // 3. Atualiza a interface gráfica
+   GtkTreeIter iter;
+   gtk_list_store_append( store_view, &iter );
+   gtk_list_store_set( store_view, &iter, 0, texto, 1, riscar, -1 );
+
+   gtk_combo_box_set_active_iter( combo, &iter );
+   _marcar_diario_modificado( ctx );
+}
+
+
+void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
+   g_return_if_fail( ctx != NULL );
+   g_return_if_fail( texto != NULL );
+
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
+   int ativo = gtk_combo_box_get_active( combo );
+
+   if ( ativo < 0 ) {
+      g_print( "⚠ Nenhuma avaliação selecionada para edição.\n" );
+      return;
+   }
+
+   GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
+   GtkListStore *store_view = GTK_LIST_STORE( model_view );
+
+   gboolean riscar = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_desativar_avaliacao ) );
+
+   MetaAvaliacao meta = {0};
+   g_strlcpy( meta.nome_av, texto, sizeof( meta.nome_av ) );
+   meta.ativa = !riscar;
+
+   // 2. Manipulação de Binário (Substituição in-place)
+   g_autofree char *arquivo = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
+   gsize tamanho_atual = 0;
+   gchar *conteudo_atual = NULL;
+   GError *erro = NULL;
+
+   if ( g_file_get_contents( arquivo, &conteudo_atual, &tamanho_atual, NULL ) ) {
+
+      // Proteção contra corrupção: garante que o bloco que vamos editar existe no arquivo
+      if ( ( ativo + 1 ) * sizeof( MetaAvaliacao ) <= tamanho_atual ) {
+
+         // Editamos diretamente no buffer carregado (sem alocar um segundo buffer)
+         memcpy( conteudo_atual + ( ativo * sizeof( MetaAvaliacao ) ), &meta, sizeof( MetaAvaliacao ) );
+
+         if ( !g_file_set_contents( arquivo, conteudo_atual, tamanho_atual, &erro ) ) {
+            g_print( "Erro ao salvar o binário: %s\n", erro->message );
+            g_clear_error( &erro );
+         }
+      } else {
+         g_print( "⚠ Arquivo corrompido: índice de edição fora dos limites do arquivo.\n" );
+      }
+      g_free( conteudo_atual );
+   }
+
+   // 3. Atualiza a interface gráfica
+   GtkTreeIter iter;
+   if ( gtk_tree_model_iter_nth_child( model_view, &iter, NULL, ativo ) ) {
+      gtk_list_store_set( store_view, &iter, 0, texto, 1, riscar, -1 );
+      gtk_combo_box_set_active_iter( combo, &iter );
+   }
+
+   _marcar_diario_modificado( ctx );
 }

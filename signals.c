@@ -146,7 +146,8 @@ void app_signals_connect( gpointer user_data ) {
 
    g_signal_connect( ctx->ui_diario.descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
    g_signal_connect( ctx->ui_diario.btn_salvar_conteudo, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
-
+   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",
+                     G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
 
 
    ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
@@ -161,13 +162,21 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
 
 
+   ctx->ui_diario.handler_combo_avaliacoes = g_signal_connect( ctx->ui_diario.combo_avaliacoes, "changed",
+                                                               G_CALLBACK( on_combo_avaliacoes_changed ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_popover_adicionar, "clicked",
+                     G_CALLBACK( on_button_popover_adicionar_avaliacao_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.entry_popover_avaliacao, "activate",
+                     G_CALLBACK( on_button_popover_adicionar_avaliacao_clicked ), ctx );
+
+
+
 
    g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK(on_button_frequencia_enter_notify_event), ctx );
    g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
    g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event ), ctx );
-
-   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",
-                     G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
 
 
 

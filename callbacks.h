@@ -40,6 +40,12 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
 void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data );
 void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_data );
 
+// AVALIAÇÕES
+void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data );
+void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_popover_adicionar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
+
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

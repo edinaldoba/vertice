@@ -27,7 +27,6 @@ typedef struct {
    //-- Janela com rolagem
    GtkWidget *scrolled_window_conteudo;
    GtkWidget *treeview_conteudo;
-   GtkListStore *liststore_conteudo;
 
    //-- Registro do Conteúdo
    GtkWidget *tema;
@@ -55,7 +54,6 @@ typedef struct {
    //-- Janela com rolagem
    GtkWidget *scrolled_window_frequencia;
    GtkWidget *treeview_frequencia;
-   GtkListStore *liststore_frequencia;
 
    gulong handler_combo_alunos;
    gulong handler_combo_data;
@@ -64,23 +62,27 @@ typedef struct {
 
    /*** AVALIAÇÕES ***/
 
-   //-- Cabeçalho das Avaliações (As 5 pares de Entrys da imagem)
-   GtkWidget *entry_av[5];           // Nomes/Pesos das avaliações (Av1 .. Av5)
-   GtkWidget *entry_rec[5];          // Nomes/Pesos das recuperações (Rec1 .. Rec5)
-
    //-- Seleção de Avaliação Ativa
-   GtkWidget *combo_avaliacao_ativa; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
+   GtkWidget *combo_avaliacoes; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
+   GtkWidget *btn_nova_avaliacao;
+   GtkWidget *btn_editar_avaliacao;
+   GtkWidget *popover_nova_avaliacao;
+   GtkWidget *entry_popover_avaliacao;
+   GtkWidget *btn_popover_adicionar;
+
+   GtkWidget *check_desativar_avaliacao;
+
+   GtkWidget *btn_salvar_avaliacao; // Botão SALVAR
 
    //-- Janela com rolagem e Tabela de Notas
    GtkWidget *scrolled_window_avaliacoes;
    GtkWidget *treeview_avaliacoes;
-   GtkListStore *liststore_avaliacoes;
    GtkCellRenderer *renderer_nota_av;  // Editor editável para a nota principal
    GtkCellRenderer *renderer_nota_rec; // Editor editável para a recuperação
 
    //-- Handlers e Sinalizadores de Controle
-   gulong handler_combo_avaliacao;
-   int avaliacao_foco_ativa;          // Guardião do índice da avaliação ativa (0 a 9)
+   gulong handler_combo_avaliacoes;
+   int foco_avaliacao;          // Guardião do índice da avaliação ativa (0 a 9)
 
 } InterfaceRegistroDiario;
 

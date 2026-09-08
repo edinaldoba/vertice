@@ -103,7 +103,6 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.btn_salvar_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
    ctx->ui_diario.remover_registro = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
 
-   ctx->ui_diario.liststore_conteudo = GTK_LIST_STORE( gtk_builder_get_object( builder, "liststore_conteudo" ) );
    ctx->ui_diario.scrolled_window_conteudo    = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_conteudo, 1, 0.5 );
@@ -123,6 +122,21 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.btn_presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
    ctx->ui_diario.btn_ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
    ctx->ui_diario.combo_status          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
+
+   // AVALIAÇÕES
+   ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
+   ctx->ui_diario.treeview_avaliacoes  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
+
+   ctx->ui_diario.combo_avaliacoes     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
+   ctx->ui_diario.btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );
+   ctx->ui_diario.btn_nova_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_nova_avaliacao" ) );
+   ctx->ui_diario.check_desativar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "check_desativar_avaliacao" ) );
+
+   ctx->ui_diario.popover_nova_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "popover_nova_avaliacao" ) );
+   ctx->ui_diario.entry_popover_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_avaliacao" ) );
+   ctx->ui_diario.btn_popover_adicionar  = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_adicionar" ) );
+
+   ctx->ui_diario.btn_salvar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
 
 
 

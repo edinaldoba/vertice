@@ -594,6 +594,104 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
 
 
 
+// AVALIAÇÕES
+
+void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   GtkComboBox *combo = GTK_COMBO_BOX( widget );
+   int ativo = gtk_combo_box_get_active( combo );
+
+   if ( ativo < 0 ) return;
+
+   // -----------------------------------------------------------------
+   // REGRA 2: Mostra a ordem da avaliação selecionada no label
+   // -----------------------------------------------------------------
+   ctx->ui_diario.foco_avaliacao = ativo;
+
+}
+
+
+void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   // ---------------------------------------------------------
+   // INJETA O ESTADO DE CRIAÇÃO (FALSE) NA MEMÓRIA DO POPOVER
+   // ---------------------------------------------------------
+   GObject *object = G_OBJECT( ctx->ui_diario.popover_nova_avaliacao );
+   g_object_set_data( object, "modo_edicao", GINT_TO_POINTER( FALSE ) );
+
+   // Aponta o popover para o botão NOVA e exibe
+   gtk_popover_set_relative_to( GTK_POPOVER( ctx->ui_diario.popover_nova_avaliacao ), widget );
+   gtk_widget_show_all( ctx->ui_diario.popover_nova_avaliacao );
+
+   // Coloca o foco imediatamente na caixa de texto do popover
+   gtk_widget_grab_focus( ctx->ui_diario.entry_popover_avaliacao );
+}
+
+
+void on_button_popover_adicionar_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_WIDGET( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   GtkEntry *entry = GTK_ENTRY( ctx->ui_diario.entry_popover_avaliacao );
+   const gchar *texto = gtk_entry_get_text( entry );
+
+   if ( !texto || strlen( texto ) == 0 ) return;
+
+   // ---------------------------------------------------------
+   // RECUPERA O ESTADO DIRETAMENTE DA MEMÓRIA DO WIDGET
+   // ---------------------------------------------------------
+   GObject *object = G_OBJECT( ctx->ui_diario.popover_nova_avaliacao );
+   gboolean editando = GPOINTER_TO_INT( g_object_get_data( object , "modo_edicao" ) );
+
+   if ( editando ) {
+      popover_editar_avaliacao( ctx, texto );
+   } else {
+      popover_adicionar_avaliacao( ctx, texto );
+   }
+
+   gtk_entry_set_text( entry, "" );
+   gtk_widget_hide( ctx->ui_diario.popover_nova_avaliacao );
+}
+
+
+void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
+   int ativo = gtk_combo_box_get_active( combo );
+   if ( ativo < 0 ) return;
+
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkTreeIter iter;
+   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+      g_autofree gchar *nome_atual = NULL;
+      gtk_tree_model_get( model, &iter, 0, &nome_atual, -1 );
+      if ( nome_atual ) {
+         gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_popover_avaliacao ), nome_atual );
+      }
+   }
+
+   // ---------------------------------------------------------
+   // INJETA O ESTADO DE EDIÇÃO (TRUE) NA MEMÓRIA DO POPOVER
+   // ---------------------------------------------------------
+   GObject *object = G_OBJECT( ctx->ui_diario.popover_nova_avaliacao );
+   g_object_set_data( object, "modo_edicao", GINT_TO_POINTER( TRUE ) );
+
+   gtk_popover_set_relative_to( GTK_POPOVER( ctx->ui_diario.popover_nova_avaliacao ), widget );
+   gtk_widget_show_all( ctx->ui_diario.popover_nova_avaliacao );
+   gtk_widget_grab_focus( ctx->ui_diario.entry_popover_avaliacao );
+}
+
+
+
+
 //------------------------------------------------------------------------------------------------------------------
 static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) {
    g_return_val_if_fail( GTK_IS_STACK( widget ) && nome_da_pagina, FALSE );

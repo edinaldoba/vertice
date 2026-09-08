@@ -7,13 +7,67 @@
 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkListStore" id="liststore_aluno">
+  <object class="GtkListStore" id="liststore_avaliacoes">
+    <columns>
+      <!-- column-name numero -->
+      <column type="guint"/>
+      <!-- column-name nome_do_aluno -->
+      <column type="gchararray"/>
+      <!-- column-name av1 -->
+      <column type="gfloat"/>
+      <!-- column-name rec1 -->
+      <column type="gfloat"/>
+      <!-- column-name av2 -->
+      <column type="gfloat"/>
+      <!-- column-name rec2 -->
+      <column type="gfloat"/>
+      <!-- column-name av3 -->
+      <column type="gfloat"/>
+      <!-- column-name rec3 -->
+      <column type="gfloat"/>
+      <!-- column-name av4 -->
+      <column type="gfloat"/>
+      <!-- column-name rec4 -->
+      <column type="gfloat"/>
+      <!-- column-name av5 -->
+      <column type="gfloat"/>
+      <!-- column-name rec5 -->
+      <column type="gfloat"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+      <!-- column-name editavel_av -->
+      <column type="gboolean"/>
+      <!-- column-name editavel_rec -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_aluno">
     <columns>
       <!-- column-name nome_do_aluno -->
       <column type="gchararray"/>
       <!-- column-name sens -->
       <column type="gboolean"/>
       <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_avaliacoes">
+    <columns>
+      <!-- column-name avaliacao -->
+      <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_data">
+    <columns>
+      <!-- column-name data -->
+      <column type="gchararray"/>
+      <!-- column-name ch -->
+      <column type="guint"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+      <!-- column-name sens -->
       <column type="gboolean"/>
     </columns>
   </object>
@@ -31,18 +85,6 @@
       <column type="guint"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_data">
-    <columns>
-      <!-- column-name data -->
-      <column type="gchararray"/>
-      <!-- column-name ch -->
-      <column type="guint"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-      <!-- column-name sens -->
-      <column type="gboolean"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_frequencia">
@@ -553,7 +595,7 @@
                                 <property name="height-request">44</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="model">liststore_data</property>
+                                <property name="model">liststore_combo_data</property>
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
@@ -675,7 +717,7 @@
                                 <property name="height-request">43</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="model">liststore_aluno</property>
+                                <property name="model">liststore_combo_aluno</property>
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
@@ -843,39 +885,33 @@
                         <property name="orientation">vertical</property>
                         <property name="spacing">10</property>
                         <child>
-                          <object class="GtkLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">AVALIAÇÕES</property>
-                            <style>
-                              <class name="titulo-secao-principal"/>
-                            </style>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">0</property>
-                          </packing>
-                        </child>
-                        <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="spacing">10</property>
-                            <property name="homogeneous">True</property>
                             <child>
                               <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="spacing">10</property>
                                 <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
+                                  <object class="GtkComboBox" id="combo_avaliacoes">
+                                    <property name="width-request">220</property>
+                                    <property name="height-request">44</property>
                                     <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av5</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="model">liststore_combo_avaliacoes</property>
+                                    <property name="has-frame">False</property>
+                                    <property name="entry-text-column">0</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="strikethrough">1</attribute>
+                                        <attribute name="text">0</attribute>
+                                      </attributes>
+                                    </child>
+                                    <style>
+                                      <class name="combo-box-text-normal"/>
+                                    </style>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -884,13 +920,24 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
+                                  <object class="GtkButton" id="button_editar_avaliacao">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec5</property>
+                                    <property name="receives-default">True</property>
+                                    <property name="relief">none</property>
+                                    <property name="image-position">right</property>
+                                    <child>
+                                      <object class="GtkImage" id="image1">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="margin-start">5</property>
+                                        <property name="margin-end">5</property>
+                                        <property name="icon-name">document-edit-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <style>
+                                      <class name="btn-stepper"/>
+                                    </style>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -899,7 +946,7 @@
                                   </packing>
                                 </child>
                                 <style>
-                                  <class name="mini-card-avaliacoes"/>
+                                  <class name="linked"/>
                                 </style>
                               </object>
                               <packing>
@@ -909,88 +956,11 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox">
+                              <object class="GtkButton" id="button_nova_avaliacao">
+                                <property name="label" translatable="yes">NOVA</property>
                                 <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="spacing">10</property>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av4</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec4</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <style>
-                                  <class name="mini-card-avaliacoes"/>
-                                </style>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="spacing">10</property>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av3</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec3</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <style>
-                                  <class name="mini-card-avaliacoes"/>
-                                </style>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -999,78 +969,31 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox">
+                              <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="spacing">10</property>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av2</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec2</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
+                                <property name="label" translatable="yes">AVALIAÇÕES</property>
                                 <style>
-                                  <class name="mini-card-avaliacoes"/>
+                                  <class name="titulo-secao-principal"/>
                                 </style>
                               </object>
                               <packing>
-                                <property name="expand">False</property>
+                                <property name="expand">True</property>
                                 <property name="fill">True</property>
                                 <property name="position">3</property>
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox">
+                              <object class="GtkBox" id="box_desativar_avaliacao">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="spacing">10</property>
                                 <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
+                                  <object class="GtkCheckButton" id="check_desativar_avaliacao">
+                                    <property name="label" translatable="yes">Desativar</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Av1</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkEntry">
-                                    <property name="width-request">10</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="max-length">4</property>
-                                    <property name="width-chars">4</property>
-                                    <property name="placeholder-text" translatable="yes">Rec1</property>
+                                    <property name="receives-default">False</property>
+                                    <property name="draw-indicator">True</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1079,7 +1002,7 @@
                                   </packing>
                                 </child>
                                 <style>
-                                  <class name="mini-card-avaliacoes"/>
+                                  <class name="mini-card"/>
                                 </style>
                               </object>
                               <packing>
@@ -1088,9 +1011,229 @@
                                 <property name="position">4</property>
                               </packing>
                             </child>
+                            <child>
+                              <object class="GtkButton" id="button_salvar_avaliacao">
+                                <property name="label" translatable="yes">SALVAR</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">5</property>
+                              </packing>
+                            </child>
                           </object>
                           <packing>
                             <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkScrolledWindow" id="scrolled_window_avaliacoes">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="shadow-type">in</property>
+                            <child>
+                              <object class="GtkTreeView" id="treeview_avaliacoes">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="model">liststore_avaliacoes</property>
+                                <property name="search-column">0</property>
+                                <child internal-child="selection">
+                                  <object class="GtkTreeSelection"/>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">50</property>
+                                    <property name="title" translatable="yes">Nº</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">0</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">250</property>
+                                    <property name="title" translatable="yes">NOME  DO  ALUNO</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="strikethrough">4</attribute>
+                                        <attribute name="text">1</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">AV1</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">2</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">REC1</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">3</attribute>
+                                        <attribute name="foreground-rgba">5</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">AV2</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">4</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">REC2</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">5</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">AV3</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">6</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">REC3</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">7</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">AV4</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">8</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">REC4</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">9</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">AV5</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">10</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="fixed-width">70</property>
+                                    <property name="title" translatable="yes">REC5</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">11</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
+                                    <property name="title" translatable="yes">COR</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">12</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
+                                    <property name="title" translatable="yes">EDITÁVEL  AV</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">13</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn">
+                                    <property name="visible">False</property>
+                                    <property name="title" translatable="yes">EDITÁVEL  REC</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="text">14</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
                             <property name="fill">True</property>
                             <property name="position">1</property>
                           </packing>
@@ -2490,6 +2633,58 @@
             <property name="expand">False</property>
             <property name="fill">False</property>
             <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkPopover" id="popover_nova_avaliacao">
+    <property name="can-focus">False</property>
+    <property name="relative-to">button_nova_avaliacao</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="margin-start">10</property>
+        <property name="margin-end">10</property>
+        <property name="margin-top">10</property>
+        <property name="margin-bottom">10</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">8</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">NOVA  AVALIAÇÃO</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry_popover_avaliacao">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="button_popover_adicionar">
+            <property name="label" translatable="yes">ADICIONAR</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </object>
