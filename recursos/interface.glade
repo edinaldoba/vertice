@@ -895,7 +895,7 @@
                                 <property name="can-focus">False</property>
                                 <child>
                                   <object class="GtkComboBox" id="combo_avaliacoes">
-                                    <property name="width-request">220</property>
+                                    <property name="width-request">223</property>
                                     <property name="height-request">44</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
@@ -2637,11 +2637,12 @@
       </object>
     </child>
   </object>
-  <object class="GtkPopover" id="popover_nova_avaliacao">
+  <object class="GtkPopover" id="popover_nomear_avaliacao">
     <property name="can-focus">False</property>
     <property name="relative-to">button_nova_avaliacao</property>
     <child>
       <object class="GtkBox">
+        <property name="width-request">190</property>
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="margin-start">10</property>
@@ -2651,7 +2652,7 @@
         <property name="orientation">vertical</property>
         <property name="spacing">8</property>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_popover_avaliacao">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">NOVA  AVALIAÇÃO</property>
@@ -2663,9 +2664,10 @@
           </packing>
         </child>
         <child>
-          <object class="GtkEntry" id="entry_popover_avaliacao">
+          <object class="GtkEntry" id="entry_popover_nomear">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <property name="max-length">15</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -2674,7 +2676,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="button_popover_adicionar">
+          <object class="GtkButton" id="button_popover_avaliacao">
             <property name="label" translatable="yes">ADICIONAR</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>

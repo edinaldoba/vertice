@@ -125,16 +125,17 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    // AVALIAÇÕES
    ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
-   ctx->ui_diario.treeview_avaliacoes  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
+   ctx->ui_diario.treeview_avaliacoes        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
 
-   ctx->ui_diario.combo_avaliacoes     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
+   ctx->ui_diario.combo_avaliacoes          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
    ctx->ui_diario.btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );
-   ctx->ui_diario.btn_nova_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_nova_avaliacao" ) );
+   ctx->ui_diario.btn_nova_avaliacao        = GTK_WIDGET( gtk_builder_get_object( builder, "button_nova_avaliacao" ) );
    ctx->ui_diario.check_desativar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "check_desativar_avaliacao" ) );
 
-   ctx->ui_diario.popover_nova_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "popover_nova_avaliacao" ) );
-   ctx->ui_diario.entry_popover_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_avaliacao" ) );
-   ctx->ui_diario.btn_popover_adicionar  = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_adicionar" ) );
+   ctx->ui_diario.popover_nomear_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "popover_nomear_avaliacao" ) );
+   ctx->ui_diario.label_popover_avaliacao  = GTK_WIDGET( gtk_builder_get_object( builder, "label_popover_avaliacao" ) );
+   ctx->ui_diario.entry_popover_nomear  = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_nomear" ) );
+   ctx->ui_diario.btn_popover_nomear    = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_avaliacao" ) );
 
    ctx->ui_diario.btn_salvar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
 

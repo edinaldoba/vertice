@@ -924,7 +924,6 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
-                                    <property name="relief">none</property>
                                     <property name="image-position">right</property>
                                     <child>
                                       <object class="GtkImage" id="image1">
@@ -2638,7 +2637,7 @@
       </object>
     </child>
   </object>
-  <object class="GtkPopover" id="popover_nova_avaliacao">
+  <object class="GtkPopover" id="popover_nomear_avaliacao">
     <property name="can-focus">False</property>
     <property name="relative-to">button_nova_avaliacao</property>
     <child>
@@ -2664,7 +2663,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkEntry" id="entry_popover_avaliacao">
+          <object class="GtkEntry" id="entry_popover_nomear">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
           </object>
@@ -2675,7 +2674,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="button_popover_adicionar">
+          <object class="GtkButton" id="button_popover_avaliacao">
             <property name="label" translatable="yes">ADICIONAR</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>

@@ -66,9 +66,12 @@ typedef struct {
    GtkWidget *combo_avaliacoes; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
    GtkWidget *btn_nova_avaliacao;
    GtkWidget *btn_editar_avaliacao;
-   GtkWidget *popover_nova_avaliacao;
-   GtkWidget *entry_popover_avaliacao;
-   GtkWidget *btn_popover_adicionar;
+
+   //-- Popover
+   GtkWidget *popover_nomear_avaliacao;
+   GtkWidget *label_popover_avaliacao;
+   GtkWidget *entry_popover_nomear;
+   GtkWidget *btn_popover_nomear;
 
    GtkWidget *check_desativar_avaliacao;
 

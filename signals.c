@@ -162,14 +162,15 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
 
 
+   // AVALIAÇÕES
    ctx->ui_diario.handler_combo_avaliacoes = g_signal_connect( ctx->ui_diario.combo_avaliacoes, "changed",
                                                                G_CALLBACK( on_combo_avaliacoes_changed ), ctx );
    g_signal_connect( ctx->ui_diario.btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_popover_adicionar, "clicked",
-                     G_CALLBACK( on_button_popover_adicionar_avaliacao_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.entry_popover_avaliacao, "activate",
-                     G_CALLBACK( on_button_popover_adicionar_avaliacao_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_popover_nomear, "clicked",
+                     G_CALLBACK( on_button_popover_nomear_avaliacao_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.entry_popover_nomear, "activate",
+                     G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
 
 
 
