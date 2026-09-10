@@ -171,6 +171,8 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_button_popover_nomear_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.entry_popover_nomear, "activate",
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
+   ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
+                                                              G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
 
 

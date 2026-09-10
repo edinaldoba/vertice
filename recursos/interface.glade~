@@ -176,6 +176,18 @@
                         <property name="position">3</property>
                       </packing>
                     </child>
+                    <child>
+                      <object class="GtkComboBoxText" id="combo_momento">
+                        <property name="width-request">213</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">4</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -895,7 +907,7 @@
                                 <property name="can-focus">False</property>
                                 <child>
                                   <object class="GtkComboBox" id="combo_avaliacoes">
-                                    <property name="width-request">220</property>
+                                    <property name="width-request">223</property>
                                     <property name="height-request">44</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
@@ -1257,18 +1269,6 @@
                     <property name="can-focus">False</property>
                     <property name="spacing">10</property>
                     <child>
-                      <object class="GtkComboBoxText" id="combo_momento">
-                        <property name="width-request">213</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
                       <object class="GtkButton" id="button_abrir">
                         <property name="label" translatable="yes">ABRIR</property>
                         <property name="visible">True</property>
@@ -1351,6 +1351,19 @@
                     <property name="spacing">10</property>
                     <property name="homogeneous">True</property>
                     <child>
+                      <object class="GtkButton" id="button_conteudos">
+                        <property name="label" translatable="yes">CONTEÚDOS</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
                       <object class="GtkButton" id="button_frequencia">
                         <property name="label" translatable="yes">FREQUÊNCIA</property>
                         <property name="visible">True</property>
@@ -1364,19 +1377,6 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button_conteudos">
-                        <property name="label" translatable="yes">CONTEÚDOS</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">True</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
-                      </packing>
-                    </child>
-                    <child>
                       <object class="GtkButton" id="button_avaliacoes">
                         <property name="label" translatable="yes">AVALIAÇÕES</property>
                         <property name="visible">True</property>
@@ -1386,7 +1386,7 @@
                       <packing>
                         <property name="expand">True</property>
                         <property name="fill">True</property>
-                        <property name="position">3</property>
+                        <property name="position">2</property>
                       </packing>
                     </child>
                     <child>
@@ -1399,7 +1399,7 @@
                       <packing>
                         <property name="expand">True</property>
                         <property name="fill">True</property>
-                        <property name="position">4</property>
+                        <property name="position">3</property>
                       </packing>
                     </child>
                   </object>
@@ -2642,6 +2642,7 @@
     <property name="relative-to">button_nova_avaliacao</property>
     <child>
       <object class="GtkBox">
+        <property name="width-request">190</property>
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="margin-start">10</property>
@@ -2651,7 +2652,7 @@
         <property name="orientation">vertical</property>
         <property name="spacing">8</property>
         <child>
-          <object class="GtkLabel">
+          <object class="GtkLabel" id="label_popover_avaliacao">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">NOVA  AVALIAÇÃO</property>
@@ -2666,6 +2667,7 @@
           <object class="GtkEntry" id="entry_popover_nomear">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <property name="max-length">15</property>
           </object>
           <packing>
             <property name="expand">False</property>

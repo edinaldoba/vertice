@@ -19,22 +19,32 @@
 #include "dinamica.h"
 
 
+static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, const gchar *caminho_arquivo );
 
 // Callback executada periodicamente em segundo plano pelo loop principal da GLib
-static gboolean _autosave_diario_cb( gpointer user_data ) {
+static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
 
-   // Proteção básica contra ponteiros nulos ou encerramento
+   // Proteção contra ponteiros inválidos
    if ( !ctx ) return G_SOURCE_REMOVE;
 
-   // Só grava no disco se realmente houver alterações pendentes na RAM
-   if ( ctx->dados_modificados && ctx->path_save && ctx->diarios ) {
-      salvar_diario( ctx, FALSE );
-      ctx->dados_modificados = FALSE; // Reseta a flag após o sucesso
-      g_print( "[Autosave] Backup automático de '%s' realizado com sucesso.\n", ctx->path_save );
+   // Se nada foi alterado, apenas mantém o timer ativo sem gastar I/O
+   if ( !ctx->dados_modificados ) {
+      return G_SOURCE_CONTINUE;
    }
 
-   // Retorna G_SOURCE_CONTINUE para manter o temporizador rodando
+   // 1. Grava o diário se houver dados e caminho válido
+   gboolean salvou_algo = salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
+
+   // 2. Grava as avaliações se houver dados e caminho válido
+   salvou_algo = salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+
+   // 3. Reseta a flag global APENAS se alguma gravação foi realizada
+   if ( salvou_algo ) {
+      ctx->dados_modificados = FALSE;
+      g_print( "[Autosave] Dados sincronizados no disco com sucesso.\n" );
+   }
+
    return G_SOURCE_CONTINUE;
 }
 
@@ -59,12 +69,12 @@ void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos ) {
    guint intervalo_ms = intervalo_minutos * 60 * 1000;
 
    // Registra a callback no Main Loop da GLib
-   ctx->autosave_timer_id = g_timeout_add( intervalo_ms, _autosave_diario_cb, ctx );
+   ctx->autosave_timer_id = g_timeout_add( intervalo_ms, _autosave_dados_binarios_cb, ctx );
    ctx->dados_modificados = FALSE;
 }
 
 // Função centralizada para marcar a RAM como alterada
-static void _marcar_diario_modificado( AppContext *ctx ) {
+static void _marcar_dados_modificado( AppContext *ctx ) {
    if ( ctx ) {
       ctx->dados_modificados = TRUE;
    }
@@ -412,7 +422,7 @@ void registrar_aula( AppContext *ctx ) {
    g_array_append_val( ctx->diarios, nova_aula );
    g_array_sort( ctx->diarios, _comparar_datas_diario );
 
-   _marcar_diario_modificado( ctx ); // Para salvamento automático
+   _marcar_dados_modificado( ctx ); // Para salvamento automático
 
    // =====================================================================
    // 3. DESCOBRE A POSIÇÃO PÓS-ORDENAÇÃO
@@ -581,7 +591,6 @@ void modificar_registro_aula( AppContext *ctx ) {
    ui->editando = FALSE;
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( GTK_TREE_VIEW( ui->treeview_conteudo ) ) );
    gtk_entry_set_text( GTK_ENTRY( ui->descricao ), "" );
-   // gtk_entry_set_text( GTK_ENTRY( ui->tema ), "" );
 }
 
 
@@ -872,7 +881,7 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    // 3. Atualiza a RAM e aciona o gatilho do Autosave
    RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
    diario->chamada[idx_aluno].status = status;
-   _marcar_diario_modificado( ctx );
+   _marcar_dados_modificado( ctx );
 
    // 4. Prepara a formatação visual (Texto e Cor)
    const char *str_status = ctx->listas.status_assiduidade[status].str;
@@ -1190,66 +1199,171 @@ void selecionar_combo_status( const AppContext *ctx ) {
 
 
 
-void carregar_diario( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-
-   // 1. Se já existir um diário de outra turma na RAM, liberamos a memória
-   if ( ctx->diarios ) {
-      g_array_unref( ctx->diarios );
+// Retorna TRUE se conseguiu ler e injetar dados na memória
+static gboolean carregar_garray_binario( GArray **array_ptr, gsize tamanho_elemento, const gchar *caminho_arquivo ) {
+   if ( *array_ptr ) {
+      g_array_unref( *array_ptr );
    }
 
-   // 2. Inicializa o array dinâmico vazio
-   ctx->diarios = g_array_new( FALSE, FALSE, sizeof( RegistroDiario ) );
+   *array_ptr = g_array_new( FALSE, FALSE, tamanho_elemento );
 
-   if ( !ctx->path_save ) return;
+   if ( !caminho_arquivo ) return FALSE;
 
-   // 3. Lê o arquivo de forma atômica direto para a memória
    g_autofree gchar *conteudo = NULL;
    gsize tamanho = 0;
 
-   if ( g_file_get_contents( ctx->path_save, &conteudo, &tamanho, NULL ) ) {
-      int total_registros = tamanho / sizeof( RegistroDiario );
+   if ( g_file_get_contents( caminho_arquivo, &conteudo, &tamanho, NULL ) ) {
+      int total_registros = tamanho / tamanho_elemento;
       if ( total_registros > 0 ) {
-         // Injeta o bloco bruto de memória dentro do GArray de uma só vez (muito rápido)
-         g_array_append_vals( ctx->diarios, conteudo, total_registros );
-
-         _marcar_diario_modificado( ctx ); // Para salvamento automático
+         g_array_append_vals( *array_ptr, conteudo, total_registros );
+         return TRUE;
       }
    }
+
+   return FALSE;
 }
 
+static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, const gchar *caminho_arquivo ) {
+   if ( !array || !caminho_arquivo ) return FALSE;
+
+   gsize bytes_para_gravar = array->len * tamanho_elemento;
+   GError *erro = NULL;
+
+   if ( !g_file_set_contents( caminho_arquivo, (const gchar *)array->data, bytes_para_gravar, &erro ) ) {
+      g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
+      g_clear_error( &erro );
+      return FALSE;
+   }
+   return TRUE;
+}
+
+
+// =====================================================================
+// DIÁRIO
+// =====================================================================
+void carregar_diario( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+   if ( carregar_garray_binario( &ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario ) ) {
+      _marcar_dados_modificado( ctx );
+   }
+}
 
 void salvar_diario( AppContext *ctx, gboolean final_save ) {
    g_return_if_fail( ctx );
 
-   // 1. DESCARREGA OS DADOS PENDENTES
-   // Se havia um arquivo aberto e dados na RAM, salva antes de mudar a rota
-   if ( ctx->path_save && ctx->diarios ) {
+   salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
 
-      // Opcional, mas de mestre: Garante que os registros sejam salvos no disco
-      // ordenados cronologicamente, independente de como o professor inseriu.
-      // GG, o ordenamento já está acontendendo a cada novo registro de aula
-      // g_array_sort( ctx->diarios, _comparar_datas_diario );
+   if ( !final_save ) {
+      g_free( ctx->path_save_diario );
+      ctx->path_save_diario = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+   }
+}
 
-      gsize bytes_para_gravar = ctx->diarios->len * sizeof( RegistroDiario );
-      GError *erro = NULL;
+// =====================================================================
+// AVALIAÇÕES
+// =====================================================================
+static void mapper_avaliacao_diario( GtkListStore *store, GtkTreeIter *iter, const void *dados_array, int index ) {
+   g_return_if_fail( store != NULL );
+   g_return_if_fail( iter != NULL );
+   g_return_if_fail( dados_array != NULL );
 
-      // Escrita atômica segura no disco
-      if ( !g_file_set_contents( ctx->path_save, (const gchar *)ctx->diarios->data, bytes_para_gravar, &erro ) ) {
-         g_printerr( "Aviso: Falha ao salvar %s: %s\n", ctx->path_save, erro->message );
-         g_clear_error( &erro );
-      }
+   // Cast do bloco contíguo de dados para a struct MetaAvaliacao
+   const MetaAvaliacao *avaliacoes = ( const MetaAvaliacao * )dados_array;
+   const MetaAvaliacao *meta = &avaliacoes[index];
+
+   // Inverte a lógica: se ativa == FALSE, então riscar (strikethrough) == TRUE
+   gboolean riscar = !meta->ativa;
+
+   // Preenche a linha do ListStore
+   gtk_list_store_set( store, iter,
+                       0, meta->nome_av,
+                       1, riscar,
+                       -1 );
+}
+
+void carregar_avaliacoes( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   GtkWidget *check = ctx->ui_diario.check_desativar_avaliacao;
+   gulong handler = ctx->ui_diario.handler_check_desativar;
+
+   if ( handler > 0 ) {
+      g_signal_handler_block( check, handler );
    }
 
-   // 2. ATUALIZA O CAMINHO DE SALVAMENTO PARA O PRÓXIMO USO
+   // 1. Carrega o binário para a memória RAM (GArray)
+   if ( carregar_garray_binario( &ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao ) ) {
+
+      // 2. Se houver dados, repassa o ponteiro interno do GArray para popular o UI
+      if ( ctx->avaliacoes && ctx->avaliacoes->len > 0 ) {
+         popular_combo_box_generico(
+            ctx->ui_diario.combo_avaliacoes,
+            ctx->avaliacoes->data,                    // Bloco contíguo das structs
+            ctx->avaliacoes->len,                     // Quantidade exata de itens
+            0,                                       // Foco padrão (-1 para vazio, ou 0 para o primeiro)
+            ctx->ui_diario.handler_combo_avaliacoes,  // Silencia o sinal durante o processo
+            mapper_avaliacao_diario
+         );
+
+         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, 0 );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), !meta->ativa );
+      }
+      _marcar_dados_modificado( ctx );
+
+   } else {
+      popular_combo_box_generico( ctx->ui_diario.combo_avaliacoes, ctx->avaliacoes->data, 0, 0,
+                                  ctx->ui_diario.handler_combo_avaliacoes, mapper_avaliacao_diario );
+
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), FALSE );
+   }
+
+   if ( handler > 0 ) {
+      g_signal_handler_unblock( check, handler );
+   }
+}
+
+void salvar_avaliacoes( AppContext *ctx, gboolean final_save ) {
+   g_return_if_fail( ctx );
+
+   salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+
    if ( !final_save ) {
-      g_free( ctx->path_save );
-      ctx->path_save = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+      g_free( ctx->path_save_avaliacao );
+      ctx->path_save_avaliacao = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
    }
 }
 
 
-// AVALIAÇÕES
+void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
+   int ativo = gtk_combo_box_get_active( combo );
+
+   // 1. Aborta se não houver avaliação selecionada no combo
+   if ( ativo < 0 ) return;
+
+   // 2. Atualiza o estado lógico na memória RAM (GArray)
+   if ( ctx->avaliacoes && ativo < (int)ctx->avaliacoes->len ) {
+      // Se 'estado' (riscar) for TRUE, a avaliação fica INATIVA (ativa = FALSE)
+      g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ).ativa = !estado;
+   } else {
+      g_print( "⚠ Erro: Índice selecionado está fora dos limites do GArray.\n" );
+      return;
+   }
+
+   // 3. Atualiza o estado visual no GtkComboBox (ListStore)
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkListStore *store = GTK_LIST_STORE( model );
+   GtkTreeIter iter;
+
+   if ( gtk_tree_model_iter_nth_child( model, &iter, NULL, ativo ) ) {
+      // Seta a Coluna 1 (strikethrough) com o valor booleano do checkbox
+      gtk_list_store_set( store, &iter, 1, estado, -1 );
+   }
+
+   // 4. Aciona a flag para que o _autosave_dados_binarios_cb grave no disco
+   _marcar_dados_modificado( ctx );
+}
+
 
 void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    g_return_if_fail( ctx != NULL );
@@ -1259,52 +1373,41 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
-   // 1. Regra de Limite
-   int total = gtk_tree_model_iter_n_children( model_view, NULL );
-   if ( total >= 5 ) {
-      g_print( "⚠ Limite de 5 avaliações atingido.\n" );
+   // 1. Regra de Limite na Interface
+   if ( gtk_tree_model_iter_n_children( model_view, NULL ) >= 5 ) {
+      InterfacePainel *painel = &ctx->painel;
+
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Limite de Avaliações Atingido" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não é possível cadastrar mais de 5 avaliações por período." );
+      painel->format_instrucao = meu_gerador_variadico( "Para adicionar uma nova, edite e renomeie uma das avaliações existentes." );
+
+      criar_mensagem_painel( AVISO, painel );
       return;
    }
 
-   gboolean riscar = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_desativar_avaliacao ) );
+   // Garante que a estrutura na RAM esteja pronta
+   if ( !ctx->avaliacoes ) {
+      ctx->avaliacoes = g_array_new( FALSE, FALSE, sizeof( MetaAvaliacao ) );
+   }
 
    MetaAvaliacao meta = {0};
    g_strlcpy( meta.nome_av, texto, sizeof( meta.nome_av ) );
-   meta.ativa = !riscar;
+   meta.ativa = TRUE;
 
-   // 2. Manipulação de Binário (Anexar ao final)
-   g_autofree char *arquivo = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
-   gsize tamanho_atual = 0;
-   gchar *conteudo_atual = NULL;
-   GError *erro = NULL;
+   gboolean riscar = !meta.ativa;
 
-   g_file_get_contents( arquivo, &conteudo_atual, &tamanho_atual, NULL );
+   // 2. Manipulação Direta na Memória RAM
+   g_array_append_val( ctx->avaliacoes, meta );
 
-   // Expande o buffer para caber o novo registro
-   gsize novo_tamanho = tamanho_atual + sizeof( MetaAvaliacao );
-   gchar *novo_conteudo = g_malloc0( novo_tamanho );
-
-   if ( conteudo_atual ) {
-      memcpy( novo_conteudo, conteudo_atual, tamanho_atual );
-   }
-
-   memcpy( novo_conteudo + tamanho_atual, &meta, sizeof( MetaAvaliacao ) );
-
-   if ( !g_file_set_contents( arquivo, novo_conteudo, novo_tamanho, &erro ) ) {
-      g_print( "Erro ao salvar o binário: %s\n", erro->message );
-      g_clear_error( &erro );
-   }
-
-   g_free( conteudo_atual );
-   g_free( novo_conteudo );
-
-   // 3. Atualiza a interface gráfica
+   // 3. Atualiza a Interface Gráfica
    GtkTreeIter iter;
    gtk_list_store_append( store_view, &iter );
    gtk_list_store_set( store_view, &iter, 0, texto, 1, riscar, -1 );
 
    gtk_combo_box_set_active_iter( combo, &iter );
-   _marcar_diario_modificado( ctx );
+
+   // 4. Sinaliza ao sistema (autosave) que há dados pendentes para gravação
+   _marcar_dados_modificado( ctx );
 }
 
 
@@ -1320,45 +1423,37 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
       return;
    }
 
+   if ( !ctx->avaliacoes ) return; // Prevenção de falha
+
    GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
-
-   gboolean riscar = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_desativar_avaliacao ) );
-
-   MetaAvaliacao meta = {0};
-   g_strlcpy( meta.nome_av, texto, sizeof( meta.nome_av ) );
-   meta.ativa = !riscar;
-
-   // 2. Manipulação de Binário (Substituição in-place)
-   g_autofree char *arquivo = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
-   gsize tamanho_atual = 0;
-   gchar *conteudo_atual = NULL;
-   GError *erro = NULL;
-
-   if ( g_file_get_contents( arquivo, &conteudo_atual, &tamanho_atual, NULL ) ) {
-
-      // Proteção contra corrupção: garante que o bloco que vamos editar existe no arquivo
-      if ( ( ativo + 1 ) * sizeof( MetaAvaliacao ) <= tamanho_atual ) {
-
-         // Editamos diretamente no buffer carregado (sem alocar um segundo buffer)
-         memcpy( conteudo_atual + ( ativo * sizeof( MetaAvaliacao ) ), &meta, sizeof( MetaAvaliacao ) );
-
-         if ( !g_file_set_contents( arquivo, conteudo_atual, tamanho_atual, &erro ) ) {
-            g_print( "Erro ao salvar o binário: %s\n", erro->message );
-            g_clear_error( &erro );
-         }
-      } else {
-         g_print( "⚠ Arquivo corrompido: índice de edição fora dos limites do arquivo.\n" );
-      }
-      g_free( conteudo_atual );
-   }
-
-   // 3. Atualiza a interface gráfica
    GtkTreeIter iter;
-   if ( gtk_tree_model_iter_nth_child( model_view, &iter, NULL, ativo ) ) {
-      gtk_list_store_set( store_view, &iter, 0, texto, 1, riscar, -1 );
-      gtk_combo_box_set_active_iter( combo, &iter );
+
+   // Captura o iterador da linha selecionada uma única vez
+   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+      gboolean riscado = FALSE;
+
+      // 1. Lê a coluna 1 do ListStore (TRUE se estiver desativada/riscada)
+      gtk_tree_model_get( model_view, &iter, 1, &riscado, -1 );
+
+      MetaAvaliacao meta = {0};
+      g_strlcpy( meta.nome_av, texto, sizeof( meta.nome_av ) );
+      meta.ativa = !riscado;
+
+      // 2. Manipulação Direta na Memória RAM (Substituição in-place)
+      if ( ativo < (int)ctx->avaliacoes->len ) {
+         g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ) = meta;
+      } else {
+         g_print( "⚠ Erro de sincronia: índice de edição fora dos limites do array em memória.\n" );
+         return;
+      }
+
+      // 3. Atualiza a Interface Gráfica usando o iter já carregado
+      gtk_list_store_set( store_view, &iter, 0, texto, 1, riscado, -1 );
    }
 
-   _marcar_diario_modificado( ctx );
+   // 4. Sinaliza ao sistema (autosave) que há dados pendentes para gravação
+   _marcar_dados_modificado( ctx );
 }
+
+

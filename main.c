@@ -285,11 +285,14 @@ void inicializacao_app_context( AppContext *ctx ) {
 
       .ui_diario = {
          .handler_combo_data = 0,
-         .handler_combo_alunos = 0
+         .handler_combo_alunos = 0,
+         .handler_check_desativar = 0
       },
 
       .diarios   = NULL,
-      .path_save = NULL
+      .avaliacoes = NULL,
+      .path_save_avaliacao = NULL,
+      .path_save_diario = NULL
    };
 }
 
@@ -312,9 +315,21 @@ void limpeza_final( AppContext *ctx ) {
    }
 
    // DESASSOCIAR PONTEIRO DE TRABALHO
-   if ( ctx->path_save != NULL ) {
-      g_free( ctx->path_save );
-      ctx->path_save = NULL;
+   if ( ctx->path_save_diario != NULL ) {
+      g_free( ctx->path_save_diario );
+      ctx->path_save_diario = NULL;
+   }
+
+   if ( ctx->avaliacoes != NULL ) {
+      salvar_avaliacoes( ctx, TRUE );
+      g_array_unref( ctx->avaliacoes );
+      ctx->avaliacoes = NULL;
+   }
+
+   // DESASSOCIAR PONTEIRO DE TRABALHO
+   if ( ctx->path_save_avaliacao != NULL ) {
+      g_free( ctx->path_save_avaliacao );
+      ctx->path_save_avaliacao = NULL;
    }
 
 

@@ -42,6 +42,7 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
 
 // AVALIAÇÕES
 void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data );
+void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data );
 void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data );

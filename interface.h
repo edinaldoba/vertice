@@ -61,6 +61,7 @@ typedef struct {
    int foco_combo_alunos;
 
    /*** AVALIAÇÕES ***/
+   GArray *avaliacoes;
 
    //-- Seleção de Avaliação Ativa
    GtkWidget *combo_avaliacoes; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
@@ -74,6 +75,7 @@ typedef struct {
    GtkWidget *btn_popover_nomear;
 
    GtkWidget *check_desativar_avaliacao;
+   gulong handler_check_desativar;
 
    GtkWidget *btn_salvar_avaliacao; // Botão SALVAR
 
@@ -272,6 +274,7 @@ typedef struct {
 
    GArray *diarios; // Substitui o ponteiro cru. O motor GLib fará a gestão da RAM.
    GArray *fichas;
+   GArray *avaliacoes;
 
    // --- CONTROLE DE AUTOSAVE ---
    gboolean dados_modificados; // Registra se houve alteração na RAM desde o último salvamento
@@ -283,7 +286,9 @@ typedef struct {
     * descarregue os dados pendentes no disco (frequencia.bin) ANTES que as trocas de
     * turma ou período atualizem a árvore de caminhos da aplicação.
     */
-   gchar *path_save;
+   gchar *path_save_diario;
+   gchar *path_save_avaliacao;
+   gchar *path_save_ficha;
 
    CalendarioData data;
    CaminhoDiretorio caminho;

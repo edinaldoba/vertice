@@ -26,7 +26,12 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx );
 void selecionar_combo_status( const AppContext *ctx );
 
 void carregar_diario( AppContext *ctx );
+void carregar_avaliacoes( AppContext *ctx );
+
 void salvar_diario( AppContext *ctx, gboolean final_save );
+void salvar_avaliacoes( AppContext *ctx, gboolean final_save );
+
+void desativar_avaliacao( AppContext *ctx, gboolean estado );
 
 // AVALIAÇÕES
 void popover_adicionar_avaliacao( AppContext *ctx, const char *texto );

@@ -270,6 +270,7 @@ entry:focus {
 
 entry label {
     color: #FFFFFF;
+    font-size: 20px;
     font-family: 'Ubuntu Mono', monospace;
     font-weight: normal;
 }

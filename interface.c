@@ -939,7 +939,11 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
     // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
+   salvar_avaliacoes( ctx, FALSE );
+
    carregar_diario( ctx );
+   carregar_avaliacoes( ctx );
+
    popular_datas( ctx );
 
    _sincronizar_registro_diario_com_turma_siaep( ctx );

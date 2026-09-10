@@ -602,15 +602,50 @@ void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data ) {
    if ( !ctx ) return;
 
    GtkComboBox *combo = GTK_COMBO_BOX( widget );
-   int ativo = gtk_combo_box_get_active( combo );
+   int item_ativo = gtk_combo_box_get_active( combo );
 
-   if ( ativo < 0 ) return;
+   if ( item_ativo < 0 ) return;
 
    // -----------------------------------------------------------------
    // REGRA 2: Mostra a ordem da avaliação selecionada no label
    // -----------------------------------------------------------------
-   ctx->ui_diario.foco_avaliacao = ativo;
+   ctx->ui_diario.foco_avaliacao = item_ativo;
 
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkTreeIter iter;
+
+   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+      gboolean riscado = FALSE;
+
+      // 1. Lê a coluna 1 do ListStore (TRUE se estiver desativada/riscada)
+      gtk_tree_model_get( model, &iter, 1, &riscado, -1 );
+
+      GtkWidget *check = ctx->ui_diario.check_desativar_avaliacao;
+      gulong handler = ctx->ui_diario.handler_check_desativar;
+
+      // 2. Bloqueia o sinal temporariamente para evitar disparo falso do autosave
+      if ( handler > 0 ) {
+         g_signal_handler_block( check, handler );
+      }
+
+      // 3. Atualiza a interface da caixa de seleção
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), riscado );
+
+      // 4. Desbloqueia o sinal para que cliques reais do professor voltem a funcionar
+      if ( handler > 0 ) {
+         g_signal_handler_unblock( check, handler );
+      }
+   }
+}
+
+void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_TOGGLE_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
+
+   desativar_avaliacao( ctx, estado );
 }
 
 
@@ -707,7 +742,6 @@ void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer use
    _popover_nomear_avaliacao( ctx );
 }
 //===================================================================================================
-
 
 
 

@@ -1339,38 +1339,25 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 
 //########################################################################################################//
 void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
+   g_return_if_fail( painel && ctx );
+
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   g_autofree gchar *arquivo_binario = g_build_filename( caminho->dados, "diario.bin", NULL );
-
-   // Opcional: Se 'verificar_estado_de_arquivo' não for compatível com binários, você pode ajustar
-   if ( !verificar_estado_de_arquivo( arquivo_binario, painel, dados ) ) return;
-
-   FILE *p = fopen( arquivo_binario, "rb" );
-   if ( !p ) {
-      fprintf( stderr, "[ERRO] Não foi possível ler o arquivo de dados: %s\n", arquivo_binario );
+   // 1. Valida diretamente o GArray em memória em vez de checar o arquivo
+   if ( !ctx->diarios || ctx->diarios->len == 0 ) {
+      g_print( "⚠ Nenhum registro de diário disponível na memória.\n" );
+      // Opcional: Você pode acionar um criar_mensagem_painel() aqui se quiser notificar a UI
       return;
    }
 
-   // 1. Carrega todos os registros binários em um GArray (Estrutura Dinâmica da GLib)
-   g_autoptr( GArray ) registros = g_array_new( FALSE, FALSE, sizeof( RegistroDiario ) );
-   RegistroDiario d;
-
-   while ( fread( &d, sizeof( RegistroDiario ), 1, p ) == 1 ) {
-      g_array_append_val( registros, d );
-   }
-   fclose( p );
-
-   if ( registros->len == 0 ) return;
-
-   // 2. Chama a geração do arquivo para o Script Java
+   // 2. Chama a geração do arquivo para o Script Java passando ctx->diarios
    g_autofree gchar *arquivo_siaep = g_build_filename( caminho->relatorios, "siaep_cont.dat", NULL );
-   gerar_arquivo_siaep_cont( ctx, registros, arquivo_siaep );
+   gerar_arquivo_siaep_cont( ctx, ctx->diarios, arquivo_siaep );
 
    // 3. Chama a geração do arquivo LaTeX substituindo o template descontinuado
-   g_autofree gchar *arquivo_latex = g_build_filename( "dados", "temporarios", "Conteúdos.tex", NULL );
-   gerar_latex_conteudos( ctx, registros, arquivo_latex );
+   g_autofree gchar *arquivo_latex = g_build_filename( ".", "dados", "temporarios", "Conteúdos.tex", NULL );
+   gerar_latex_conteudos( ctx, ctx->diarios, arquivo_latex );
 
    // 4. Dispara o compilador
    disparar_latex( "Conteúdos", caminho->relatorios, dados, caminho );
