@@ -126,6 +126,17 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    // AVALIAÇÕES
    ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
    ctx->ui_diario.treeview_avaliacoes        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 0, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 2, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 3, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 4, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 5, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 6, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 7, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 8, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 9, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 10, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, 11, 0.5 );
 
    ctx->ui_diario.combo_avaliacoes          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
    ctx->ui_diario.btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );

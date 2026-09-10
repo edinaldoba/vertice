@@ -14,31 +14,27 @@
       <!-- column-name nome_do_aluno -->
       <column type="gchararray"/>
       <!-- column-name av1 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name rec1 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name av2 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name rec2 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name av3 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name rec3 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name av4 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name rec4 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name av5 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name rec5 -->
-      <column type="gfloat"/>
+      <column type="gchararray"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
-      <!-- column-name editavel_av -->
-      <column type="gboolean"/>
-      <!-- column-name editavel_rec -->
-      <column type="gboolean"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_combo_aluno">
@@ -1058,48 +1054,50 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">250</property>
-                                    <property name="title" translatable="yes">NOME  DO  ALUNO</property>
+                                    <property name="fixed-width">335</property>
+                                    <property name="title" translatable="yes">NOME DO ALUNO</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
-                                        <attribute name="strikethrough">4</attribute>
                                         <attribute name="text">1</attribute>
-                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">AV1</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">AV-1</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">2</attribute>
-                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">REC1</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">REC-1</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
                                         <attribute name="text">3</attribute>
-                                        <attribute name="foreground-rgba">5</attribute>
                                       </attributes>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">AV2</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">AV-2</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1110,8 +1108,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">REC2</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">REC-2</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1122,8 +1122,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">AV3</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">AV-3</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1134,8 +1136,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">REC3</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">REC-3</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1146,8 +1150,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">AV4</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">AV-4</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1158,8 +1164,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">REC4</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">REC-4</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1170,8 +1178,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">AV5</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">AV-5</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1182,8 +1192,10 @@
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn">
-                                    <property name="fixed-width">70</property>
-                                    <property name="title" translatable="yes">REC5</property>
+                                    <property name="visible">False</property>
+                                    <property name="fixed-width">80</property>
+                                    <property name="title" translatable="yes">REC-5</property>
+                                    <property name="expand">True</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
@@ -1195,37 +1207,6 @@
                                 <child>
                                   <object class="GtkTreeViewColumn">
                                     <property name="visible">False</property>
-                                    <property name="title" translatable="yes">COR</property>
-                                    <child>
-                                      <object class="GtkCellRendererText"/>
-                                      <attributes>
-                                        <attribute name="text">12</attribute>
-                                      </attributes>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkTreeViewColumn">
-                                    <property name="visible">False</property>
-                                    <property name="title" translatable="yes">EDITÁVEL  AV</property>
-                                    <child>
-                                      <object class="GtkCellRendererText"/>
-                                      <attributes>
-                                        <attribute name="text">13</attribute>
-                                      </attributes>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkTreeViewColumn">
-                                    <property name="visible">False</property>
-                                    <property name="title" translatable="yes">EDITÁVEL  REC</property>
-                                    <child>
-                                      <object class="GtkCellRendererText"/>
-                                      <attributes>
-                                        <attribute name="text">14</attribute>
-                                      </attributes>
-                                    </child>
                                   </object>
                                 </child>
                               </object>

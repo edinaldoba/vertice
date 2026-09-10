@@ -41,8 +41,9 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data );
 void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_data );
 
 // AVALIAÇÕES
-void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_data );
 void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data );
+gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
 void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data );

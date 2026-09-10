@@ -164,7 +164,7 @@ void app_signals_connect( gpointer user_data ) {
 
    // AVALIAÇÕES
    ctx->ui_diario.handler_combo_avaliacoes = g_signal_connect( ctx->ui_diario.combo_avaliacoes, "changed",
-                                                               G_CALLBACK( on_combo_avaliacoes_changed ), ctx );
+                                                               G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
    g_signal_connect( ctx->ui_diario.btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_popover_nomear, "clicked",
@@ -173,6 +173,8 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
    ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
                                                               G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
+   g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "key-press-event",
+                     G_CALLBACK( on_treeview_notas_key_press_event ), ctx );
 
 
 

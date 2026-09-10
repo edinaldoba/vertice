@@ -596,7 +596,7 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
 
 // AVALIAÇÕES
 
-void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
@@ -606,36 +606,7 @@ void on_combo_avaliacoes_changed( GtkWidget *widget, gpointer user_data ) {
 
    if ( item_ativo < 0 ) return;
 
-   // -----------------------------------------------------------------
-   // REGRA 2: Mostra a ordem da avaliação selecionada no label
-   // -----------------------------------------------------------------
-   ctx->ui_diario.foco_avaliacao = item_ativo;
-
-   GtkTreeModel *model = gtk_combo_box_get_model( combo );
-   GtkTreeIter iter;
-
-   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
-      gboolean riscado = FALSE;
-
-      // 1. Lê a coluna 1 do ListStore (TRUE se estiver desativada/riscada)
-      gtk_tree_model_get( model, &iter, 1, &riscado, -1 );
-
-      GtkWidget *check = ctx->ui_diario.check_desativar_avaliacao;
-      gulong handler = ctx->ui_diario.handler_check_desativar;
-
-      // 2. Bloqueia o sinal temporariamente para evitar disparo falso do autosave
-      if ( handler > 0 ) {
-         g_signal_handler_block( check, handler );
-      }
-
-      // 3. Atualiza a interface da caixa de seleção
-      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), riscado );
-
-      // 4. Desbloqueia o sinal para que cliques reais do professor voltem a funcionar
-      if ( handler > 0 ) {
-         g_signal_handler_unblock( check, handler );
-      }
-   }
+   selecionar_avaliacao( ctx, combo, item_ativo );
 }
 
 void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data ) {
@@ -647,6 +618,79 @@ void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data
 
    desativar_avaliacao( ctx, estado );
 }
+
+
+
+gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
+   (void)user_data;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( widget );
+   GtkTreePath *path = NULL;
+   GtkTreeViewColumn *column = NULL;
+
+   // Obtém a célula/coluna atualmente focada
+   gtk_tree_view_get_cursor( tree_view, &path, &column );
+   if ( !path || !column ) return FALSE;
+
+   GList *columns = gtk_tree_view_get_columns( tree_view );
+   gint col_index = g_list_index( columns, column );
+   gint total_cols = g_list_length( columns );
+
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkTreeIter iter;
+   gboolean tratado = FALSE;
+
+   switch ( event->keyval ) {
+      case GDK_KEY_Return:
+      case GDK_KEY_KP_Enter:
+      case GDK_KEY_Down:
+         gtk_tree_path_next( path );
+         // Valida se a próxima linha realmente existe no modelo antes de mover
+         if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
+            gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
+            tratado = TRUE;
+         }
+         break;
+
+      case GDK_KEY_Up:
+         // Move para a mesma coluna da linha de cima
+         if ( gtk_tree_path_prev( path ) ) {
+            gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
+            tratado = TRUE;
+         }
+         break;
+
+      case GDK_KEY_Tab:
+      case GDK_KEY_Right:
+         // Busca iterativamente a próxima coluna que esteja visível
+         for ( gint i = col_index + 1; i < total_cols; i++ ) {
+            GtkTreeViewColumn *c = g_list_nth_data( columns, i );
+            if ( gtk_tree_view_column_get_visible( c ) ) {
+               gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
+               tratado = TRUE;
+               break;
+            }
+         }
+         break;
+
+      case GDK_KEY_Left:
+         // Busca iterativamente a coluna anterior que esteja visível
+         for ( gint i = col_index - 1; i >= 0; i-- ) {
+            GtkTreeViewColumn *c = g_list_nth_data( columns, i );
+            if ( gtk_tree_view_column_get_visible( c ) ) {
+               gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
+               tratado = TRUE;
+               break;
+            }
+         }
+         break;
+   }
+
+   g_list_free( columns );
+   gtk_tree_path_free( path );
+
+   return tratado;
+}
+
 
 
 //===================================================================================================

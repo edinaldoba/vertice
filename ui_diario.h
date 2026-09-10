@@ -26,6 +26,9 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx );
 void selecionar_combo_status( const AppContext *ctx );
 
 void carregar_diario( AppContext *ctx );
+
+void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo );
+
 void carregar_avaliacoes( AppContext *ctx );
 
 void salvar_diario( AppContext *ctx, gboolean final_save );

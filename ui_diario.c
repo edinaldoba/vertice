@@ -1281,6 +1281,102 @@ static void mapper_avaliacao_diario( GtkListStore *store, GtkTreeIter *iter, con
                        -1 );
 }
 
+
+static void _visibilidade_avaliacoes( const AppContext *ctx, GtkTreeView *treeview ) {
+   // 3. Atualiza a visibilidade dos 5 pares de colunas (Av/Rec)
+   for ( int i = 0; i < 5; i++ ) {
+      gboolean visivel = FALSE;
+
+      // Verifica se o índice existe no GArray e se a avaliação está ativa
+      if ( ctx->avaliacoes && (guint)i < ctx->avaliacoes->len ) {
+         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, i );
+         visivel = meta->ativa;
+      }
+
+      // Calcula os índices das colunas no TreeView (ex: i=0 -> 2,3 | i=1 -> 4,5)
+      int idx_col_av = 2 + ( i * 2 );
+      int idx_col_rec = 3 + ( i * 2 );
+
+      GtkTreeViewColumn *col_av = gtk_tree_view_get_column( treeview, idx_col_av );
+      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_col_rec );
+
+      if ( col_av ) gtk_tree_view_column_set_visible( col_av, visivel );
+      if ( col_rec ) gtk_tree_view_column_set_visible( col_rec, visivel );
+   }
+}
+
+
+static void _editabilidade_avaliacoes( const AppContext *ctx, int foco ) {
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+
+   for ( int i = 0; i < 5; i++ ) {
+      // Apenas o par correspondente à avaliação ativa no Combo Box fica editável
+      gboolean editavel = ( i == foco );
+
+      int idx_col_av = 2 + ( i * 2 );
+      int idx_col_rec = 3 + ( i * 2 );
+
+      GtkTreeViewColumn *col_av = gtk_tree_view_get_column( treeview, idx_col_av );
+      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_col_rec );
+
+      // Extrai o renderizador da coluna Av e ajusta a permissão de edição
+      if ( col_av ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
+         if ( renderers ) {
+            g_object_set( renderers->data, "editable", editavel, NULL );
+            g_list_free( renderers );
+         }
+      }
+
+      // Extrai o renderizador da coluna Rec e ajusta a permissão de edição
+      if ( col_rec ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
+         if ( renderers ) {
+            g_object_set( renderers->data, "editable", editavel, NULL );
+            g_list_free( renderers );
+         }
+      }
+   }
+}
+
+
+void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo ) {
+   // -----------------------------------------------------------------
+   // REGRA 2: Mostra a ordem da avaliação selecionada no label
+   // -----------------------------------------------------------------
+   ctx->ui_diario.foco_avaliacao = item_ativo;
+
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkTreeIter iter;
+
+   if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
+      gboolean riscado = FALSE;
+
+      // 1. Lê a coluna 1 do ListStore (TRUE se estiver desativada/riscada)
+      gtk_tree_model_get( model, &iter, 1, &riscado, -1 );
+
+      GtkWidget *check = ctx->ui_diario.check_desativar_avaliacao;
+      gulong handler = ctx->ui_diario.handler_check_desativar;
+
+      // 2. Bloqueia o sinal temporariamente para evitar disparo falso do autosave
+      if ( handler > 0 ) {
+         g_signal_handler_block( check, handler );
+      }
+
+      // 3. Atualiza a interface da caixa de seleção
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), riscado );
+
+      // 4. Desbloqueia o sinal para que cliques reais do professor voltem a funcionar
+      if ( handler > 0 ) {
+         g_signal_handler_unblock( check, handler );
+      }
+
+      _editabilidade_avaliacoes( ctx, item_ativo );
+   }
+}
+
+
+
 void carregar_avaliacoes( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
@@ -1300,7 +1396,7 @@ void carregar_avaliacoes( AppContext *ctx ) {
             ctx->ui_diario.combo_avaliacoes,
             ctx->avaliacoes->data,                    // Bloco contíguo das structs
             ctx->avaliacoes->len,                     // Quantidade exata de itens
-            0,                                       // Foco padrão (-1 para vazio, ou 0 para o primeiro)
+            0,                                        // Foco padrão
             ctx->ui_diario.handler_combo_avaliacoes,  // Silencia o sinal durante o processo
             mapper_avaliacao_diario
          );
@@ -1320,7 +1416,34 @@ void carregar_avaliacoes( AppContext *ctx ) {
    if ( handler > 0 ) {
       g_signal_handler_unblock( check, handler );
    }
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+   GtkTreeIter iter;
+
+   // Limpa a lista antes de repovoar para não duplicar alunos se a função for chamada novamente
+   gtk_list_store_clear( store_view );
+
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+
+      // 1. Cria a nova linha no modelo e aponta o 'iter' para ela
+      gtk_list_store_append( store_view, &iter );
+
+      // 2. Grava os dados na linha recém-criada
+      gtk_list_store_set( store_view, &iter,
+                          0, i + 1,
+                          1, ficha->aluno,
+                         12, NULL, -1 );
+   }
+
+   // Assumindo que o ponteiro do seu TreeView está no contexto
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   _visibilidade_avaliacoes( ctx, treeview );
+
+   _editabilidade_avaliacoes( ctx, 0 );
 }
+
 
 void salvar_avaliacoes( AppContext *ctx, gboolean final_save ) {
    g_return_if_fail( ctx );
@@ -1362,6 +1485,10 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
 
    // 4. Aciona a flag para que o _autosave_dados_binarios_cb grave no disco
    _marcar_dados_modificado( ctx );
+
+   // Assumindo que o ponteiro do seu TreeView está no contexto
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   _visibilidade_avaliacoes( ctx, treeview );
 }
 
 
@@ -1408,6 +1535,9 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
 
    // 4. Sinaliza ao sistema (autosave) que há dados pendentes para gravação
    _marcar_dados_modificado( ctx );
+
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   _visibilidade_avaliacoes( ctx, treeview );
 }
 
 
