@@ -65,7 +65,7 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
 
 
 
-static void conectar_renderizadores_liststore_avaliacoes( const AppContext *ctx ) {
+static void conectar_renderizadores_liststore_avaliacoes( AppContext *ctx ) {
    GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
 
    // Percorre todas as colunas de avaliação/recuperação para registrar o sinal de edição
@@ -81,9 +81,7 @@ static void conectar_renderizadores_liststore_avaliacoes( const AppContext *ctx 
       if ( col_av ) {
          GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
          if ( renderers ) {
-            g_signal_connect( renderers->data, "editing-started",
-                              G_CALLBACK( on_celula_editing_started ),
-                              ctx->ui_diario.treeview_avaliacoes );
+            g_signal_connect( renderers->data, "editing-started", G_CALLBACK( on_cell_editing_started ), ctx );
             g_list_free( renderers );
          }
       }
@@ -92,9 +90,7 @@ static void conectar_renderizadores_liststore_avaliacoes( const AppContext *ctx 
       if ( col_rec ) {
          GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
          if ( renderers ) {
-            g_signal_connect( renderers->data, "editing-started",
-                              G_CALLBACK( on_celula_editing_started ),
-                              ctx->ui_diario.treeview_avaliacoes );
+            g_signal_connect( renderers->data, "editing-started", G_CALLBACK( on_cell_editing_started ), ctx );
             g_list_free( renderers );
          }
       }
@@ -124,7 +120,7 @@ static void conectar_sinais_edicao_notas( AppContext *ctx ) {
             // Guarda o índice do ListStore dentro do próprio renderizador
             g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_av ) );
 
-            g_signal_connect( r, "edited", G_CALLBACK( on_celula_nota_edited ), ctx );
+            g_signal_connect( r, "edited", G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
             g_list_free( renderers );
          }
       }
@@ -138,7 +134,7 @@ static void conectar_sinais_edicao_notas( AppContext *ctx ) {
 
             g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_rec ) );
 
-            g_signal_connect( r, "edited", G_CALLBACK( on_celula_nota_edited ), ctx );
+            g_signal_connect( r, "edited", G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
             g_list_free( renderers );
          }
       }
@@ -254,8 +250,6 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
    ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
                                                               G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
-   g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "key-press-event",
-                     G_CALLBACK( on_treeview_notas_key_press_event ), ctx );
 
    conectar_renderizadores_liststore_avaliacoes( ctx );
    conectar_sinais_edicao_notas( ctx );

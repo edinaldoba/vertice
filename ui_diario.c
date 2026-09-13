@@ -40,6 +40,8 @@ static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
    // 2. Grava as avaliações se houver dados e caminho válido
    salvou_algo = salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
 
+   salvou_algo = salvar_fichas( ctx, TRUE );
+
    // 3. Reseta a flag global APENAS se alguma gravação foi realizada
    if ( salvou_algo ) {
       ctx->dados_modificados = FALSE;
@@ -1552,8 +1554,10 @@ static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes,
 //===================================================================================================
 // FUNÇÃO PRINCIPAL
 //===================================================================================================
-void salvar_fichas( AppContext *ctx, gboolean final_save ) {
-   g_return_if_fail( ctx );
+gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
+   g_return_val_if_fail( ctx, FALSE );
+
+   gboolean salvou_algo = FALSE;
 
    if ( ctx->fichas != NULL ) {
       for ( guint i = 0; i < ctx->fichas->len; i++ ) {
@@ -1566,6 +1570,7 @@ void salvar_fichas( AppContext *ctx, gboolean final_save ) {
          // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
          _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
       }
+      salvou_algo = TRUE;
    }
 
    // Atualização do diretório de salvamento
@@ -1574,7 +1579,257 @@ void salvar_fichas( AppContext *ctx, gboolean final_save ) {
       ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
                                                ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
    }
+   return salvou_algo;
 }
+
+
+
+
+//===================================================================================================
+// NAVEGAÇÃO, RENDERIZAÇÃO e SICRONIZAÇÃO das NOTAS DIGITADAS no LISTSTORE
+//===================================================================================================
+gboolean calcular_destino_cursor( guint keyval, GtkTreeModel *model, GtkTreePath *path,
+                                  GList *current_col_node, GtkTreeViewColumn **nova_coluna ) {
+   gboolean mover_cursor = FALSE;
+   GtkTreeIter iter;
+
+   switch ( keyval ) {
+      case GDK_KEY_Return:
+      case GDK_KEY_KP_Enter:
+      case GDK_KEY_Down:
+      case GDK_KEY_KP_Down:
+         gtk_tree_path_next( path ); // O path é modificado in-place pela própria API do GTK
+         if ( gtk_tree_model_get_iter( model, &iter, path ) ) mover_cursor = TRUE;
+         break;
+
+      case GDK_KEY_Up:
+      case GDK_KEY_KP_Up:
+         if ( gtk_tree_path_prev( path ) && gtk_tree_model_get_iter( model, &iter, path ) ) {
+            mover_cursor = TRUE;
+         }
+         break;
+
+      case GDK_KEY_Tab:
+      case GDK_KEY_Right:
+      case GDK_KEY_KP_Right:
+         if ( current_col_node ) {
+            for ( GList *node = current_col_node->next; node != NULL; node = node->next ) {
+               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+               if ( gtk_tree_view_column_get_visible( c ) ) {
+                  *nova_coluna = c; // Atualiza a coluna de destino por referência
+                  mover_cursor = TRUE;
+                  break;
+               }
+            }
+         }
+         break;
+
+      case GDK_KEY_Left:
+      case GDK_KEY_KP_Left:
+         if ( current_col_node ) {
+            for ( GList *node = current_col_node->prev; node != NULL; node = node->prev ) {
+               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+               if ( gtk_tree_view_column_get_visible( c ) ) {
+                  *nova_coluna = c; // Atualiza a coluna de destino por referência
+                  mover_cursor = TRUE;
+                  break;
+               }
+            }
+         }
+         break;
+   }
+
+   return mover_cursor;
+}
+//---------------------------------------------------------------------------------------------------
+void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_destino, GtkTreeViewColumn *col_destino ) {
+   g_return_if_fail( tree_view != NULL );
+   g_return_if_fail( path_destino != NULL );
+   g_return_if_fail( col_destino != NULL );
+
+   // Captura o editor ativo antes de mudarmos o foco
+   GtkWidget *editor = gtk_container_get_focus_child( GTK_CONTAINER( tree_view ) );
+
+   // Rola a visualização (se necessário) e reabre a edição na nova célula
+   gtk_tree_view_scroll_to_cell( tree_view, path_destino, col_destino, TRUE, 0.5, 0.9 );
+
+   // Força o disparo síncrono do sinal "edited" nativo do GTK
+   if ( GTK_IS_CELL_EDITABLE( editor ) ) {
+      gtk_cell_editable_editing_done( GTK_CELL_EDITABLE( editor ) );
+   }
+
+   gtk_tree_view_set_cursor_on_cell( tree_view, path_destino, col_destino, NULL, TRUE );
+}
+//-----------------------------------------------------------------------------------------------------------
+static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, gint col_model_index, float valor_nota ) {
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+
+   // 1. Obtém o índice do aluno (a linha selecionada corresponde perfeitamente ao índice do GArray)
+   int index_aluno = atoi( path_string );
+   g_return_if_fail( index_aluno >= 0 && (guint)index_aluno < ctx->fichas->len );
+
+   // 2. Aponta para a ficha de trabalho
+   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
+   int periodo = ctx->cascata.foco.periodo;
+
+   // Proteção de escopo
+   g_return_if_fail( periodo >= 0 && periodo <= 3 );
+   g_return_if_fail( col_model_index >= 2 && col_model_index <= 11 );
+
+   // 3. Mapeamento O(1) de Colunas para Estrutura:
+   // (2,3)->[0], (4,5)->[1], (6,7)->[2], (8,9)->[3], (10,11)->[4]
+   int av_index = ( col_model_index - 2 ) / 2;
+
+   // Colunas ímpares (3, 5, 7, 9, 11) são sempre Recuperação
+   gboolean is_rec = ( col_model_index % 2 != 0 );
+
+   // 4. Injeção atômica do valor
+   if ( is_rec ) {
+      ficha->nota[periodo][av_index].rec = valor_nota;
+   } else {
+      ficha->nota[periodo][av_index].av = valor_nota;
+   }
+}
+//-------------------------------------------------------------------------------------------------------------
+void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *path_string, gchar *new_text ) {
+   // 1. PERMITE APAGAR A NOTA (Caso o professor deixe a célula em branco)
+   if ( !new_text || strlen( g_strstrip( new_text ) ) == 0 ) {
+      // Opcional: Dependendo do Vértice, uma célula vazia pode significar nota 0.0 ou "Ausente"
+      // Aqui, se o professor apagar, limpamos a interface e zeramos a ficha
+      GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+      GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+      GtkTreeIter iter;
+
+      if ( gtk_tree_model_get_iter_from_string( GTK_TREE_MODEL( store ), &iter, path_string ) ) {
+         gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+         gtk_list_store_set( store, &iter, col_model_index, "", -1 );
+         _sincronizar_nota_ficha( ctx, path_string, col_model_index, -1.0f );
+      }
+      return;
+   }
+
+   // 2. LIMPEZA DE STRING (Troca ',' por '.')
+   g_autofree gchar *texto_limpo = g_strdup( new_text );
+   g_strdelimit( texto_limpo, ",", '.' );
+
+   // 3. CONVERSÃO E VALIDAÇÃO NUMÉRICA
+   gchar *endptr = NULL;
+   double valor_nota = g_ascii_strtod( texto_limpo, &endptr );
+
+   // Se o usuário digitou letras, lixo, ou a nota estiver fora de [0, 10] -> Aborta a edição
+   if ( endptr == texto_limpo || valor_nota < 0.0 || valor_nota > 10.0 ) {
+      return; // A célula volta ao estado numérico anterior automaticamente
+   }
+
+   // 4. FORMATAÇÃO VISUAL (Força exatamente 2 casas decimais)
+   g_autofree gchar *texto_formatado = g_strdup_printf( "%.2f", valor_nota );
+
+   // 5. ATUALIZAÇÃO DA INTERFACE (GtkListStore)
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store = GTK_LIST_STORE( model );
+
+   GtkTreeIter iter;
+   if ( gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
+
+      gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+
+      // Salva a nota padronizada na UI (ex: "8.00")
+      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
+
+      // 6. SINCRONIZAÇÃO EM MEMÓRIA
+      _sincronizar_nota_ficha( ctx, path_string, col_model_index, (float)valor_nota );
+
+      // Se necessário, descomente a flag para habilitar o salvamento geral do arquivo depois:
+      _marcar_dados_modificado( ctx );
+   }
+}
+//---------------------------------------------------------------------------------------------------
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Cola múltiplas notas na coluna a partir da célula atual
+//===================================================================================================
+void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column ) {
+   // 1. Pede o texto da área de transferência
+   GtkClipboard *clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+   gchar *text = gtk_clipboard_wait_for_text( clipboard );
+   if ( !text ) return;
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+
+   // Criamos uma cópia do path para iterar sem alterar o ponteiro original da navegação
+   GtkTreePath *current_path = gtk_tree_path_copy( start_path );
+   GtkTreeIter iter;
+
+   if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
+      gtk_tree_path_free( current_path );
+      g_free( text );
+      return;
+   }
+
+   // 2. Descobre o renderizador correto
+   GList *cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( column ) );
+   if ( !cells ) {
+      gtk_tree_path_free( current_path );
+      g_free( text );
+      return;
+   }
+   GtkCellRendererText *renderer = GTK_CELL_RENDERER_TEXT( cells->data );
+   g_list_free( cells );
+
+   // 3. Fatiamento das linhas copiadas
+   gchar **linhas = g_strsplit( text, "\n", -1 );
+   int i = 0;
+
+   // 4. Se a célula estiver aberta (GtkEntry), atualiza a caixa de texto também
+   if ( GTK_IS_ENTRY( widget ) && linhas[0] != NULL ) {
+      gchar *nota_str = g_strstrip( linhas[0] );
+
+      // Atualiza a visualização do editor ativo
+      gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
+
+      // Converte o path para string e passa pela sua função mágica de validação!
+      gchar *path_str = gtk_tree_path_to_string( current_path );
+      renderizar_nota( ctx, renderer, path_str, nota_str );
+      g_free( path_str );
+
+      i = 1; // Marca a primeira linha como processada
+      gtk_tree_path_next( current_path ); // Avança para a linha de baixo
+
+      if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
+         gtk_tree_path_free( current_path );
+         g_strfreev( linhas );
+         g_free( text );
+         return;
+      }
+   }
+
+   // 5. Preenche as linhas seguintes usando a validação e sincronização oficiais
+   while ( linhas[i] != NULL ) {
+      gchar *nota_str = g_strstrip( linhas[i] );
+
+      // Ignora o \n final vazio (comportamento do Excel)
+      if ( linhas[i+1] == NULL && strlen( nota_str ) == 0 ) break;
+
+      gchar *path_str = gtk_tree_path_to_string( current_path );
+
+      // REAPROVEITAMENTO: Toda nota colada será validada, formatada (%.2f) e sincronizada!
+      renderizar_nota( ctx, renderer, path_str, nota_str );
+      g_free( path_str );
+
+      i++;
+      gtk_tree_path_next( current_path );
+
+      // Interrompe se acabar a lista de alunos
+      if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) break;
+   }
+
+   // Limpeza de memória
+   gtk_tree_path_free( current_path );
+   g_strfreev( linhas );
+   g_free( text );
+}
+//===================================================================================================
 
 
 
@@ -1628,7 +1883,7 @@ static void on_renderizar_cores_notas( GtkTreeViewColumn *tree_column, GtkCellRe
    // Desliga o forçamento de cor e deixa o GTK usar a cor de texto natural do sistema
    g_object_set( cell, "foreground-set", FALSE, NULL );
 }
-
+//--------------------------------------------------------------------------------------------------
 void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
 

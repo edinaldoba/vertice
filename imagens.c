@@ -413,7 +413,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
 
 
-
+//=========================================================================================================
 static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
       const char *arquivo_saida ) {
    g_autofree char *nome_arquivo_escola = NULL;
@@ -436,8 +436,7 @@ static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, 
       g_printerr( "Erro ao salvar a cópia institucional na pasta Provas da Escola!\n" );
    }
 }
-
-
+//------------------------------------------------------------------------------------------------------
 static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *info, const int qtd_linhas,
                                                      const AppContext *ctx) {
 
@@ -483,11 +482,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
    }
 
 }
-
-
-
-
-
+//------------------------------------------------------------------------------------------------------
 static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &ctx->dados;
@@ -511,8 +506,16 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info,
 
    return STATUS_PROVA_OK;
 }
+//------------------------------------------------------------------------------------------------------
+static gint comparar_por_cod_aluno( gconstpointer a, gconstpointer b ) {
+   const MapeamentoGabarito *m1 = ( const MapeamentoGabarito * )a;
+   const MapeamentoGabarito *m2 = ( const MapeamentoGabarito * )b;
 
-
+   if ( m1->cod_aluno < m2->cod_aluno ) return -1;
+   if ( m1->cod_aluno > m2->cod_aluno ) return 1;
+   return 0;
+}
+//------------------------------------------------------------------------------------------------------
 void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    if ( !painel || !ctx ) return;
 
@@ -573,31 +576,6 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       g_array_set_size( info_array, lidos_resp );
    }
 
-   // Ordenação nativa com a sua função preexistente
-   g_array_sort( info_array, comparar_mapeamento_gabarito );
-
-   // ====================================================================================
-   // DEDUPLICAÇÃO INTELIGENTE (Mantém apenas o último escaneamento)
-   // ====================================================================================
-   // Percorremos de trás para frente para evitar problemas de deslocamento de índices ao remover.
-   if ( info_array->len > 1 ) {
-      for ( int i = info_array->len - 1; i > 0; i-- ) {
-         MapeamentoGabarito *atual = &g_array_index( info_array, MapeamentoGabarito, i );
-         MapeamentoGabarito *anterior = &g_array_index( info_array, MapeamentoGabarito, i - 1 );
-
-         // Se encontrarmos números duplicados (estão lado a lado por causa da ordenação)
-         if ( atual->num == anterior->num ) {
-            // Remove o de menor índice (a leitura mais velha/anterior)
-            // g_array_remove_index preserva a ordem dos elementos restantes
-            g_array_remove_index( info_array, i - 1 );
-
-            // Nota: O elemento em 'i' escorregará para 'i - 1', mas como o loop
-            // fará i-- no próximo ciclo, ele continuará avaliando corretamente!
-         }
-      }
-   }
-   // ====================================================================================
-
    g_autofree ItemTextoCurto *G = g_new0( ItemTextoCurto, dados->qtd_alunos_ativos );
    size_t lidos_gab = fread( G, sizeof( ItemTextoCurto ), dados->qtd_alunos_ativos, fg );
    fclose( fg );
@@ -609,8 +587,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    // ====================================================================================
    // 3. SANITIZAÇÃO E CORRESPONDÊNCIA ABSOLUTA DO CÓDIGO DO ALUNO
    // ====================================================================================
-   // Garante que o número sequencial lido na prova aponte para o aluno correto
-   // caso a lista de chamada tenha sofrido reordenação (transferências, matrículas tardias).
+   // Atualiza map->num para a posição real e atual que o aluno ocupa HOJE em ctx->fichas
    for ( guint i = 0; i < info_array->len; i++ ) {
       MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i );
       int idx_esperado = map->num - 1;
@@ -620,18 +597,43 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
          if ( map->cod_aluno == 0 || map->cod_aluno == ficha->cod_aluno ) {
             map->cod_aluno = ficha->cod_aluno;
+
          } else {
-            // Se dessincronizou, busca a verdade inquestionável (cod_aluno) no array completo
+            // Se a lista mudou e o num do aluno alterou, busca a verdade inquestionável (cod_aluno)
             for ( guint j = 0; j < ctx->fichas->len; j++ ) {
                FichaAluno *f_busca = &g_array_index( ctx->fichas, FichaAluno, j );
                if ( f_busca->cod_aluno == map->cod_aluno ) {
-                  map->num = j + 1;
+                  map->num = j + 1; // Atualiza o num para a nova posição da chamada!
                   break;
                }
             }
          }
       }
    }
+
+   // ====================================================================================
+   // DEDUPLICAÇÃO BLINDADA VIA COD_ALUNO (Imune a trocas de número de chamada)
+   // ====================================================================================
+
+   // 1º Passo: Ordena temporariamente por COD_ALUNO (coloca escaneamentos do mesmo aluno juntos)
+   g_array_sort( info_array, comparar_por_cod_aluno );
+
+   // 2º Passo: Elimina duplicatas do MESMO ALUNO (preservando o último escaneamento da pilha)
+   if ( info_array->len > 1 ) {
+      for ( int i = info_array->len - 1; i > 0; i-- ) {
+         MapeamentoGabarito *atual = &g_array_index( info_array, MapeamentoGabarito, i );
+         MapeamentoGabarito *anterior = &g_array_index( info_array, MapeamentoGabarito, i - 1 );
+
+         // Compara a CHAVE CHAVE PRIMÁRIA do aluno, e NÃO o número de chamada!
+         if ( atual->cod_aluno > 0 && atual->cod_aluno == anterior->cod_aluno ) {
+            g_array_remove_index( info_array, i - 1 ); // Remove a leitura mais antiga do aluno
+         }
+      }
+   }
+
+   // 3º Passo: Re-ordena por NUM (chamada) para o OpenMP, imagens e PDFs sequenciais
+   g_array_sort( info_array, comparar_mapeamento_gabarito );
+
 
    // ====================================================================================
    // 4. LAÇO PARALELO BLINDADO COM INJEÇÃO DIRETA NA MEMÓRIA
