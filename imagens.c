@@ -485,57 +485,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
 }
 
 
-static void atualizar_arquivo_avaliacoes_dat( char *linha_notas, const InterfaceDados *dados,
-      const CaminhoDiretorio *caminho ) {
-   g_return_if_fail( linha_notas && dados && caminho );
 
-   linha_notas[ dados->qtd_alunos_total ] = '\0';
-
-   g_autofree char *path_avaliacoes = g_build_filename( caminho->dados, "avaliações.dat", NULL );
-   g_autofree char *conteudo = NULL;
-   char **linhas = NULL;
-   guint num_linhas = 0;
-
-   // 1. Lê o arquivo se ele já existir (se não, tratamos como novo/vazio)
-   if ( g_file_get_contents( path_avaliacoes, &conteudo, NULL, NULL ) ) {
-      linhas = g_strsplit( conteudo, "\n", -1 );
-      num_linhas = g_strv_length( linhas );
-   }
-
-   guint alvo = 2 * dados->iprova - 2;
-
-   // 2. Calcula o tamanho necessário, garantindo que suporte o índice 'alvo'
-   guint novo_tamanho = ( alvo >= num_linhas ) ? alvo + 1 : num_linhas;
-
-   // 3. Aloca um novo array blindado (+1 para o terminador NULL exigido pela GLib)
-   char **novas_linhas = g_new0( char *, novo_tamanho + 1 );
-
-   // 4. Preenche a matriz dinâmica
-   for ( guint i = 0; i < novo_tamanho; i++ ) {
-      if ( i == alvo ) {
-         // for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-         //    novas_linhas[i][j] = linha_notas[j];
-         // }
-         novas_linhas[i] = g_strdup( linha_notas );
-
-      } else if ( i < num_linhas && linhas[i] != NULL ) {
-         novas_linhas[i] = g_strdup( linhas[i] );
-
-      } else {
-         novas_linhas[i] = g_strdup( "" ); // Linhas em branco para preencher lacunas
-      }
-   }
-
-   // 5. Junta o texto e realiza a gravação atômica
-   g_autofree char *novo_conteudo = g_strjoinv( "\n", novas_linhas );
-   if ( !g_file_set_contents( path_avaliacoes, novo_conteudo, -1, NULL ) ) {
-      g_printerr( "[ERRO] Falha ao salvar as notas em: %s\n", path_avaliacoes );
-   }
-
-   // 6. Limpeza simétrica de memória
-   g_strfreev( novas_linhas );
-   if ( linhas ) g_strfreev( linhas );
-}
 
 
 static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const AppContext *ctx ) {
@@ -563,7 +513,7 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info,
 }
 
 
-void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
+void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    if ( !painel || !ctx ) return;
 
    const InterfaceDados   *dados   = &ctx->dados;
@@ -602,7 +552,7 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    }
 
    // ====================================================================================
-   // 2. LEITURA BINÁRIA
+   // 2. LEITURA BINÁRIA PARA GARRAY E ORDENAÇÃO
    // ====================================================================================
    int qtd_linhas = contar_registros_binarios( path_resp, sizeof( MapeamentoGabarito ) );
    if ( qtd_linhas <= 0 ) {
@@ -612,79 +562,152 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       return;
    }
 
-   g_autofree MapeamentoGabarito *info = g_new0( MapeamentoGabarito, qtd_linhas );
-   size_t lidos_resp = fread( info, sizeof( MapeamentoGabarito ), qtd_linhas, fr );
+   // Aloca, lê diretamente para o buffer interno do GArray e ajusta o tamanho
+   g_autoptr( GArray ) info_array = g_array_sized_new( FALSE, FALSE, sizeof( MapeamentoGabarito ), qtd_linhas );
+   g_array_set_size( info_array, qtd_linhas );
+
+   size_t lidos_resp = fread( info_array->data, sizeof( MapeamentoGabarito ), qtd_linhas, fr );
    fclose( fr );
 
-   qsort( info, qtd_linhas, sizeof( MapeamentoGabarito ), comparar_mapeamento_gabarito );
+   if ( lidos_resp != ( size_t )qtd_linhas ) {
+      g_array_set_size( info_array, lidos_resp );
+   }
+
+   // Ordenação nativa com a sua função preexistente
+   g_array_sort( info_array, comparar_mapeamento_gabarito );
+
+   // ====================================================================================
+   // DEDUPLICAÇÃO INTELIGENTE (Mantém apenas o último escaneamento)
+   // ====================================================================================
+   // Percorremos de trás para frente para evitar problemas de deslocamento de índices ao remover.
+   if ( info_array->len > 1 ) {
+      for ( int i = info_array->len - 1; i > 0; i-- ) {
+         MapeamentoGabarito *atual = &g_array_index( info_array, MapeamentoGabarito, i );
+         MapeamentoGabarito *anterior = &g_array_index( info_array, MapeamentoGabarito, i - 1 );
+
+         // Se encontrarmos números duplicados (estão lado a lado por causa da ordenação)
+         if ( atual->num == anterior->num ) {
+            // Remove o de menor índice (a leitura mais velha/anterior)
+            // g_array_remove_index preserva a ordem dos elementos restantes
+            g_array_remove_index( info_array, i - 1 );
+
+            // Nota: O elemento em 'i' escorregará para 'i - 1', mas como o loop
+            // fará i-- no próximo ciclo, ele continuará avaliando corretamente!
+         }
+      }
+   }
+   // ====================================================================================
 
    g_autofree ItemTextoCurto *G = g_new0( ItemTextoCurto, dados->qtd_alunos_ativos );
    size_t lidos_gab = fread( G, sizeof( ItemTextoCurto ), dados->qtd_alunos_ativos, fg );
    fclose( fg );
 
-   if ( lidos_resp != ( size_t )qtd_linhas || lidos_gab != ( size_t )dados->qtd_alunos_ativos ) {
-      g_printerr( "Aviso de I/O: Tamanhos lidos não batem perfeitamente com os registrados.\n" );
+   if ( lidos_gab != ( size_t )dados->qtd_alunos_ativos ) {
+      g_printerr( "Aviso de I/O: Tamanhos lidos do gabarito não batem com ativos.\n" );
    }
 
-   g_autofree char *linha_notas = g_strdup( "******************************************************************" );
+   // ====================================================================================
+   // 3. SANITIZAÇÃO E CORRESPONDÊNCIA ABSOLUTA DO CÓDIGO DO ALUNO
+   // ====================================================================================
+   // Garante que o número sequencial lido na prova aponte para o aluno correto
+   // caso a lista de chamada tenha sofrido reordenação (transferências, matrículas tardias).
+   for ( guint i = 0; i < info_array->len; i++ ) {
+      MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i );
+      int idx_esperado = map->num - 1;
+
+      if ( ctx->fichas && idx_esperado >= 0 && ( guint )idx_esperado < ctx->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_esperado );
+
+         if ( map->cod_aluno == 0 || map->cod_aluno == ficha->cod_aluno ) {
+            map->cod_aluno = ficha->cod_aluno;
+         } else {
+            // Se dessincronizou, busca a verdade inquestionável (cod_aluno) no array completo
+            for ( guint j = 0; j < ctx->fichas->len; j++ ) {
+               FichaAluno *f_busca = &g_array_index( ctx->fichas, FichaAluno, j );
+               if ( f_busca->cod_aluno == map->cod_aluno ) {
+                  map->num = j + 1;
+                  break;
+               }
+            }
+         }
+      }
+   }
 
    // ====================================================================================
-   // 3. LAÇO PARALELO BLINDADO
+   // 4. LAÇO PARALELO BLINDADO COM INJEÇÃO DIRETA NA MEMÓRIA
    // ====================================================================================
+   int total_provas = info_array->len;
+
    #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < qtd_linhas; i++ ) {
+   for ( int i = 0; i < total_provas; i++ ) {
 
-      StatusMapeamento status = validar_prova_escaneada( &info[i], ctx );
-      info[i].status = status;
+      MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i );
 
-      // Se o status POSSUI (OK) OU POSSUI (INATIVO)
+      StatusMapeamento status = validar_prova_escaneada( map, ctx );
+      map->status = status;
+
       if ( status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
 
-         // O caminho feliz! Tudo perfeito.
-         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", info[i].num );
-         const char *gab = G[ info[i].id ].str;
+         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", map->num );
+         const char *gab = G[ map->id ].str;
 
-         int nota = imagens_corrigidas( gab, &info[i], ctx, nome_base );
-         info[i].nota = nota;
-         linha_notas[ info[i].num - 1 ] = ( nota == 10 ) ? '#' : '0' + nota;
+         int nota = imagens_corrigidas( gab, map, ctx, nome_base );
+         map->nota = nota;
+
+         // Injeção Direta na RAM
+         int idx_aluno = map->num - 1;
+
+         if ( ctx->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ctx->fichas->len ) {
+            FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+            int periodo = map->per;
+            int iprova = map->seq;
+
+            if ( periodo >= 0 && periodo <= 4 ) {
+               ficha->nota[periodo][2 * iprova - 2].av = (float)nota;
+            }
+         }
 
       } else {
-         // O caminho de tratamento de erros
          int thread_id = omp_get_thread_num();
 
          if ( status & ERRO_NUMERO_ALUNO_INVALIDO ) {
             g_printerr( "Alerta [Thread %d]: Número da prova (%d) corrompido ou fora dos limites.\n",
-                        thread_id, info[i].num );
-
+                        thread_id, map->num );
          } else if ( status & ERRO_ID_GABARITO_INVALIDO ) {
-            g_printerr( "Alerta [Thread %d]: O ID lido (%d) na prova Nº %d não possui gabarito correspondente.\n",
-                        thread_id, info[i].id, info[i].num );
+            g_printerr( "Alerta [Thread %d]: O ID lido (%d) na prova Nº %d não possui gabarito.\n",
+                        thread_id, map->id, map->num );
          }
       }
-
    }
 
-   // Permite que o relatório de avaliações seja gerado já com a nota da prova recém corrigida
-   atualizar_arquivo_avaliacoes_dat( linha_notas, dados, caminho );
+   // ====================================================================================
+   // 5. ATUALIZAÇÃO DO ARQUIVO BINÁRIO E COMPILAÇÃO (LaTeX Multi-Core)
+   // ====================================================================================
+   // Subscreve o binário original de respostas. Agora ele contém os números
+   // corrigidos (num), status validados, notas atualizadas e códigos de aluno.
+   GError *erro = NULL;
+   if ( !g_file_set_contents( path_resp, info_array->data, info_array->len * sizeof( MapeamentoGabarito ), &erro ) ) {
+      g_printerr( "Erro crítico ao atualizar o arquivo de respostas: %s\n", erro->message );
+      g_clear_error( &erro );
+   }
 
-   // ====================================================================================
-   // 4. COMPILAÇÃO PARALELA (LaTeX Multi-Core)
-   // ====================================================================================
    g_pdflatex_parallel( "./dados/temporarios" );
 
    if ( dados->naopresencial ) {
-      copiar_arquivos_correcao_nao_presencial( info, qtd_linhas, ctx );
+      // Como a função antiga espera um ponteiro nativo, passamos o array->data validado
+      copiar_arquivos_correcao_nao_presencial( (MapeamentoGabarito *)info_array->data, info_array->len, ctx );
    }
 
    // ====================================================================================
-   // 5. UNIFICAÇÃO DOS PDFS E LIMPEZA NATIVA
+   // 6. UNIFICAÇÃO DOS PDFS E LIMPEZA NATIVA
    // ====================================================================================
-   g_auto( GStrv ) arquivos_pdf = g_new0( char *, qtd_linhas + 1 );
+   g_auto( GStrv ) arquivos_pdf = g_new0( char *, total_provas + 1 );
    int qtd_sucessos = 0;
 
-   for ( int i = 0; i < qtd_linhas; i++ ) {
-      if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-         arquivos_pdf[qtd_sucessos] = g_strdup_printf( "%.2d.pdf", info[i].num );
+   for ( int i = 0; i < total_provas; i++ ) {
+      MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i );
+      if ( map->status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+         arquivos_pdf[qtd_sucessos] = g_strdup_printf( "%.2d.pdf", map->num );
          qtd_sucessos++;
       }
    }
@@ -692,38 +715,28 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
    g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->iprova );
    g_autofree char *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
 
-   // ---------------------------------------------------------------------------------
-   // BLINDAGEM CONTRA FALSOS POSITIVOS (O seu toque de mestre de volta)
-   // Removemos o arquivo anterior preventivamente. Se o pdfunite falhar,
-   // nada será criado no lugar, e o passo 6 capturará o erro perfeitamente.
-   // ---------------------------------------------------------------------------------
    g_remove( arquivo_saida );
 
-   // Unifica os PDFs enviando DIRETAMENTE para o destino final
    g_pdfunite( "./dados/temporarios/", ( const char ** )arquivos_pdf, qtd_sucessos, arquivo_saida );
 
-   // Limpeza nativa paralela
    #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < qtd_linhas; i++ ) {
-      if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", info[i].num );
+   for ( int i = 0; i < total_provas; i++ ) {
+      MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i );
+      if ( map->status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+         g_autofree gchar *nome_base = g_strdup_printf( "%.2d", map->num );
          apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios/", nome_base, 5 );
       }
    }
 
    // ====================================================================================
-   // 6. EXIBIÇÃO AUTOMÁTICA E FEEDBACK NA INTERFACE
+   // 7. EXIBIÇÃO AUTOMÁTICA E FEEDBACK NA INTERFACE
    // ====================================================================================
-   // Como apagamos o arquivo velho no passo 5, se este arquivo existe agora,
-   // temos 100% de certeza de que ele acabou de ser gerado pelo g_pdfunite!
    if ( g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
 
-      // Fluxo adicional: Se precisar exportar, copiamos o arquivo recém-criado
       if ( dados->expor ) {
          copiar_arquivos_correcao_externamente( dados, caminho, arquivo_saida );
       }
 
-      // Abre o PDF APENAS se temos 100% de certeza do sucesso!
       g_xdg_open( arquivo_saida );
 
       painel->format_titulo    = meu_gerador_variadico( "✔ Correção Finalizada" );
@@ -737,12 +750,4 @@ void corrigir_prova( InterfacePainel *painel, const AppContext *ctx ) {
       painel->format_instrucao = meu_gerador_variadico( "Verifique se o LaTeX apresentou erros ou se o pdfunite falhou." );
       criar_mensagem_painel( ERRO, painel );
    }
-
 }
-
-
-
-
-
-
-

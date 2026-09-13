@@ -33,6 +33,8 @@
       <column type="gchararray"/>
       <!-- column-name rec5 -->
       <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
     </columns>
@@ -486,6 +488,7 @@
                                 <property name="can-focus">True</property>
                                 <property name="margin-bottom">15</property>
                                 <property name="model">liststore_conteudo</property>
+                                <property name="enable-grid-lines">both</property>
                                 <child internal-child="selection">
                                   <object class="GtkTreeSelection"/>
                                 </child>
@@ -791,6 +794,7 @@
                                 <property name="can-focus">True</property>
                                 <property name="model">liststore_frequencia</property>
                                 <property name="search-column">0</property>
+                                <property name="enable-grid-lines">both</property>
                                 <child internal-child="selection">
                                   <object class="GtkTreeSelection"/>
                                 </child>
@@ -1035,8 +1039,13 @@
                               <object class="GtkTreeView" id="treeview_avaliacoes">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="margin-start">2</property>
+                                <property name="margin-end">2</property>
+                                <property name="margin-top">2</property>
+                                <property name="margin-bottom">2</property>
                                 <property name="model">liststore_avaliacoes</property>
                                 <property name="search-column">0</property>
+                                <property name="enable-grid-lines">both</property>
                                 <child internal-child="selection">
                                   <object class="GtkTreeSelection"/>
                                 </child>
@@ -1059,6 +1068,7 @@
                                     <child>
                                       <object class="GtkCellRendererText"/>
                                       <attributes>
+                                        <attribute name="strikethrough">12</attribute>
                                         <attribute name="text">1</attribute>
                                       </attributes>
                                     </child>
@@ -1071,7 +1081,9 @@
                                     <property name="title" translatable="yes">AV-1</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">2</attribute>
                                       </attributes>
@@ -1085,7 +1097,9 @@
                                     <property name="title" translatable="yes">REC-1</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">3</attribute>
                                       </attributes>
@@ -1099,7 +1113,9 @@
                                     <property name="title" translatable="yes">AV-2</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">4</attribute>
                                       </attributes>
@@ -1113,7 +1129,9 @@
                                     <property name="title" translatable="yes">REC-2</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">5</attribute>
                                       </attributes>
@@ -1127,7 +1145,9 @@
                                     <property name="title" translatable="yes">AV-3</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">6</attribute>
                                       </attributes>
@@ -1141,7 +1161,9 @@
                                     <property name="title" translatable="yes">REC-3</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">7</attribute>
                                       </attributes>
@@ -1155,7 +1177,9 @@
                                     <property name="title" translatable="yes">AV-4</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">8</attribute>
                                       </attributes>
@@ -1169,7 +1193,9 @@
                                     <property name="title" translatable="yes">REC-4</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">9</attribute>
                                       </attributes>
@@ -1183,7 +1209,9 @@
                                     <property name="title" translatable="yes">AV-5</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">10</attribute>
                                       </attributes>
@@ -1197,16 +1225,13 @@
                                     <property name="title" translatable="yes">REC-5</property>
                                     <property name="expand">True</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
+                                      <object class="GtkCellRendererText">
+                                        <property name="editable">True</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">11</attribute>
                                       </attributes>
                                     </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkTreeViewColumn">
-                                    <property name="visible">False</property>
                                   </object>
                                 </child>
                               </object>

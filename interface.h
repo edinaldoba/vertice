@@ -82,8 +82,6 @@ typedef struct {
    //-- Janela com rolagem e Tabela de Notas
    GtkWidget *scrolled_window_avaliacoes;
    GtkWidget *treeview_avaliacoes;
-   GtkCellRenderer *renderer_nota_av;  // Editor editável para a nota principal
-   GtkCellRenderer *renderer_nota_rec; // Editor editável para a recuperação
 
    //-- Handlers e Sinalizadores de Controle
    gulong handler_combo_avaliacoes;
@@ -288,7 +286,7 @@ typedef struct {
     */
    gchar *path_save_diario;
    gchar *path_save_avaliacao;
-   gchar *path_save_ficha;
+   gchar *dir_save_fichas;
 
    CalendarioData data;
    CaminhoDiretorio caminho;

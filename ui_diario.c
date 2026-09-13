@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 
 #include "comum.h"
 #include "interface.h"
@@ -1306,39 +1307,6 @@ static void _visibilidade_avaliacoes( const AppContext *ctx, GtkTreeView *treevi
 }
 
 
-static void _editabilidade_avaliacoes( const AppContext *ctx, int foco ) {
-   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
-
-   for ( int i = 0; i < 5; i++ ) {
-      // Apenas o par correspondente à avaliação ativa no Combo Box fica editável
-      gboolean editavel = ( i == foco );
-
-      int idx_col_av = 2 + ( i * 2 );
-      int idx_col_rec = 3 + ( i * 2 );
-
-      GtkTreeViewColumn *col_av = gtk_tree_view_get_column( treeview, idx_col_av );
-      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_col_rec );
-
-      // Extrai o renderizador da coluna Av e ajusta a permissão de edição
-      if ( col_av ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
-         if ( renderers ) {
-            g_object_set( renderers->data, "editable", editavel, NULL );
-            g_list_free( renderers );
-         }
-      }
-
-      // Extrai o renderizador da coluna Rec e ajusta a permissão de edição
-      if ( col_rec ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
-         if ( renderers ) {
-            g_object_set( renderers->data, "editable", editavel, NULL );
-            g_list_free( renderers );
-         }
-      }
-   }
-}
-
 
 void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo ) {
    // -----------------------------------------------------------------
@@ -1370,8 +1338,6 @@ void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo )
       if ( handler > 0 ) {
          g_signal_handler_unblock( check, handler );
       }
-
-      _editabilidade_avaliacoes( ctx, item_ativo );
    }
 }
 
@@ -1417,31 +1383,10 @@ void carregar_avaliacoes( AppContext *ctx ) {
       g_signal_handler_unblock( check, handler );
    }
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
-   GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
-   GtkTreeIter iter;
-
-   // Limpa a lista antes de repovoar para não duplicar alunos se a função for chamada novamente
-   gtk_list_store_clear( store_view );
-
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-
-      // 1. Cria a nova linha no modelo e aponta o 'iter' para ela
-      gtk_list_store_append( store_view, &iter );
-
-      // 2. Grava os dados na linha recém-criada
-      gtk_list_store_set( store_view, &iter,
-                          0, i + 1,
-                          1, ficha->aluno,
-                         12, NULL, -1 );
-   }
-
    // Assumindo que o ponteiro do seu TreeView está no contexto
    GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
    _visibilidade_avaliacoes( ctx, treeview );
 
-   _editabilidade_avaliacoes( ctx, 0 );
 }
 
 
@@ -1585,5 +1530,175 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
    // 4. Sinaliza ao sistema (autosave) que há dados pendentes para gravação
    _marcar_dados_modificado( ctx );
 }
+
+
+
+
+//===================================================================================================
+// FUNÇÃO AUXILIAR GENÉRICA: Salva qualquer bloco de memória (Struct única ou GArray)
+//===================================================================================================
+static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes, const gchar *caminho_arquivo ) {
+   if ( !dados || !caminho_arquivo ) return FALSE;
+
+   GError *erro = NULL;
+   if ( !g_file_set_contents( caminho_arquivo, (const gchar *)dados, tamanho_bytes, &erro ) ) {
+      g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
+      g_clear_error( &erro );
+      return FALSE;
+   }
+   return TRUE;
+}
+
+//===================================================================================================
+// FUNÇÃO PRINCIPAL
+//===================================================================================================
+void salvar_fichas( AppContext *ctx, gboolean final_save ) {
+   g_return_if_fail( ctx );
+
+   if ( ctx->fichas != NULL ) {
+      for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+         // Aponta para a ficha específica do aluno na memória
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+
+         g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
+         g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
+
+         // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
+         _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
+      }
+   }
+
+   // Atualização do diretório de salvamento
+   if ( !final_save ) {
+      g_free( ctx->dir_save_fichas );
+      ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
+                                               ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+   }
+}
+
+
+
+
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
+//===================================================================================================
+static void on_renderizar_cores_notas( GtkTreeViewColumn *tree_column, GtkCellRenderer *cell,
+                                GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
+   AppContext *ctx = (AppContext *)user_data;
+   (void)tree_column;
+
+   // Verifica a coluna 12 para saber se o aluno está inativo
+   gboolean inativo = FALSE;
+   gtk_tree_model_get( model, iter, 12, &inativo, -1 );
+
+   // REGRA 1: Alunos Inativos (Todas as colunas ficam cinza/desabilitadas)
+   if ( inativo ) {
+      GdkRGBA cor_inativo;
+      _cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_inativo );
+
+      // O 'foreground-set' como TRUE força o GTK a ignorar a cor padrão do tema
+      g_object_set( cell, "foreground-rgba", &cor_inativo, "foreground-set", TRUE, NULL );
+      return;
+   }
+
+   // Recupera o índice da coluna atual a partir do próprio renderizador
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+
+   // REGRA 2: Notas Menores que 6.0 (Aplica apenas nas colunas de 2 a 11)
+   if ( col_idx >= 2 && col_idx <= 11 ) {
+      gchar *texto_nota = NULL;
+      g_object_get( cell, "text", &texto_nota, NULL );
+
+      if ( texto_nota && strlen( texto_nota ) > 0 ) {
+         double nota = g_ascii_strtod( texto_nota, NULL );
+
+         if ( nota < 6.0 ) {
+            GdkRGBA cor_vermelha;
+            _cor_texto_linha_frequencia( 2, ctx->dados.interface_style, &cor_vermelha );
+
+            g_object_set( cell, "foreground-rgba", &cor_vermelha, "foreground-set", TRUE, NULL );
+            g_free( texto_nota );
+            return;
+         }
+      }
+      g_free( texto_nota );
+   }
+
+   // REGRA 3: Caso Padrão (Ativo e Nota >= 6.0, ou coluna do Nome do Aluno)
+   // Desliga o forçamento de cor e deixa o GTK usar a cor de texto natural do sistema
+   g_object_set( cell, "foreground-set", FALSE, NULL );
+}
+
+void carregar_notas_ui_por_periodo( AppContext *ctx ) {
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+
+   int periodo = ctx->cascata.foco.periodo;
+   g_return_if_fail( periodo >= 0 && periodo <= 3 );
+
+   // 1. Limpa o modelo inteiro para receber os dados do novo período
+   gtk_list_store_clear( store );
+
+   // 2. Percorre o GArray reconstruindo as linhas do zero
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      GtkTreeIter iter;
+
+      // Buffer estático na Stack: 10 strings de até 8 caracteres (Ex: "10.00\0")
+      // Zera todo o bloco de memória automaticamente (todas strings vazias por padrão)
+      char str_notas[10][8] = {{0}};
+
+      // Constrói as strings para os 5 pares de notas
+      for ( int av = 0; av < 5; av++ ) {
+         float nota_av = ficha->nota[periodo][av].av;
+         float nota_rec = ficha->nota[periodo][av].rec;
+         int base = av * 2;
+
+         if ( nota_av >= 0.0f ) {
+            snprintf( str_notas[base], sizeof( str_notas[base] ), "%.2f", nota_av );
+         }
+
+         if ( nota_rec >= 0.0f ) {
+            snprintf( str_notas[base + 1], sizeof( str_notas[base + 1] ), "%.2f", nota_rec );
+         }
+      }
+
+      gtk_list_store_append( store, &iter );
+
+      // Injeta todas as colunas de uma vez só na linha recém-criada
+      gtk_list_store_set( store, &iter,
+                          0, i + 1,
+                          1, ficha->aluno,
+                          2, str_notas[0],   3, str_notas[1],
+                          4, str_notas[2],   5, str_notas[3],
+                          6, str_notas[4],   7, str_notas[5],
+                          8, str_notas[6],   9, str_notas[7],
+                         10, str_notas[8],  11, str_notas[9],
+                         12, !ficha->ativo,
+                        -1 );
+   }
+
+   // Vincula a renderização condicional dinâmica às colunas de 1 a 11 (Nome + Notas)
+   // No GTK, os índices de gtk_tree_view_get_column começam em 0.
+   for ( int i = 1; i <= 11; i++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes ), i );
+      if ( !col ) continue;
+
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers ) {
+         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+
+         // Aponta o renderizador para a nossa função de cor
+         gtk_tree_view_column_set_cell_data_func( col, renderer, on_renderizar_cores_notas, ctx, NULL );
+
+         g_list_free( renderers );
+      }
+   }
+}
+
+
+
 
 

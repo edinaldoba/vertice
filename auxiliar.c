@@ -469,6 +469,8 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
 
 
+
+
 // Esta função de ordenação é exclusiva para o combo das turmas
 int ordenar_turmas_novo_em( const void* a, const void* b ) {
    // 1. Cast idêntico à sua função padrão

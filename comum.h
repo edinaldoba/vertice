@@ -311,6 +311,7 @@ typedef struct {
 //=========================================================================================================//
 typedef struct {
 
+   uint32_t cod_aluno;
    int num;        // Número do aluno na lista de frequência
    char resp[32];  //  Guarda o quadro de respostas assinaladas por cada aluno
    char nome_img[32];
@@ -329,7 +330,7 @@ typedef struct {
 
    int nota;
 
-} MapeamentoGabarito; //  Referências da imagem
+} __attribute__( ( packed ) ) MapeamentoGabarito;
 
 
 typedef struct {

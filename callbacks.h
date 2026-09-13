@@ -43,11 +43,15 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
 // AVALIAÇÕES
 void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_data );
 void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data );
-gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
 void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data );
 void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
+
+void on_celula_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable, gchar *path_string, gpointer user_data );
+void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
+gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
+void on_celula_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
 
 
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

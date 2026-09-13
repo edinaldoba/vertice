@@ -620,79 +620,6 @@ void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data
 }
 
 
-
-gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
-   (void)user_data;
-   GtkTreeView *tree_view = GTK_TREE_VIEW( widget );
-   GtkTreePath *path = NULL;
-   GtkTreeViewColumn *column = NULL;
-
-   // Obtém a célula/coluna atualmente focada
-   gtk_tree_view_get_cursor( tree_view, &path, &column );
-   if ( !path || !column ) return FALSE;
-
-   GList *columns = gtk_tree_view_get_columns( tree_view );
-   gint col_index = g_list_index( columns, column );
-   gint total_cols = g_list_length( columns );
-
-   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
-   GtkTreeIter iter;
-   gboolean tratado = FALSE;
-
-   switch ( event->keyval ) {
-      case GDK_KEY_Return:
-      case GDK_KEY_KP_Enter:
-      case GDK_KEY_Down:
-         gtk_tree_path_next( path );
-         // Valida se a próxima linha realmente existe no modelo antes de mover
-         if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
-            gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
-            tratado = TRUE;
-         }
-         break;
-
-      case GDK_KEY_Up:
-         // Move para a mesma coluna da linha de cima
-         if ( gtk_tree_path_prev( path ) ) {
-            gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
-            tratado = TRUE;
-         }
-         break;
-
-      case GDK_KEY_Tab:
-      case GDK_KEY_Right:
-         // Busca iterativamente a próxima coluna que esteja visível
-         for ( gint i = col_index + 1; i < total_cols; i++ ) {
-            GtkTreeViewColumn *c = g_list_nth_data( columns, i );
-            if ( gtk_tree_view_column_get_visible( c ) ) {
-               gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
-               tratado = TRUE;
-               break;
-            }
-         }
-         break;
-
-      case GDK_KEY_Left:
-         // Busca iterativamente a coluna anterior que esteja visível
-         for ( gint i = col_index - 1; i >= 0; i-- ) {
-            GtkTreeViewColumn *c = g_list_nth_data( columns, i );
-            if ( gtk_tree_view_column_get_visible( c ) ) {
-               gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
-               tratado = TRUE;
-               break;
-            }
-         }
-         break;
-   }
-
-   g_list_free( columns );
-   gtk_tree_path_free( path );
-
-   return tratado;
-}
-
-
-
 //===================================================================================================
 void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
@@ -791,7 +718,259 @@ void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer use
 
 
 
-//------------------------------------------------------------------------------------------------------------------
+//===================================================================================================
+void on_celula_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
+                                gchar *path_string, gpointer user_data ) {
+   (void)renderer; (void)path_string;
+
+   if ( GTK_IS_ENTRY( editable ) ) {
+      // Repassa as teclas do modo de edição para a função de navegação.
+      g_signal_connect( editable, "key-press-event", G_CALLBACK( on_treeview_notas_key_press_event ), user_data );
+   }
+}
+
+//---------------------------------------------------------------------------------------------------
+gboolean on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
+   // AppContext *ctx = (AppContext *)user_data;
+
+   // Identifica o TreeView se o evento vier da célula (GtkEntry) ou da própria lista
+   GtkTreeView *tree_view = GTK_IS_TREE_VIEW( widget ) ? GTK_TREE_VIEW( widget ) : GTK_TREE_VIEW( user_data );
+
+   GtkTreePath *path = NULL;
+   GtkTreeViewColumn *column = NULL;
+
+   // Obtém a célula/coluna atualmente focada
+   gtk_tree_view_get_cursor( tree_view, &path, &column );
+   if ( !path || !column ) return FALSE;
+
+   GList *columns = gtk_tree_view_get_columns( tree_view );
+   GList *current_col_node = g_list_find( columns, column );
+
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkTreeIter iter;
+   gboolean tratado = FALSE;
+
+   // =======================================================================
+   // PONTO CHAVE: Captura o editor ativo da célula atual
+   // =======================================================================
+   GtkWidget *editor = gtk_container_get_focus_child( GTK_CONTAINER( tree_view ) );
+
+   switch ( event->keyval ) {
+      case GDK_KEY_Return:
+      case GDK_KEY_KP_Enter:
+      case GDK_KEY_Down:
+         gtk_tree_path_next( path );
+         if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
+
+            // 1. FORÇA O DISPARO SÍNCRONO DO SINAL "edited" NATIVO DO GTK
+            if ( GTK_IS_CELL_EDITABLE( editor ) ) {
+               gtk_cell_editable_editing_done( GTK_CELL_EDITABLE( editor ) );
+            }
+
+            gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
+            gtk_tree_view_scroll_to_cell( tree_view, path, column, TRUE, 0.5, 0.9 );
+            tratado = TRUE;
+         }
+         break;
+
+      case GDK_KEY_Up:
+         if ( gtk_tree_path_prev( path ) ) {
+            if ( gtk_tree_model_get_iter( model, &iter, path ) ) {
+
+               // 1. FORÇA O DISPARO SÍNCRONO DO SINAL "edited" NATIVO DO GTK
+               if ( GTK_IS_CELL_EDITABLE( editor ) ) {
+                  gtk_cell_editable_editing_done( GTK_CELL_EDITABLE( editor ) );
+               }
+
+               gtk_tree_view_set_cursor_on_cell( tree_view, path, column, NULL, TRUE );
+               gtk_tree_view_scroll_to_cell( tree_view, path, column, TRUE, 0.5, 0.9 );
+               tratado = TRUE;
+            }
+         }
+         break;
+
+      case GDK_KEY_Tab:
+      case GDK_KEY_Right:
+         if ( current_col_node ) {
+            for ( GList *node = current_col_node->next; node != NULL; node = node->next ) {
+               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+
+               if ( gtk_tree_view_column_get_visible( c ) ) {
+                  gtk_tree_view_scroll_to_cell( tree_view, path, c, TRUE, 0.5, 0.9 );
+
+                  // 1. FORÇA O DISPARO SÍNCRONO DO SINAL "edited" NATIVO DO GTK
+                  if ( GTK_IS_CELL_EDITABLE( editor ) ) {
+                     gtk_cell_editable_editing_done( GTK_CELL_EDITABLE( editor ) );
+                  }
+
+                  gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
+                  tratado = TRUE;
+                  break;
+               }
+            }
+         }
+         break;
+
+      case GDK_KEY_Left:
+         if ( current_col_node ) {
+            for ( GList *node = current_col_node->prev; node != NULL; node = node->prev ) {
+               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+
+               if ( gtk_tree_view_column_get_visible( c ) ) {
+                  gtk_tree_view_scroll_to_cell( tree_view, path, c, TRUE, 0.5, 0.9 );
+
+                  // 1. FORÇA O DISPARO SÍNCRONO DO SINAL "edited" NATIVO DO GTK
+                  if ( GTK_IS_CELL_EDITABLE( editor ) ) {
+                     gtk_cell_editable_editing_done( GTK_CELL_EDITABLE( editor ) );
+                  }
+
+                  gtk_tree_view_set_cursor_on_cell( tree_view, path, c, NULL, TRUE );
+                  tratado = TRUE;
+                  break;
+               }
+            }
+         }
+         break;
+   }
+
+   g_list_free( columns );
+   gtk_tree_path_free( path );
+
+   return tratado;
+}
+
+//---------------------------------------------------------------------------------------------------
+void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data ) {
+   AppContext *ctx = (AppContext *)user_data;
+
+   GtkTreePath *path = NULL;
+   GtkTreeViewColumn *column = NULL;
+
+   gtk_tree_view_get_cursor( tree_view, &path, &column );
+
+   if ( column ) {
+      GList *columns = gtk_tree_view_get_columns( tree_view );
+      gint col_index = g_list_index( columns, column );
+      g_list_free( columns );
+
+      if ( col_index >= 2 && col_index <= 11 ) {
+         int novo_foco = ( col_index - 2 ) / 2;
+         GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
+
+         if ( gtk_combo_box_get_active( combo ) != novo_foco ) {
+            gulong handler = ctx->ui_diario.handler_combo_avaliacoes;
+
+            if ( handler > 0 ) g_signal_handler_block( combo, handler );
+
+            gtk_combo_box_set_active( combo, novo_foco );
+
+            if ( handler > 0 ) g_signal_handler_unblock( combo, handler );
+         }
+      }
+   }
+
+   if ( path ) gtk_tree_path_free( path );
+}
+
+//---------------------------------------------------------------------------------------------------
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Transfere a nota validada para a Fonte Única de Verdade (RAM)
+//===================================================================================================
+static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, gint col_model_index, float valor_nota ) {
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+
+   // 1. Obtém o índice do aluno (a linha selecionada corresponde perfeitamente ao índice do GArray)
+   int index_aluno = atoi( path_string );
+   g_return_if_fail( index_aluno >= 0 && (guint)index_aluno < ctx->fichas->len );
+
+   // 2. Aponta para a ficha de trabalho
+   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
+   int periodo = ctx->cascata.foco.periodo;
+
+   // Proteção de escopo
+   g_return_if_fail( periodo >= 0 && periodo <= 3 );
+   g_return_if_fail( col_model_index >= 2 && col_model_index <= 11 );
+
+   // 3. Mapeamento O(1) de Colunas para Estrutura:
+   // (2,3)->[0], (4,5)->[1], (6,7)->[2], (8,9)->[3], (10,11)->[4]
+   int av_index = ( col_model_index - 2 ) / 2;
+
+   // Colunas ímpares (3, 5, 7, 9, 11) são sempre Recuperação
+   gboolean is_rec = ( col_model_index % 2 != 0 );
+
+   // 4. Injeção atômica do valor
+   if ( is_rec ) {
+      ficha->nota[periodo][av_index].rec = valor_nota;
+   } else {
+      ficha->nota[periodo][av_index].av = valor_nota;
+   }
+}
+
+//===================================================================================================
+// FUNÇÃO PRINCIPAL: Callback de Edição da Célula
+//===================================================================================================
+void on_celula_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data ) {
+   AppContext *ctx = (AppContext *)user_data;
+
+   // 1. PERMITE APAGAR A NOTA (Caso o professor deixe a célula em branco)
+   if ( !new_text || strlen( g_strstrip( new_text ) ) == 0 ) {
+      // Opcional: Dependendo do Vértice, uma célula vazia pode significar nota 0.0 ou "Ausente"
+      // Aqui, se o professor apagar, limpamos a interface e zeramos a ficha
+      GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+      GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+      GtkTreeIter iter;
+
+      if ( gtk_tree_model_get_iter_from_string( GTK_TREE_MODEL( store ), &iter, path_string ) ) {
+         gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+         gtk_list_store_set( store, &iter, col_model_index, "", -1 );
+         _sincronizar_nota_ficha( ctx, path_string, col_model_index, -1.0f );
+      }
+      return;
+   }
+
+   // 2. LIMPEZA DE STRING (Troca ',' por '.')
+   g_autofree gchar *texto_limpo = g_strdup( new_text );
+   g_strdelimit( texto_limpo, ",", '.' );
+
+   // 3. CONVERSÃO E VALIDAÇÃO NUMÉRICA
+   gchar *endptr = NULL;
+   double valor_nota = g_ascii_strtod( texto_limpo, &endptr );
+
+   // Se o usuário digitou letras, lixo, ou a nota estiver fora de [0, 10] -> Aborta a edição
+   if ( endptr == texto_limpo || valor_nota < 0.0 || valor_nota > 10.0 ) {
+      return; // A célula volta ao estado numérico anterior automaticamente
+   }
+
+   // 4. FORMATAÇÃO VISUAL (Força exatamente 2 casas decimais)
+   g_autofree gchar *texto_formatado = g_strdup_printf( "%.2f", valor_nota );
+
+   // 5. ATUALIZAÇÃO DA INTERFACE (GtkListStore)
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkListStore *store = GTK_LIST_STORE( model );
+
+   GtkTreeIter iter;
+   if ( gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
+
+      gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+
+      // Salva a nota padronizada na UI (ex: "8.00")
+      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
+
+      // 6. SINCRONIZAÇÃO EM MEMÓRIA
+      _sincronizar_nota_ficha( ctx, path_string, col_model_index, (float)valor_nota );
+
+      // Se necessário, descomente a flag para habilitar o salvamento geral do arquivo depois:
+      // _marcar_diario_modificado( ctx );
+   }
+}
+//===================================================================================================
+
+
+
+
+
+//===================================================================================================
 static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) {
    g_return_val_if_fail( GTK_IS_STACK( widget ) && nome_da_pagina, FALSE );
    const gchar *pagina_atual = gtk_stack_get_visible_child_name( GTK_STACK( widget ) );
@@ -1009,6 +1188,8 @@ void on_button_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    corrigir_prova( &ctx->painel, ctx );
+
+   carregar_notas_ui_por_periodo(ctx);
 }
 
 

@@ -252,6 +252,7 @@ button:hover label {
 /* --- Campos de Texto (GtkEntry) --- */
 entry {
     background-color: #1E3E62;
+    font-size: 20px;
     color: #FFFFFF;
     caret-color: #00aaff;
     font-family: 'Ubuntu Mono', monospace;
@@ -418,6 +419,7 @@ treeview {
     background-color: #0f233b;
     color: #ffffff;
     font-size: 20px;
+    border-color: #283abf;
 }
 
 treeview:selected {

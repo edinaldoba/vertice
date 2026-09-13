@@ -251,6 +251,7 @@ button:hover label {
 /* --- Campos de Texto (GtkEntry) --- */
 entry {
     background-color: #37474F;
+    font-size: 20px;
     color: #FFFFFF;
     caret-color: #00aa00;
     font-family: 'Ubuntu Mono', monospace;
@@ -417,6 +418,8 @@ treeview {
     background-color: #222e38;
     color: #ffffff;
     font-size: 20px;
+    border-color: #008200;
+/*     padding: 1px; */
 }
 
 treeview:selected {
@@ -434,6 +437,7 @@ treeview header button {
     border: none;
     padding: 6px;
 }
+
 
 /* ==========================================================================
    7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)

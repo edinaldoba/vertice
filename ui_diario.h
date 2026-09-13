@@ -40,4 +40,7 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado );
 void popover_adicionar_avaliacao( AppContext *ctx, const char *texto );
 void popover_editar_avaliacao( AppContext *ctx, const char *texto );
 
+void salvar_fichas( AppContext *ctx, gboolean final_save );
+void carregar_notas_ui_por_periodo( AppContext *ctx );
+
 #endif

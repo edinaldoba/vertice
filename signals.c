@@ -65,6 +65,87 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
 
 
 
+static void conectar_renderizadores_liststore_avaliacoes( const AppContext *ctx ) {
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+
+   // Percorre todas as colunas de avaliação/recuperação para registrar o sinal de edição
+   for ( int i = 0; i < 5; i++ ) {
+
+      int idx_av  = 2 + ( i * 2 );
+      int idx_rec = 3 + ( i * 2 );
+
+      GtkTreeViewColumn *col_av  = gtk_tree_view_get_column( treeview, idx_av );
+      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_rec );
+
+      // Conecta no renderizador da avaliação
+      if ( col_av ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
+         if ( renderers ) {
+            g_signal_connect( renderers->data, "editing-started",
+                              G_CALLBACK( on_celula_editing_started ),
+                              ctx->ui_diario.treeview_avaliacoes );
+            g_list_free( renderers );
+         }
+      }
+
+      // Conecta no renderizador da recuperação
+      if ( col_rec ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
+         if ( renderers ) {
+            g_signal_connect( renderers->data, "editing-started",
+                              G_CALLBACK( on_celula_editing_started ),
+                              ctx->ui_diario.treeview_avaliacoes );
+            g_list_free( renderers );
+         }
+      }
+   }
+}
+
+
+
+static void conectar_sinais_edicao_notas( AppContext *ctx ) {
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+
+   for ( int i = 0; i < 5; i++ ) {
+      int idx_view_av  = 2 + ( i * 2 );
+      int idx_view_rec = 3 + ( i * 2 );
+
+      // Mapeie aqui os índices correspondentes no seu GtkListStore (ex: colunas 4, 5, 6...)
+      int col_store_av  = 2 + ( i * 2 );
+      int col_store_rec = 3 + ( i * 2 );
+
+      // Coluna Avaliação
+      GtkTreeViewColumn *col_av = gtk_tree_view_get_column( treeview, idx_view_av );
+      if ( col_av ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
+         if ( renderers ) {
+            GtkCellRendererText *r = GTK_CELL_RENDERER_TEXT( renderers->data );
+
+            // Guarda o índice do ListStore dentro do próprio renderizador
+            g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_av ) );
+
+            g_signal_connect( r, "edited", G_CALLBACK( on_celula_nota_edited ), ctx );
+            g_list_free( renderers );
+         }
+      }
+
+      // Coluna Recuperação
+      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_view_rec );
+      if ( col_rec ) {
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
+         if ( renderers ) {
+            GtkCellRenderer *r = GTK_CELL_RENDERER( renderers->data );
+
+            g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_rec ) );
+
+            g_signal_connect( r, "edited", G_CALLBACK( on_celula_nota_edited ), ctx );
+            g_list_free( renderers );
+         }
+      }
+   }
+}
+
+
 
 /**
  * @brief Conecta todos os sinais de eventos (cliques e alternâncias)do aplicativo.
@@ -175,6 +256,12 @@ void app_signals_connect( gpointer user_data ) {
                                                               G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "key-press-event",
                      G_CALLBACK( on_treeview_notas_key_press_event ), ctx );
+
+   conectar_renderizadores_liststore_avaliacoes( ctx );
+   conectar_sinais_edicao_notas( ctx );
+
+   g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "cursor-changed",
+                     G_CALLBACK( on_treeview_notas_cursor_changed ), ctx );
 
 
 

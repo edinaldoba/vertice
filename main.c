@@ -291,8 +291,10 @@ void inicializacao_app_context( AppContext *ctx ) {
 
       .diarios   = NULL,
       .avaliacoes = NULL,
+      .fichas = NULL,
       .path_save_avaliacao = NULL,
-      .path_save_diario = NULL
+      .path_save_diario = NULL,
+      .dir_save_fichas = NULL
    };
 }
 
@@ -332,11 +334,17 @@ void limpeza_final( AppContext *ctx ) {
       ctx->path_save_avaliacao = NULL;
    }
 
-
    // A. Libera o Ficha de Alunos (Heap)
    if ( ctx->fichas != NULL ) {
+      salvar_fichas( ctx, TRUE );
       g_array_unref( ctx->fichas );
       ctx->fichas = NULL;
+   }
+
+   // DESASSOCIAR PONTEIRO DE TRABALHO
+   if ( ctx->dir_save_fichas != NULL ) {
+      g_free( ctx->dir_save_fichas );
+      ctx->dir_save_fichas = NULL;
    }
 
    // B. Libera a matriz bidimensional de ponteiros do Acervo (Heap)

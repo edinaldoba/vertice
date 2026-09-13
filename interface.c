@@ -928,6 +928,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    ui_restaurar_registros_de_aula( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
    ui_diario->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
+   salvar_fichas( ctx, FALSE );
+
    acessar_e_carregar_ficha_dos_alunos_da_turma( ctx );
 
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
@@ -946,7 +948,9 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    popular_datas( ctx );
 
-   _sincronizar_registro_diario_com_turma_siaep( ctx );
+   if ( ctx->cascata.foco.periodo < 4 ) {
+      _sincronizar_registro_diario_com_turma_siaep( ctx );
+   }
 
    gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
 
@@ -962,6 +966,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    }
 
    iniciar_autosave_diario( ctx, 5 );
+
+   carregar_notas_ui_por_periodo( ctx );
 
 
    painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",

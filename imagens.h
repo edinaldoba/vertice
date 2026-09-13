@@ -6,7 +6,7 @@
 
 int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
 
-void corrigir_prova( InterfacePainel *painel, const AppContext *ctx );
+void corrigir_prova( InterfacePainel *painel, AppContext *ctx );
 
 
 #endif
