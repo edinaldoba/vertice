@@ -314,206 +314,168 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 
-//==================================================================================================
-void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
-   ( void )painel;
 
-   int foco_periodo = ctx->cascata.foco.periodo;
-   char arquivo[1024];
-   snprintf( arquivo, sizeof( arquivo ), "%s/lista.dat", ctx->caminho.dados );
-
-   while ( !( verificar_arquivo( arquivo ) & ARQUIVO_PRONTO ) )  {
-      if ( foco_periodo == 0 ) return;
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->entry.periodo ), --foco_periodo );
-      snprintf( arquivo, sizeof( arquivo ), "%s/lista.dat", ctx->caminho.dados );
-   }
-
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Gera o arquivo LaTeX do Relatório Final diretamente na memória
+//===================================================================================================
+static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados *dados = &( ctx->dados );
-   const InterfaceListas *listas = &( ctx->listas );
-   const CaminhoDiretorio *caminho = &( ctx->caminho );
+   int disc = ctx->cascata.foco.disciplina;
 
-   int i, j;
+   g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   float fsoma, rec[dados->qtd_alunos_total], cons[dados->qtd_alunos_total];
-
-   char str[3000], nota[10];
-
-   struct {
-      char str[100];
-   } notas[dados->qtd_alunos_total][4], soma[dados->qtd_alunos_total], media[dados->qtd_alunos_total], recfinal[dados->qtd_alunos_total], conselho[dados->qtd_alunos_total], observacao[dados->qtd_alunos_total];
-
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      rec[i] = 0.;
-      cons[i] = 0.;
-      soma[i].str[0] = '\0';
-      media[i].str[0] = '\0';
-      recfinal[i].str[0] = '\0';
-      conselho[i].str[0] = '\0';
-      observacao[i].str[0] = '\0';
-      for ( j = 0; j < 4; j++ ) {
-         notas[i][j].str[0] = '\0';
-      }
+   FILE *p1 = fopen( arquivo_tex, "w+" );
+   if ( !p1 ) {
+      g_printerr( "Falha ao criar o arquivo LaTeX: %s\n", arquivo_tex );
+      return;
    }
 
+   // 1. Escrita do Preâmbulo (baseado no template original embutido nativamente)
+   fprintf( p1,
+            "\\documentclass[11pt,a4paper]{report}\n"
+            "\\usepackage[utf8]{inputenc}\n"
+            "\\usepackage[T1]{fontenc}\n" );
 
-
-   // Ponteiros para as médias dos períodos, recuperação final e conselho de classe
-   FILE **p = ( FILE** )malloc( 6 * sizeof( FILE* ) );
-
-   // 1. Copia o caminho base
-   snprintf( str, sizeof( str ), "%s", caminho->dados );
-
-
-   // 2. Localiza a última barra (o separador da turma para o período)
-   char *saux = strrchr( str, '/' );
-
-   // 3. Se não encontrar a barra, algo está errado com o caminho, então sai
-   if ( saux == NULL ) return;
-
-   for ( j = 0; j < 6; j++ ) {
-      // 4. USAMOS O TAMANHO RESTANTE REAL: sizeof(str) - (saux - str)
-      // saux aponta para a barra. Vamos escrever POR CIMA da barra ou logo após ela.
-      // Para manter a barra original:
-      snprintf( saux, sizeof( str ) - ( saux - str ), "/%s/%s", listas->periodos[j].str, "média.dat" );
-
-      p[j] = fopen( str, "r" );
-
-      if ( p[j] ) {
-         i = 0;
-         const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-
-         while ( fgets( nota, sizeof( nota ), p[j] ) != NULL ) {
-            if ( nota[0] != '\n' ) {
-
-               nota[strlen( nota ) - 1] = '\0';
-
-               switch ( j + 1 ) {
-               case 5 :
-                  sprintf( recfinal[i].str, "%s", nota );
-                  rec[i] = atof( nota );
-                  break;
-               case 6 :
-                  sprintf( conselho[i].str, "%s", nota );
-                  cons[i] = atof( nota );
-                  break;
-               default:
-                  if ( ficha->ativo ) {
-                     sprintf( notas[i][j].str, "%s", nota );
-                  } else {
-                     sprintf( notas[i][j].str, "\\textcolor{gray!50}{%s}", nota );
-                  }
-
-               }
-            }
-            i++;
-         }
-         rewind( p[j] );
-      }
+   if ( dados->fonte_latex == 1 ) {
+      fprintf( p1, "\\usepackage{cmbright}\n" );
    }
 
+   fprintf( p1,
+            "\\usepackage[brazil]{babel}\n"
+            "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+            "\\usepackage{xcolor}\n" // Garantia para o comando \textcolor
+            "\\usepackage{tikz}\n"
+            "\\usepackage{multicol}\n"
+            "\\usepackage{enumerate}\n"
+            "\\usepackage{wasysym}\n"
+            "\\usepackage{array,multirow,graphicx}\n"
+            "\\usepackage{amssymb}\n"
+            "\\usepackage{ifthen}\n"
+            "\\usepackage{setspace}\n"
+            "\\usepackage{ulem}\n"
+            "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+            "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+            "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
+            "\\onehalfspacing\n"
+            "\\pagestyle{empty}\n"
+            "\\begin{document}\n" );
 
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
+   // 2. Cálculo dinâmico do espaçamento vertical
+   double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
+   fprintf( p1, "\\begin{spacing}{%.4f}\n", spacing );
 
+   // 3. Cabeçalho da Tabela e colunas
+   fprintf( p1,
+            "\\noindent\\begin{tabular}{|c|p{5cm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{9.8mm}|R{8.5mm}|R{7mm}|R{7mm}|c|}\\hline\n"
+            "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
+            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
+            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{8.5mm}{10pt}{\\bf\\,1º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,2º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,3º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,4º\\,p\\,} & \\resizebox{9.8mm}{11pt}{\\bf Soma} & \\resizebox{8.5mm}{11pt}{\\bf Média} &  \\resizebox{7mm}{11pt}{\\bf Final}& \\resizebox{7.8mm}{11pt}{\\bf Cons.} & \\resizebox{20mm}{11pt}{\\bf Observação}\\\\\\hline\n",
+            dados->escola, dados->turma, dados->disciplina, dados->ano );
 
-      fsoma = atof( notas[i][0].str ) + atof( notas[i][1].str ) + atof( notas[i][2].str ) + atof( notas[i][3].str );
-
-      if ( fsoma != 0 ) {
-
-         sprintf( soma[i].str, "{\\bf %.2f}", fsoma );
-         sprintf( media[i].str, "%.2f", 0.25 * fsoma );
-
-         if ( p[5] && fgets( nota, sizeof nota, p[5] ) != NULL ) {
-            if ( fsoma >= 22.2 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Média" );
-            else if ( rec[i] >= 6.0 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Final" );
-            else if ( cons[i] == 6.0 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "\\resizebox{29mm}{8pt}{Aprov. no Conselho}" );
-            else
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Reprovado(a)" );
-         } else if ( p[4] && fgets( nota, sizeof nota, p[4] ) != NULL ) {
-            if ( fsoma >= 22.2 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Média" );
-            else if ( rec[i] >= 6.0 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Final" );
-            else
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "\\resizebox{29mm}{8pt}{\\it Conselho de Classe}" );
-         } else if ( p[3] ) {
-            if ( fsoma >= 22.2 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Média" );
-            else
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
-         } else if ( p[2] ) {
-            if ( fsoma >= 24.0 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "Aprov. na Média" );
-            else if ( fsoma < 12.2 )
-               snprintf( observacao[i].str, sizeof observacao[i].str, "%s", "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
-         }
-      }
-   }
-
-
-
-   FILE *p0 = fopen( "./dados/templates/template_final.tex", "r" );
-
-   FILE *p1 = fopen( "./dados/temporarios/Final.tex", "w+" );
-
-
-   while ( fgets( str, sizeof str, p0 ) != NULL ) {
-      if ( strcmp( str, "% FONTE\n" ) == 0 ) {
-         if ( dados->fonte_latex == 1 )
-            fputs( "\\usepackage{cmbright}\n", p1 );
-         continue;
-      } else if ( strcmp( str, "\\begin{spacing}{%f}\n" ) == 0 ) {
-         fprintf( p1, str, ( 297. - 6.5 - 6.5 - 4 * 7. ) / ( 4.96 * dados->qtd_alunos_total ) );
-         continue;
-      } else if ( strncmp( str, "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}", 30 ) == 0 ) {
-         fprintf( p1, str, dados->escola, dados->turma, dados->disciplina, dados->ano );
-         continue;
-      } else if ( strcmp( str, "% LISTA\n" ) == 0 ) {
-         break;
-      }
-      fputs( str, p1 );
-   }
-
-
-
-   for ( j = 0; j < dados->qtd_alunos_total; j++ ) {
+   // 4. Loop dos Alunos e Extração Direta da Memória RAM
+   for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+
+      // Matrizes zeradas garantem células limpas e sem lixo de memória
+      char s_notas[4][16] = {"", "", "", ""};
+      char s_soma[24] = "";
+      char s_media[24] = "";
+      char s_rec[16] = "";
+      char s_cons[16] = "";
+      char s_obs[128] = "";
+
+      float fsoma = 0.0f;
+      gboolean tem_p[4] = {FALSE, FALSE, FALSE, FALSE};
+      gboolean avaliado = FALSE;
+
+      // Extrai a média dos 4 períodos gravados em relatorio[disc][0 a 3]
+      for ( int k = 0; k < 4; k++ ) {
+         float med = ficha->relatorio[disc][k];
+         if ( med >= 0.0f ) {
+            snprintf( s_notas[k], sizeof( s_notas[k] ), "%.2f", med );
+            fsoma += med;
+            tem_p[k] = TRUE;
+            avaliado = TRUE;
+         }
+      }
+
+      float rec = ficha->rec_final[disc];
+      float cons = ficha->conselho[disc];
+
+      if ( rec >= 0.0f ) snprintf( s_rec, sizeof( s_rec ), "%.2f", rec );
+      if ( cons >= 0.0f ) snprintf( s_cons, sizeof( s_cons ), "%.2f", cons );
+
+      if ( avaliado ) {
+         snprintf( s_soma, sizeof( s_soma ), "{\\bf %.2f}", fsoma );
+         snprintf( s_media, sizeof( s_media ), "%.2f", 0.25f * fsoma );
+
+         // Substitui a verificação de arquivos pela verificação direta das variáveis carregadas
+         if ( cons >= 0.0f ) {
+            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
+            else if ( rec >= 6.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Final" );
+            else if ( cons == 6.0f ) snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{Aprov. no Conselho}" );
+            else snprintf( s_obs, sizeof( s_obs ), "Reprovado(a)" );
+         } else if ( rec >= 0.0f ) {
+            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
+            else if ( rec >= 6.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Final" );
+            else snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Conselho de Classe}" );
+         } else if ( tem_p[3] ) {
+            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
+            else snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
+         } else if ( tem_p[2] ) {
+            if ( fsoma >= 24.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
+            else if ( fsoma < 12.2f ) snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
+         }
+      }
+
       if ( ficha->ativo ) {
          fprintf( p1, "%.2d & %.*s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+                  j + 1, ficha->limite_corte, ficha->aluno,
+                  s_notas[0], s_notas[1], s_notas[2], s_notas[3],
+                  s_soma, s_media, s_rec, s_cons, s_obs );
       } else {
-         fprintf( p1, "%.2d & \\textcolor{gray!50}{%.*s} & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno, notas[j][0].str, notas[j][1].str, notas[j][2].str, notas[j][3].str, soma[j].str, media[j].str, recfinal[j].str, conselho[j].str, observacao[j].str );
+         // Formatação em cinza diretamente embutida na declaração de colunas para alunos transferidos/inativos
+         fprintf( p1, "%.2d & \\textcolor{gray!50}{%.*s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} \\\\\\hline\n",
+                  j + 1, ficha->limite_corte, ficha->aluno,
+                  s_notas[0], s_notas[1], s_notas[2], s_notas[3],
+                  s_soma, s_media, s_rec, s_cons, s_obs );
       }
    }
 
-
+   // 5. Rodapé
    char datatex[128];
-   sprintf( datatex, "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}", ctx->data.dia, ctx->data.mes, ctx->data.ano );
+   snprintf( datatex, sizeof( datatex ), "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
+             ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
-   while ( fgets( str, sizeof str, p0 ) != NULL ) {
-      if ( strncmp( str, "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}", 30 ) == 0 ) {
-         fprintf( p1, str, datatex );
-         continue;
-      }
-      fputs( str, p1 );
-   }
+   // Injeta os dados da assinatura preservando o caminho da imagem do modelo
+   fprintf( p1,
+            "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
+            "\\end{tabular}\n"
+            "\\end{spacing}\n"
+            "\\end{document}\n",
+            datatex );
 
-
-   fclose( p0 );
    fclose( p1 );
-   for ( j = 0; j < 6; j++ ) {
-      if ( p[j] ) fclose( p[j] );
-   }
-   free( p ); // Adicione isso para liberar a memória do array de ponteiros
-
-
-   disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
-
 }
-//==================================================================================================
+
+//===================================================================================================
+// FUNÇÃO PRINCIPAL: Relatório Final
+//===================================================================================================
+void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
+   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+
+   const InterfaceDados *dados = &( ctx->dados );
+   const CaminhoDiretorio *caminho = &( ctx->caminho );
+
+   // 1. Chamada direta do Gerador LaTeX (100% em memória, sem ler médias.dat ou templates externos)
+   gerar_tex_relatorio_final( "Final", ctx );
+
+   // 2. Dispara a compilação via script shell / pdflatex
+   disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
+}
+
 
 
 
