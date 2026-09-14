@@ -32,374 +32,8 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 
 
 
-//########################################################################################################//
-void atividades( const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
 
-   int i, j, len, n, c, divisor, pesos[5], conceitos[dados->qtd_alunos_total][5];
-   struct {
-      char str[200];
-   } AV[10]; // Recebe a 'string respostas' de todos os alunos de uma turma
-
-   char str[2000];
-
-   float fnota;
-   int inota;
-
-   bool teste;
-   FILE *p;
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "r" );
-   for ( i = 0; i < 10; i++ ) {
-      snprintf( AV[i].str, sizeof AV[i].str, "%s", "" );
-      if ( fgets( AV[i].str, sizeof AV[i].str, p ) == NULL ) {
-         fprintf( stderr, "Erro ao ler linha de configuração.\n" );
-      }
-   }
-   fclose( p );
-
-   snprintf( AV[2].str, sizeof AV[2].str, "%s", "" );
-   snprintf( AV[4].str, sizeof AV[4].str, "%s", "" );
-
-   sprintf( str, "%s/Notas/atividades_av2.dat", caminho->externo );
-   p = fopen( str, "r" );
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      n++;
-   }
-   rewind( p );
-   int nn = n / ( dados->qtd_alunos_total + 1 );
-
-   n = 0;
-   divisor = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      conceitos[n / nn][n % nn] = c;
-      if ( n >= dados->qtd_alunos_total * nn ) {
-         pesos[n % nn] = c;
-         divisor += 4 * c;
-      }
-      n++;
-   }
-   fclose( p );
-
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      fnota = 0.;
-      for ( j = 0; j < nn; j++ ) {
-         fnota += conceitos[i][j] * pesos[j];
-      }
-
-      fnota /= divisor;
-      inota = ( int )ceil( 10 * fnota );
-      if ( inota == 10 ) {
-         AV[2].str[i] = '#';
-      } else if ( inota == 0 ) {
-         AV[2].str[i] = '*';
-      } else {
-         AV[2].str[i] = inota + '0';
-      }
-   }
-
-   sprintf( str, "%s/Notas/atividades_av3.dat", caminho->externo );
-   p = fopen( str, "r" );
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      n++;
-   }
-   rewind( p );
-   nn = n / ( dados->qtd_alunos_total + 1 );
-
-   n = 0;
-   divisor = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      conceitos[n / nn][n % nn] = c;
-      if ( n >= dados->qtd_alunos_total * nn ) {
-         pesos[n % nn] = c;
-         divisor += 4 * c;
-      }
-      n++;
-   }
-   fclose( p );
-
-   for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-      fnota = 0.;
-      for ( j = 0; j < nn; j++ ) {
-         fnota += conceitos[i][j] * pesos[j];
-      }
-
-      fnota /= divisor;
-      inota = ( int )ceil( 10 * fnota );
-      if ( inota == 10 ) {
-         AV[4].str[i] = '#';
-      } else if ( inota == 0 ) {
-         AV[4].str[i] = '*';
-      } else {
-         AV[4].str[i] = inota + '0';
-      }
-   }
-
-
-
-   for ( i = 0; i < 9; i++ ) {
-      teste = false;
-      len = strlen( AV[i].str );
-      if ( len == 0 ) {
-         for ( j = i + 1; j < 10; j++ ) {
-            teste = teste || strlen( AV[j].str ) != 0;
-         }
-         if ( teste ) {
-            AV[i].str[0] = '\n';
-         }
-      } else if ( len == dados->qtd_alunos_total ) {
-         AV[i].str[dados->qtd_alunos_total] = '\n';
-      } else if ( len == 2 * dados->qtd_alunos_total ) {
-         AV[i].str[2 * dados->qtd_alunos_total] = '\n';
-      }
-   }
-
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "w+" );
-   for ( i = 0; i < 10; i++ ) {
-      fputs( AV[i].str, p );
-   }
-   fclose( p );
-}
-//########################################################################################################//
-
-
-
-
-
-//########################################################################################################//
-void atividadesQ( const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
-
-   int i, j, len, n, c, nquestoes[5], conceitos[dados->qtd_alunos_total][5];
-   struct {
-      char str[200];
-   } AV[10]; // Recebe a 'string respostas' de todos os alunos de uma turma
-
-   char str[2000];
-
-   float fnota;
-   int inota;
-
-   bool teste;
-   FILE *p;
-
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "r" );
-   for ( i = 0; i < 10; i++ ) {
-      snprintf( AV[i].str, sizeof AV[i].str, "%s", "" );
-      if ( fgets( AV[i].str, sizeof AV[i].str, p ) == NULL ) {
-         fprintf( stderr, "Erro ao ler linha de configuração.\n" );
-      }
-   }
-   fclose( p );
-
-   snprintf( AV[2].str, sizeof AV[2].str, "%s", "" );
-   snprintf( AV[4].str, sizeof AV[4].str, "%s", "" );
-
-   sprintf( str, "%s/Notas/atividades_av2_av3.dat", caminho->externo );
-   p = fopen( str, "r" );
-
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      n++;
-   }
-   rewind( p );
-   int nn = n / ( dados->qtd_alunos_total + 1 );
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      if ( n >= dados->qtd_alunos_total * nn ) {
-         nquestoes[n % nn] = c;
-      } else {
-         conceitos[n / nn][n % nn] = c;
-      }
-      n++;
-   }
-   fclose( p );
-
-
-   for ( j = 0; j < nn; j++ ) {
-
-      for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-
-         fnota = ( float )conceitos[i][j] / nquestoes[j];
-
-         inota = ( int )ceil( 10 * fnota );
-
-         if ( inota == 10 ) {
-            AV[2 * ( j + 1 )].str[i] = '#';
-         } else if ( inota == 0 ) {
-            AV[2 * ( j + 1 )].str[i] = '*';
-         } else {
-            AV[2 * ( j + 1 )].str[i] = inota + '0';
-         }
-
-      }
-   }
-
-
-
-
-
-
-
-
-   for ( i = 0; i < 9; i++ ) {
-      teste = false;
-      len = strlen( AV[i].str );
-      if ( len == 0 ) {
-         for ( j = i + 1; j < 10; j++ ) {
-            teste = teste || strlen( AV[j].str ) != 0;
-         }
-         if ( teste ) {
-            AV[i].str[0] = '\n';
-         }
-      } else if ( len == dados->qtd_alunos_total ) {
-         AV[i].str[dados->qtd_alunos_total] = '\n';
-      } else if ( len == 2 * dados->qtd_alunos_total ) {
-         AV[i].str[2 * dados->qtd_alunos_total] = '\n';
-      }
-   }
-
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "w+" );
-   for ( i = 0; i < 10; i++ ) {
-      fputs( AV[i].str, p );
-   }
-   fclose( p );
-}
-//########################################################################################################//
-
-
-
-
-
-//########################################################################################################//
-void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
-
-   int i, j, len, n, c, nquestoes[5], conceitos[dados->qtd_alunos_total][5];
-   struct {
-      char str[200];
-   } AV[10]; // Recebe a 'string respostas' de todos os alunos de uma turma
-
-   char str[2000];
-
-   float fnota;
-   int inota;
-
-   bool teste;
-   FILE *p;
-
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "r" );
-   for ( i = 0; i < 10; i++ ) {
-      snprintf( AV[i].str, sizeof AV[i].str, "%s", "" );
-      if ( fgets( AV[i].str, sizeof AV[i].str, p ) == NULL ) {
-         fprintf( stderr, "Erro ao ler linha de configuração.\n" );
-      }
-   }
-   fclose( p );
-
-   snprintf( AV[0].str, sizeof AV[0].str, "%s", "" );
-   snprintf( AV[2].str, sizeof AV[2].str, "%s", "" );
-   snprintf( AV[4].str, sizeof AV[4].str, "%s", "" );
-
-   sprintf( str, "%s/Notas/atividades_av1_av2_av3.dat", caminho->externo );
-   p = fopen( str, "r" );
-
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      n++;
-   }
-   rewind( p );
-   int nn = n / ( dados->qtd_alunos_total + 1 );
-
-   n = 0;
-   while ( fscanf( p, "%d", &c ) != EOF ) {
-      if ( n >= dados->qtd_alunos_total * nn ) {
-         nquestoes[n % nn] = c;
-      } else {
-         conceitos[n / nn][n % nn] = c;
-      }
-      n++;
-   }
-   fclose( p );
-
-
-   for ( j = 0; j < nn; j++ ) {
-
-      for ( i = 0; i < dados->qtd_alunos_total; i++ ) {
-
-         fnota = ( float )conceitos[i][j] / nquestoes[j];
-
-         inota = ( int )ceil( 10 * fnota );
-
-         if ( inota == 10 ) {
-            AV[2 * ( j + 0 )].str[i] = '#';
-         } else if ( inota == 0 ) {
-            AV[2 * ( j + 0 )].str[i] = '*';
-         } else {
-            AV[2 * ( j + 0 )].str[i] = inota + '0';
-         }
-
-      }
-   }
-
-
-
-
-
-
-
-
-   for ( i = 0; i < 9; i++ ) {
-      teste = false;
-      len = strlen( AV[i].str );
-      if ( len == 0 ) {
-         for ( j = i + 1; j < 10; j++ ) {
-            teste = teste || strlen( AV[j].str ) != 0;
-         }
-         if ( teste ) {
-            AV[i].str[0] = '\n';
-         }
-      } else if ( len == dados->qtd_alunos_total ) {
-         AV[i].str[dados->qtd_alunos_total] = '\n';
-      } else if ( len == 2 * dados->qtd_alunos_total ) {
-         AV[i].str[2 * dados->qtd_alunos_total] = '\n';
-      }
-   }
-
-
-   sprintf( str, "%s/avaliações.dat", caminho->dados );
-
-   p = fopen( str, "w+" );
-   for ( i = 0; i < 10; i++ ) {
-      fputs( AV[i].str, p );
-   }
-   fclose( p );
-}
-//########################################################################################################//
-
-
-
-
-
-//########################################################################################################//
+//==================================================================================================
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
@@ -443,8 +77,8 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
             continue;
          }
 
-         float nota_av  = aluno->nota[foco->periodo][avaliacao_idx].av;
-         float nota_rec = aluno->nota[foco->periodo][avaliacao_idx].rec;
+         float nota_av  = aluno->nota[foco->disciplina][foco->periodo][avaliacao_idx].av;
+         float nota_rec = aluno->nota[foco->disciplina][foco->periodo][avaliacao_idx].rec;
 
          // j par = Avaliação (av); j ímpar = Recuperação (rec)
          float nota_atual = ( j % 2 == 0 ) ? nota_av : nota_rec;
@@ -466,7 +100,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 
    fclose( p );
 }
-//########################################################################################################//
+//==================================================================================================
 
 
 
@@ -474,8 +108,10 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 
 
 
-//########################################################################################################//
-static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx ) {
+//===================================================================================================
+// BLOCO que gera o relatório de médias das avaliações
+//===================================================================================================
+static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, const gboolean validas[5] ) {
    g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados *dados = &( ctx->dados );
    const FocoCoordenadas *foco = &( ctx->cascata.foco );
@@ -532,21 +168,43 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx )
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
-      char s_notas[10][8] = {0};
-      char s_med[8] = {0};
 
-      // Extrai e converte as 5 avaliações
+      // Matriz zerada garante que células puladas fiquem em branco no LaTeX
+      char s_notas[10][32] = {0};
+      char s_med[32] = {0};
+
+      // Extrai e converte APENAS as avaliações marcadas como válidas
       for ( int k = 0; k < 5; k++ ) {
-         float av  = ficha->nota[foco->periodo][k].av;
-         float rec = ficha->nota[foco->periodo][k].rec;
+         if ( !validas[k] ) continue; // Máscara: ignora avaliações desativadas no ComboBox
 
-         if ( av >= 0.0f ) snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "%.1f", av );
-         if ( rec >= 0.0f ) snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "%.1f", rec );
+         float av  = ficha->nota[foco->disciplina][foco->periodo][k].av;
+         float rec = ficha->nota[foco->disciplina][foco->periodo][k].rec;
+
+         if ( av >= 0.0f ) {
+            if ( ficha->ativo ) {
+               snprintf( s_notas[k*2], sizeof(s_notas[0]), "{\\textcolor{%s}{%.1f}}", (av < 6.0f) ? "red" : "black" , av );
+            } else {
+               snprintf( s_notas[k*2], sizeof(s_notas[0]), "{\\textcolor{gray!70}{%.1f}}", av );
+            }
+         }
+
+         if ( rec >= 0.0f ) {
+            if ( ficha->ativo ) {
+               snprintf( s_notas[k*2+1], sizeof( s_notas[0] ), "{\\textcolor{%s}{%.1f}}", (rec<6.0f) ? "red" : "black", rec);
+            } else {
+               snprintf( s_notas[k*2+1], sizeof(s_notas[0]), "{\\textcolor{gray!70}{%.1f}}", rec );
+            }
+         }
       }
 
-      // Extrai a média processada na função principal
-      float med = ficha->relatorio[foco->periodo];
-      if ( med >= 0.0f ) snprintf( s_med, sizeof( s_med ), "%.2f", med );
+      float med = ficha->relatorio[foco->disciplina][foco->periodo];
+      if ( med >= 0.0f ) {
+         if ( ficha->ativo ) {
+            snprintf( s_med, sizeof( s_med ), "{\\textcolor{%s}{%.2f}}", (med < 6.0f) ? "red" : "black", med );
+         } else {
+            snprintf( s_med, sizeof( s_med ), "{\\textcolor{gray!70}{%.2f}}", med );
+         }
+      }
 
       if ( ficha->ativo ) {
          fprintf( p, "%.2d & %.*s &%s&%s&%s&%s&%s&%s&%s&%s&%s&%s&{\\bf %s} \\\\\\hline\n",
@@ -575,9 +233,40 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx )
 
    fclose( p );
 }
+//---------------------------------------------------------------------------------------------
+static int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
+   g_return_val_if_fail( GTK_IS_COMBO_BOX( combo ), 0 );
 
+   // Inicializa o vetor de segurança (todas desativadas por padrão)
+   for ( int i = 0; i < 5; i++ ) validas[i] = FALSE;
+
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   if ( !model ) return 0;
+
+   GtkTreeIter iter;
+   int qtd_validas = 0;
+   int idx = 0;
+
+   if ( gtk_tree_model_get_iter_first( model, &iter ) ) {
+      do {
+         if ( idx >= 5 ) break; // Proteção estrita contra estouro de limite
+
+         gboolean desativada = FALSE;
+         gtk_tree_model_get( model, &iter, 1, &desativada, -1 );
+
+         if ( !desativada ) {
+            validas[idx] = TRUE;
+            qtd_validas++;
+         }
+         idx++;
+      } while ( gtk_tree_model_iter_next( model, &iter ) );
+   }
+
+   return qtd_validas;
+}
+//---------------------------------------------------------------------------------------------
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel && ctx && ctx->fichas );
+   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
 
    const InterfaceDados   *dados   = &ctx->dados;
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
@@ -585,53 +274,47 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
    gerar_arquivo_siaep_notas( ctx );
 
-   gboolean avaliacao_ativa[5] = { FALSE, FALSE, FALSE, FALSE, FALSE };
-   float soma_notas[dados->qtd_alunos_total];
+   // 1. Obtém o mapa exato de quais avaliações estão ativas
+   gboolean validas[5];
+   int qtd_avaliacoes_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+   float divisor = ( qtd_avaliacoes_validas > 0 ) ? (float)qtd_avaliacoes_validas : 1.0f;
 
-   // 1. Varredura e Identificação de colunas ativas
-   for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      soma_notas[i] = 0.0f;
+   // 2. Cálculo da Média (Varredura blindada)
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      float soma_notas = 0.0f;
 
       for ( int j = 0; j < 5; j++ ) {
-         float av  = ficha->nota[foco->periodo][j].av;
-         float rec = ficha->nota[foco->periodo][j].rec;
+         // Se a avaliação [j] estiver desativada, não entra na soma matemática
+         if ( !validas[j] ) continue;
 
-         if ( av >= 0.0f || rec >= 0.0f ) {
-            avaliacao_ativa[j] = TRUE;
-         }
+         float av  = ficha->nota[foco->disciplina][foco->periodo][j].av;
+         float rec = ficha->nota[foco->disciplina][foco->periodo][j].rec;
 
          float max_nota = MAX( av, rec );
-         soma_notas[i] += ( max_nota < 0.0f ) ? 0.0f : max_nota;
+         if ( max_nota >= 0.0f ) {
+            soma_notas += max_nota;
+         }
+      }
+
+      if ( qtd_avaliacoes_validas == 0 ) {
+         ficha->relatorio[foco->disciplina][foco->periodo] = -1.0f;
+      } else {
+         ficha->relatorio[foco->disciplina][foco->periodo] = soma_notas / divisor;
       }
    }
 
-   // 2. Cálculo do Divisor
-   int qtd_avaliacoes_validas = 0;
-   for ( int j = 0; j < 5; j++ ) {
-      if ( avaliacao_ativa[j] ) qtd_avaliacoes_validas++;
-   }
-
-   float divisor = ( qtd_avaliacoes_validas > 0 ) ? ( float )qtd_avaliacoes_validas : 1.0f;
-
-   // 3. Preenchimento da Média Final
-   for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
-      // Se não houver avaliações válidas na turma inteira, assina -1.0f para ocultar no TeX
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      ficha->relatorio[foco->periodo] = ( qtd_avaliacoes_validas == 0 ) ? -1.0f : ( soma_notas[i] / divisor );
-   }
-
-   // Chamada direta do Gerador LaTeX (Matrizes Strings obsoletas removidas)
-   gerar_tex_avaliacoes( "avaliações", ctx );
+   // 3. Repassa o mapa de avaliações para o Gerador LaTeX
+   gerar_tex_avaliacoes( "avaliações", ctx, validas );
    disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
 }
-//########################################################################################################//
+//==================================================================================================
 
 
 
 
 
-//########################################################################################################//
+//==================================================================================================
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
    ( void )painel;
 
@@ -830,13 +513,13 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
    disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
 
 }
-//########################################################################################################//
+//==================================================================================================
 
 
 
 
 
-//########################################################################################################//
+//==================================================================================================
 static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx, GString *def_dia, GString *def_pres, GString *def_falt, GString *def_alunos, GString *def_num, int *ndias, int *meses_idx ) {
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n" );
 
@@ -1151,7 +834,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
    disparar_latex( "Frequência", caminho->relatorios, dados, caminho );
 }
-//########################################################################################################//
+//==================================================================================================
 
 
 
@@ -1337,7 +1020,7 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    g_file_set_contents( caminho_saida, tex->str, -1, NULL );
 }
 
-//########################################################################################################//
+//==================================================================================================
 void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel && ctx );
 
@@ -1362,7 +1045,7 @@ void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    // 4. Dispara o compilador
    disparar_latex( "Conteúdos", caminho->relatorios, dados, caminho );
 }
-//########################################################################################################//
+//==================================================================================================
 
 
 

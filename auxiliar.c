@@ -126,6 +126,45 @@ void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, i
 
 
 
+//=========================================================================================================
+int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) {
+   g_return_val_if_fail( ctx != NULL, 0 );
+
+   for ( int i = 0; i < qtd_disciplinas; i++ ) {
+
+      g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
+                                                    ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+
+      // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
+      if ( !diretorio_esta_vazio( caminho ) ) {
+         return i;
+      }
+   }
+
+   // Fallback: se tudo estiver vazio, para no primeiro item para o GTK não quebrar
+   return 0;
+}
+//---------------------------------------------------------------------------------------------------------
+void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
+   g_return_if_fail( store && iter && dados );
+
+   const AppContext *ctx = ( const AppContext * )dados;
+
+   // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
+   g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
+                                                    ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+
+   gboolean riscar = diretorio_esta_vazio( caminho );
+
+   gtk_list_store_set( store, iter,
+                       0,  ctx->listas.disciplinas[i].str,
+                       1, !riscar,         // Sensibilidade (TRUE = habilitado)
+                       2,  riscar, -1 );   // Riscar nome
+}
+//=========================================================================================================
+
+
+
 
 int quantidade_diretorios( const char *diretorio ) {
    g_return_val_if_fail( diretorio, 0 );

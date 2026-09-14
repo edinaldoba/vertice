@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h> // Certifique-se de incluir para ter acesso às chaves GDK_KEY_*
 
+#include "auxiliar.h"
 #include "signals.h"
 #include "callbacks.h"
 #include "comum.h"
@@ -94,11 +95,14 @@ void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
 
    if ( !turma_mudou ) return;
 
-   popular_combo_box_text( ctx->entry.disciplina, ctx->listas.disciplinas, 0,
-                           ctx->cascata.limite.disciplinas, ctx->handlers.disciplina );
+   int foco = obter_foco_inicial_disciplina( ctx, ctx->cascata.limite.disciplinas );
+   popular_combo_box_generico( ctx->entry.disciplina, ctx, ctx->cascata.limite.disciplinas, foco,
+                               ctx->handlers.disciplina, mapear_disciplinas );
+
+   // popular_combo_box_text( ctx->entry.disciplina, ctx->listas.disciplinas, 0,
+                           // ctx->cascata.limite.disciplinas, ctx->handlers.disciplina );
    on_entry_atualizar_disciplina_interface_changed( NULL, ctx );
 }
-
 
 
 
@@ -106,17 +110,31 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   ctx->cascata.foco.disciplina = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->entry.disciplina ) );
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->entry.disciplina );
+
+   // 1. Atualiza o foco numérico
+   ctx->cascata.foco.disciplina = gtk_combo_box_get_active( combo );
    if ( ctx->cascata.foco.disciplina < 0 || ctx->listas.disciplinas == NULL ) return;
 
-   gchar *disciplina_selecionada = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->entry.disciplina ) );
+   // 2. Obtém o modelo e o iterador da linha atualmente selecionada no GtkComboBox
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkTreeIter iter;
+
+   if ( !gtk_combo_box_get_active_iter( combo, &iter ) ) return;
+
+   // 3. Extrai a string da Coluna 0 (Nome da disciplina)
+   gchar *disciplina_selecionada = NULL;
+   gtk_tree_model_get( model, &iter, 0, &disciplina_selecionada, -1 );
+
    if ( !disciplina_selecionada ) return;
 
+   // 4. Executa a atualização da interface
    gboolean clique_real = ( widget != NULL );
    atualizar_disciplina_interface( ctx, disciplina_selecionada, !clique_real );
+
+   // 5. Libera a string alocada por gtk_tree_model_get
    g_free( disciplina_selecionada );
 }
-
 
 
 

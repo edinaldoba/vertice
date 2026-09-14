@@ -4,6 +4,7 @@
 #include "comum.h"
 #include "interface.h"
 
+gboolean diretorio_esta_vazio( const gchar *caminho );
 
 void gerar_sementes( guint32 *sementes );
 int* randperm( int n );

@@ -27,6 +27,46 @@
 
 
 
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Verifica se um diretório está vazio usando GDir nativo da GLib
+// Retorna TRUE se o diretório estiver vazio, FALSE caso contrário ou em erro.
+//===================================================================================================
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Verifica se um diretório no sistema de arquivos está vazio
+//===================================================================================================
+gboolean diretorio_esta_vazio( const gchar *caminho ) {
+   g_return_val_if_fail( caminho != NULL && *caminho != '\0', FALSE );
+
+   g_autoptr( GError ) erro = NULL;
+   g_autoptr( GDir ) dir = g_dir_open( caminho, 0, &erro );
+
+   // Se não conseguiu abrir (diretório inexistente, sem acesso ou erro de E/S)
+   if ( !dir ) {
+      if ( erro ) {
+         g_printerr( "Aviso: Falha ao abrir diretório '%s': %s\n", caminho, erro->message );
+      }
+      return FALSE;
+   }
+
+   const gchar *item = NULL;
+
+   // Percorre apenas até encontrar o primeiro arquivo ou subdiretório válido
+   while ( ( item = g_dir_read_name( dir ) ) != NULL ) {
+      // Ignora links para o diretório atual e superior (caso retornados)
+      if ( g_strcmp0( item, "." ) == 0 || g_strcmp0( item, ".." ) == 0 ) {
+         continue;
+      }
+
+      // Encontrou pelo menos um item válido -> O diretório NÃO está vazio
+      return FALSE;
+   }
+
+   // Se o laço encerrou sem encontrar itens, o diretório está vazio
+   return TRUE;
+}
+
+
+
 
 void gerar_sementes( guint32 *sementes ) {
    g_return_if_fail( sementes );

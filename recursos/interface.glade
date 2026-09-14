@@ -69,6 +69,16 @@
       <column type="gboolean"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="liststore_combo_disciplinas">
+    <columns>
+      <!-- column-name disciplina -->
+      <column type="gchararray"/>
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
   <object class="GtkListStore" id="liststore_conteudo">
     <columns>
       <!-- column-name data -->
@@ -164,9 +174,18 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkComboBoxText" id="combo_disciplina">
+                      <object class="GtkComboBox" id="combo_disciplina">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="model">liststore_combo_disciplinas</property>
+                        <child>
+                          <object class="GtkCellRendererText"/>
+                          <attributes>
+                            <attribute name="sensitive">1</attribute>
+                            <attribute name="strikethrough">2</attribute>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">True</property>

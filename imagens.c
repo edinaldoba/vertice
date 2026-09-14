@@ -665,7 +665,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
             int iprova = map->seq;
 
             if ( periodo >= 0 && periodo <= 4 ) {
-               ficha->nota[periodo][2 * iprova - 2].av = (float)nota;
+               ficha->nota[foco->disciplina][periodo][2 * iprova - 2].av = (float)nota;
             }
          }
 

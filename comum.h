@@ -237,6 +237,37 @@ typedef struct {
    RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
 } __attribute__( ( packed ) ) RegistroDiario;
 
+// typedef struct {
+//    uint32_t cod_aluno;
+//    char aluno[64];      // Nome do aluno
+//    char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
+//    char nasc[16];       // Data de nascimento do aluno
+//    TipoAtipico atipico; // Condição de adaptação curricular
+//
+//    // Dados preenchidos a posteriori conforme período selecionado
+//    SituacaoAluno sit;   // Situação do aluno
+//    gboolean ativo;      // Status de matrícula global
+//
+//    int limite_corte;    // Formatação de impressão
+//    int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
+//
+//    //-- FREQUÊNCIA
+//    int presencas[4];     // [4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
+//    int ausencias[4];     // [4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
+//
+//    //-- AVALIAÇÕES (NOTAS)
+//    struct {
+//       float av;
+//       float rec;
+//    } nota[4][5];         // [4 Períodos][5 Avaliações]
+//
+//    float rec_final;
+//    float conselho;
+//
+//    float relatorio[6];   // Médias dos 4 períodos + rec. final + conselho
+//
+// } __attribute__( ( packed ) ) FichaAluno;
+
 typedef struct {
    uint32_t cod_aluno;
    char aluno[64];      // Nome do aluno
@@ -252,19 +283,19 @@ typedef struct {
    int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
 
    //-- FREQUÊNCIA
-   int presencas[4];     // [4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
-   int ausencias[4];     // [4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
+   int presencas[20][4];     // [20 disciplinas][4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
+   int ausencias[20][4];     // [20 disciplinas][4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
 
    //-- AVALIAÇÕES (NOTAS)
    struct {
       float av;
       float rec;
-   } nota[4][5];         // [4 Períodos][5 Avaliações]
+   } nota[20][4][5];         // [20 disciplinas][4 Períodos][5 Avaliações]
 
-   float rec_final;
-   float conselho;
+   float rec_final[20];   // [20 disciplinas]
+   float conselho[20];    // [20 disciplinas]
 
-   float relatorio[6];   // Médias dos 4 períodos + rec. final + conselho
+   float relatorio[20][6];   // [20 disciplinas][6 notas] Médias dos 4 períodos + rec. final + conselho
 
 } __attribute__( ( packed ) ) FichaAluno;
 

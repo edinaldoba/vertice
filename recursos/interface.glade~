@@ -69,6 +69,16 @@
       <column type="gboolean"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="liststore_combo_disciplinas">
+    <columns>
+      <!-- column-name disciplina -->
+      <column type="gchararray"/>
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
   <object class="GtkListStore" id="liststore_conteudo">
     <columns>
       <!-- column-name data -->
@@ -164,9 +174,10 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkComboBoxText" id="combo_disciplina">
+                      <object class="GtkComboBox" id="combo_disciplina">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="model">liststore_combo_disciplinas</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -1070,7 +1081,6 @@
                                       <attributes>
                                         <attribute name="strikethrough">12</attribute>
                                         <attribute name="text">1</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1087,7 +1097,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">2</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1104,7 +1113,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">3</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1121,7 +1129,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">4</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1138,7 +1145,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">5</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1155,7 +1161,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">6</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1172,7 +1177,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">7</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1189,7 +1193,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">8</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1206,7 +1209,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">9</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1223,7 +1225,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">10</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>
@@ -1240,7 +1241,6 @@
                                       </object>
                                       <attributes>
                                         <attribute name="text">11</attribute>
-                                        <attribute name="foreground-rgba">13</attribute>
                                       </attributes>
                                     </child>
                                   </object>

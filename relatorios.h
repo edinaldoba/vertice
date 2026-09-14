@@ -20,11 +20,6 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx );
 void abrir_arquivos_de_dados( InterfacePainel *painel, const AppContext *ctx );
 
-
-void atividades( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
-void atividadesQ( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
-void atividadesQT( const InterfaceDados *dados, const CaminhoDiretorio *caminho );
-
 void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arquivo_base,
                              const InterfaceDados *dados, const CaminhoDiretorio *caminho );
 

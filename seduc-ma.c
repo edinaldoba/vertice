@@ -272,17 +272,19 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
          FichaAluno ficha = {0};
          ficha.idx = i;
 
-         for ( int ii = 0; ii < 4; ii++ ) {
-            for ( int jj = 0; jj < 5; jj++ ) {
-               ficha.nota[ii][jj].av = -1.0f;
-               ficha.nota[ii][jj].rec = -1.0f;
+         for ( int k = 0; k < 20; k++ ) {
+            for ( int ii = 0; ii < 4; ii++ ) {
+               for ( int jj = 0; jj < 5; jj++ ) {
+                  ficha.nota[k][ii][jj].av = -1.0f;
+                  ficha.nota[k][ii][jj].rec = -1.0f;
+               }
             }
+            for ( int ii = 0; ii < 6; ii++ ) {
+               ficha.relatorio[k][ii] = -1.0f;
+            }
+            ficha.rec_final[k] = -1.0f;
+            ficha.conselho[k] = -1.0f;
          }
-         for ( int ii = 0; ii < 6; ii++ ) {
-            ficha.relatorio[ii] = -1.0f;
-         }
-         ficha.rec_final = -1.0f;
-         ficha.conselho = -1.0f;
 
          g_autofree char *nome_formatado = converter_nome_proprio( siaep.aluno );
          ficha.limite_corte = obter_limite_corte_nome( layout, nome_formatado );

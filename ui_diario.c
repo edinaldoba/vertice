@@ -1564,6 +1564,8 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          // Aponta para a ficha específica do aluno na memória
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 
+         if ( !ficha->ativo ) continue; // Nenhuma turma pode modificar o binário de seus alunos inativos
+
          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
          g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
 
@@ -1684,10 +1686,11 @@ static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, 
    gboolean is_rec = ( col_model_index % 2 != 0 );
 
    // 4. Injeção atômica do valor
+   int foco = ctx->cascata.foco.disciplina;
    if ( is_rec ) {
-      ficha->nota[periodo][av_index].rec = valor_nota;
+      ficha->nota[foco][periodo][av_index].rec = valor_nota;
    } else {
-      ficha->nota[periodo][av_index].av = valor_nota;
+      ficha->nota[foco][periodo][av_index].av = valor_nota;
    }
 }
 //-------------------------------------------------------------------------------------------------------------
@@ -1749,7 +1752,6 @@ void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *pat
 // FUNÇÃO AUXILIAR: Cola múltiplas notas na coluna a partir da célula atual
 //===================================================================================================
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column ) {
-   // 1. Pede o texto da área de transferência
    GtkClipboard *clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
    gchar *text = gtk_clipboard_wait_for_text( clipboard );
    if ( !text ) return;
@@ -1757,7 +1759,6 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
    GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
 
-   // Criamos uma cópia do path para iterar sem alterar o ponteiro original da navegação
    GtkTreePath *current_path = gtk_tree_path_copy( start_path );
    GtkTreeIter iter;
 
@@ -1767,7 +1768,6 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
       return;
    }
 
-   // 2. Descobre o renderizador correto
    GList *cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( column ) );
    if ( !cells ) {
       gtk_tree_path_free( current_path );
@@ -1777,24 +1777,31 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
    GtkCellRendererText *renderer = GTK_CELL_RENDERER_TEXT( cells->data );
    g_list_free( cells );
 
-   // 3. Fatiamento das linhas copiadas
    gchar **linhas = g_strsplit( text, "\n", -1 );
    int i = 0;
 
-   // 4. Se a célula estiver aberta (GtkEntry), atualiza a caixa de texto também
+   // 4. Bloco do GtkEntry: Aplica a nota se o aluno da linha atual for ativo
    if ( GTK_IS_ENTRY( widget ) && linhas[0] != NULL ) {
       gchar *nota_str = g_strstrip( linhas[0] );
-
-      // Atualiza a visualização do editor ativo
-      gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
-
-      // Converte o path para string e passa pela sua função mágica de validação!
       gchar *path_str = gtk_tree_path_to_string( current_path );
-      renderizar_nota( ctx, renderer, path_str, nota_str );
-      g_free( path_str );
 
-      i = 1; // Marca a primeira linha como processada
-      gtk_tree_path_next( current_path ); // Avança para a linha de baixo
+      // Captura a correspondência absoluta do aluno pela interface
+      gint *indices = gtk_tree_path_get_indices( current_path );
+      if ( indices && ( guint )indices[0] < ctx->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, indices[0] );
+
+         if ( ficha->ativo ) {
+            gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
+            renderizar_nota( ctx, renderer, path_str, nota_str );
+         } else {
+            // Limpa o entry visual se o aluno colado for inativo (proteção de interface)
+            gtk_entry_set_text( GTK_ENTRY( widget ), "" );
+         }
+      }
+
+      g_free( path_str );
+      i = 1;
+      gtk_tree_path_next( current_path );
 
       if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
          gtk_tree_path_free( current_path );
@@ -1804,27 +1811,31 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
       }
    }
 
-   // 5. Preenche as linhas seguintes usando a validação e sincronização oficiais
+   // 5. Preenche as linhas seguintes mapeando o Path ao GArray corretamente
    while ( linhas[i] != NULL ) {
       gchar *nota_str = g_strstrip( linhas[i] );
 
-      // Ignora o \n final vazio (comportamento do Excel)
       if ( linhas[i+1] == NULL && strlen( nota_str ) == 0 ) break;
 
       gchar *path_str = gtk_tree_path_to_string( current_path );
+      gint *indices = gtk_tree_path_get_indices( current_path );
 
-      // REAPROVEITAMENTO: Toda nota colada será validada, formatada (%.2f) e sincronizada!
-      renderizar_nota( ctx, renderer, path_str, nota_str );
+      // Verifica o aluno correspondente à linha do GTK iterada, e NÃO pela variável 'i'
+      if ( indices && ( guint )indices[0] < ctx->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, indices[0] );
+
+         if ( ficha->ativo ) {
+            renderizar_nota( ctx, renderer, path_str, nota_str );
+         }
+      }
+
       g_free( path_str );
-
       i++;
       gtk_tree_path_next( current_path );
 
-      // Interrompe se acabar a lista de alunos
       if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) break;
    }
 
-   // Limpeza de memória
    gtk_tree_path_free( current_path );
    g_strfreev( linhas );
    g_free( text );
@@ -1896,6 +1907,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    // 1. Limpa o modelo inteiro para receber os dados do novo período
    gtk_list_store_clear( store );
 
+   int foco = ctx->cascata.foco.disciplina;
+
    // 2. Percorre o GArray reconstruindo as linhas do zero
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
@@ -1907,8 +1920,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
       // Constrói as strings para os 5 pares de notas
       for ( int av = 0; av < 5; av++ ) {
-         float nota_av = ficha->nota[periodo][av].av;
-         float nota_rec = ficha->nota[periodo][av].rec;
+         float nota_av = ficha->nota[foco][periodo][av].av;
+         float nota_rec = ficha->nota[foco][periodo][av].rec;
          int base = av * 2;
 
          if ( nota_av >= 0.0f ) {
@@ -1950,6 +1963,12 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
          g_list_free( renderers );
       }
+   }
+
+   GtkTreePath *path_novo = gtk_tree_path_new_from_indices( 0, -1 );
+   if ( path_novo ) {
+      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes ), path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_path_free( path_novo );
    }
 }
 
