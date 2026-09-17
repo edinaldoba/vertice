@@ -12,6 +12,7 @@
 
 # 3. Regra restritiva para a pasta 'suporte/'
 # Primeiro: Bloqueia TUDO dentro de suporte/
+dados/backup/*
 suporte/*
 dados/alunos/*
 planilhas/*
