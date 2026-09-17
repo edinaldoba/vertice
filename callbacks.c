@@ -99,8 +99,6 @@ void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
    popular_combo_box_generico( ctx->entry.disciplina, ctx, ctx->cascata.limite.disciplinas, foco,
                                ctx->handlers.disciplina, mapear_disciplinas );
 
-   // popular_combo_box_text( ctx->entry.disciplina, ctx->listas.disciplinas, 0,
-                           // ctx->cascata.limite.disciplinas, ctx->handlers.disciplina );
    on_entry_atualizar_disciplina_interface_changed( NULL, ctx );
 }
 
@@ -736,7 +734,6 @@ void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer use
 
 
 
-//===================================================================================================
 //===================================================================================================
 // INTERCEPTADOR DE COLAGEM: Redireciona o "Colar" nativo para a nossa função em lote
 //===================================================================================================

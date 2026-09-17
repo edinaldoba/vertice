@@ -1564,15 +1564,18 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          // Aponta para a ficha específica do aluno na memória
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 
-         if ( !ficha->ativo ) continue; // Nenhuma turma pode modificar o binário de seus alunos inativos
+         if ( !ficha->ativo || !ficha->ficha_modificada ) {
+            continue;
+         }
 
          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
          g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
 
          // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
-         _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
+         salvou_algo = _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
+
+         ficha->ficha_modificada = !salvou_algo;
       }
-      salvou_algo = TRUE;
    }
 
    // Atualização do diretório de salvamento
@@ -1583,6 +1586,59 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    }
    return salvou_algo;
 }
+
+// gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
+//    g_return_val_if_fail( ctx, FALSE );
+//
+//    gboolean salvou_algo = FALSE;
+//
+//    if ( ctx->fichas != NULL ) {
+//       for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+//          // Aponta para a ficha específica do aluno na memória
+//          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+//
+//          if ( !ficha->ativo ) continue; // Nenhuma turma pode modificar o binário de seus alunos inativos
+//
+//          //--------------- Transição de arquitetura ---------------------------------
+//          FichaAlunoAux ficha_aux = {0};
+//          ficha_aux.cod_aluno = ficha->cod_aluno;
+//          g_strlcpy( ficha_aux.aluno, ficha->aluno, sizeof( ficha_aux.aluno ) );
+//          g_strlcpy( ficha_aux.sexo, ficha->sexo, sizeof( ficha_aux.sexo ) );
+//          g_strlcpy( ficha_aux.nasc, ficha->nasc, sizeof( ficha_aux.nasc ) );
+//          ficha_aux.atipico = ficha->atipico;
+//          ficha_aux.sit = ficha->sit;
+//          ficha_aux.ativo = ficha->ativo;
+//          ficha_aux.limite_corte = ficha->limite_corte;
+//          ficha_aux.idx = ficha->idx;
+//
+//          // Copia blocos de frequência e notas
+//          memcpy( ficha_aux.presencas, ficha->presencas, sizeof( ficha_aux.presencas ) );
+//          memcpy( ficha_aux.ausencias, ficha->ausencias, sizeof( ficha_aux.ausencias ) );
+//          memcpy( ficha_aux.nota, ficha->nota, sizeof( ficha_aux.nota ) );
+//          memcpy( ficha_aux.rec_final, ficha->rec_final, sizeof( ficha_aux.rec_final ) );
+//          memcpy( ficha_aux.conselho, ficha->conselho, sizeof( ficha_aux.conselho ) );
+//          memcpy( ficha_aux.relatorio, ficha->relatorio, sizeof( ficha_aux.relatorio ) );
+//
+//          ficha_aux.ficha_modificada = FALSE; // Reseta a flag na struct auxiliar
+//          //-------------------------------------------------------------------------
+//
+//          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
+//          g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
+//
+//          // Salva diretamente o bloco da struct auxiliar
+//          _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
+//       }
+//       salvou_algo = TRUE;
+//    }
+//
+//    // Atualização do diretório de salvamento
+//    if ( !final_save ) {
+//       g_free( ctx->dir_save_fichas );
+//       ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
+//                                                ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+//    }
+//    return salvou_algo;
+// }
 
 
 
@@ -1692,6 +1748,7 @@ static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, 
    } else {
       ficha->nota[foco][periodo][av_index].av = valor_nota;
    }
+   ficha->ficha_modificada = TRUE;
 }
 //-------------------------------------------------------------------------------------------------------------
 void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *path_string, gchar *new_text ) {

@@ -28,31 +28,30 @@
 
 
 //===================================================================================================
-// FUNÇÃO AUXILIAR: Verifica se um diretório está vazio usando GDir nativo da GLib
-// Retorna TRUE se o diretório estiver vazio, FALSE caso contrário ou em erro.
-//===================================================================================================
-//===================================================================================================
 // FUNÇÃO AUXILIAR: Verifica se um diretório no sistema de arquivos está vazio
 //===================================================================================================
 gboolean diretorio_esta_vazio( const gchar *caminho ) {
-   g_return_val_if_fail( caminho != NULL && *caminho != '\0', FALSE );
+   g_return_val_if_fail( caminho != NULL && *caminho != '\0', TRUE );
+
+   // 1. OTIMIZAÇÃO: Se a pasta nem sequer existe, é o mesmo que estar "vazia" para a UI.
+   // Isso evita que o g_dir_open gere erros internos pesados.
+   if ( !g_file_test( caminho, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR ) ) {
+      return TRUE;
+   }
 
    g_autoptr( GError ) erro = NULL;
    g_autoptr( GDir ) dir = g_dir_open( caminho, 0, &erro );
 
-   // Se não conseguiu abrir (diretório inexistente, sem acesso ou erro de E/S)
+   // 2. Se não conseguiu abrir (ex: sem permissão de leitura)
    if ( !dir ) {
-      if ( erro ) {
-         g_printerr( "Aviso: Falha ao abrir diretório '%s': %s\n", caminho, erro->message );
-      }
-      return FALSE;
+      // SILENCIADO: Sem g_printerr para não travar a Main Loop do GTK.
+      return TRUE; // Consideramos vazia para desabilitar a opção no combo.
    }
 
    const gchar *item = NULL;
 
-   // Percorre apenas até encontrar o primeiro arquivo ou subdiretório válido
+   // 3. Percorre apenas até encontrar o primeiro arquivo válido
    while ( ( item = g_dir_read_name( dir ) ) != NULL ) {
-      // Ignora links para o diretório atual e superior (caso retornados)
       if ( g_strcmp0( item, "." ) == 0 || g_strcmp0( item, ".." ) == 0 ) {
          continue;
       }
@@ -61,7 +60,7 @@ gboolean diretorio_esta_vazio( const gchar *caminho ) {
       return FALSE;
    }
 
-   // Se o laço encerrou sem encontrar itens, o diretório está vazio
+   // Se o laço encerrou sem encontrar itens, o diretório está de fato vazio
    return TRUE;
 }
 

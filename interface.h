@@ -272,6 +272,7 @@ typedef struct {
 
    GArray *diarios; // Substitui o ponteiro cru. O motor GLib fará a gestão da RAM.
    GArray *fichas;
+   // gboolean fichas_modificadas; // Reseta a flag
    GArray *avaliacoes;
 
    // --- CONTROLE DE AUTOSAVE ---

@@ -272,7 +272,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
          FichaAluno ficha = {0};
          ficha.idx = i;
 
-         for ( int k = 0; k < 20; k++ ) {
+         for ( int k = 0; k < QTD_DISC; k++ ) {
             for ( int ii = 0; ii < 4; ii++ ) {
                for ( int jj = 0; jj < 5; jj++ ) {
                   ficha.nota[k][ii][jj].av = -1.0f;

@@ -488,6 +488,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
          temp_ficha.idx = i;
          temp_ficha.sit = acesso->sit;
          temp_ficha.ativo = acesso->ativo;
+         temp_ficha.ficha_modificada = FALSE;
 
          if ( temp_ficha.ativo ) {
             dados->qtd_alunos_ativos++;

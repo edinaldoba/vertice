@@ -932,6 +932,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    acessar_e_carregar_ficha_dos_alunos_da_turma( ctx );
 
+   carregar_notas_ui_por_periodo( ctx );
+
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
    int foco = obter_foco_inicial( limite, ctx );
@@ -966,9 +968,6 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    }
 
    iniciar_autosave_diario( ctx, 5 );
-
-   carregar_notas_ui_por_periodo( ctx );
-
 
    painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
                               dados->escola, dados->turma, dados->disciplina, dados->ano, dados->periodo[0],

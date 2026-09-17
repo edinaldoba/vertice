@@ -1066,6 +1066,102 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 
 
 
+
+//===================================================================================================
+// FUNÇÃO: Filtragem Flat-Field Mágica para Imagens em Tons de Cinza (Otimizada)
+//===================================================================================================
+void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int raio_blur ) {
+   if ( !orig || !orig->image || !dest ) return;
+
+   int rows = orig->nrow;
+   int cols = orig->ncol;
+
+   // 1. Aloca a estrutura da imagem de destino se necessário
+   if ( dest->image == NULL ) {
+      dest->nrow = orig->nrow;
+      dest->ncol = orig->ncol;
+      dest->max = orig->max;
+      snprintf( dest->key, sizeof( dest->key ), "%s", orig->key );
+      dest->image = alocar_matriz_pixels( rows, cols );
+   }
+
+   // 2. Passo A: Desfoque Separável
+   ImagemCinza fundo_h = {0};
+   ImagemCinza fundo   = {0};
+   fundo_h.image = alocar_matriz_pixels( rows, cols );
+   fundo.image   = alocar_matriz_pixels( rows, cols );
+
+   // Pré-calcula a quantidade de vizinhos
+   int qtd_vizinhos = 0;
+   for ( int d = -raio_blur; d <= raio_blur; d += 2 ) qtd_vizinhos++;
+
+   // 2.1 Desfoque Horizontal (Linhas)
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+         long soma = 0;
+
+         for ( int dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
+            int nc = c + dc;
+            if ( nc < 0 ) nc = 0;
+            else if ( nc >= cols ) nc = cols - 1;
+
+            soma += orig->image[r][nc];
+         }
+         fundo_h.image[r][c] = ( int )( soma / qtd_vizinhos );
+      }
+   }
+
+   // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
+   // #pragma omp parallel for schedule(dynamic)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+         long soma = 0;
+
+         for ( int dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
+            int nr = r + dr;
+            if ( nr < 0 ) nr = 0;
+            else if ( nr >= rows ) nr = rows - 1;
+
+            soma += fundo_h.image[nr][c];
+         }
+         fundo.image[r][c] = ( int )( soma / qtd_vizinhos );
+      }
+   }
+
+   // 3. Passo B: Normalização Flat-Field Otimizada
+   // Calcula o limiar de branco (equivalente a 230 em uma escala de 255)
+   int limiar_branco = ( orig->max * 230 ) / 255;
+
+   // #pragma omp parallel for schedule(static)
+   for ( int r = 0; r < rows; r++ ) {
+      for ( int c = 0; c < cols; c++ ) {
+
+         // Acesso direto ao valor do pixel em cinza
+         int po = orig->image[r][c];
+         int pf = fundo.image[r][c];
+
+         // Evita divisão por zero
+         int f = ( pf < 1 ) ? 1 : pf;
+
+         // Divisão Flat-Field usando inteiros escalados para o 'max' da imagem original
+         int n = ( po * orig->max ) / f;
+
+         // Realce de Fundo Branco:
+         // Se passar do limiar, estoura para o valor máximo para limpar o fundo.
+         dest->image[r][c] = ( n > limiar_branco ) ? orig->max : n;
+      }
+   }
+
+   // 4. Limpeza das matrizes temporárias
+   liberar_matriz_pixels( fundo_h.image, rows );
+   liberar_matriz_pixels( fundo.image, rows );
+}
+
+
+
+
+
 /**
  * Aplica filtro de remoção de sombras e iluminação de fundo (Magic Color/Flat-Field)
  * mantendo as cores originais da caneta e marcações para geração de PDFs limpos.

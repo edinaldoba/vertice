@@ -77,6 +77,7 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\usepackage{multicol}\n"
       "\\usepackage{enumerate}\n"
       "\\usepackage[nointegrals]{wasysym}\n"
+      "\\usepackage{bm}"
       "\\usepackage{array,multirow,graphicx}\n"
       "\\usepackage{amsmath,amssymb}\n"
       "\\usepackage{ifthen}\n"
