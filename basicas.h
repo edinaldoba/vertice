@@ -17,10 +17,14 @@ int comparar_item_texto_curto( const void* a, const void* b );
 
 int comparar_item_combo( const void* a, const void* b );
 
+int alfabetica_lista_de_alunos( const void *a, const void *b );
+
 int comparar_mapeamento_gabarito( const void* a, const void* b );
 
 int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,
                            int ( *comparador )( const void *, const void * ) );
+
+int buscar_indice_garray_bsearch( GArray *array, gconstpointer chave, GCompareFunc comparador );
 
 int contar_registros_binarios( const char *filepath, size_t tam );
 

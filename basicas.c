@@ -161,6 +161,15 @@ int comparar_item_combo( const void* a, const void* b ) {
 
 
 
+int alfabetica_lista_de_alunos( const void *a, const void *b ) {
+   const FichaAluno *fa = ( const FichaAluno * )a;
+   const FichaAluno *fb = ( const FichaAluno * )b;
+   // strcoll respeita a localidade do sistema, ordenando acentos corretamente (Á antes de B)
+   return strcoll( fa->aluno, fb->aluno );
+}
+
+
+
 int comparar_mapeamento_gabarito( const void* a, const void* b ) {
    const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
    const MapeamentoGabarito *arg2 = ( const MapeamentoGabarito * )b;
@@ -185,6 +194,28 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
       // 2. Subtrai o endereço base do endereço encontrado
       // 3. Divide pelo tamanho do elemento para descobrir a posição exata no array
       return ( int )( ( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
+   }
+
+   return -1; // Não encontrado
+}
+
+
+
+
+//===================================================================================================
+// FUNÇÃO UNIVERSAL: Busca binária genérica em qualquer GArray ordenado
+//===================================================================================================
+int buscar_indice_garray_bsearch( GArray *array, gconstpointer chave, GCompareFunc comparador ) {
+   // Defesa contra ponteiros nulos
+   g_return_val_if_fail( array != NULL && chave != NULL && comparador != NULL, -1 );
+
+   guint indice_encontrado = 0;
+
+   // A GLib gerencia os saltos de memória automaticamente baseada no tamanho configurado no GArray
+   gboolean encontrou = g_array_binary_search( array, chave, comparador, &indice_encontrado );
+
+   if ( encontrou ) {
+      return ( int )indice_encontrado;
    }
 
    return -1; // Não encontrado

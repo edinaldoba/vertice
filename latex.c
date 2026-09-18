@@ -69,6 +69,8 @@ static void gerar_matriz_identificacao( FILE *p, uint8_t id, uint8_t turma, uint
 void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t id, char direcao, bool assinalar_nome_numero,
                           const InterfaceDados *dados, const FocoCoordenadas *foco ) {
 
+   g_return_if_fail( aluno && dados && foco );
+
    // 1. Lógica de Rotação transferida do LaTeX para o C
    int  rotacao = ( direcao == 'h' ) ? 0 : 90;
    float xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
@@ -83,10 +85,10 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
 
    // 2. Lógica if/else (antigo \ifthenelse) trazida para o C
    if ( direcao == 'h' ) {
-      fprintf( p, "\\draw[CorSerie] (0,-10.3) -- (14,-10.3);\n" );
-      if ( assinalar_nome_numero ) {
-         fprintf( p, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
-      }
+      fprintf( p, "\\draw[CorSerie] (1,-10.3) -- (13,-10.3);\n" );
+      // if ( assinalar_nome_numero ) {
+      //    fprintf( p, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
+      // }
       fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
       fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
@@ -100,10 +102,10 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
       // fprintf( p, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
 
    } else {
-      fprintf( p, "\\draw[CorSerie] (14.3,0) -- (14.3,-10);\n" );
-      if ( assinalar_nome_numero ) {
-         fprintf( p, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
-      }
+      fprintf( p, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
+      // if ( assinalar_nome_numero ) {
+      //    fprintf( p, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
+      // }
       fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
       fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
@@ -166,8 +168,8 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
          fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
       }
       // Assinalar alternativas para teste
-      float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
-      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
+      // float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
+      // fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
    }
 
    if ( assinalar_nome_numero ) {

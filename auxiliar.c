@@ -426,13 +426,6 @@ void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total
 
 
 //====================================================================================================
-static int alfabetica_lista_de_alunos( const void *a, const void *b ) {
-   const FichaAluno *fa = ( const FichaAluno * )a;
-   const FichaAluno *fb = ( const FichaAluno * )b;
-   // strcoll respeita a localidade do sistema, ordenando acentos corretamente (Á antes de B)
-   return strcoll( fa->aluno, fb->aluno );
-}
-//----------------------------------------------------------------------------------------------------
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_return_if_fail( ctx );
 

@@ -486,6 +486,8 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
          g_autofree char *caminho_disciplina = g_build_filename( dir_turma_base, nome_disciplina, NULL );
 
+         if( diretorio_esta_vazio( caminho_disciplina ) ) continue;
+
          // Verifica se a entrada atual é realmente um diretório (ignora arquivos)
          if ( g_file_test( caminho_disciplina, G_FILE_TEST_IS_DIR ) ) {
 

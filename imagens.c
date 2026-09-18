@@ -626,6 +626,13 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
          // Compara a CHAVE CHAVE PRIMÁRIA do aluno, e NÃO o número de chamada!
          if ( atual->cod_aluno > 0 && atual->cod_aluno == anterior->cod_aluno ) {
+
+            MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i - 1 );
+
+            g_autofree char *imagem = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
+                                                        "imagens", map->nome_img, NULL );
+            g_remove( imagem );
+
             g_array_remove_index( info_array, i - 1 ); // Remove a leitura mais antiga do aluno
          }
       }
