@@ -13,7 +13,7 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );
 
 void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
-                                           const int foco_estilo, gboolean rolagem );
+                                     const int foco_estilo, gboolean rolagem );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
 void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed );

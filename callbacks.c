@@ -355,7 +355,7 @@ void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, g
 }
 
 gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
-                                                                          gpointer user_data ) {
+      gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( ctx && ctx->diarios, FALSE );
 
@@ -374,7 +374,7 @@ gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWid
 
 
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data ) {
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
 
    GtkTreeModel *model;
    GtkTreeIter iter;
@@ -426,7 +426,7 @@ void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
 
 
 void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treeview, GtkTreePath *path,
-                                                              GtkTreeViewColumn *column, gpointer user_data ) {
+      GtkTreeViewColumn *column, gpointer user_data ) {
    ( void )column;
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
@@ -468,7 +468,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       selecionar_combo_status( ctx );
 
       gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
-      if( via_codigo ) return;
+      if ( via_codigo ) return;
 
       renderizar_frequencia_modo_normal( ctx, FALSE );
 
@@ -500,26 +500,26 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
 
    // 3. CAPTURA E SIMULAÇÃO DOS CLIQUES VIA TECLADO
    switch ( gdk_keyval_to_lower( event->keyval ) ) {
-      case GDK_KEY_p:
-         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_presente ) );
-         return TRUE;
+   case GDK_KEY_p:
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_presente ) );
+      return TRUE;
 
-      case GDK_KEY_f:
-         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_ausente ) );
-         return TRUE;
+   case GDK_KEY_f:
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_ausente ) );
+      return TRUE;
 
-      case GDK_KEY_j:
-         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 3 );
-         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
-         return TRUE;
+   case GDK_KEY_j:
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 3 );
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+      return TRUE;
 
-      case GDK_KEY_n:
-         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 9 );
-         gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
-         return TRUE;
+   case GDK_KEY_n:
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 9 );
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+      return TRUE;
 
-      default:
-         return FALSE; // Permite que a digitação de outras teclas flua normalmente para o GTK
+   default:
+      return FALSE; // Permite que a digitação de outras teclas flua normalmente para o GTK
    }
 }
 
@@ -542,7 +542,7 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
-   StatusAssiduidade status = (StatusAssiduidade) gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ) );
+   StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ) );
    registrar_status_assiduidade_frequencia( &ctx->painel, ctx, status );
 }
 
@@ -703,7 +703,7 @@ static void _popover_nomear_avaliacao( AppContext *ctx ) {
    // RECUPERA O ESTADO DIRETAMENTE DA MEMÓRIA DO WIDGET
    // ---------------------------------------------------------
    GObject *object = G_OBJECT( ctx->ui_diario.popover_nomear_avaliacao );
-   gboolean editando = GPOINTER_TO_INT( g_object_get_data( object , "modo_edicao" ) );
+   gboolean editando = GPOINTER_TO_INT( g_object_get_data( object, "modo_edicao" ) );
 
    if ( editando ) {
       popover_editar_avaliacao( ctx, texto );
@@ -738,7 +738,7 @@ void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer use
 // INTERCEPTADOR DE COLAGEM: Redireciona o "Colar" nativo para a nossa função em lote
 //===================================================================================================
 static gboolean _on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
 
@@ -751,7 +751,7 @@ static gboolean _on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventK
    // --------------------------------------------------------------------------------------
    // NOVO: INTERCEPTA CTRL + V (Colagem em Lote)
    // --------------------------------------------------------------------------------------
-   if ( (event->state & GDK_CONTROL_MASK) && (event->keyval == GDK_KEY_v || event->keyval == GDK_KEY_V) ) {
+   if ( ( event->state & GDK_CONTROL_MASK ) && ( event->keyval == GDK_KEY_v || event->keyval == GDK_KEY_V ) ) {
 
       colar_notas_em_lote( ctx, widget, path, column );
 
@@ -785,7 +785,7 @@ static gboolean _on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventK
 }
 //---------------------------------------------------------------------------------------------------
 static void _on_entry_paste_clipboard( GtkEditable *editable, gpointer user_data ) {
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
 
    GtkTreePath *path = NULL;
@@ -805,8 +805,9 @@ static void _on_entry_paste_clipboard( GtkEditable *editable, gpointer user_data
 }
 //---------------------------------------------------------------------------------------------------
 void on_cell_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
-                                gchar *path_string, gpointer user_data ) {
-   (void)renderer; (void)path_string;
+                              gchar *path_string, gpointer user_data ) {
+   ( void )renderer;
+   ( void )path_string;
 
    if ( GTK_IS_ENTRY( editable ) ) {
       // Repassa as teclas do modo de edição para a função de navegação.
@@ -817,7 +818,7 @@ void on_cell_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editab
 }
 //-------------------------------------------------------------------------------------------------
 void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data ) {
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
 
    GtkTreePath *path = NULL;
    GtkTreeViewColumn *column = NULL;
@@ -851,9 +852,68 @@ void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_dat
 void on_cell_renderizar_nota_edited( GtkCellRendererText *renderer, gchar *path_string,
                                      gchar *new_text, gpointer user_data ) {
 
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
 
+   // Atualiza o valor editado na matriz principal da ficha
    renderizar_nota( ctx, renderer, path_string, new_text );
+
+}
+//---------------------------------------------------------------------------------------------------
+void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+
+   int d = ctx->cascata.foco.disciplina;
+
+   // 1. Obtém o mapa exato de quais avaliações estão ativas na interface
+   gboolean validas[5];
+   int qtd_avaliacoes_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+   float divisor = ( qtd_avaliacoes_validas > 0 ) ? ( float )qtd_avaliacoes_validas : 1.0f;
+
+   // 2. Varredura e Cálculo de todos os alunos
+   for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+
+      ficha->soma[d] = 0.0f;
+
+      // Calcula as notas dos 4 períodos
+      for ( int j = 0; j < 4; j++ ) {
+         if ( j != ctx->cascata.foco.periodo ) continue;
+
+         float soma_notas = 0.0f;
+
+         // Acumula APENAS as avaliações validadas do período (Av x Rec)
+         for ( int k = 0; k < 5; k++ ) {
+            if ( !validas[k] ) continue; // Máscara: ignora avaliações desativadas
+
+            float av  = ficha->nota[d][j][k].av;
+            float rec = ficha->nota[d][j][k].rec;
+
+            float max_nota = MAX( av, rec );
+            if ( max_nota >= 0.0f ) {
+               soma_notas += max_nota;
+            }
+         }
+
+         // Aplica a mesma regra de relatório: divide pelo número de avaliações ativas
+         float media_periodo = 0.0f;
+         if ( qtd_avaliacoes_validas == 0 ) {
+            media_periodo = -1.0f; // Sinalizador de ausência de avaliações
+         } else {
+            media_periodo = soma_notas / divisor;
+         }
+
+         // 1. Grava o resultado do período (j) nas 4 primeiras posições do relatório
+         ficha->relatorio[d][j] = media_periodo;
+
+         // 2. Acumula a nota do período na soma total do ano (ignora se for -1.0f)
+         ficha->soma[d] += ( media_periodo < 0.0f ) ? 0.0f : media_periodo;
+      }
+
+      // 3. Calcula a média final dividindo a soma anual pelos 4 períodos
+      ficha->media[d] = ficha->soma[d] / 4.0f;
+   }
 }
 //===================================================================================================
 
@@ -917,6 +977,17 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
    return FALSE;
 }
 //------------------------------------------------------------------------------------------------------------------
+gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( widget && event &&  ctx, FALSE );
+
+   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_relatorio" ) ) {
+      // No futuro alguma coisa deverá ser posta aqui
+   }
+
+   return FALSE;
+}
+//===================================================================================================
 
 
 
@@ -948,13 +1019,6 @@ void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) 
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_final( &ctx->painel, ctx );
-}
-
-void on_button_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
-   AppContext *ctx = ( AppContext* ) user_data;
-   if ( !ctx ) return;
-   abrir_arquivos_de_dados( &ctx->painel, ctx );
 }
 
 void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -1080,7 +1144,7 @@ void on_button_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data ) {
    if ( !ctx ) return;
    corrigir_prova( &ctx->painel, ctx );
 
-   carregar_notas_ui_por_periodo(ctx);
+   carregar_notas_ui_por_periodo( ctx );
 }
 
 
@@ -1257,7 +1321,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    selecionar_combo_status( ctx );
 
    gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
-   if( via_codigo ) {
+   if ( via_codigo ) {
       ctx->ui_diario.foco_combo_alunos = ativo;
       return;
    }

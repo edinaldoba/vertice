@@ -198,7 +198,6 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->button.frequencia,        "clicked", G_CALLBACK( on_button_relatorio_de_frequencia_clicked ), ctx );
    g_signal_connect( ctx->button.conteudos,         "clicked", G_CALLBACK( on_button_relatorio_de_conteudos_clicked ), ctx );
    g_signal_connect( ctx->button.avaliacoes,        "clicked", G_CALLBACK( on_button_relatorio_de_avalicoes_clicked ), ctx );
-   g_signal_connect( ctx->button.abrir,             "clicked", G_CALLBACK( on_button_abrir_arquivos_de_dados_clicked ), ctx );
    g_signal_connect( ctx->button.relatorio_final,   "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
    g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
@@ -211,8 +210,8 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
    g_signal_connect( ctx->ui_diario.entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
 
-   g_signal_connect( ctx->ui_diario.stepper_menos, "clicked", G_CALLBACK(on_button_stepper_menos_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked", G_CALLBACK(on_button_stepper_mais_num_horarios_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.remover_registro, "clicked",
                      G_CALLBACK( on_button_remover_registro_diario_selecionado_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.treeview_conteudo, "key-press-event",
@@ -228,12 +227,12 @@ void app_signals_connect( gpointer user_data ) {
 
 
    ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
-                                                         G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
+                                       G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
    g_signal_connect( ctx->ui_diario.check_por_aluno, "toggled", G_CALLBACK( on_check_por_aluno_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
    g_signal_connect( ctx->window, "key-press-event",
-                  G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
+                     G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
    g_signal_connect( ctx->ui_diario.btn_salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.treeview_frequencia, "cursor-changed",
                      G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
@@ -241,7 +240,7 @@ void app_signals_connect( gpointer user_data ) {
 
    // AVALIAÇÕES
    ctx->ui_diario.handler_combo_avaliacoes = g_signal_connect( ctx->ui_diario.combo_avaliacoes, "changed",
-                                                               G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
+         G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
    g_signal_connect( ctx->ui_diario.btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_popover_nomear, "clicked",
@@ -249,20 +248,24 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.entry_popover_nomear, "activate",
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
    ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
-                                                              G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
+         G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
    conectar_renderizadores_liststore_avaliacoes( ctx );
    conectar_sinais_edicao_notas( ctx );
 
    g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "cursor-changed",
                      G_CALLBACK( on_treeview_notas_cursor_changed ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_salvar_avaliacoes, "clicked",
+                     G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
 
 
 
    g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK(on_button_frequencia_enter_notify_event), ctx );
-   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
-   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event ), ctx );
+   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK(on_button_conteudos_enter_notify_event), ctx );
+   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event), ctx );
+   g_signal_connect( ctx->button.relatorio_final, "enter-notify-event",
+                     G_CALLBACK( on_button_relatorio_enter_notify_event ), ctx );
 
 
 
@@ -317,7 +320,7 @@ void app_signals_connect( gpointer user_data ) {
 
 
    ctx->ui_diario.handler_combo_alunos = g_signal_connect( G_OBJECT( ctx->ui_diario.combo_alunos ), "changed",
-                          G_CALLBACK( on_combo_alunos_changed ), ctx );
+                                         G_CALLBACK( on_combo_alunos_changed ), ctx );
 
 
 }

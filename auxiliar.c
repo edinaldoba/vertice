@@ -133,7 +133,7 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
    for ( int i = 0; i < qtd_disciplinas; i++ ) {
 
       g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                                                    ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+                                  ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
 
       // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
       if ( !diretorio_esta_vazio( caminho ) ) {
@@ -152,7 +152,7 @@ void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dad
 
    // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
    g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                                                    ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+                               ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
 
    gboolean riscar = diretorio_esta_vazio( caminho );
 
@@ -184,7 +184,7 @@ int quantidade_diretorios( const char *diretorio ) {
    while ( ( dp = readdir( dir ) ) != NULL ) {
 
       // 3. Ignora os seletores virtuais do Linux ("." e "..")
-      if ( strcmp(dp->d_name,".")==0 || strcmp(dp->d_name,"..")==0 || strcmp(dp->d_name,"alunos")==0 ) {
+      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 || strcmp( dp->d_name, "alunos" ) == 0 ) {
          continue;
       }
 
@@ -246,7 +246,7 @@ ItemCombo *carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( 
 
    while ( ( dp = readdir( dir ) ) != NULL && i < qtd_dir ) {
       // 3. Filtra os seletores de diretório virtuais nativos do Linux
-      if ( strcmp(dp->d_name,".")==0 || strcmp(dp->d_name,"..")==0 || strcmp(dp->d_name,"alunos")==0 ) {
+      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 || strcmp( dp->d_name, "alunos" ) == 0 ) {
          continue;
       }
 
@@ -449,7 +449,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_autofree AcessoFicha *buffer_acessos = NULL;
    dados->qtd_alunos_ativos = 0;
 
-   if ( !g_file_get_contents( arquivo_acesso, (gchar **)&buffer_acessos, &tamanho_arquivo, NULL ) ) {
+   if ( !g_file_get_contents( arquivo_acesso, ( gchar ** )&buffer_acessos, &tamanho_arquivo, NULL ) ) {
       g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso );
       dados->qtd_alunos_total = dados->qtd_alunos_ativos;
       return;
@@ -461,7 +461,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    // 3. Inicialização do GArray já com o tamanho exato pré-alocado (mais rápido)
    ctx->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
 
-   g_autofree char *dir_base_alunos = g_build_filename(".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL);
+   g_autofree char *dir_base_alunos = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];

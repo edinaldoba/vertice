@@ -438,7 +438,7 @@ static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, 
 }
 //------------------------------------------------------------------------------------------------------
 static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *info, const int qtd_linhas,
-                                                     const AppContext *ctx) {
+      const AppContext *ctx ) {
 
    const InterfaceDados *dados = &ctx->dados;
    const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -630,7 +630,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
             MapeamentoGabarito *map = &g_array_index( info_array, MapeamentoGabarito, i - 1 );
 
             g_autofree char *imagem = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
-                                                        "imagens", map->nome_img, NULL );
+                                      "imagens", map->nome_img, NULL );
             g_remove( imagem );
 
             g_array_remove_index( info_array, i - 1 ); // Remove a leitura mais antiga do aluno
@@ -672,7 +672,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
             int iprova = map->seq;
 
             if ( periodo >= 0 && periodo <= 4 ) {
-               ficha->nota[foco->disciplina][periodo][2 * iprova - 2].av = (float)nota;
+               ficha->nota[foco->disciplina][periodo][2 * iprova - 2].av = ( float )nota;
             }
          }
 
@@ -704,7 +704,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
    if ( dados->naopresencial ) {
       // Como a função antiga espera um ponteiro nativo, passamos o array->data validado
-      copiar_arquivos_correcao_nao_presencial( (MapeamentoGabarito *)info_array->data, info_array->len, ctx );
+      copiar_arquivos_correcao_nao_presencial( ( MapeamentoGabarito * )info_array->data, info_array->len, ctx );
    }
 
    // ====================================================================================

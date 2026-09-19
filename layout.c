@@ -148,7 +148,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.entry_popover_nomear  = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_nomear" ) );
    ctx->ui_diario.btn_popover_nomear    = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_avaliacao" ) );
 
-   ctx->ui_diario.btn_salvar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
+   ctx->ui_diario.btn_salvar_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
 
 
 
@@ -202,7 +202,6 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->button.frequencia       = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
    ctx->button.conteudos        = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
    ctx->button.avaliacoes       = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
-   ctx->button.abrir            = GTK_WIDGET( gtk_builder_get_object( builder, "button_abrir" ) );
    ctx->button.relatorio_final  = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
    ctx->button.atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
 

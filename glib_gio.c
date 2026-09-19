@@ -203,11 +203,11 @@ GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista
    g_autoptr( GError ) erro = NULL;
 
    g_autoptr( GFileEnumerator ) enumerator = g_file_enumerate_children(
-       dir,
-       G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_TYPE,
-       G_FILE_QUERY_INFO_NONE,
-       NULL,
-       &erro );
+            dir,
+            G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_TYPE,
+            G_FILE_QUERY_INFO_NONE,
+            NULL,
+            &erro );
 
    if ( erro ) {
       g_printerr( "Erro ao abrir diretório '%s': %s\n", caminho_pai, erro->message );

@@ -77,7 +77,7 @@ typedef struct {
    GtkWidget *check_desativar_avaliacao;
    gulong handler_check_desativar;
 
-   GtkWidget *btn_salvar_avaliacao; // Botão SALVAR
+   GtkWidget *btn_salvar_avaliacoes; // Botão SALVAR
 
    //-- Janela com rolagem e Tabela de Notas
    GtkWidget *scrolled_window_avaliacoes;
@@ -150,7 +150,6 @@ typedef struct {
    GtkWidget *frequencia;              // Exporta/Gerencia chamadas e assiduidade
    GtkWidget *conteudos;               // Exporta/Gerencia o registro de aulas dadas
    GtkWidget *avaliacoes;              // Consolida as notas do período letivo
-   GtkWidget *abrir;                   // Carrega arquivos base (.dat) do período ativo
    GtkWidget *relatorio_final;         // Consolida o fechamento anual/período
    GtkWidget *atualizar_alunos;        // Atualiza a lista de alunos a partir de xml do siaep
 

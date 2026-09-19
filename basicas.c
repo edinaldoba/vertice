@@ -234,7 +234,7 @@ int contar_registros_binarios( const char *filepath, size_t tam ) {
 
    // Consulta rápida aos metadados do disco sem abrir o arquivo
    if ( g_stat( filepath, &st ) == 0 ) {
-      return ( int ) ( st.st_size / tam );
+      return ( int )( st.st_size / tam );
    }
 
    // Retorna 0 caso o arquivo não exista ou falhe no acesso

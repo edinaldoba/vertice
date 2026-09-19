@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <glib.h>
 
@@ -161,10 +162,10 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoTurmas;
 
 typedef enum {
-    TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
-    TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
-    TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
-    TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
+   TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
+   TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
+   TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
+   TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
 } __attribute__( ( packed ) ) TipoRegistroDiario;
 //-------------------------------------------------------------------------------------------//
 
@@ -198,14 +199,39 @@ typedef enum {
    EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
 } __attribute__( ( packed ) ) SituacaoAluno;
 
+
+// MÁSCARA DE BITS PARA ATIPICIDADES (Até 31 flags expandíveis)
+// Compatível com as CIDs mapeadas na CE Poeta Cunha Santos
 typedef enum {
-   ALUNO_TIPICO     = 1 << 0, // 1  (0001)
-   ALUNO_AUTISTA    = 1 << 1, // 2  (0010)
-   ALUNO_TDAH       = 1 << 2, // 4  (0100)
-   ALUNO_DEFICIENTE = 1 << 3, // 8  (1000)
-   ALUNO_LAUDADO    = 1 << 4, // 16 (0001 0000)
-   ALUNO_OBSERVACAO = 1 << 5  // 32 (0010 0000)
-} __attribute__( ( packed ) ) TipoAtipico;
+   ATIPICO_NENHUM               = 0,          // Aluno Típico
+
+   // --- CIDs do Quadro da Escola ---
+   ATIPICO_TEA                  = 1 << 0,     // F84 / CID-11 6A02 (Autismo / Níveis 1, 2 e 3)
+   ATIPICO_TDAH                 = 1 << 1,     // F90 / CID-11 6A05 (DDA / TDAH)
+   ATIPICO_DEF_INTELECTUAL      = 1 << 2,     // F70, F71 / CID-11 6E60 (DI Leve/Moderada)
+   ATIPICO_TRANSTORNO_MENTAL    = 1 << 3,     // F31.6, F91.2 (Transtornos de Humor/Conduta)
+   ATIPICO_SINDROME_DOWN        = 1 << 4,     // Q90 (Trissomia 21)
+   ATIPICO_PARALISIA_CEREBRAL   = 1 << 5,     // G80.8 (Monoplegia / Deficiência Motora)
+   ATIPICO_TRANSTORNO_APRENDIZ  = 1 << 6,     // F81 (Dislexia, Discalculia, Disgrafia)
+
+   // --- Expansões Preventivas (Novas CIDs sem quebra de binário) ---
+   ATIPICO_DEF_AUDITIVA         = 1 << 7,     // Deficiência Auditiva / Surdez
+   ATIPICO_DEF_VISUAL           = 1 << 8,     // Baixa Visão / Cegueira
+   ATIPICO_SUPERDOTACAO         = 1 << 9,     // AH/SD (Altas Habilidades / Superdotação)
+
+   // --- Metadados e Validação Pedagógica ---
+   ATIPICO_LAUDADO              = 1 << 28,    // Possui laudo médico anexado
+   ATIPICO_PROVA_ADAPTADA       = 1 << 29,    // Requer banco de questões paralelo/adaptado
+   ATIPICO_OBSERVACAO           = 1 << 30     // Possui anotação pedagógica específica
+} FlagsAtipicidade;
+
+// ESTRUTURA BLINDADA PARA FICHA BINÁRIA (Tamanho fixo congelado)
+typedef struct {
+   FlagsAtipicidade flags;     // Mapeamento de até 31 CIDs/Atipicidades combinadas (4 bytes)
+   uint8_t  nivel_suporte_tea; // 0 = N/A, 1 = Nível 1, 2 = Nível 2, 3 = Nível 3 (1 byte)
+   uint8_t  reservado1;        // Espaço reservado para expansões futuras (1 byte)
+   uint16_t reservado2;        // Espaço reservado para expansões futuras (2 bytes)
+} __attribute__( ( packed ) ) FichaAtipicidade;
 
 typedef enum {
    SEM_STATUS           = 0, // Status inicial padrão para todos os alunos
@@ -227,8 +253,8 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoFicha;
 
 typedef struct {
-      uint32_t cod_aluno;
-      StatusAssiduidade status;
+   uint32_t cod_aluno;
+   StatusAssiduidade status;
 } __attribute__( ( packed ) ) RegistroChamada;
 
 typedef struct {
@@ -245,7 +271,8 @@ typedef struct {
    char aluno[64];      // Nome do aluno
    char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
    char nasc[16];       // Data de nascimento do aluno
-   TipoAtipico atipico; // Condição de adaptação curricular
+
+   FichaAtipicidade atipico; // Condição de adaptação curricular
 
    // Dados preenchidos a posteriori conforme período selecionado
    SituacaoAluno sit;   // Situação do aluno
@@ -264,8 +291,8 @@ typedef struct {
       float rec;
    } nota[QTD_DISC][4][5];         // [2 disciplinas][4 Períodos][5 Avaliações]
 
-   float rec_final[QTD_DISC];   // [2 disciplinas]
-   float conselho[QTD_DISC];    // [2 disciplinas]
+   float soma[QTD_DISC];     // [2 disciplinas] -> Soma da média dos quatro períodos
+   float media[QTD_DISC];    // [2 disciplinas] -> Média final = soma / 4
 
    float relatorio[QTD_DISC][6];   // [2 disciplinas][6 notas] Médias dos 4 períodos + rec. final + conselho
 

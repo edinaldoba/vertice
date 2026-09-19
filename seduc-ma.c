@@ -242,7 +242,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
    PangoContext *context = pango_font_map_create_context( font_map );
    PangoLayout *layout = pango_layout_new( context );
 
-   const char *fonte_latex = (fonte == 1) ? "CMU Bright 11" : "CMU Serif 11";
+   const char *fonte_latex = ( fonte == 1 ) ? "CMU Bright 11" : "CMU Serif 11";
    PangoFontDescription *desc = pango_font_description_from_string( fonte_latex );
    pango_layout_set_font_description( layout, desc );
    pango_font_description_free( desc );
@@ -282,8 +282,8 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
             for ( int ii = 0; ii < 6; ii++ ) {
                ficha.relatorio[k][ii] = -1.0f;
             }
-            ficha.rec_final[k] = -1.0f;
-            ficha.conselho[k] = -1.0f;
+            ficha.soma[k] = -1.0f;
+            ficha.media[k] = -1.0f;
          }
 
          g_autofree char *nome_formatado = converter_nome_proprio( siaep.aluno );
@@ -466,11 +466,11 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    for ( int i = 0; i < limite_turmas; i++ ) {
       g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", listas->turmas[i].str );
       g_autofree char *acesso_bin_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
-                                                           "acessos", acesso_bin, NULL );
+                                         "acessos", acesso_bin, NULL );
 
       // Monta o diretório base da turma, onde as disciplinas devem estar alocadas
       g_autofree char *dir_turma_base = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                                          listas->turmas[i].str, NULL );
+                                        listas->turmas[i].str, NULL );
 
       g_autoptr( GError ) erro = NULL;
       g_autoptr( GDir ) dir_turma = g_dir_open( dir_turma_base, 0, &erro );
@@ -486,7 +486,7 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
          g_autofree char *caminho_disciplina = g_build_filename( dir_turma_base, nome_disciplina, NULL );
 
-         if( diretorio_esta_vazio( caminho_disciplina ) ) continue;
+         if ( diretorio_esta_vazio( caminho_disciplina ) ) continue;
 
          // Verifica se a entrada atual é realmente um diretório (ignora arquivos)
          if ( g_file_test( caminho_disciplina, G_FILE_TEST_IS_DIR ) ) {
@@ -504,9 +504,9 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
    // 2. Caminhos dos alunos
    g_autofree char *dir_alunos_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
-                                                        "alunos", NULL );
+                                      "alunos", NULL );
    g_autofree char *dir_alunos_dest = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                                        "alunos", NULL );
+                                      "alunos", NULL );
 
    // Garante que a árvore de pastas de destino já exista antes de iniciar as cópias
    g_mkdir_with_parents( dir_alunos_dest, 0755 );

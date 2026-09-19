@@ -256,7 +256,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
 
       char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
       ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );
-      g_free(caminho_arquivo);
+      g_free( caminho_arquivo );
 
       recarregar_estilo_frequencia( ctx );
 
@@ -941,7 +941,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    popular_combo_box_generico( ui_diario->combo_alunos, ctx->fichas, limite, foco,
                                ui_diario->handler_combo_alunos, mapear_alunos );
 
-    // Precisa que a lista de alunos já esteja populada
+   // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
    salvar_avaliacoes( ctx, FALSE );
 

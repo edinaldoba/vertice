@@ -29,7 +29,7 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data );
 void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treeview, GtkTreePath *path,
-                                                              GtkTreeViewColumn *column, gpointer user_data );
+      GtkTreeViewColumn *column, gpointer user_data );
 
 void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data );
 gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
@@ -51,11 +51,13 @@ void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer use
 void on_cell_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable, gchar *path_string, gpointer user_data );
 void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
 void on_cell_renderizar_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
+void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 
 
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 
 // =========================================================================
 // 2. EMISSÃO DE RELATÓRIOS E DIÁRIOS DE CLASSE
@@ -65,7 +67,6 @@ void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_
 void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
-void on_button_abrir_arquivos_de_dados_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================

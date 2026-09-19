@@ -141,8 +141,8 @@ static gchar *_formatar_data_extenso( const gchar *data_iso ) {
 
 
 static gint _comparar_datas_diario( gconstpointer a, gconstpointer b ) {
-   const RegistroDiario *d1 = (const RegistroDiario *)a;
-   const RegistroDiario *d2 = (const RegistroDiario *)b;
+   const RegistroDiario *d1 = ( const RegistroDiario * )a;
+   const RegistroDiario *d2 = ( const RegistroDiario * )b;
 
    int dia1, mes1, ano1, dia2, mes2, ano2;
    // Converte a string "27/08/2026" para inteiros separadamente
@@ -165,22 +165,28 @@ static gint _comparar_datas_diario( gconstpointer a, gconstpointer b ) {
  * Retorna 1 (TRUE) se uma cor customizada foi atribuída,
  * ou 0 (FALSE) se for aula normal (devendo usar a cor padrão).
  */
-static int _cor_texto_linha_liststore(const RegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out) {
-   if (!diario || !cor_out) return 0;
+static int _cor_texto_linha_liststore( const RegistroDiario *diario, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !diario || !cor_out ) return 0;
 
    // Retorna imediatamente se for Aula Normal (usa a cor padrão do tema)
-   if (diario->tipo_registro == 0) return 0;
+   if ( diario->tipo_registro == 0 ) return 0;
 
    // =====================================================================
    // 1. TIPO: Atividade Pedagógica
    // =====================================================================
-   if (diario->tipo_registro == 1) {
-      if (tema_ativo == 1) { // Deep Blue
-         *cor_out = (GdkRGBA){ 0.50, 0.88, 1.00, 1.0 };
-      } else if (tema_ativo == 2) { // Light
-         *cor_out = (GdkRGBA){ 0.00, 0.00, 1.00, 1.0 };
+   if ( diario->tipo_registro == 1 ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) {
+            0.50, 0.88, 1.00, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) {
+            0.00, 0.00, 1.00, 1.0
+         };
       } else { // Dark Green (Padrão)
-         *cor_out = (GdkRGBA){ 0.39, 0.71, 0.96, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.39, 0.71, 0.96, 1.0
+         };
       }
       return 1;
    }
@@ -188,13 +194,19 @@ static int _cor_texto_linha_liststore(const RegistroDiario *diario, int tema_ati
    // =====================================================================
    // 2. TIPO: Feriado
    // =====================================================================
-   if (diario->tipo_registro == 2) {
-      if (tema_ativo == 1) { // Deep Blue
-         *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
-      } else if (tema_ativo == 2) { // Light
-         *cor_out = (GdkRGBA){ 0.85, 0.00, 0.00, 1.0 };
+   if ( diario->tipo_registro == 2 ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) {
+            0.96, 0.40, 0.50, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) {
+            0.85, 0.00, 0.00, 1.0
+         };
       } else { // Dark Green (Padrão)
-         *cor_out = (GdkRGBA){ 0.90, 0.45, 0.45, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.90, 0.45, 0.45, 1.0
+         };
       }
       return 1;
    }
@@ -202,13 +214,19 @@ static int _cor_texto_linha_liststore(const RegistroDiario *diario, int tema_ati
    // =====================================================================
    // 3. TIPO: Aula Extra
    // =====================================================================
-   if (diario->tipo_registro == 3) {
-      if (tema_ativo == 1) { // Deep Blue
-         *cor_out = (GdkRGBA){ 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
-      } else if (tema_ativo == 2) { // Light
-         *cor_out = (GdkRGBA){ 0.62, 0.49, 0.10, 1.0 }; // ##9d7c19
+   if ( diario->tipo_registro == 3 ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.79, 0.16, 1.0
+         }; // #FFCA28
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) {
+            0.62, 0.49, 0.10, 1.0
+         }; // ##9d7c19
       } else { // Dark Green (Padrão)
-         *cor_out = (GdkRGBA){ 1.00, 0.84, 0.31, 1.0 }; // #FFD54F
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.84, 0.31, 1.0
+         }; // #FFD54F
       }
       return 1;
    }
@@ -233,11 +251,17 @@ static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo
    // =====================================================================
    if ( status == SEM_STATUS ) {
       if ( tema_ativo == 1 ) { // Deep Blue (Cinza azulado escuro)
-         *cor_out = (GdkRGBA){ 0.40, 0.45, 0.55, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.40, 0.45, 0.55, 1.0
+         };
       } else if ( tema_ativo == 2 ) { // Light (Cinza padrão)
-         *cor_out = (GdkRGBA){ 0.60, 0.60, 0.60, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.60, 0.60, 0.60, 1.0
+         };
       } else { // Dark Green - Padrão (Cinza esverdeado escuro)
-         *cor_out = (GdkRGBA){ 0.45, 0.50, 0.45, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.45, 0.50, 0.45, 1.0
+         };
       }
       return 1;
    }
@@ -247,11 +271,17 @@ static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo
    // =====================================================================
    if ( status == AUSENTE || status == SUSPENSO || status == FOI_EMBORA ) {
       if ( tema_ativo == 1 ) { // Deep Blue
-         *cor_out = (GdkRGBA){ 0.96, 0.40, 0.50, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.96, 0.40, 0.50, 1.0
+         };
       } else if ( tema_ativo == 2 ) { // Light
-         *cor_out = (GdkRGBA){ 0.85, 0.00, 0.00, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.85, 0.00, 0.00, 1.0
+         };
       } else { // Dark Green (Padrão)
-         *cor_out = (GdkRGBA){ 0.90, 0.45, 0.45, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.90, 0.45, 0.45, 1.0
+         };
       }
       return 1;
    }
@@ -261,11 +291,17 @@ static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo
    // =====================================================================
    if ( status == FORA_DE_SALA || status == DISPENSADO ) {
       if ( tema_ativo == 1 ) { // Deep Blue
-         *cor_out = (GdkRGBA){ 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.79, 0.16, 1.0
+         }; // #FFCA28
       } else if ( tema_ativo == 2 ) { // Light
-         *cor_out = (GdkRGBA){ 0.62, 0.49, 0.10, 1.0 }; // #9D7C19
+         *cor_out = ( GdkRGBA ) {
+            0.62, 0.49, 0.10, 1.0
+         }; // #9D7C19
       } else { // Dark Green (Padrão)
-         *cor_out = (GdkRGBA){ 1.00, 0.84, 0.31, 1.0 }; // #FFD54F
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.84, 0.31, 1.0
+         }; // #FFD54F
       }
       return 1;
    }
@@ -275,11 +311,17 @@ static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo
    // =====================================================================
    if ( status == ATIVIDADE_DOMICILIAR ) {
       if ( tema_ativo == 1 ) { // Deep Blue (Lilás vibrante)
-         *cor_out = (GdkRGBA){ 0.80, 0.60, 0.95, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.80, 0.60, 0.95, 1.0
+         };
       } else if ( tema_ativo == 2 ) { // Light (Roxo escuro)
-         *cor_out = (GdkRGBA){ 0.45, 0.15, 0.60, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.45, 0.15, 0.60, 1.0
+         };
       } else { // Dark Green - Padrão (Púrpura suave)
-         *cor_out = (GdkRGBA){ 0.75, 0.55, 0.85, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.75, 0.55, 0.85, 1.0
+         };
       }
       return 1;
    }
@@ -289,11 +331,17 @@ static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo
    // =====================================================================
    if ( status == FALTA_JUSTIFICADA ) {
       if ( tema_ativo == 1 ) { // Deep Blue (Verde-azulado / Turquesa vibrante)
-         *cor_out = (GdkRGBA){ 0.25, 0.85, 0.75, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.25, 0.85, 0.75, 1.0
+         };
       } else if ( tema_ativo == 2 ) { // Light (Verde escuro / Floresta - alto contraste em fundo claro)
-         *cor_out = (GdkRGBA){ 0.15, 0.55, 0.25, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.15, 0.55, 0.25, 1.0
+         };
       } else { // Dark Green - Padrão (Verde suave / Menta claro - legível em fundo escuro)
-         *cor_out = (GdkRGBA){ 0.50, 0.85, 0.55, 1.0 };
+         *cor_out = ( GdkRGBA ) {
+            0.50, 0.85, 0.55, 1.0
+         };
       }
       return 1;
    }
@@ -435,7 +483,7 @@ void registrar_aula( AppContext *ctx ) {
       RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
       // Checa data e tema para garantir que achou a aula certa em dias com múltiplas aulas
       if ( g_strcmp0( r->data, nova_aula.data ) == 0 && g_strcmp0( r->tema, nova_aula.tema ) == 0 ) {
-         novo_indice = (int)i;
+         novo_indice = ( int )i;
          break;
       }
    }
@@ -454,7 +502,7 @@ void registrar_aula( AppContext *ctx ) {
 
    gtk_list_store_set( store_view, &iter,
                        0, nova_aula.data,      1, nova_aula.qtd_aulas,    2, nova_aula.tema,
-                       3, nova_aula.descricao, 4, nova_aula.tipo_registro, 5, (r==0) ? NULL : &cor_texto, -1 );
+                       3, nova_aula.descricao, 4, nova_aula.tipo_registro, 5, ( r == 0 ) ? NULL : &cor_texto, -1 );
 
    // =====================================================================
    // 5. AJUSTES FINAIS DE UI
@@ -530,7 +578,7 @@ void modificar_registro_aula( AppContext *ctx ) {
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
-   g_autoptr(GtkTreePath) path_antigo = gtk_tree_model_get_path( model_view, &ui->iter_em_edicao );
+   g_autoptr( GtkTreePath ) path_antigo = gtk_tree_model_get_path( model_view, &ui->iter_em_edicao );
    if ( !path_antigo ) return;
 
    int idx = gtk_tree_path_get_indices( path_antigo )[0];
@@ -552,7 +600,7 @@ void modificar_registro_aula( AppContext *ctx ) {
    if ( str_data ) g_strlcpy( reg->data, str_data, sizeof( reg->data ) );
 
    const gchar *str_ch = gtk_label_get_text( GTK_LABEL( ui->qtd_aulas ) );
-   if ( str_ch ) reg->qtd_aulas = (int)g_ascii_strtoll( str_ch, NULL, 10 );
+   if ( str_ch ) reg->qtd_aulas = ( int )g_ascii_strtoll( str_ch, NULL, 10 );
 
    // Clone na stack: g_array_sort invalida o ponteiro 'reg' ao mover blocos de memória
    RegistroDiario reg_clone = *reg;
@@ -578,15 +626,15 @@ void modificar_registro_aula( AppContext *ctx ) {
    int r_estilo = _cor_texto_linha_liststore( &reg_clone, ctx->dados.interface_style, &cor_texto );
 
    gtk_list_store_set( store_view, &iter,
-                     0, reg_clone.data,
-                     1, reg_clone.qtd_aulas,
-                     2, reg_clone.tema,
-                     3, reg_clone.descricao,
-                     4, reg_clone.tipo_registro,
-                     5, ( r_estilo == 0 ) ? NULL : &cor_texto,
-                     -1 );
+                       0, reg_clone.data,
+                       1, reg_clone.qtd_aulas,
+                       2, reg_clone.tema,
+                       3, reg_clone.descricao,
+                       4, reg_clone.tipo_registro,
+                       5, ( r_estilo == 0 ) ? NULL : &cor_texto,
+                       -1 );
 
-   g_autoptr(GtkTreePath) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
+   g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
    if ( path_novo ) {
       gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( ui->treeview_conteudo ), path_novo, NULL, FALSE, 0.0, 0.0 );
    }
@@ -600,7 +648,7 @@ void modificar_registro_aula( AppContext *ctx ) {
 
 
 void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
-                                           const int foco_estilo, gboolean rolagem ) {
+                                     const int foco_estilo, gboolean rolagem ) {
 
    g_return_if_fail( caminho_arquivo && ui_diario );
 
@@ -655,7 +703,7 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
                           2, registros[i].tema,
                           3, registros[i].descricao,
                           4, registros[i].tipo_registro,
-                          5, (r == 0) ? NULL : &cor_texto, -1 );
+                          5, ( r == 0 ) ? NULL : &cor_texto, -1 );
    }
 
    // =====================================================================
@@ -690,7 +738,7 @@ void popular_datas( AppContext *ctx ) {
       RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
 
       if ( diario->tipo_registro != TIPO_REGISTRO_FERIADO &&
-           diario->tipo_registro != TIPO_REGISTRO_PEDAGOGICO ) {
+            diario->tipo_registro != TIPO_REGISTRO_PEDAGOGICO ) {
          foco = i;
          break;
       }
@@ -727,7 +775,7 @@ void popular_datas( AppContext *ctx ) {
       }
 
       // SE NÃO HÁ AULAS REGISTRADAS, ENTÃO O COMBO DOS ALUNOS DEVE SER OCULTADO
-      gtk_list_store_clear( GTK_LIST_STORE( gtk_tree_view_get_model( GTK_TREE_VIEW(ctx->ui_diario.treeview_frequencia) ) ) );
+      gtk_list_store_clear( GTK_LIST_STORE( gtk_tree_view_get_model( GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia ) ) ) );
       ctx->ui_diario.foco_combo_alunos = -1;
       ctx->ui_diario.limite_combo_alunos = 0;
       gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ctx->ui_diario.foco_combo_alunos );
@@ -772,7 +820,7 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
       const RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
 
       if ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
-           diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
+            diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
          break;
       }
    }
@@ -857,7 +905,16 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
    ctx->ui_diario.limite_combo_alunos = gtk_tree_model_iter_n_children( model_view, NULL ) + 1;
 
    if ( idx_aluno < ctx->dados.qtd_alunos_total ) {
+      // Avança o ComboBox para o próximo aluno ativo encontrado nos laços do Passo 2.
+      // O teste de segurança previne o salto para o final da lista caso restem apenas alunos inativos.
+      // FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+      // if ( ficha->ativo ) {
       gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), idx_aluno );
+      // }
+   } else if ( idx_aluno == ctx->dados.qtd_alunos_total ) {
+      // Ao processar o último aluno da turma, executa o auto-scroll para garantir
+      // que o registro recém-inserido na base da GtkTreeView fique visível em tela.
+      rolagem_automatica_treeview_frequencia( ctx );
    }
 }
 
@@ -963,13 +1020,13 @@ void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed 
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
 
       gtk_list_store_set( store_view, &iter,
-                        0, i + 1,
-                        1, ficha->aluno,
-                        2, nasc,
-                        3, ctx->listas.status_assiduidade[status_atual].str,
-                        4, !ficha->ativo, // TRUE para aplicar o risco do GtkCellRendererText
-                        5, ( tem_cor == 0 ) ? NULL : &cor_texto,
-                        -1 );
+                          0, i + 1,
+                          1, ficha->aluno,
+                          2, nasc,
+                          3, ctx->listas.status_assiduidade[status_atual].str,
+                          4, !ficha->ativo, // TRUE para aplicar o risco do GtkCellRendererText
+                          5, ( tem_cor == 0 ) ? NULL : &cor_texto,
+                          -1 );
 
       linhas_renderizadas++;
    }
@@ -985,8 +1042,21 @@ void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed 
       ui_diario->limite_combo_alunos = ctx->dados.qtd_alunos_total;
    }
 
-   ui_diario->foco_combo_alunos = ui_diario->limite_combo_alunos - 1;
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ui_diario->foco_combo_alunos );
+
+   // 5. Seta o ComboBox para o último aluno ativo
+   for ( int i = ui_diario->limite_combo_alunos - 1; i >= 0; i-- ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      if ( ficha->ativo ) {
+         ui_diario->foco_combo_alunos = i;
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), i );
+         break;
+      }
+   }
+
+   // Este trecho foi substituido pelo passo 5 acima.
+   // ui_diario->foco_combo_alunos = ui_diario->limite_combo_alunos - 1;
+   // gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ), ui_diario->foco_combo_alunos );
+
 }
 
 
@@ -1013,7 +1083,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx, gboolean style_chang
       gboolean tipo_feriado    = ( diario->tipo_registro == TIPO_REGISTRO_FERIADO );
       gboolean tipo_pedagogico = ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
       if ( tipo_feriado || tipo_pedagogico ) {
-         if ( (guint)proxima_data_pendente == i ) {
+         if ( ( guint )proxima_data_pendente == i ) {
             proxima_data_pendente = i + 1;
          }
          continue;
@@ -1105,13 +1175,19 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
       // Descendo (seta para baixo ou clique abaixo)
       for ( int i = indice_linha + 1; i < ctx->dados.qtd_alunos_total; i++ ) {
          ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-         if ( ficha->ativo ) { target = i; break; }
+         if ( ficha->ativo ) {
+            target = i;
+            break;
+         }
       }
    } else if ( indice_linha < foco_anterior ) {
       // Subindo (seta para cima ou clique acima)
       for ( int i = indice_linha - 1; i >= 0; i-- ) {
          ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-         if ( ficha->ativo ) { target = i; break; }
+         if ( ficha->ativo ) {
+            target = i;
+            break;
+         }
       }
    }
 
@@ -1232,7 +1308,7 @@ static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, co
    gsize bytes_para_gravar = array->len * tamanho_elemento;
    GError *erro = NULL;
 
-   if ( !g_file_set_contents( caminho_arquivo, (const gchar *)array->data, bytes_para_gravar, &erro ) ) {
+   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )array->data, bytes_para_gravar, &erro ) ) {
       g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
       g_clear_error( &erro );
       return FALSE;
@@ -1291,7 +1367,7 @@ static void _visibilidade_avaliacoes( const AppContext *ctx, GtkTreeView *treevi
       gboolean visivel = FALSE;
 
       // Verifica se o índice existe no GArray e se a avaliação está ativa
-      if ( ctx->avaliacoes && (guint)i < ctx->avaliacoes->len ) {
+      if ( ctx->avaliacoes && ( guint )i < ctx->avaliacoes->len ) {
          MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, i );
          visivel = meta->ativa;
       }
@@ -1412,7 +1488,7 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    if ( ativo < 0 ) return;
 
    // 2. Atualiza o estado lógico na memória RAM (GArray)
-   if ( ctx->avaliacoes && ativo < (int)ctx->avaliacoes->len ) {
+   if ( ctx->avaliacoes && ativo < ( int )ctx->avaliacoes->len ) {
       // Se 'estado' (riscar) for TRUE, a avaliação fica INATIVA (ativa = FALSE)
       g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ).ativa = !estado;
    } else {
@@ -1518,7 +1594,7 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
       meta.ativa = !riscado;
 
       // 2. Manipulação Direta na Memória RAM (Substituição in-place)
-      if ( ativo < (int)ctx->avaliacoes->len ) {
+      if ( ativo < ( int )ctx->avaliacoes->len ) {
          g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ) = meta;
       } else {
          g_print( "⚠ Erro de sincronia: índice de edição fora dos limites do array em memória.\n" );
@@ -1543,7 +1619,7 @@ static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes,
    if ( !dados || !caminho_arquivo ) return FALSE;
 
    GError *erro = NULL;
-   if ( !g_file_set_contents( caminho_arquivo, (const gchar *)dados, tamanho_bytes, &erro ) ) {
+   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )dados, tamanho_bytes, &erro ) ) {
       g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
       g_clear_error( &erro );
       return FALSE;
@@ -1597,15 +1673,13 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //          // Aponta para a ficha específica do aluno na memória
 //          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 //
-//          if ( !ficha->ativo ) continue; // Nenhuma turma pode modificar o binário de seus alunos inativos
-//
 //          //--------------- Transição de arquitetura ---------------------------------
 //          FichaAlunoAux ficha_aux = {0};
 //          ficha_aux.cod_aluno = ficha->cod_aluno;
 //          g_strlcpy( ficha_aux.aluno, ficha->aluno, sizeof( ficha_aux.aluno ) );
 //          g_strlcpy( ficha_aux.sexo, ficha->sexo, sizeof( ficha_aux.sexo ) );
 //          g_strlcpy( ficha_aux.nasc, ficha->nasc, sizeof( ficha_aux.nasc ) );
-//          ficha_aux.atipico = ficha->atipico;
+//          // ficha_aux.atipico = ficha->atipico;
 //          ficha_aux.sit = ficha->sit;
 //          ficha_aux.ativo = ficha->ativo;
 //          ficha_aux.limite_corte = ficha->limite_corte;
@@ -1634,8 +1708,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    // Atualização do diretório de salvamento
 //    if ( !final_save ) {
 //       g_free( ctx->dir_save_fichas );
-//       ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
-//                                                ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+//       ctx->dir_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
 //    }
 //    return salvou_algo;
 // }
@@ -1652,49 +1725,49 @@ gboolean calcular_destino_cursor( guint keyval, GtkTreeModel *model, GtkTreePath
    GtkTreeIter iter;
 
    switch ( keyval ) {
-      case GDK_KEY_Return:
-      case GDK_KEY_KP_Enter:
-      case GDK_KEY_Down:
-      case GDK_KEY_KP_Down:
-         gtk_tree_path_next( path ); // O path é modificado in-place pela própria API do GTK
-         if ( gtk_tree_model_get_iter( model, &iter, path ) ) mover_cursor = TRUE;
-         break;
+   case GDK_KEY_Return:
+   case GDK_KEY_KP_Enter:
+   case GDK_KEY_Down:
+   case GDK_KEY_KP_Down:
+      gtk_tree_path_next( path ); // O path é modificado in-place pela própria API do GTK
+      if ( gtk_tree_model_get_iter( model, &iter, path ) ) mover_cursor = TRUE;
+      break;
 
-      case GDK_KEY_Up:
-      case GDK_KEY_KP_Up:
-         if ( gtk_tree_path_prev( path ) && gtk_tree_model_get_iter( model, &iter, path ) ) {
-            mover_cursor = TRUE;
-         }
-         break;
+   case GDK_KEY_Up:
+   case GDK_KEY_KP_Up:
+      if ( gtk_tree_path_prev( path ) && gtk_tree_model_get_iter( model, &iter, path ) ) {
+         mover_cursor = TRUE;
+      }
+      break;
 
-      case GDK_KEY_Tab:
-      case GDK_KEY_Right:
-      case GDK_KEY_KP_Right:
-         if ( current_col_node ) {
-            for ( GList *node = current_col_node->next; node != NULL; node = node->next ) {
-               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
-               if ( gtk_tree_view_column_get_visible( c ) ) {
-                  *nova_coluna = c; // Atualiza a coluna de destino por referência
-                  mover_cursor = TRUE;
-                  break;
-               }
+   case GDK_KEY_Tab:
+   case GDK_KEY_Right:
+   case GDK_KEY_KP_Right:
+      if ( current_col_node ) {
+         for ( GList *node = current_col_node->next; node != NULL; node = node->next ) {
+            GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+            if ( gtk_tree_view_column_get_visible( c ) ) {
+               *nova_coluna = c; // Atualiza a coluna de destino por referência
+               mover_cursor = TRUE;
+               break;
             }
          }
-         break;
+      }
+      break;
 
-      case GDK_KEY_Left:
-      case GDK_KEY_KP_Left:
-         if ( current_col_node ) {
-            for ( GList *node = current_col_node->prev; node != NULL; node = node->prev ) {
-               GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
-               if ( gtk_tree_view_column_get_visible( c ) ) {
-                  *nova_coluna = c; // Atualiza a coluna de destino por referência
-                  mover_cursor = TRUE;
-                  break;
-               }
+   case GDK_KEY_Left:
+   case GDK_KEY_KP_Left:
+      if ( current_col_node ) {
+         for ( GList *node = current_col_node->prev; node != NULL; node = node->prev ) {
+            GtkTreeViewColumn *c = GTK_TREE_VIEW_COLUMN( node->data );
+            if ( gtk_tree_view_column_get_visible( c ) ) {
+               *nova_coluna = c; // Atualiza a coluna de destino por referência
+               mover_cursor = TRUE;
+               break;
             }
          }
-         break;
+      }
+      break;
    }
 
    return mover_cursor;
@@ -1724,7 +1797,7 @@ static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, 
 
    // 1. Obtém o índice do aluno (a linha selecionada corresponde perfeitamente ao índice do GArray)
    int index_aluno = atoi( path_string );
-   g_return_if_fail( index_aluno >= 0 && (guint)index_aluno < ctx->fichas->len );
+   g_return_if_fail( index_aluno >= 0 && ( guint )index_aluno < ctx->fichas->len );
 
    // 2. Aponta para a ficha de trabalho
    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
@@ -1798,7 +1871,7 @@ void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *pat
       gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
 
       // 6. SINCRONIZAÇÃO EM MEMÓRIA
-      _sincronizar_nota_ficha( ctx, path_string, col_model_index, (float)valor_nota );
+      _sincronizar_nota_ficha( ctx, path_string, col_model_index, ( float )valor_nota );
 
       // Se necessário, descomente a flag para habilitar o salvamento geral do arquivo depois:
       _marcar_dados_modificado( ctx );
@@ -1872,7 +1945,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
    while ( linhas[i] != NULL ) {
       gchar *nota_str = g_strstrip( linhas[i] );
 
-      if ( linhas[i+1] == NULL && strlen( nota_str ) == 0 ) break;
+      if ( linhas[i + 1] == NULL && strlen( nota_str ) == 0 ) break;
 
       gchar *path_str = gtk_tree_path_to_string( current_path );
       gint *indices = gtk_tree_path_get_indices( current_path );
@@ -1906,9 +1979,9 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 // FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
 //===================================================================================================
 static void on_renderizar_cores_notas( GtkTreeViewColumn *tree_column, GtkCellRenderer *cell,
-                                GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
-   AppContext *ctx = (AppContext *)user_data;
-   (void)tree_column;
+                                       GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   ( void )tree_column;
 
    // Verifica a coluna 12 para saber se o aluno está inativo
    gboolean inativo = FALSE;
@@ -2000,9 +2073,9 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
                           4, str_notas[2],   5, str_notas[3],
                           6, str_notas[4],   7, str_notas[5],
                           8, str_notas[6],   9, str_notas[7],
-                         10, str_notas[8],  11, str_notas[9],
-                         12, !ficha->ativo,
-                        -1 );
+                          10, str_notas[8],  11, str_notas[9],
+                          12, !ficha->ativo,
+                          -1 );
    }
 
    // Vincula a renderização condicional dinâmica às colunas de 1 a 11 (Nome + Notas)

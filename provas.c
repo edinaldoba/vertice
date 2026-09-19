@@ -178,24 +178,24 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 //========================================================================================================//
 static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) {
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n"
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
-      "\\usepackage[dvipsnames,table]{xcolor}\n"
-      "\\usepackage{multicol}\n"
-      "\\usepackage{enumerate}\n"
-      "\\usepackage[nointegrals]{wasysym}\n"
-      "\\usepackage{bm}\n"
-      "\\usepackage{array,multirow,graphicx}\n"
-      "\\usepackage{amsmath,amssymb}\n"
-      "\\usepackage{ifthen}\n"
-      "\\usepackage{setspace}\n"
-      "\\usepackage{ulem}\n"
-      "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n"
-   );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n"
+                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
+                    "\\usepackage[dvipsnames,table]{xcolor}\n"
+                    "\\usepackage{multicol}\n"
+                    "\\usepackage{enumerate}\n"
+                    "\\usepackage[nointegrals]{wasysym}\n"
+                    "\\usepackage{bm}\n"
+                    "\\usepackage{array,multirow,graphicx}\n"
+                    "\\usepackage{amsmath,amssymb}\n"
+                    "\\usepackage{ifthen}\n"
+                    "\\usepackage{setspace}\n"
+                    "\\usepackage{ulem}\n"
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n"
+                  );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
@@ -204,31 +204,31 @@ static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) 
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
 
    g_string_append( tex,
-      "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
-      "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
-      "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
-      "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
-      "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
-      "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
-      "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
-      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
-   );
+                    "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
+                    "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
+                    "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
+                    "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
+                    "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
+                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
+                  );
 }
 //--------------------------------------------------------------------------------------------------------
 static void anexar_identificadores_latex( GString *tex, uint8_t id_turma, uint8_t id_prova ) {
    g_string_append_printf( tex, "\\def\\turma{{\"%d\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\"}}\n",
-      ( id_turma >> 5 & 1 ) * 255, ( id_turma >> 4 & 1 ) * 255, ( id_turma >> 3 & 1 ) * 255,
-      ( id_turma >> 2 & 1 ) * 255, ( id_turma >> 1 & 1 ) * 255, ( id_turma & 1 ) * 255 );
+                           ( id_turma >> 5 & 1 ) * 255, ( id_turma >> 4 & 1 ) * 255, ( id_turma >> 3 & 1 ) * 255,
+                           ( id_turma >> 2 & 1 ) * 255, ( id_turma >> 1 & 1 ) * 255, ( id_turma & 1 ) * 255 );
 
    g_string_append_printf( tex, "\\def\\id{{\"%d\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\"}}\n",
-      ( id_prova >> 5 & 1 ) * 255, ( id_prova >> 4 & 1 ) * 255, ( id_prova >> 3 & 1 ) * 255,
-      ( id_prova >> 2 & 1 ) * 255, ( id_prova >> 1 & 1 ) * 255, ( id_prova & 1 ) * 255 );
+                           ( id_prova >> 5 & 1 ) * 255, ( id_prova >> 4 & 1 ) * 255, ( id_prova >> 3 & 1 ) * 255,
+                           ( id_prova >> 2 & 1 ) * 255, ( id_prova >> 1 & 1 ) * 255, ( id_prova & 1 ) * 255 );
 }
 //--------------------------------------------------------------------------------------------------------
 static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dados, const FichaAluno *ficha,
-                                         int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
+      int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
    const char *cor_aluno = dados->naopresencial ? "blue" : "CorSerie";
 
    if ( dados->cabecalho_tipo == 1 ) { // PVO11 e PVO12
@@ -290,13 +290,13 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
          int turno_idx = ( dados->turma[4] == 'm' ) * 0 + ( dados->turma[4] == 'v' ) * 1 + ( dados->turma[4] == 'i' ) * 2 + ( dados->turma[4] == 'n' ) * 3;
          g_string_append_printf( tex, "\\draw[line width=0.8pt,rounded corners] (3.9,-3.88) rectangle (91/15,-5.5);\n\\pgfmathsetmacro{\\t}{%d};\n", turno_idx );
          g_string_append( tex,
-            "\\foreach \\i in {0,...,3}{\\draw[line width=0.8pt] ({3.9+0.7*81/220},{-3.88-(\\i+0.7)*81/220}) circle (0.14cm);\n"
-            "\\ifthenelse{\\i=\\t}{\\fill ({3.9+0.7*81/220},{-3.88-(\\i+0.7)*81/220}) circle (0.08cm);}{}}\n"
-            "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-0.7*81/220}) {\\footnotesize Matutino};\n"
-            "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-1.7*81/220}) {\\footnotesize Vespertino};\n"
-            "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-2.7*81/220}) {\\footnotesize Integral};\n"
-            "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-3.7*81/220}) {\\footnotesize Noturno};\n"
-         );
+                          "\\foreach \\i in {0,...,3}{\\draw[line width=0.8pt] ({3.9+0.7*81/220},{-3.88-(\\i+0.7)*81/220}) circle (0.14cm);\n"
+                          "\\ifthenelse{\\i=\\t}{\\fill ({3.9+0.7*81/220},{-3.88-(\\i+0.7)*81/220}) circle (0.08cm);}{}}\n"
+                          "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-0.7*81/220}) {\\footnotesize Matutino};\n"
+                          "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-1.7*81/220}) {\\footnotesize Vespertino};\n"
+                          "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-2.7*81/220}) {\\footnotesize Integral};\n"
+                          "\\node[inner sep=0pt,right] at ({4.15+0.7*81/220},{-3.88-3.7*81/220}) {\\footnotesize Noturno};\n"
+                        );
       }
       g_string_append( tex, is_page1 ? "\\pgfmathsetmacro{\\a}{2.06};\n\\pgfmathsetmacro{\\k}{27.55764};\n\\pgfmathsetmacro{\\s}{0.4};\n" : "\\pgfmathsetmacro{\\a}{0.04236};\n\\pgfmathsetmacro{\\k}{27.55764};\n\\pgfmathsetmacro{\\s}{0.4};\n" );
    }
@@ -319,7 +319,7 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
    if ( dados->qtd_colunas == 2 ) {
       if ( dados->separadores == 1 ) {
          g_string_append_printf( tex, "\\foreach \\i in {1,...,%d}{\\fill%s (9.5,{-\\a-%s0.1*\\i}) circle (%s);}\n",
-            dots, decorado ? "[CorSerie!40]" : "", (!is_page2 && !decorado) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt" );
+                                 dots, decorado ? "[CorSerie!40]" : "", ( !is_page2 && !decorado ) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt" );
       } else {
          g_string_append( tex, "\\draw[line width=0.8pt] (9.5,-\\a) -- (9.5,-\\k);\n" );
       }
@@ -327,10 +327,10 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
       int exp = 16 - 4 * dados->qtd_colunas;
       if ( dados->separadores == 1 ) {
          g_string_append_printf( tex, "\\pgfmathsetmacro{\\s}{%d/10}\n\\foreach \\i in {1,...,%d}{\\fill%s ({(38-\\s)/6},{-\\a-%s0.1*\\i}) circle (%s); \\fill%s ({(76+\\s)/6},{-\\a-%s0.1*\\i}) circle (%s);}\n",
-            exp, dots, decorado ? "[CorSerie!30]" : "", (!is_page2 && !decorado) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt", decorado ? "[CorSerie!30]" : "", (!is_page2 && !decorado) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt" );
+                                 exp, dots, decorado ? "[CorSerie!30]" : "", ( !is_page2 && !decorado ) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt", decorado ? "[CorSerie!30]" : "", ( !is_page2 && !decorado ) ? "0.1-" : "", decorado ? "0.5pt" : "0.6pt" );
       } else {
          g_string_append_printf( tex, "\\pgfmathsetmacro{\\s}{%d/10}\n\\draw[line width=0.8pt] ({(38-\\s)/6},{-%.1f-\\a}) -- ({(38-\\s)/6},-\\k) ({(76+\\s)/6},{-%.1f-\\a}) -- ({(76+\\s)/6},-\\k);\n",
-            exp, (!decorado && is_page2) ? 0.1 : 0.0, (!decorado && is_page2) ? 0.1 : 0.0 );
+                                 exp, ( !decorado && is_page2 ) ? 0.1 : 0.0, ( !decorado && is_page2 ) ? 0.1 : 0.0 );
       }
    }
 }
@@ -361,7 +361,9 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
          int indice_g = 0;
          while ( rnd[indice_g] != gabarito_letra ) indice_g++;
 
-         int tmp = rnd[0]; rnd[0] = rnd[indice_g]; rnd[indice_g] = tmp;
+         int tmp = rnd[0];
+         rnd[0] = rnd[indice_g];
+         rnd[indice_g] = tmp;
 
          for ( int j = 0; j < 5; j++ ) {
             if ( fgets( alternativas[rnd[j]], sizeof( alternativas[rnd[j]] ), f_questao ) )
