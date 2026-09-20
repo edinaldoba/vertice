@@ -81,16 +81,29 @@ void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados
 }
 
 
+//-------------------------------------------------------------------------------
+gboolean ocultar_painel_feedback_cb( gpointer user_data ) {
+   InterfacePainel *painel = ( InterfacePainel * )user_data;
+
+   if ( painel && painel->revealer_painel ) {
+      // Oculta o revealer de forma suave com a animação configurada no Glade
+      gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+   }
+
+   painel->timeout_id = 0;
+   return G_SOURCE_REMOVE;
+}
 
 void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    g_return_if_fail( painel != NULL );
+   g_return_if_fail( painel->revealer_painel != NULL );
 
-   // 1. Captura individual e limpa de cada contexto de estilo
+   // 1. Obtém os contextos de estilo CSS das labels
    GtkStyleContext *ctx_titulo    = gtk_widget_get_style_context( painel->titulo );
    GtkStyleContext *ctx_subtitulo = gtk_widget_get_style_context( painel->subtitulo );
    GtkStyleContext *ctx_instrucao = gtk_widget_get_style_context( painel->instrucao );
 
-   // 2. Limpeza Absoluta: Remove qualquer rastro de estados anteriores de cada label
+   // 2. Limpeza de classes anteriores
    gtk_style_context_remove_class( ctx_titulo, "sucesso-titulo" );
    gtk_style_context_remove_class( ctx_titulo, "aviso-titulo" );
    gtk_style_context_remove_class( ctx_titulo, "erro-titulo" );
@@ -106,7 +119,7 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    gtk_style_context_remove_class( ctx_instrucao, "erro-instrucao" );
    gtk_style_context_remove_class( ctx_instrucao, "info-instrucao" );
 
-   // 3. Aplicação Reativa das Classes Baseada no Tipo da Mensagem
+   // 3. Aplicação das novas classes conforme o tipo da mensagem
    switch ( MENSAGEM ) {
    case AVISO:
       gtk_style_context_add_class( ctx_titulo,    "aviso-titulo" );
@@ -134,22 +147,37 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
       break;
    }
 
-   // 4. Injeção Definitiva do Texto Puro nas Labels
+   // 4. Injeção dos textos formatados
    gtk_label_set_text( GTK_LABEL( painel->titulo ), painel->format_titulo );
    gtk_label_set_text( GTK_LABEL( painel->subtitulo ), painel->format_subtitulo );
    gtk_label_set_text( GTK_LABEL( painel->instrucao ), painel->format_instrucao );
 
-   // 5. Gerenciamento e Desalocação Segura da Memória Heap
+   // 5. Liberação de memória das strings temporárias
    g_free( painel->format_titulo );
    g_free( painel->format_subtitulo );
    g_free( painel->format_instrucao );
 
-   // Aterramento dos ponteiros para evitar acessos fantasmas
    painel->format_titulo    = NULL;
    painel->format_subtitulo = NULL;
    painel->format_instrucao = NULL;
-}
 
+   // 6. Exibição e temporização
+   // Garante que o conteúdo interno do revealer esteja visível
+   gtk_widget_show_all( gtk_bin_get_child( GTK_BIN( painel->revealer_painel ) ) );
+
+   // Inicia a animação de deslizar para cima sobre o overlay
+   gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), TRUE );
+
+   // Reinicia o timer caso uma nova mensagem seja disparada em sequência
+   if ( painel->timeout_id > 0 ) {
+      g_source_remove( painel->timeout_id );
+   }
+
+   // Mensagens de erro permanecem mais tempo na tela para leitura
+   guint tempo_exibicao = ( MENSAGEM == ERRO ) ? 6000 : 4000;
+   painel->timeout_id = g_timeout_add( tempo_exibicao, ocultar_painel_feedback_cb, painel );
+}
+//-------------------------------------------------------------------------------
 
 
 

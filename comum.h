@@ -199,6 +199,30 @@ typedef enum {
    EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
 } __attribute__( ( packed ) ) SituacaoAluno;
 
+typedef enum {
+   // --- Estado Inicial / Neutro (Usado no 1º, 2º, 3º e 4º Períodos Padrão) ---
+   OBS_ALUNO_NENHUMA              = 0,    // Sem observação definida / Em curso
+
+   // --- Estados Parciais de Transição (Definidos ao fechar o 4º Período) ---
+   OBS_ALUNO_APROVADO_DIRETO      = 1,    // Aprovado na média nos 4 períodos (Soma >= 24)
+   OBS_ALUNO_EM_RECUPERACAO_FINAL = 2,    // Não atingiu a média; convocado para a Rec. Final
+   OBS_ALUNO_EM_CONSELHO_CLASSE   = 3,    // Depende do Conselho de Classe
+
+   // --- Estados Finais Pós-Avaliações Especiais (Fechamento do Ano) ---
+   OBS_ALUNO_APROVADO_NA_FINAL    = 4,    // Atingiu a nota necessária na Recuperação Final
+   OBS_ALUNO_APROVADO_NO_CONSELHO = 5,    // Aprovado após deliberação do Conselho de Classe
+   OBS_ALUNO_APROVADO_PENDENCIA   = 6,    // Aprovado com dependência/pendência documental
+   OBS_ALUNO_REPROVADO            = 7     // Reprovado no ano letivo
+
+} __attribute__( ( packed ) ) ObservacaoAluno;
+
+typedef struct {
+   uint32_t cod_aluno; // Código único do aluno
+   SituacaoAluno sit;  // Situação do aluno
+   ObservacaoAluno obs; // Observação sobre o aluno no relatório final
+   gboolean ativo;     // Status de matrícula global
+} __attribute__( ( packed ) ) AcessoFicha;
+
 
 // MÁSCARA DE BITS PARA ATIPICIDADES (Até 31 flags expandíveis)
 // Compatível com as CIDs mapeadas na CE Poeta Cunha Santos
@@ -223,7 +247,7 @@ typedef enum {
    ATIPICO_LAUDADO              = 1 << 28,    // Possui laudo médico anexado
    ATIPICO_PROVA_ADAPTADA       = 1 << 29,    // Requer banco de questões paralelo/adaptado
    ATIPICO_OBSERVACAO           = 1 << 30     // Possui anotação pedagógica específica
-} FlagsAtipicidade;
+} __attribute__( ( packed ) ) FlagsAtipicidade;
 
 // ESTRUTURA BLINDADA PARA FICHA BINÁRIA (Tamanho fixo congelado)
 typedef struct {
@@ -245,12 +269,6 @@ typedef enum {
    SUSPENSO             = 8, // Evasão não autorizada do recinto escolar durante o período letivo
    NOVO_ALUNO           = 9  // Novo aluno matriculados na turma
 } __attribute__( ( packed ) ) StatusAssiduidade;
-
-typedef struct {
-   uint32_t cod_aluno; // Código único do aluno
-   SituacaoAluno sit;  // Situação do aluno
-   gboolean ativo;     // Status de matrícula global
-} __attribute__( ( packed ) ) AcessoFicha;
 
 typedef struct {
    uint32_t cod_aluno;

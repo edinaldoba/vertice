@@ -217,14 +217,14 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
 
    // --- [ CONSOLE / TERMINAL DE FEEDBACK INFERIOR ] ---
+   ctx->painel.eventbox_painel = GTK_WIDGET( gtk_builder_get_object( builder, "eventbox_painel" ) );
+   if ( ctx->painel.eventbox_painel ) {
+      // Registra os eventos de entrada e saída de ponteiro no EventBox
+      gtk_widget_add_events( ctx->painel.eventbox_painel, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK );
+   }
    ctx->painel.container = GTK_WIDGET( gtk_builder_get_object( builder, "painel_feedback" ) );
-
-   // int base_size = tamanho_fonte_px( ctx->window );
-   // if ( base_size <= 0 ) base_size = 15; // Fallback de segurança caso Pango falhe
-   // gtk_widget_set_size_request( ctx->painel.container, -1, 15*base_size );
-
+   ctx->painel.revealer_painel = GTK_WIDGET( gtk_builder_get_object( builder, "revealer_painel_feedback" ) );
    ctx->painel.cabecalho = GTK_WIDGET( gtk_builder_get_object( builder, "label_cabecalho" ) );
-
    ctx->painel.titulo    = GTK_WIDGET( gtk_builder_get_object( builder, "label_titulo" ) );
    ctx->painel.subtitulo = GTK_WIDGET( gtk_builder_get_object( builder, "label_subtitulo" ) );
    ctx->painel.instrucao = GTK_WIDGET( gtk_builder_get_object( builder, "label_instrucao" ) );

@@ -135,7 +135,9 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
 }
 
 
-
+//------------------------------------------------------------------------------------
+static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina );
+//------------------------------------------------------------------------------------
 void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
@@ -143,6 +145,11 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
 
    ctx->cascata.foco.periodo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->entry.periodo ) );
    if ( ctx->cascata.foco.periodo < 0 || ctx->listas.periodos == NULL ) return;
+
+   if ( ctx->cascata.foco.periodo == 4 || ctx->cascata.foco.periodo == 5 ) {
+      // Recuperação Final ou Conselho de classe
+      _ui_diario_mudar_aba( ctx->stack_pages, "page_relatorio" );
+   }
 
    gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->entry.periodo ) );
    if ( !periodo_selecionado ) return;
@@ -834,14 +841,29 @@ void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_dat
          int novo_foco = ( col_index - 2 ) / 2;
          GtkComboBox *combo = GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes );
 
+         /* =========================================================================================
+          * REGRA DE SINCRONIZAÇÃO DA INTERFACE (TreeView -> ComboBox -> CheckButton "Desativar"):
+          *
+          * 1. Mapeamento de Foco: As colunas 2 a 11 do TreeView representam os 5 pares (Av/Rec) de notas.
+          *    Ao clicar em uma célula, mapeamos a coluna ativa para o índice da avaliação (0 a 4).
+          *
+          * 2. Por que manter o sinal do ComboBox DESBLOQUEADO ao alterar seu item ativo?
+          *    - Existe um acoplamento intencional: quando o ComboBox de avaliações altera o item selecionado,
+          *      o seu callback consulta o ListStore correspondente e atualiza o estado do CheckButton "Desativar".
+          *    - Como as colunas de avaliações desativadas permanecem OCULTAS no TreeView, o usuário
+          *      SÓ consegue clicar em células de avaliações VISÍVEIS (ativas).
+          *    - Se bloqueássemos o sinal do ComboBox aqui, o CheckButton "Desativar" poderia ficar preso no
+          *      estado "marcado" (caso uma avaliação desativada estivesse selecionada antes), mesmo com o ComboBox
+          *      agora apontando para uma avaliação ativa.
+          *    - Manter o sinal fluindo garante a consistência visual automática de todo o conjunto de widgets.
+          * ========================================================================================= */
          if ( gtk_combo_box_get_active( combo ) != novo_foco ) {
-            gulong handler = ctx->ui_diario.handler_combo_avaliacoes;
-
-            if ( handler > 0 ) g_signal_handler_block( combo, handler );
+            // gulong handler = ctx->ui_diario.handler_combo_avaliacoes;
+            // if ( handler > 0 ) g_signal_handler_block( combo, handler );
 
             gtk_combo_box_set_active( combo, novo_foco );
 
-            if ( handler > 0 ) g_signal_handler_unblock( combo, handler );
+            // if ( handler > 0 ) g_signal_handler_unblock( combo, handler );
          }
       }
    }
@@ -933,9 +955,30 @@ static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pag
    }
 }
 //------------------------------------------------------------------------------------------------------------------
+gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( widget && event &&  ctx, FALSE );
+
+   if ( ctx->cascata.foco.periodo == 5 ) {
+      // Conselho de classe
+      return FALSE;
+   }
+
+   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_conteudo" ) ) {
+      gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
+   }
+
+   return FALSE;
+}
+//------------------------------------------------------------------------------------------------------------------
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event && ctx, FALSE );
+
+   if ( ctx->cascata.foco.periodo == 5 ) {
+      // Conselho de classe
+      return FALSE;
+   }
 
    // 1. Bloqueia a navegação se houver uma edição de conteúdo aberta
    if ( ctx->ui_diario.editando ) {
@@ -955,20 +998,14 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
    return FALSE;
 }
 //------------------------------------------------------------------------------------------------------------------
-gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * )user_data;
-   g_return_val_if_fail( widget && event &&  ctx, FALSE );
-
-   if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_conteudo" ) ) {
-      gtk_widget_grab_focus( ctx->ui_diario.tipo_registro );
-   }
-
-   return FALSE;
-}
-//------------------------------------------------------------------------------------------------------------------
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
+
+   if ( ctx->cascata.foco.periodo == 4 || ctx->cascata.foco.periodo == 5 ) {
+      // Recuperação Final ou Conselho de classe
+      return FALSE;
+   }
 
    if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_avaliacoes" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
@@ -1359,6 +1396,39 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
 
 
 
+
+
+// Callback disparada quando o rato ENTRA na caixa do feedback (Pausa o sumiço)
+G_MODULE_EXPORT
+gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   g_return_val_if_fail( widget && event, FALSE );
+   AppContext *ctx = (AppContext *)user_data;
+   InterfacePainel *painel = &ctx->painel;
+
+   if ( painel && painel->timeout_id > 0 ) {
+      // Cancela o temporizador de ocultação
+      g_source_remove( painel->timeout_id );
+      painel->timeout_id = 0;
+   }
+   return FALSE; // Permite a propagação normal do evento
+}
+
+// Callback disparada quando o Rato SAI da caixa do feedback (Reinicia a contagem)
+G_MODULE_EXPORT
+gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
+   g_return_val_if_fail( widget && event, FALSE );
+   AppContext *ctx = (AppContext *)user_data;
+   InterfacePainel *painel = &ctx->painel;
+
+   if ( painel ) {
+      // Se o painel ainda estiver visível, agenda a ocultação para daqui a 3 segundos
+      if ( gtk_revealer_get_child_revealed( GTK_REVEALER( painel->revealer_painel ) ) ) {
+         if ( painel->timeout_id > 0 ) g_source_remove( painel->timeout_id );
+         painel->timeout_id = g_timeout_add( 3000, ocultar_painel_feedback_cb, painel );
+      }
+   }
+   return FALSE;
+}
 
 
 

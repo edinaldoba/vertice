@@ -318,9 +318,15 @@ void app_signals_connect( gpointer user_data ) {
    ctx->provas.importar = false;
 
 
-
    ctx->ui_diario.handler_combo_alunos = g_signal_connect( G_OBJECT( ctx->ui_diario.combo_alunos ), "changed",
                                          G_CALLBACK( on_combo_alunos_changed ), ctx );
+
+
+   g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "enter-notify-event",
+                  G_CALLBACK( on_painel_feedback_enter_notify_event ), ctx );
+
+   g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "leave-notify-event",
+                     G_CALLBACK( on_painel_feedback_leave_notify_event ), ctx );
 
 
 }

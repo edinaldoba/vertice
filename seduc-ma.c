@@ -247,8 +247,8 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
    pango_layout_set_font_description( layout, desc );
    pango_font_description_free( desc );
 
-   AcessoTurmas turmas;
-   AcessoFicha acesso;
+   AcessoTurmas turmas = {0};
+   AcessoFicha acesso = {0};
    int i = 0;
 
    // 5. LOOP DE PROCESSAMENTO ALUNO A ALUNO

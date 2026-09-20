@@ -238,8 +238,11 @@ typedef struct {
 
 
 typedef struct {
+   GtkWidget *eventbox_painel;
+   GtkWidget *revealer_painel;
    GtkWidget *titulo, *subtitulo, *instrucao, *container, *cabecalho;
    gchar *format_titulo, *format_subtitulo, *format_instrucao, *format_cabecalho;
+   guint timeout_id;
 } InterfacePainel;
 
 

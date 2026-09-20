@@ -2026,7 +2026,7 @@ static void on_renderizar_cores_notas( GtkTreeViewColumn *tree_column, GtkCellRe
 }
 //--------------------------------------------------------------------------------------------------
 void carregar_notas_ui_por_periodo( AppContext *ctx ) {
-   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( ctx && ctx->fichas );
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
