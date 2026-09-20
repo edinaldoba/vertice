@@ -85,12 +85,19 @@ void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados
 gboolean ocultar_painel_feedback_cb( gpointer user_data ) {
    InterfacePainel *painel = ( InterfacePainel * )user_data;
 
-   if ( painel && painel->revealer_painel ) {
-      // Oculta o revealer de forma suave com a animação configurada no Glade
-      gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+   if ( painel ) {
+      // 🛡️ A mágica acontece aqui: se o mouse estiver sobre a mensagem, o timer se recusa a ocultá-la
+      if ( painel->mouse_hover ) {
+         return G_SOURCE_CONTINUE; // Mantém o timer vivo na GLib aguardando o mouse sair
+      }
+
+      if ( painel->revealer_painel ) {
+         // Oculta o revealer de forma suave com a animação configurada no Glade
+         gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+      }
+      painel->timeout_id = 0;
    }
 
-   painel->timeout_id = 0;
    return G_SOURCE_REMOVE;
 }
 
@@ -98,8 +105,8 @@ void reexibir_ultima_mensagem( InterfacePainel *painel ) {
    g_return_if_fail( painel != NULL );
    g_return_if_fail( painel->revealer_painel != NULL );
 
-   // 1. Zera o estado de hover para reavaliar a posição atual do ponteiro
-   // painel->mouse_hover = FALSE;
+   // 1. Zera o estado de hover para reavaliar a posição atual do ponteiro de forma segura
+   painel->mouse_hover = FALSE;
 
    // 2. Se já houver um temporizador rodando, cancela para evitar atropelos
    if ( painel->timeout_id > 0 ) {
@@ -188,6 +195,10 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    painel->format_instrucao = NULL;
 
    // 6. Exibição e temporização
+
+   // 🛡️ Garante que a flag esteja zerada sempre que uma nova mensagem for disparada
+   painel->mouse_hover = FALSE;
+
    // Garante que o conteúdo interno do revealer esteja visível
    gtk_widget_show_all( gtk_bin_get_child( GTK_BIN( painel->revealer_painel ) ) );
 
@@ -197,6 +208,7 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    // Reinicia o timer caso uma nova mensagem seja disparada em sequência
    if ( painel->timeout_id > 0 ) {
       g_source_remove( painel->timeout_id );
+      painel->timeout_id = 0; // Boa prática zerar a variável após o cancelamento
    }
 
    // Mensagens de erro permanecem mais tempo na tela para leitura

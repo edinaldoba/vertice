@@ -1419,11 +1419,15 @@ gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCross
    AppContext *ctx = (AppContext *)user_data;
    InterfacePainel *painel = &ctx->painel;
 
+   // 🛡️ Marca o hover como ATIVO
+   painel->mouse_hover = TRUE;
+
    if ( painel && painel->timeout_id > 0 ) {
-      // Cancela o temporizador de ocultação
+      // Cancela o temporizador de ocultação imediatamente
       g_source_remove( painel->timeout_id );
       painel->timeout_id = 0;
    }
+
    return FALSE; // Permite a propagação normal do evento
 }
 
@@ -1434,19 +1438,29 @@ gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCross
    AppContext *ctx = (AppContext *)user_data;
    InterfacePainel *painel = &ctx->painel;
 
+   // 🛡️ Marca o hover como INATIVO
+   painel->mouse_hover = FALSE;
+
    if ( painel ) {
       // Se o painel ainda estiver visível, agenda a ocultação para daqui a 3 segundos
       if ( gtk_revealer_get_child_revealed( GTK_REVEALER( painel->revealer_painel ) ) ) {
-         if ( painel->timeout_id > 0 ) g_source_remove( painel->timeout_id );
+
+         // Previne acúmulo de timers caso o mouse entre e saia muito rápido
+         if ( painel->timeout_id > 0 ) {
+             g_source_remove( painel->timeout_id );
+         }
+
          painel->timeout_id = g_timeout_add( 3000, ocultar_painel_feedback_cb, painel );
       }
    }
+
    return FALSE;
 }
 
 G_MODULE_EXPORT
 gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data ) {
    g_return_val_if_fail( widget && event, FALSE );
+
    // Responde apenas ao clique com o botão esquerdo do mouse
    if ( event->type == GDK_BUTTON_PRESS && event->button == 1 ) {
       AppContext *ctx = ( AppContext * )user_data;

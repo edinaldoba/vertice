@@ -247,7 +247,7 @@ typedef struct {
    GtkWidget *titulo, *subtitulo, *instrucao, *container, *cabecalho;
    gchar *format_titulo, *format_subtitulo, *format_instrucao, *format_cabecalho;
    guint timeout_id;
-   // gboolean mouse_hover;
+   gboolean mouse_hover;
 } InterfacePainel;
 
 

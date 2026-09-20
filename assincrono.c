@@ -19,50 +19,50 @@
 
 
 typedef struct {
-   InterfacePainel  painel;
-   InterfaceDados   dados;    // ◄ Por valor (Cópia estática blindada)
-   InterfaceListas  listas;
-   FocoCoordenadas  foco;     // ◄ Por valor
-   CaminhoDiretorio caminho;  // ◄ Por valor
-   CalendarioData   data;     // ◄ Por valor
-   GArray           *fichas;   // Ponteiro (Seguro, pois o vetor global do ctx está vivo)
-   GtkWidget        *botao_gerar;
+   InterfacePainel  *painel;      // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
+   InterfaceDados   dados;        // ◄ Por valor (Cópia estática blindada)
+   InterfaceListas  listas;       // ◄ Por valor
+   FocoCoordenadas  foco;         // ◄ Por valor
+   CaminhoDiretorio caminho;      // ◄ Por valor
+   CalendarioData   data;         // ◄ Por valor
+   GArray           *fichas;      // ◄ Ponteiro (Clone seguro na Heap para a Thread)
+   GtkWidget        *botao_gerar; // ◄ Ponteiro (Widget vivo)
    bool             sucesso;
 } ProvaThreadArgs;
 
 /**
  * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
- * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha ou se n_alunos == 0.
+ * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha.
  */
 static GArray* clonar_diario_alunos( GArray *fichas_originais ) {
-   // 1. Validação geométrica elementar
-   if ( !fichas_originais || fichas_originais->len == 0 ) {
-      return NULL;
-   }
+   if ( !fichas_originais || fichas_originais->len == 0 ) return NULL;
 
-   // 2. Criação do novo GArray independente e zerado
-   // FALSE = não precisa de terminador nulo, TRUE = limpa com zeros
+   // Criação do novo GArray independente (limpo com zeros)
    GArray *fichas_clone = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), fichas_originais->len );
 
-   // 3. Cópia física bruta (Block Copy) bit a bit dos elementos internos
+   // Cópia física bruta (Block Copy) bit a bit dos elementos internos
    g_array_append_vals( fichas_clone, fichas_originais->data, fichas_originais->len );
 
    return fichas_clone;
 }
 
-// 🚀 A NOVA FUNÇÃO DE ENTRADA DO MOTOR:
+// ============================================================================
+// A NOVA FUNÇÃO DE ENTRADA DO MOTOR
+// ============================================================================
 void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
-   // Aloca os argumentos, tira o snapshot por valor...
    ProvaThreadArgs *args = malloc( sizeof( ProvaThreadArgs ) );
    if ( !args ) return;
 
+   // Snapshots por valor (Segurança Thread-Safe)
    args->dados   = ctx->dados;
    args->foco    = ctx->cascata.foco;
    args->caminho = ctx->caminho;
    args->data    = ctx->data;
-   args->painel  = ctx->painel;
    args->listas  = ctx->listas;
-   args->fichas = clonar_diario_alunos( ctx->fichas );
+
+   // Snapshots por referência (Acesso UI Viva e Clone Heap)
+   args->painel      = &ctx->painel; // Ponteiro para o painel atual do AppContext
+   args->fichas      = clonar_diario_alunos( ctx->fichas );
    args->botao_gerar = widget;
 
    pthread_t thread_id;
@@ -73,80 +73,88 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
       gtk_widget_set_sensitive( widget, TRUE );
+      if ( args->fichas ) g_array_unref( args->fichas );
       free( args );
    }
+
    pthread_attr_destroy( &attr );
 }
 
+// ============================================================================
+// CALLBACK: Oculta o painel Toast e libera a Heap (Executa na Main Thread)
+// ============================================================================
+static gboolean ocultar_painel_e_desalocar_args_cb( gpointer user_data ) {
+   ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
+   if ( !args ) return G_SOURCE_REMOVE;
 
+   InterfacePainel *painel = args->painel; // Usa o ponteiro direto!
 
+   if ( painel ) {
+      // 1. Hover check em tempo real no ponteiro vivo
+      if ( painel->mouse_hover ) {
+         return G_SOURCE_CONTINUE; // Adia a ocultação!
+      }
 
+      // 2. Oculta o Revealer suavemente
+      if ( painel->revealer_painel ) {
+         gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+      }
+      painel->timeout_id = 0;
+   }
 
-/* =================================================================================================================
-   CALLBACK DE RETORNO DO TRABALHADOR DE PROVAS (G-Source do Main Loop)
-   ================================================================================================================= */
+   // 3. DESALOCAÇÃO SEGURA NA HEAP (Somente quando a UI terminar)
+   if ( args->fichas != NULL ) {
+      g_array_unref( args->fichas );
+   }
+   free( args );
+
+   g_print( "[GLib Timer] Toast ocultado. Memory cleanup de ProvaThreadArgs concluído.\n" );
+   return G_SOURCE_REMOVE;
+}
+
+// ============================================================================
+// CALLBACK: Retorno da Thread (Executa na Main Thread via g_idle_add)
+// ============================================================================
 static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
    if ( !args ) return FALSE;
 
-   // 1. Reativação física do botão de controle da interface
    if ( args->botao_gerar ) {
       gtk_widget_set_sensitive( args->botao_gerar, TRUE );
    }
 
    char instrucao[256] = {0};
+   InterfacePainel *painel = args->painel;
 
-   // 2. Fluxo Baseado no Retorno da Compilação Assíncrona do TeX
    if ( args->sucesso ) {
       snprintf( instrucao, sizeof( instrucao ), "Pronto para impressão: %s Prova.pdf (em tela)",
                 args->dados.prova_sequencia );
 
-      // Alimenta os buffers do painel para o cenário de SUCESSO
-      args->painel.format_titulo    = meu_gerador_variadico( "✔ Prova Gerada com Sucesso!" );
-      args->painel.format_subtitulo = meu_gerador_variadico(
-                                         "O arquivo PDF foi compilado e estruturado corretamente via TeX." );
-      args->painel.format_instrucao = meu_gerador_variadico( "%s", instrucao );
+      painel->format_titulo    = meu_gerador_variadico( "✔ Prova Gerada com Sucesso!" );
+      painel->format_subtitulo = meu_gerador_variadico( "O arquivo PDF foi compilado e estruturado corretamente via TeX." );
+      painel->format_instrucao = meu_gerador_variadico( "%s", instrucao );
 
-      // Dispara o motor central para pintar as etiquetas e gerenciar o Heap
-      criar_mensagem_painel( SUCESSO, &args->painel );
+      criar_mensagem_painel( SUCESSO, painel );
    } else {
       snprintf( instrucao, sizeof( instrucao ), "Verifique o arquivo lista.dat do \"%s\" ou os logs do compilador.",
                 args->dados.periodo );
 
-      // Alimenta os buffers do painel para o cenário de ERRO crítico
-      args->painel.format_titulo    = meu_gerador_variadico( "✘ Erro no Motor TeX" );
-      args->painel.format_subtitulo = meu_gerador_variadico(
-                                         "Falha crítica na estruturação ou compilação assíncrona dos gabaritos." );
-      args->painel.format_instrucao = meu_gerador_variadico( "%s", instrucao );
+      painel->format_titulo    = meu_gerador_variadico( "✘ Erro no Motor TeX" );
+      painel->format_subtitulo = meu_gerador_variadico( "Falha crítica na estruturação ou compilação assíncrona dos gabaritos." );
+      painel->format_instrucao = meu_gerador_variadico( "%s", instrucao );
 
-      // Dispara o motor central injetando o estilo do tema (Light, Deep Blue ou Dark Green)
-      criar_mensagem_painel( ERRO, &args->painel );
+      criar_mensagem_painel( ERRO, painel );
    }
 
-
-   // =========================================================================
-   // 🛡️ HIGIENE DA HEAP DA THREAD (Obrigatório antes do return/pthread_exit)
-   // =========================================================================
-   g_print( "[Thread] Trabalho concluído. Iniciando desalocação do snapshot...\n" );
-
-   // A. Libera o diário clonado que foi gerado especificamente para esta thread
-   if ( args->fichas != NULL ) {
-      g_array_unref( args->fichas );
-      args->fichas = NULL;
-      g_print( "   ✔ Clone do Diário de Alunos desalocado da Heap.\n" );
+   // REPROGRAMA O TIMER COM O CONTEXTO ISOLADO
+   if ( painel->timeout_id > 0 ) {
+      g_source_remove( painel->timeout_id );
    }
 
-   // C. Libera a própria estrutura de argumentos da thread
-   g_print( "   ✔ Estrutura ProvaThreadArgs desalocada.\n" );
+   guint tempo_exibicao = ( args->sucesso ) ? 4000 : 6000;
+   painel->timeout_id = g_timeout_add( tempo_exibicao, ocultar_painel_e_desalocar_args_cb, args );
 
-   // 3. Desalocação segura da estrutura de argumentos que veio da Thread secundária
-   free( args );
-
-   g_print( "[Thread] Finalizada com 100%% de segurança na memória.\n\n" );
-
-   // Retornamos FALSE para avisar ao g_idle_add ou g_timeout_add que este callback deve rodar apenas uma vez!
-   return FALSE;
-   // return G_SOURCE_REMOVE; // Diz ao GTK para executar essa função apenas UMA vez
+   return FALSE; // Remove da fila Idle
 }
 
 
@@ -221,95 +229,132 @@ void* thread_gerar_prova_background( void *data ) {
 
 
 
-// Estrutura atualizada para garantir o Deep Copy e controle de UI
+// ============================================================================
+// ESTRUTURA REFINADA (Deep Copy + Ponteiro de UI)
+// ============================================================================
 typedef struct {
-   InterfacePainel  painel;           // Para atualizar a interface no retorno
+   InterfacePainel  *painel;          // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
    InterfaceDados   dados;            // ◄ Por valor (Cópia estática blindada)
    LimitesFiltro    limite;           // ◄ Por valor (Cópia estática blindada)
    GtkWidget        *botao_processar; // Para reativar o clique ao final
    int              n_rejeitadas;     // Número de imagens rejeitadas e movidas para a quarentena
 } ProcessarThreadArgs;
 
-void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
 
-   // 1. Alocação do pacote de argumentos para a Thread
+// ============================================================================
+// DISPARADOR ASSÍNCRONO
+// ============================================================================
+void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
    ProcessarThreadArgs *args = malloc( sizeof( ProcessarThreadArgs ) );
    if ( !args ) return;
 
-   // 2. Deep Copy: Isolando os dados da Thread Principal GTK
+   // Deep Copy: Isolando os dados da Thread Principal GTK
    args->dados  = ctx->dados;
-   args->limite = ctx->cascata.limite; // Ajuste para o local exato do seu LimitesFiltro no ctx
-   args->painel = ctx->painel;
-   args->botao_processar = widget;
-   args->n_rejeitadas = -1;
+   args->limite = ctx->cascata.limite;
 
-   // 3. Desativa o botão para o usuário não clicar duas vezes enquanto processa
+   // Referências Vivas
+   args->painel          = &ctx->painel; // Passagem por referência para acesso em tempo real
+   args->botao_processar = widget;
+   args->n_rejeitadas    = -1;
+
    gtk_widget_set_sensitive( widget, FALSE );
 
-   // 4. Criação e disparo da Thread Detached
    pthread_t thread_id;
    pthread_attr_t attr;
    pthread_attr_init( &attr );
-   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED ); //
+   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
 
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       g_printerr( "ERRO: Falha ao criar a thread de processamento de imagens.\n" );
       gtk_widget_set_sensitive( widget, TRUE );
       free( args );
    }
-   pthread_attr_destroy( &attr );
 
+   pthread_attr_destroy( &attr );
 }
 
 
+// ============================================================================
+// CALLBACK: Oculta o painel Toast e libera a Heap (Executa na Main Thread)
+// ============================================================================
+static gboolean ocultar_painel_cv_cb( gpointer user_data ) {
+   ProcessarThreadArgs *args = ( ProcessarThreadArgs * )user_data;
+   if ( !args ) return G_SOURCE_REMOVE;
+
+   InterfacePainel *painel = args->painel;
+
+   if ( painel ) {
+      // 1. Se o professor estiver com o mouse sobre o Toast, NÃO recolhe nem desaloca ainda!
+      if ( painel->mouse_hover ) {
+         return G_SOURCE_CONTINUE;
+      }
+
+      // 2. Oculta o Revealer de forma suave
+      if ( painel->revealer_painel ) {
+         gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+      }
+      painel->timeout_id = 0;
+   }
+
+   // 3. DESALOCAÇÃO SEGURA NA HEAP
+   free( args );
+   g_print( "[GLib Timer] Toast CV ocultado. Memory cleanup de ProcessarThreadArgs concluído.\n\n" );
+
+   return G_SOURCE_REMOVE;
+}
 
 
+// ============================================================================
+// CALLBACK: Retorno da Thread (Executa na Main Thread via g_idle_add)
+// ============================================================================
 static gboolean reativar_botao_processar_imagens( gpointer user_data ) {
    ProcessarThreadArgs *args = ( ProcessarThreadArgs * )user_data;
    if ( !args ) return FALSE;
 
-   // 1. Reativação física do botão de controle da interface
    if ( args->botao_processar ) {
       gtk_widget_set_sensitive( args->botao_processar, TRUE );
    }
 
-   // 2. Fluxo Baseado no Retorno do Processamento das Imagens
+   InterfacePainel *painel = args->painel;
+
+   // Textos conforme o status
    if ( args->n_rejeitadas == 0 ) {
-      // Cenário Perfeito: Transmite segurança de que o trabalho pesado terminou bem.
-      args->painel.format_titulo    = meu_gerador_variadico( "✔ Processamento Concluído!" );
-      args->painel.format_subtitulo = meu_gerador_variadico( "Todas as provas foram lidas, alinhadas e validadas sem falhas." );
-      args->painel.format_instrucao = meu_gerador_variadico( "O lote está pronto. Você já pode prosseguir para a etapa de Correção." );
-      criar_mensagem_painel( SUCESSO, &args->painel );
+      painel->format_titulo    = meu_gerador_variadico( "✔ Processamento Concluído!" );
+      painel->format_subtitulo = meu_gerador_variadico( "Todas as provas foram lidas, alinhadas e validadas sem falhas." );
+      painel->format_instrucao = meu_gerador_variadico( "O lote está pronto. Você já pode prosseguir para a etapa de Correção." );
+      criar_mensagem_painel( SUCESSO, painel );
 
    } else if ( args->n_rejeitadas > 0 ) {
-      // E removi "Payload/Âncoras" por uma explicação mais visual ("marcadores/identificar").
-      args->painel.format_titulo    = meu_gerador_variadico( "⚠️ Processamento com Alertas" );
-      args->painel.format_subtitulo = meu_gerador_variadico( "Não foi possível ler os marcadores ou identificar %d imagem(ns).", args->n_rejeitadas );
-      args->painel.format_instrucao = meu_gerador_variadico( "Estes arquivos foram isolados na pasta 'rejeitadas' para sua verificação manual." );
-      criar_mensagem_painel( AVISO, &args->painel );
+      painel->format_titulo    = meu_gerador_variadico( "⚠️ Processamento com Alertas" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível ler os marcadores ou identificar %d imagem(ns).", args->n_rejeitadas );
+      painel->format_instrucao = meu_gerador_variadico( "Estes arquivos foram isolados na pasta 'rejeitadas' para sua verificação manual." );
+      criar_mensagem_painel( AVISO, painel );
 
    } else if ( args->n_rejeitadas < 0 ) {
-      // Cenário de Erro Crítico (Falta do .bin): Explica a causa raiz de forma simples.
-      args->painel.format_titulo    = meu_gerador_variadico( "✘ Dados Não Encontrados" );
-      args->painel.format_subtitulo = meu_gerador_variadico( "O sistema não localizou gabaritos estruturais de nenhuma avaliação." );
-      args->painel.format_instrucao = meu_gerador_variadico( "Certifique-se de gerar os cadernos de prova antes de tentar processar as imagens." );
-      criar_mensagem_painel( ERRO, &args->painel );
+      painel->format_titulo    = meu_gerador_variadico( "✘ Dados Não Encontrados" );
+      painel->format_subtitulo = meu_gerador_variadico( "O sistema não localizou gabaritos estruturais de nenhuma avaliação." );
+      painel->format_instrucao = meu_gerador_variadico( "Certifique-se de gerar os cadernos de prova antes de tentar processar as imagens." );
+      criar_mensagem_painel( ERRO, painel );
    }
 
-   // 3. Desalocação segura da estrutura de argumentos que veio da Thread secundária[cite: 1]
-   free( args );
+   // REPROGRAMA O TIMER DO PAINEL PASSANDO 'args' COMO CONTEXTO
+   if ( painel->timeout_id > 0 ) {
+      g_source_remove( painel->timeout_id );
+   }
 
-   g_print( "[GTK] Memória da thread CV desalocada com sucesso.\n" );
+   guint tempo_exibicao = ( args->n_rejeitadas == 0 ) ? 4000 : 6000;
+   painel->timeout_id = g_timeout_add( tempo_exibicao, ocultar_painel_cv_cb, args );
 
-   // Retorna FALSE para avisar ao g_idle_add que este callback deve rodar apenas uma vez[cite: 1]
+   g_print( "[Thread CV] Mensagem emitida. Aguardando o término do Toast para desalocar Heap...\n" );
+
    return FALSE;
 }
 
 
-
-
+// ============================================================================
+// FUNÇÃO DA THREAD SECUNDÁRIA
+// ============================================================================
 void* thread_processar_imagens_background( void *data ) {
-
    g_autoptr( GTimer ) cronometro = g_timer_new();
 
    if ( !data ) return NULL;
@@ -321,10 +366,8 @@ void* thread_processar_imagens_background( void *data ) {
 
    g_print( "[Thread CV] Processamento concluído. Retornando o controle para a UI.\n" );
 
-   // Agenda a execução do retorno gráfico na Thread Principal do GTK[cite: 1]
+   // Agenda a execução do retorno gráfico na Thread Principal do GTK
    g_idle_add( reativar_botao_processar_imagens, args );
-
-
 
    display_tempo( "Processamento", cronometro );
 
