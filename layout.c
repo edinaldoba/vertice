@@ -81,6 +81,8 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->entry.disciplina = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
    ctx->entry.periodo    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_momento" ) );
 
+   ctx->entry.estilo    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_estilo" ) );
+
    ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
@@ -188,13 +190,10 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
       ctx->radio.cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 
-   // Vetores de 3 opções (Avaliações e Estilos de Interface)
+   // Vetores de 3 opções (Sequência Avaliações)
    for ( int i = 0; i < 3; i++ ) {
       snprintf( id_string, sizeof( id_string ), "radio_prova_%d", i + 1 );
       ctx->radio.avaliacao[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
-
-      snprintf( id_string, sizeof( id_string ), "radio_style_%d", i + 1 );
-      ctx->radio.interface_style[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 
    // --- [ COLUNA 4 ORIGINAL / DIÁRIO E MOTORES DE AÇÃO ] ---
@@ -232,6 +231,11 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    gtk_label_set_line_wrap( GTK_LABEL( ctx->painel.titulo ),    TRUE );
    gtk_label_set_line_wrap( GTK_LABEL( ctx->painel.subtitulo ), TRUE );
    gtk_label_set_line_wrap( GTK_LABEL( ctx->painel.instrucao ), TRUE );
+
+   ctx->painel.eventbox_orelhinha = GTK_WIDGET( gtk_builder_get_object( builder, "eventbox_orelhinha" ) );
+   if ( ctx->painel.eventbox_orelhinha ) {
+      gtk_widget_add_events( ctx->painel.eventbox_orelhinha, GDK_BUTTON_PRESS_MASK );
+   }
 
    // 3. Libera o objeto builder da memória, pois os ponteiros já foram guardados de forma segura
    g_object_unref( builder );

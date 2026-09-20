@@ -94,6 +94,32 @@ gboolean ocultar_painel_feedback_cb( gpointer user_data ) {
    return G_SOURCE_REMOVE;
 }
 
+void reexibir_ultima_mensagem( InterfacePainel *painel ) {
+   g_return_if_fail( painel != NULL );
+   g_return_if_fail( painel->revealer_painel != NULL );
+
+   // 1. Zera o estado de hover para reavaliar a posição atual do ponteiro
+   // painel->mouse_hover = FALSE;
+
+   // 2. Se já houver um temporizador rodando, cancela para evitar atropelos
+   if ( painel->timeout_id > 0 ) {
+      g_source_remove( painel->timeout_id );
+      painel->timeout_id = 0;
+   }
+
+   // 3. Garante que os widgets filhos estejam visíveis dentro da caixa do revealer
+   GtkWidget *child = gtk_bin_get_child( GTK_BIN( painel->revealer_painel ) );
+   if ( child ) {
+      gtk_widget_show_all( child );
+   }
+
+   // 4. Faz o Toast deslizar suavemente para cima sobre o overlay
+   gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), TRUE );
+
+   // 5. Agenda o recolhimento automático para daqui a 5 segundos (5000 ms)
+   painel->timeout_id = g_timeout_add( 5000, ocultar_painel_feedback_cb, painel );
+}
+
 void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    g_return_if_fail( painel != NULL );
    g_return_if_fail( painel->revealer_painel != NULL );

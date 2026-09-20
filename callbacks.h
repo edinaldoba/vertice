@@ -17,6 +17,8 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
 void on_entry_cor_destaque_interface_changed( GtkWidget *widget, gpointer user_data );
 void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
+void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
+
 gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 void on_calendar_navigation( GtkWidget *widget, gpointer user_data );
 void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
@@ -124,6 +126,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data );
 
 gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 
 
 

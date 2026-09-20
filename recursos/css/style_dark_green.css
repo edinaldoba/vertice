@@ -514,6 +514,43 @@ treeview header button {
     border-radius: 13px;
 }
 
+/* --- Painel de Feedback (Toast Moderno) --- */
+.painel-feedback-revealer {
+    background-color: rgba(26, 35, 42, 0.95); /* Escuro profundo translúcido */
+    border: 1px solid rgba(0, 230, 150, 0.4);  /* Borda fina acentuada */
+    border-left: 5px solid #00E696;            /* Barra lateral verde vibrante */
+    border-radius: 10px;                       /* Curvatura moderna nos cantos */
+    padding: 12px 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);/* Profundidade sobre o overlay */
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* A orelhinha estilo Samsung Edge ancorada no rodapé */
+.box-orelhinha {
+    background-color: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom: none; /* Gruda no limite inferior da janela */
+    border-radius: 8px 8px 0 0; /* Arredondado apenas na parte superior */
+    padding: 1px 16px;
+    min-height: 4px;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Quando passa o mouse sobre a orelhinha no rodapé */
+.eventbox-orelhinha:hover .box-orelhinha {
+    background-color: rgba(0, 230, 150, 0.85); /* Verde vibrante do tema */
+    min-height: 8px; /* Expande levemente para cima indicando interatividade */
+    box-shadow: 0 -2px 8px rgba(0, 230, 150, 0.4);
+}
+
+/* O traço/indicador horizontal dentro da orelhinha */
+.label-traco {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 10px;
+    font-weight: bold;
+}
+
 .sucesso-titulo { color: #a5d6a7; font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
 .sucesso-instrucao { color: #00e300; font-size: 20px; font-weight: normal; }

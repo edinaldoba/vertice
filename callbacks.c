@@ -194,6 +194,20 @@ void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer us
 }
 
 
+void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   ctx->cascata.foco.estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->entry.estilo ) );
+   if ( ctx->cascata.foco.estilo < 0 ) return;
+
+   estilo_interface( ctx );
+
+}
+
+
+
 
 
 
@@ -1430,5 +1444,18 @@ gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCross
    return FALSE;
 }
 
+G_MODULE_EXPORT
+gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data ) {
+   g_return_val_if_fail( widget && event, FALSE );
+   // Responde apenas ao clique com o botão esquerdo do mouse
+   if ( event->type == GDK_BUTTON_PRESS && event->button == 1 ) {
+      AppContext *ctx = ( AppContext * )user_data;
+      if ( ctx ) {
+         reexibir_ultima_mensagem( &ctx->painel );
+      }
+      return TRUE; // Evento consumido
+   }
+   return FALSE;
+}
 
 

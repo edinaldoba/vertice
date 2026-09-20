@@ -7,6 +7,138 @@
 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
+  <object class="GtkListStore" id="liststore_avaliacoes">
+    <columns>
+      <!-- column-name numero -->
+      <column type="guint"/>
+      <!-- column-name nome_do_aluno -->
+      <column type="gchararray"/>
+      <!-- column-name av1 -->
+      <column type="gchararray"/>
+      <!-- column-name rec1 -->
+      <column type="gchararray"/>
+      <!-- column-name av2 -->
+      <column type="gchararray"/>
+      <!-- column-name rec2 -->
+      <column type="gchararray"/>
+      <!-- column-name av3 -->
+      <column type="gchararray"/>
+      <!-- column-name rec3 -->
+      <column type="gchararray"/>
+      <!-- column-name av4 -->
+      <column type="gchararray"/>
+      <!-- column-name rec4 -->
+      <column type="gchararray"/>
+      <!-- column-name av5 -->
+      <column type="gchararray"/>
+      <!-- column-name rec5 -->
+      <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_aluno">
+    <columns>
+      <!-- column-name nome_do_aluno -->
+      <column type="gchararray"/>
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_avaliacoes">
+    <columns>
+      <!-- column-name avaliacao -->
+      <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_data">
+    <columns>
+      <!-- column-name data -->
+      <column type="gchararray"/>
+      <!-- column-name ch -->
+      <column type="guint"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_combo_disciplinas">
+    <columns>
+      <!-- column-name disciplina -->
+      <column type="gchararray"/>
+      <!-- column-name sens -->
+      <column type="gboolean"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_conteudo">
+    <columns>
+      <!-- column-name data -->
+      <column type="gchararray"/>
+      <!-- column-name ch -->
+      <column type="guint"/>
+      <!-- column-name tema -->
+      <column type="gchararray"/>
+      <!-- column-name descricao -->
+      <column type="gchararray"/>
+      <!-- column-name tipo_registro -->
+      <column type="guint"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_frequencia">
+    <columns>
+      <!-- column-name numero -->
+      <column type="guint"/>
+      <!-- column-name nome -->
+      <column type="gchararray"/>
+      <!-- column-name nascimento -->
+      <column type="gchararray"/>
+      <!-- column-name status -->
+      <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="liststore_relatorio">
+    <columns>
+      <!-- column-name numero -->
+      <column type="guint"/>
+      <!-- column-name nome_do_aluno -->
+      <column type="gchararray"/>
+      <!-- column-name 1º -->
+      <column type="gchararray"/>
+      <!-- column-name 2º -->
+      <column type="gchararray"/>
+      <!-- column-name 3º -->
+      <column type="gchararray"/>
+      <!-- column-name 4º -->
+      <column type="gchararray"/>
+      <!-- column-name soma -->
+      <column type="gchararray"/>
+      <!-- column-name observacao -->
+      <column type="gchararray"/>
+      <!-- column-name final -->
+      <column type="gchararray"/>
+      <!-- column-name conselho -->
+      <column type="gchararray"/>
+      <!-- column-name riscar -->
+      <column type="gboolean"/>
+      <!-- column-name cor -->
+      <column type="GdkRGBA"/>
+    </columns>
+  </object>
   <object class="GtkApplicationWindow" id="janela_principal">
     <property name="can-focus">False</property>
     <child>
@@ -26,8 +158,6 @@
                   <object class="GtkBox" id="box_relatorio">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="margin-left">10</property>
-                    <property name="margin-right">10</property>
                     <property name="margin-start">10</property>
                     <property name="margin-end">10</property>
                     <property name="margin-top">10</property>
@@ -1392,8 +1522,6 @@
                         <property name="height-request">60</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="margin-left">30</property>
-                        <property name="margin-right">30</property>
                         <property name="margin-start">30</property>
                         <property name="margin-end">30</property>
                         <property name="spacing">40</property>
@@ -1480,8 +1608,6 @@
                   <object class="GtkBox" id="box_latex">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="margin-left">10</property>
-                    <property name="margin-right">10</property>
                     <property name="margin-start">10</property>
                     <property name="margin-end">10</property>
                     <property name="margin-top">10</property>
@@ -1562,7 +1688,7 @@
                         </child>
                         <child>
                           <object class="GtkBox" id="box_configuracoes">
-                            <property name="width-request">784</property>
+                            <property name="width-request">794</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="margin-top">3</property>
@@ -1581,10 +1707,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_colunas">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
@@ -1654,10 +1779,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_separadores">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
@@ -1726,10 +1850,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_fontes">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
@@ -1798,10 +1921,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_paginas">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
@@ -1870,10 +1992,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_cabecalho_estilo">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
@@ -1942,11 +2063,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_decoracoes">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
-                                <property name="margin-right">105</property>
                                 <property name="margin-start">100</property>
                                 <property name="margin-end">105</property>
                                 <property name="spacing">30</property>
@@ -2000,11 +2119,9 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_cor_serie">
-                                <property name="height-request">40</property>
+                                <property name="height-request">46</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="margin-left">100</property>
-                                <property name="margin-right">105</property>
                                 <property name="margin-start">100</property>
                                 <property name="margin-end">105</property>
                                 <property name="spacing">30</property>
@@ -2075,8 +2192,6 @@
                         <property name="height-request">60</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="margin-left">70</property>
-                        <property name="margin-right">70</property>
                         <property name="margin-start">70</property>
                         <property name="margin-end">70</property>
                         <property name="spacing">80</property>
@@ -2152,8 +2267,6 @@
                   <object class="GtkBox" id="box_provas">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="margin-left">10</property>
-                    <property name="margin-right">10</property>
                     <property name="margin-start">10</property>
                     <property name="margin-end">10</property>
                     <property name="margin-top">10</property>
@@ -2234,7 +2347,7 @@
                         </child>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">770</property>
+                            <property name="width-request">780</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
@@ -2263,7 +2376,7 @@
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">770</property>
+                                    <property name="width-request">780</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -2430,8 +2543,6 @@
                         <property name="height-request">60</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="margin-left">30</property>
-                        <property name="margin-right">30</property>
                         <property name="margin-start">30</property>
                         <property name="margin-end">30</property>
                         <property name="spacing">40</property>
@@ -2532,7 +2643,6 @@
                 <property name="margin-end">10</property>
                 <property name="margin-top">10</property>
                 <property name="margin-bottom">10</property>
-                <property name="orientation">vertical</property>
                 <property name="spacing">10</property>
                 <child>
                   <object class="GtkBox" id="box_cabecalho_visivel">
@@ -2545,24 +2655,9 @@
                         <property name="label" translatable="yes">CE Poeta Cunha Santos</property>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
+                        <property name="expand">True</property>
                         <property name="fill">True</property>
                         <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkCheckButton" id="check_expor">
-                        <property name="label" translatable="yes">Expôr Dados</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">False</property>
-                        <property name="draw-indicator">True</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="pack-type">end</property>
-                        <property name="position">1</property>
                       </packing>
                     </child>
                     <style>
@@ -2570,96 +2665,24 @@
                     </style>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
+                    <property name="expand">True</property>
                     <property name="fill">True</property>
                     <property name="position">0</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="box_feedback_estilo">
-                    <property name="height-request">170</property>
+                  <object class="GtkComboBoxText" id="combo_estilo">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="spacing">10</property>
-                    <child>
-                      <placeholder/>
-                    </child>
-                    <child>
-                      <object class="GtkBox" id="box_estilo">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="orientation">vertical</property>
-                        <property name="homogeneous">True</property>
-                        <child>
-                          <object class="GtkLabel" id="label_estilo">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">ESTILO</property>
-                            <style>
-                              <class name="titulo-secao"/>
-                            </style>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">0</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkRadioButton" id="radio_style_1">
-                            <property name="label" translatable="yes">Dark Green</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="receives-default">False</property>
-                            <property name="active">True</property>
-                            <property name="draw-indicator">True</property>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">1</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkRadioButton" id="radio_style_2">
-                            <property name="label" translatable="yes">Deep Blue</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="receives-default">False</property>
-                            <property name="draw-indicator">True</property>
-                            <property name="group">radio_style_1</property>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">2</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkRadioButton" id="radio_style_3">
-                            <property name="label" translatable="yes">Light</property>
-                            <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="receives-default">False</property>
-                            <property name="draw-indicator">True</property>
-                            <property name="group">radio_style_1</property>
-                          </object>
-                          <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">True</property>
-                            <property name="position">3</property>
-                          </packing>
-                        </child>
-                        <style>
-                          <class name="painel-feedback"/>
-                        </style>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
+                    <property name="active">0</property>
+                    <items>
+                      <item translatable="yes">Dark Green</item>
+                      <item translatable="yes">Deep Blue</item>
+                      <item translatable="yes">Light</item>
+                    </items>
+                    <style>
+                      <class name="combo-box-text-normal"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -2668,7 +2691,19 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkCheckButton" id="check_expor">
+                    <property name="label" translatable="yes">Expôr</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="draw-indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="pack-type">end</property>
+                    <property name="position">2</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -2686,6 +2721,9 @@
           <object class="GtkEventBox" id="eventbox_painel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="valign">end</property>
+            <property name="margin-start">150</property>
+            <property name="margin-end">150</property>
             <child>
               <object class="GtkRevealer" id="revealer_painel_feedback">
                 <property name="visible">True</property>
@@ -2744,7 +2782,7 @@
                       <placeholder/>
                     </child>
                     <style>
-                      <class name="painel-feedback"/>
+                      <class name="painel-feedback-revealer"/>
                     </style>
                   </object>
                 </child>
@@ -2755,147 +2793,44 @@
             <property name="index">1</property>
           </packing>
         </child>
-      </object>
-    </child>
-  </object>
-  <object class="GtkListStore" id="liststore_avaliacoes">
-    <columns>
-      <!-- column-name numero -->
-      <column type="guint"/>
-      <!-- column-name nome_do_aluno -->
-      <column type="gchararray"/>
-      <!-- column-name av1 -->
-      <column type="gchararray"/>
-      <!-- column-name rec1 -->
-      <column type="gchararray"/>
-      <!-- column-name av2 -->
-      <column type="gchararray"/>
-      <!-- column-name rec2 -->
-      <column type="gchararray"/>
-      <!-- column-name av3 -->
-      <column type="gchararray"/>
-      <!-- column-name rec3 -->
-      <column type="gchararray"/>
-      <!-- column-name av4 -->
-      <column type="gchararray"/>
-      <!-- column-name rec4 -->
-      <column type="gchararray"/>
-      <!-- column-name av5 -->
-      <column type="gchararray"/>
-      <!-- column-name rec5 -->
-      <column type="gchararray"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_combo_aluno">
-    <columns>
-      <!-- column-name nome_do_aluno -->
-      <column type="gchararray"/>
-      <!-- column-name sens -->
-      <column type="gboolean"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_combo_avaliacoes">
-    <columns>
-      <!-- column-name avaliacao -->
-      <column type="gchararray"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_combo_data">
-    <columns>
-      <!-- column-name data -->
-      <column type="gchararray"/>
-      <!-- column-name ch -->
-      <column type="guint"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-      <!-- column-name sens -->
-      <column type="gboolean"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_combo_disciplinas">
-    <columns>
-      <!-- column-name disciplina -->
-      <column type="gchararray"/>
-      <!-- column-name sens -->
-      <column type="gboolean"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_conteudo">
-    <columns>
-      <!-- column-name data -->
-      <column type="gchararray"/>
-      <!-- column-name ch -->
-      <column type="guint"/>
-      <!-- column-name tema -->
-      <column type="gchararray"/>
-      <!-- column-name descricao -->
-      <column type="gchararray"/>
-      <!-- column-name tipo_registro -->
-      <column type="guint"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_frequencia">
-    <columns>
-      <!-- column-name numero -->
-      <column type="guint"/>
-      <!-- column-name nome -->
-      <column type="gchararray"/>
-      <!-- column-name nascimento -->
-      <column type="gchararray"/>
-      <!-- column-name status -->
-      <column type="gchararray"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="liststore_relatorio">
-    <columns>
-      <!-- column-name numero -->
-      <column type="guint"/>
-      <!-- column-name nome_do_aluno -->
-      <column type="gchararray"/>
-      <!-- column-name 1º -->
-      <column type="gchararray"/>
-      <!-- column-name 2º -->
-      <column type="gchararray"/>
-      <!-- column-name 3º -->
-      <column type="gchararray"/>
-      <!-- column-name 4º -->
-      <column type="gchararray"/>
-      <!-- column-name soma -->
-      <column type="gchararray"/>
-      <!-- column-name observacao -->
-      <column type="gchararray"/>
-      <!-- column-name final -->
-      <column type="gchararray"/>
-      <!-- column-name conselho -->
-      <column type="gchararray"/>
-      <!-- column-name riscar -->
-      <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
-    </columns>
-  </object>
-  <object class="GtkPopover" id="popover_calendario">
-    <property name="can-focus">False</property>
-    <child>
-      <object class="GtkCalendar" id="calendar_data">
-        <property name="visible">True</property>
-        <property name="can-focus">True</property>
+        <child type="overlay">
+          <object class="GtkEventBox" id="eventbox_orelhinha">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="valign">end</property>
+            <child>
+              <object class="GtkBox" id="box_orelhinha">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="label_traco">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">______________________________</property>
+                    <style>
+                      <class name="label-traco"/>
+                    </style>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <style>
+                  <class name="box-orelhinha"/>
+                </style>
+              </object>
+            </child>
+            <style>
+              <class name="eventbox-orelhinha"/>
+            </style>
+          </object>
+          <packing>
+            <property name="index">1</property>
+          </packing>
+        </child>
       </object>
     </child>
   </object>
@@ -2953,7 +2888,6 @@
       </object>
     </child>
   </object>
-  <object class="GtkSizeGroup" id="sizegroup1"/>
   <object class="GtkSizeGroup" id="sizegroup2">
     <widgets>
       <widget name="label_colunas"/>
@@ -2974,4 +2908,14 @@
       <widget name="radio_paginas_1"/>
     </widgets>
   </object>
+  <object class="GtkPopover" id="popover_calendario">
+    <property name="can-focus">False</property>
+    <child>
+      <object class="GtkCalendar" id="calendar_data">
+        <property name="visible">True</property>
+        <property name="can-focus">True</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkSizeGroup" id="sizegroup1"/>
 </interface>

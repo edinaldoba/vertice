@@ -56,8 +56,6 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
       // Mapeamento do Bloco de Avaliações (Categoria 6: IDs 61, 62 e 63 para Provas 1, 2 e 3)
       snprintf( id_string, sizeof( id_string ), "sequencia_prova_%.2d", i + 61 );
       gtk_widget_set_name( ctx->radio.avaliacao[i], id_string );
-      snprintf( id_string, sizeof( id_string ), "interface_style_%.2d", i + 70 );
-      gtk_widget_set_name( ctx->radio.interface_style[i], id_string );
    }
 
 }
@@ -188,8 +186,6 @@ void app_signals_connect( gpointer user_data ) {
    for ( i = 0; i < 3; i++ ) {
       g_signal_connect( ctx->radio.avaliacao[i],       "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->radio.interface_style[i], "toggled",
-                        G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
 
    // =========================================================================
@@ -301,6 +297,8 @@ void app_signals_connect( gpointer user_data ) {
    ctx->handlers.decoracao_estilo = g_signal_connect( ctx->entry.decoracao_estilo, "changed",
                                     G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
 
+   g_signal_connect( ctx->entry.estilo, "changed", G_CALLBACK( on_entry_estilo_interface_changed ), ctx );
+
    // =========================================================================
    // 6. RASTREAMENTO AUTOMÁTICO DINÂMICO (INPUTS DE TEMAS E QUESTÕES)
    // =========================================================================
@@ -327,6 +325,10 @@ void app_signals_connect( gpointer user_data ) {
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "leave-notify-event",
                      G_CALLBACK( on_painel_feedback_leave_notify_event ), ctx );
+
+
+   g_signal_connect( G_OBJECT( ctx->painel.eventbox_orelhinha ), "button-press-event",
+                  G_CALLBACK( on_orelhinha_button_press_event ), ctx );
 
 
 }

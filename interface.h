@@ -101,6 +101,8 @@ typedef struct {
    GtkWidget *tema_espelho;
    GtkWidget *cor_destaque;
    GtkWidget *decoracao_estilo;
+
+   GtkWidget *estilo;
 } InterfaceEntry;
 
 
@@ -113,7 +115,6 @@ typedef struct {
    GtkWidget *separadores[2];             // Mantido (Excelente nome)
    GtkWidget *cabecalho_tipo[2];        // Antes: cabecalho[2]
    GtkWidget *fonte_latex[2];           // Antes: fonte[2]
-   GtkWidget *interface_style[3];
 } InterfaceRadio;
 
 
@@ -197,6 +198,7 @@ typedef struct {
    int cor_destaque;
    int decoracao_estilo;
    int tema;
+   int estilo;
 } FocoCoordenadas;
 
 // 2. Tipo para as quantidades máximas físicas (limites de disco)
@@ -210,6 +212,7 @@ typedef struct {
    int decoracoes_estilo;
    int temas;
    int subtemas;
+   // int estilos; // Não precisa, por enquanto
 } LimitesFiltro;
 
 // 3. A estrutura unificada que consolida o painel de navegação
@@ -238,11 +241,13 @@ typedef struct {
 
 
 typedef struct {
+   GtkWidget *eventbox_orelhinha;
    GtkWidget *eventbox_painel;
    GtkWidget *revealer_painel;
    GtkWidget *titulo, *subtitulo, *instrucao, *container, *cabecalho;
    gchar *format_titulo, *format_subtitulo, *format_instrucao, *format_cabecalho;
    guint timeout_id;
+   // gboolean mouse_hover;
 } InterfacePainel;
 
 
@@ -353,6 +358,8 @@ void interface_style( AppContext *ctx );
 
 // Funções de carregamento e salvamento
 void atualizar_booleanos_interface( const bool estado, const int categoria, AppContext *ctx );
+
+void estilo_interface( AppContext *ctx );
 
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor );
 

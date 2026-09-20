@@ -433,7 +433,7 @@ treeview header label {
 }
 
 treeview header button {
-    background-color: #d9e8ff;
+    background-color: #dce6ea;
     border: none;
     padding: 6px;
 }
@@ -513,6 +513,51 @@ treeview header button {
     border: 1px solid #B0BEC5;
     border-radius: 13px;
 }
+
+/* --- Painel de Feedback: Modo Light --- */
+.painel-feedback-revealer {
+    background-color: rgba(255, 255, 255, 0.96); /* Branco quase opaco translúcido */
+    border: 1px solid rgba(0, 0, 0, 0.12);        /* Borda suave de definição */
+    border-left: 5px solid #0055ff;               /* Verde institucional (Dark Green) */
+    border-radius: 10px;
+    padding: 12px 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);   /* Sombra difusa e limpa */
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* A orelhinha estilo Samsung Edge ancorada no rodapé (Modo Light) */
+.box-orelhinha {
+    background-color: rgba(0, 0, 0, 0.08); /* Sombra suave translúcida */
+    border: 1px solid rgba(0, 0, 0, 0.15);  /* Contorno escuro sutil */
+    border-bottom: none;                    /* Gruda na borda inferior */
+    border-radius: 8px 8px 0 0;             /* Canto superior arredondado */
+    padding: 1px 16px;
+    min-height: 4px;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Quando passa o mouse sobre a orelhinha no rodapé (Hover no Light) */
+.eventbox-orelhinha:hover .box-orelhinha {
+    background-color: rgba(16, 124, 65, 0.90); /* Verde escuro do tema (Dark Green) */
+    border-color: rgba(16, 124, 65, 1.0);
+    min-height: 8px;                           /* Expande levemente para cima */
+    box-shadow: 0 -2px 8px rgba(16, 124, 65, 0.35);
+}
+
+/* O traço/indicador horizontal dentro da orelhinha (Modo Light) */
+.label-traco {
+    color: rgba(40, 40, 40, 0.75);             /* Escuro no estado de repouso */
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* Garante texto branco no traço quando a aba acender em verde */
+.eventbox-orelhinha:hover .label-traco {
+    color: #ffffff;
+}
+
+
 
 .sucesso-titulo { color: #202C9A; font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #455A64; font-size: 24px; font-style: italic; }

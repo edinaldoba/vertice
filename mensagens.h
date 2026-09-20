@@ -10,6 +10,7 @@ void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados
 bool verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados );
 
 gboolean ocultar_painel_feedback_cb( gpointer user_data );
+void reexibir_ultima_mensagem( InterfacePainel *painel );
 void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel );
 
 gchar* meu_gerador_variadico( const char *formato, ... );

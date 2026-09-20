@@ -224,6 +224,21 @@ static void recarregar_estilo_frequencia( AppContext *ctx ) {
    // Garante que a seleção e o alinhamento de tela continuem perfeitos
    rolagem_automatica_treeview_frequencia( ctx );
 }
+
+void estilo_interface( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+   ctx->dados.interface_style = ctx->cascata.foco.estilo;
+
+   interface_style( ctx );
+
+   char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, FALSE );
+   g_free( caminho_arquivo );
+
+   recarregar_estilo_frequencia( ctx );
+}
+
+
 //---------------------------------------------------------------------------------------------------------------
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
    InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
@@ -251,14 +266,8 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       break;
    case 7: // Interface Style
 
-      dados->interface_style = valor;
-      interface_style( ctx );
+      // dados->interface_style = valor;
 
-      char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-      ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, dados->interface_style, FALSE );
-      g_free( caminho_arquivo );
-
-      recarregar_estilo_frequencia( ctx );
 
       break;
    default:
