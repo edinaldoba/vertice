@@ -743,7 +743,7 @@ void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco,
 
    int qtd_caracteres;
    if ( g_strcmp0( gtk_widget_get_name( combo ), "momento" ) == 0 ) {
-      qtd_caracteres = 15;
+      qtd_caracteres = 12;
    } else {
       qtd_caracteres = 22;
    }
