@@ -123,6 +123,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.btn_salvar_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
    ctx->ui_diario.btn_presente          = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
    ctx->ui_diario.btn_ausente           = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
+   ctx->ui_diario.btn_justificada       = GTK_WIDGET( gtk_builder_get_object( builder, "button_justificada" ) );
    ctx->ui_diario.combo_status          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
 
    // AVALIAÇÕES
@@ -151,6 +152,21 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->ui_diario.btn_popover_nomear    = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_avaliacao" ) );
 
    ctx->ui_diario.btn_salvar_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
+
+
+   // RELATÓRIO
+   ctx->ui_diario.scrolled_window_relatorio = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_relatorio" ) );
+   ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 0, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 2, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 3, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 4, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 5, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 6, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 7, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 8, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 9, 0.5 );
+   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 10, 0.5 );
 
 
 

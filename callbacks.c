@@ -521,6 +521,12 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
 
    // 3. CAPTURA E SIMULAÇÃO DOS CLIQUES VIA TECLADO
    switch ( gdk_keyval_to_lower( event->keyval ) ) {
+
+   case GDK_KEY_s:
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 0 );
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+      return TRUE;
+
    case GDK_KEY_p:
       gtk_button_clicked( GTK_BUTTON( ui_diario->btn_presente ) );
       return TRUE;
@@ -530,8 +536,7 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
       return TRUE;
 
    case GDK_KEY_j:
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 3 );
-      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
+      gtk_button_clicked( GTK_BUTTON( ui_diario->btn_justificada ) );
       return TRUE;
 
    case GDK_KEY_n:
@@ -557,6 +562,13 @@ void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
 
    registrar_status_assiduidade_frequencia( &ctx->painel, ctx, AUSENTE );
+}
+
+void on_button_justificada_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
+
+   registrar_status_assiduidade_frequencia( &ctx->painel, ctx, FALTA_JUSTIFICADA );
 }
 
 void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -944,11 +956,13 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
          ficha->relatorio[d][j] = media_periodo;
 
          // 2. Acumula a nota do período na soma total do ano (ignora se for -1.0f)
-         ficha->soma[d] += ( media_periodo < 0.0f ) ? 0.0f : media_periodo;
+         ficha->soma[d] += media_periodo;
       }
 
       // 3. Calcula a média final dividindo a soma anual pelos 4 períodos
       ficha->media[d] = ficha->soma[d] / 4.0f;
+
+      ficha->ficha_modificada = TRUE;
    }
 }
 //===================================================================================================
@@ -1369,18 +1383,19 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
    if ( ativo < 0 ) return;
 
-   selecionar_combo_status( ctx );
-
    gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
    if ( via_codigo ) {
+      selecionar_combo_status( ctx );
       ctx->ui_diario.foco_combo_alunos = ativo;
       return;
    }
 
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+
    // =================================================================
    // MODO 1: CHAMADA NORMAL (Navegação Restrita / Sequencial)
    // =================================================================
-   if ( ativo >= ctx->ui_diario.limite_combo_alunos ) {
+   if ( !modo_por_aluno && ativo >= ctx->ui_diario.limite_combo_alunos ) {
       if ( ctx->ui_diario.handler_combo_alunos > 0 ) {
          g_signal_handler_block( widget, ctx->ui_diario.handler_combo_alunos );
       }
@@ -1397,10 +1412,13 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    // Se a navegação foi válida (dentro do limite da chamada), atualiza o foco normalmente
    ctx->ui_diario.foco_combo_alunos = ativo;
 
+   if ( !via_codigo ) {
+      selecionar_combo_status( ctx );
+   }
+
    // =================================================================
    // MODO 2: POR ALUNO (Auditoria Livre)
    // =================================================================
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
    if ( modo_por_aluno ) {
       renderizar_frequencia_modo_por_aluno( ctx, FALSE );
    } else {

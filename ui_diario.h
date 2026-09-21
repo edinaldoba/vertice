@@ -50,4 +50,6 @@ void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *pat
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column );
 void carregar_notas_ui_por_periodo( AppContext *ctx );
 
+void carregar_relatorio_ui( AppContext *ctx );
+
 #endif

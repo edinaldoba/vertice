@@ -941,6 +941,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    acessar_e_carregar_ficha_dos_alunos_da_turma( ctx );
 
+   carregar_relatorio_ui( ctx );
+
    carregar_notas_ui_por_periodo( ctx );
 
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;

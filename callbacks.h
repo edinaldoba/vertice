@@ -37,6 +37,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data );
 gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data );
 void on_button_presente_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_ausente_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_justificada_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data );
 
 void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data );

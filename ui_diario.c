@@ -923,13 +923,13 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    g_return_if_fail( ctx && ctx->diarios && painel );
 
    // 1. Validação de segurança
-   if ( status == SEM_STATUS ) {
-      painel->format_titulo    = meu_gerador_variadico( "⚠ Aviso:" );
-      painel->format_subtitulo = meu_gerador_variadico( "Status de assiduidade inválido" );
-      painel->format_instrucao = meu_gerador_variadico( "Selecione uma justificativa válida no menu antes de registrar a frequência." );
-      criar_mensagem_painel( AVISO, painel );
-      return;
-   }
+   // if ( status == SEM_STATUS ) {
+   //    painel->format_titulo    = meu_gerador_variadico( "⚠ Aviso:" );
+   //    painel->format_subtitulo = meu_gerador_variadico( "Status de assiduidade inválido" );
+   //    painel->format_instrucao = meu_gerador_variadico( "Selecione uma justificativa válida no menu antes de registrar a frequência." );
+   //    criar_mensagem_painel( AVISO, painel );
+   //    return;
+   // }
 
    // 2. Extrai os índices ativos
    int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_diario.combo_alunos ) );
@@ -2103,6 +2103,187 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 }
 
 
+
+
+
+
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Renderiza as cores e estilos para a grade do Relatório Final
+//===================================================================================================
+static void on_renderizar_cores_relatorio( GtkTreeViewColumn *tree_column, GtkCellRenderer *cell,
+                                           GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   ( void )tree_column;
+
+   // Coluna 11 armazena se o aluno está inativo (!ficha->ativo)
+   gboolean inativo = FALSE;
+   gtk_tree_model_get( model, iter, 11, &inativo, -1 );
+
+   // REGRA 1: Alunos Inativos (Desabilitados/Cinza)
+   if ( inativo ) {
+      GdkRGBA cor_inativo;
+      _cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_inativo );
+      g_object_set( cell, "foreground-rgba", &cor_inativo, "foreground-set", TRUE, NULL );
+      return;
+   }
+
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+
+   // REGRA 2: Notas Menores que 6.0 ficam em Vermelho
+   // Aplica às colunas: 2 a 5 (Períodos), 7 (Média), 8 (Rec Final) e 9 (Conselho).
+   // Ignoramos a coluna 6 (Soma) pois sua escala é até 40.0 e a coluna 10 (Observação).
+   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
+      gchar *texto_nota = NULL;
+      g_object_get( cell, "text", &texto_nota, NULL );
+
+      if ( texto_nota && strlen( texto_nota ) > 0 ) {
+         double nota = g_ascii_strtod( texto_nota, NULL );
+
+         if ( nota < 6.0 ) {
+            GdkRGBA cor_vermelha;
+            _cor_texto_linha_frequencia( 2, ctx->dados.interface_style, &cor_vermelha );
+
+            g_object_set( cell, "foreground-rgba", &cor_vermelha, "foreground-set", TRUE, NULL );
+            g_free( texto_nota );
+            return;
+         }
+      }
+      g_free( texto_nota );
+   }
+
+   // REGRA 3: Caso Padrão (Restaura a cor natural do tema)
+   g_object_set( cell, "foreground-set", FALSE, NULL );
+}
+
+//===================================================================================================
+// FUNÇÃO PRINCIPAL: Carrega e calcula os dados no TreeView do Relatório
+//===================================================================================================
+void carregar_relatorio_ui( AppContext *ctx ) {
+   g_return_if_fail( ctx && ctx->fichas );
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
+   GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+
+   // 1. Limpa o modelo inteiro
+   gtk_list_store_clear( store );
+
+   int d = ctx->cascata.foco.disciplina;
+
+   // 2. Percorre o GArray reconstruindo as linhas e calculando a situação
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      GtkTreeIter iter;
+
+      // Matriz de strings para as 8 colunas numéricas:
+      // 0..3 (Períodos 1 a 4), 4 (Soma), 5 (Média), 6 (Rec Final), 7 (Conselho)
+      char str_cols[8][8] = {{0}};
+      int faltantes = 0;
+      g_autofree gchar *snota = NULL;
+
+      // Formata as notas dos 4 períodos e conta quantos estão pendentes (< 0.0)
+      for ( int j = 0; j < 4; j++ ) {
+         if ( ficha->relatorio[d][j] >= 0.0f ) {
+            snota = g_strdup_printf( "%.2f", ficha->relatorio[d][j] );
+            snprintf( str_cols[j], sizeof( str_cols[j] ), "%s", ( ficha->relatorio[d][j] < 0.0f ) ? "" : snota );
+         } else {
+            faltantes++;
+         }
+      }
+
+      // Soma e Média (Sempre exibe se houver dados lançados)
+      if ( ficha->soma[d] > 0.0f || faltantes < 4 ) {
+         snota = g_strdup_printf( "%.2f", ficha->soma[d] );
+         snprintf( str_cols[4], sizeof( str_cols[4] ), "%s", ( ficha->soma[d] < 0.0f ) ? "" : snota );
+         snota = g_strdup_printf( "%.2f", ficha->media[d] );
+         snprintf( str_cols[5], sizeof( str_cols[5] ), "%s", ( ficha->media[d] < 0.0f ) ? "" : snota );
+      }
+
+      // Rec Final [Índice 4 do relatório]
+      if ( ficha->relatorio[d][4] >= 0.0f ) {
+         snota = g_strdup_printf( "%.2f", ficha->relatorio[d][4] );
+         snprintf( str_cols[6], sizeof( str_cols[6] ), "%s", ( ficha->relatorio[d][4] < 0 ) ? "" : snota );
+      }
+
+      // Conselho [Índice 5 do relatório]
+      if ( ficha->relatorio[d][5] >= 0.0f ) {
+         snota = g_strdup_printf( "%.2f", ficha->relatorio[d][5] );
+         snprintf( str_cols[7], sizeof( str_cols[7] ), "%s", ( ficha->relatorio[d][5] < 0 ) ? "" : snota );
+      }
+
+      // ----------------------------------------------------------------------
+      // LÓGICA DE STATUS (OBSERVAÇÃO)
+      // ----------------------------------------------------------------------
+      char obs[160] = {0};
+      float max_futuro = ficha->soma[d] + ( faltantes * 10.0f ); // O máximo que o aluno ainda pode alcançar
+
+      // Precedência 1: Conselho de Classe
+      if ( ficha->relatorio[d][5] >= 0.0f ) {
+         if ( ficha->relatorio[d][5] >= 6.0f ) strcpy( obs, "Aprov Cons" );
+         else strcpy( obs, "Reprovado" );
+      }
+      // Precedência 2: Recuperação Final
+      else if ( ficha->relatorio[d][4] >= 0.0f ) {
+         if ( ficha->relatorio[d][4] >= 6.0f ) strcpy( obs, "Aprov Final" );
+         else strcpy( obs, "Conselho" );
+      }
+      // Precedência 3: Períodos Normais
+      else {
+         if ( ficha->soma[d] > 22.2f ) {
+            strcpy( obs, "Aprov Dir" );
+         }
+         else if ( max_futuro <= 22.2f && max_futuro >= 0.0f && faltantes < 4 ) {
+            // Mesmo tirando 10 em tudo que falta, não atinge 22.2
+            strcpy( obs, "Rec Final" );
+         }
+         else {
+            strcpy( obs, "Cursando" ); // Preenchimento estético enquanto não há um veredito
+         }
+      }
+
+      // 3. Insere os dados na GtkListStore
+      gtk_list_store_append( store, &iter );
+      gtk_list_store_set( store, &iter,
+                          0, i + 1,
+                          1, ficha->aluno,
+                          2, str_cols[0],
+                          3, str_cols[1],
+                          4, str_cols[2],
+                          5, str_cols[3],
+                          6, str_cols[4],
+                          7, str_cols[5],
+                          8, str_cols[6],
+                          9, str_cols[7],
+                          10, obs,
+                          11, !ficha->ativo,
+                          -1 );
+   }
+
+   // 4. Vincula a função de renderização de cores às colunas numéricas dinamicamente
+   // O ListStore mapeia de 2 a 10: 1º a 4º (2-5), Soma (6), Média (7), Rec.Final (8), Conselho (9), Observação (10)
+   for ( int i = 1; i <= 10; i++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
+      if ( !col ) continue;
+
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers ) {
+         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+
+         // Salva o índice da coluna no próprio renderizador para ser lido na callback
+         g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
+
+         gtk_tree_view_column_set_cell_data_func( col, renderer, on_renderizar_cores_relatorio, ctx, NULL );
+
+         g_list_free( renderers );
+      }
+   }
+
+   // 5. Retorna o scroll para o topo da lista após preencher
+   GtkTreePath *path_novo = gtk_tree_path_new_from_indices( 0, -1 );
+   if ( path_novo ) {
+      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_path_free( path_novo );
+   }
+}
 
 
 

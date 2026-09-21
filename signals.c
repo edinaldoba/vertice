@@ -227,6 +227,7 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.check_por_aluno, "toggled", G_CALLBACK( on_check_por_aluno_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_justificada, "clicked", G_CALLBACK( on_button_justificada_clicked ), ctx );
    g_signal_connect( ctx->window, "key-press-event",
                      G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
    g_signal_connect( ctx->ui_diario.btn_salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );

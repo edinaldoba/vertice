@@ -48,6 +48,7 @@ typedef struct {
    GtkWidget *btn_salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
    GtkWidget *btn_presente;          // Botão para salvar StatusAssiduidade PRESENTE
    GtkWidget *btn_ausente;           // Botão para salvar StatusAssiduidade AUSENTE
+   GtkWidget *btn_justificada;       // Botão para salvar StatusAssiduidade FALTA JUSTIFICADA
 
    GtkWidget *combo_alunos;
 
@@ -86,6 +87,11 @@ typedef struct {
    //-- Handlers e Sinalizadores de Controle
    gulong handler_combo_avaliacoes;
    int foco_avaliacao;          // Guardião do índice da avaliação ativa (0 a 9)
+
+   /*** RELATÓRIO ***/
+   //-- Janela com rolagem e Tabela de Notas
+   GtkWidget *scrolled_window_relatorio;
+   GtkWidget *treeview_relatorio;
 
 } InterfaceRegistroDiario;
 
