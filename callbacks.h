@@ -56,6 +56,9 @@ void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_dat
 void on_cell_renderizar_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
 void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 
+// RELATÓRIO FINAL
+void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data );
+
 
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

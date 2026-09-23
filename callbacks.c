@@ -912,51 +912,36 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-   int d = ctx->cascata.foco.disciplina;
+   // Nada por aqui, não é necessário, por enquanto
+}
 
-   // 1. Obtém o mapa exato de quais avaliações estão ativas na interface
-   gboolean validas[5];
-   int qtd_avaliacoes_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
-   float divisor = ( qtd_avaliacoes_validas > 0 ) ? ( float )qtd_avaliacoes_validas : 1.0f;
+
+//===================================================================================================
+void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+
+   int d = ctx->cascata.foco.disciplina;
 
    // 2. Varredura e Cálculo de todos os alunos
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      if ( !ficha->ativo ) {
+         continue;
+      }
 
       ficha->soma[d] = 0.0f;
-
-      // Calcula as notas dos 4 períodos
       for ( int j = 0; j < 4; j++ ) {
-         if ( j != ctx->cascata.foco.periodo ) continue;
-
-         float soma_notas = 0.0f;
-
-         // Acumula APENAS as avaliações validadas do período (Av x Rec)
-         for ( int k = 0; k < 5; k++ ) {
-            if ( !validas[k] ) continue; // Máscara: ignora avaliações desativadas
-
-            float av  = ficha->nota[d][j][k].av;
-            float rec = ficha->nota[d][j][k].rec;
-
-            float max_nota = MAX( av, rec );
-            if ( max_nota >= 0.0f ) {
-               soma_notas += max_nota;
-            }
+         if ( ficha->relatorio[d][j] < 0 ) {
+            continue;
          }
+         ficha->soma[d] += ficha->relatorio[d][j];
+      }
 
-         // Aplica a mesma regra de relatório: divide pelo número de avaliações ativas
-         float media_periodo = 0.0f;
-         if ( qtd_avaliacoes_validas == 0 ) {
-            media_periodo = -1.0f; // Sinalizador de ausência de avaliações
-         } else {
-            media_periodo = soma_notas / divisor;
-         }
-
-         // 1. Grava o resultado do período (j) nas 4 primeiras posições do relatório
-         ficha->relatorio[d][j] = media_periodo;
-
-         // 2. Acumula a nota do período na soma total do ano (ignora se for -1.0f)
-         ficha->soma[d] += media_periodo;
+      if ( ficha->soma[d] == 0.0f ) {
+         ficha->soma[d] = -1.0f;
+         continue;
       }
 
       // 3. Calcula a média final dividindo a soma anual pelos 4 períodos
@@ -964,6 +949,8 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
 
       ficha->ficha_modificada = TRUE;
    }
+
+   carregar_relatorio_ui( ctx );
 }
 //===================================================================================================
 
@@ -1063,6 +1050,7 @@ void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
    relatorio_de_avaliacoes( &ctx->painel, ctx );
+   carregar_relatorio_ui( ctx );
 }
 
 void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data ) {

@@ -22,9 +22,9 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
    {{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {2859150, 0, 0, 0}},       "Letramento 2"},
    {{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {2859298, 0, 0, 0}},       "Letramento 3"},
    {{{0, 0, 0, 0}, {2859456, 2859465, 0, 0}, {2859497, 0, 0, 0}, {0, 0, 0, 0}, {2859522, 0, 0, 0}}, "Matemática 1"},
-   {{{0, 0, 0, 0}, {2829645, 2829648, 0, 0}, {2829664, 0, 0, 0}, {0, 0, 0, 0}, {2829729, 0, 0, 0}}, "Matemática 2"},
-   {{{0, 0, 0, 0}, {2829824, 0, 0, 0}, {2829841, 0, 0, 0}, {0, 0, 0, 0}, {2829900, 2829904, 0, 0}}, "Matemática 3"},
-   {{{0, 0, 0, 0}, {2859639, 0, 0, 0}, {2859641, 2859644, 0, 0}, {0, 0, 0, 0}, {2859691, 0, 0, 0}}, "Matemática 4"},
+   {{{0, 0, 0, 0}, {2859639, 0, 0, 0}, {2859641, 2859644, 0, 0}, {0, 0, 0, 0}, {2859691, 0, 0, 0}}, "Matemática 2"},
+   {{{0, 0, 0, 0}, {2829645, 2829648, 0, 0}, {2829664, 0, 0, 0}, {0, 0, 0, 0}, {2829729, 0, 0, 0}}, "Matemática 3"},
+   {{{0, 0, 0, 0}, {2829824, 0, 0, 0}, {2829841, 0, 0, 0}, {0, 0, 0, 0}, {2829900, 2829904, 0, 0}}, "Matemática 4"},
    {{{0, 0, 0, 0}, {0, 0, 0, 0}, {2830418, 2830423, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}, "Aprofundamento"},
    {{{0, 0, 0, 0}, {2830395, 2830398, 0, 0}, {2830402, 0, 0, 0}, {0, 0, 0, 0}, {2830477, 0, 0, 0}}, "Matemática 5"}
 };
@@ -283,6 +283,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
       float soma_notas = 0.0f;
+      gboolean sem_nota = TRUE;
 
       for ( int j = 0; j < 5; j++ ) {
          // Se a avaliação [j] estiver desativada, não entra na soma matemática
@@ -294,13 +295,15 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
          float max_nota = MAX( av, rec );
          if ( max_nota >= 0.0f ) {
             soma_notas += max_nota;
+            sem_nota = FALSE;
          }
       }
 
-      if ( qtd_avaliacoes_validas == 0 ) {
+      if ( sem_nota || qtd_avaliacoes_validas == 0 ) {
          ficha->relatorio[foco->disciplina][foco->periodo] = -1.0f;
       } else {
          ficha->relatorio[foco->disciplina][foco->periodo] = soma_notas / divisor;
+         ficha->ficha_modificada = TRUE;
       }
    }
 
@@ -815,12 +818,15 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
    int index = offsets[ cascata->foco.disciplina % cascata->limite.disciplinas ] +
                cascata->foco.turma % cascata->limite.turmas;
 
+   // Gambiarra por eu ter modificado a lógica do combo da disciplina (GtkComboBox com liststore)
+   if ( cascata->foco.turma >= 4 && cascata->foco.turma <= 6 ) index--;
+
    long int ( *id_h )[4] = id_horarios[index].ids;
 
    for ( guint i = 0; i < registros->len; i++ ) {
       RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
 
-      if ( d->tipo_registro == 2 ) continue;
+      if ( d->tipo_registro == TIPO_REGISTRO_FERIADO || d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) continue;
 
       int dia = 0, mes = 0, ano = 0;
       sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );

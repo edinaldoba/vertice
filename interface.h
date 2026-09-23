@@ -92,6 +92,7 @@ typedef struct {
    //-- Janela com rolagem e Tabela de Notas
    GtkWidget *scrolled_window_relatorio;
    GtkWidget *treeview_relatorio;
+   GtkWidget *btn_consolidar;
 
 } InterfaceRegistroDiario;
 

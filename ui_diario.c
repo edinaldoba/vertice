@@ -1640,7 +1640,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          // Aponta para a ficha específica do aluno na memória
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 
-         if ( !ficha->ativo || !ficha->ficha_modificada ) {
+         if ( /*!ficha->ativo ||*/ !ficha->ficha_modificada ) {
             continue;
          }
 
@@ -2164,83 +2164,73 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
-   // 1. Limpa o modelo inteiro
+   // 1. Otimização de Performance GTK: Desanexa o modelo durante a inserção em massa.
+   // Garante que o GTK não tente redesenhar a interface a cada aluno inserido.
+   g_object_ref( store );
+   gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store );
 
    int d = ctx->cascata.foco.disciplina;
 
-   // 2. Percorre o GArray reconstruindo as linhas e calculando a situação
+   // 2. Percorre o GArray reconstruindo as linhas
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
       GtkTreeIter iter;
 
-      // Matriz de strings para as 8 colunas numéricas:
-      // 0..3 (Períodos 1 a 4), 4 (Soma), 5 (Média), 6 (Rec Final), 7 (Conselho)
       char str_cols[8][8] = {{0}};
+      char obs[160] = {0};
       int faltantes = 0;
-      g_autofree gchar *snota = NULL;
 
-      // Formata as notas dos 4 períodos e conta quantos estão pendentes (< 0.0)
+      // --- PASSO A: Formata as notas dos 4 períodos (usando GLib API) ---
       for ( int j = 0; j < 4; j++ ) {
          if ( ficha->relatorio[d][j] >= 0.0f ) {
-            snota = g_strdup_printf( "%.2f", ficha->relatorio[d][j] );
-            snprintf( str_cols[j], sizeof( str_cols[j] ), "%s", ( ficha->relatorio[d][j] < 0.0f ) ? "" : snota );
+            g_snprintf( str_cols[j], sizeof( str_cols[j] ), "%.2f", ficha->relatorio[d][j] );
          } else {
             faltantes++;
          }
       }
 
-      // Soma e Média (Sempre exibe se houver dados lançados)
-      if ( ficha->soma[d] > 0.0f || faltantes < 4 ) {
-         snota = g_strdup_printf( "%.2f", ficha->soma[d] );
-         snprintf( str_cols[4], sizeof( str_cols[4] ), "%s", ( ficha->soma[d] < 0.0f ) ? "" : snota );
-         snota = g_strdup_printf( "%.2f", ficha->media[d] );
-         snprintf( str_cols[5], sizeof( str_cols[5] ), "%s", ( ficha->media[d] < 0.0f ) ? "" : snota );
+      // --- PASSO B: Soma, Média, Rec Final e Conselho ---
+      if ( ficha->soma[d] > 0.0f /*|| faltantes < 4*/ ) {
+         g_snprintf( str_cols[4], sizeof( str_cols[4] ), "%.2f", ficha->soma[d] );
+         g_snprintf( str_cols[5], sizeof( str_cols[5] ), "%.2f", ficha->media[d] );
       }
 
-      // Rec Final [Índice 4 do relatório]
       if ( ficha->relatorio[d][4] >= 0.0f ) {
-         snota = g_strdup_printf( "%.2f", ficha->relatorio[d][4] );
-         snprintf( str_cols[6], sizeof( str_cols[6] ), "%s", ( ficha->relatorio[d][4] < 0 ) ? "" : snota );
+         g_snprintf( str_cols[6], sizeof( str_cols[6] ), "%.2f", ficha->relatorio[d][4] );
       }
 
-      // Conselho [Índice 5 do relatório]
       if ( ficha->relatorio[d][5] >= 0.0f ) {
-         snota = g_strdup_printf( "%.2f", ficha->relatorio[d][5] );
-         snprintf( str_cols[7], sizeof( str_cols[7] ), "%s", ( ficha->relatorio[d][5] < 0 ) ? "" : snota );
+         g_snprintf( str_cols[7], sizeof( str_cols[7] ), "%.2f", ficha->relatorio[d][5] );
       }
 
-      // ----------------------------------------------------------------------
-      // LÓGICA DE STATUS (OBSERVAÇÃO)
-      // ----------------------------------------------------------------------
-      char obs[160] = {0};
-      float max_futuro = ficha->soma[d] + ( faltantes * 10.0f ); // O máximo que o aluno ainda pode alcançar
+      // --- PASSO C: Lógica de Status (Usando g_strlcpy para cópia segura de strings) ---
+      if ( ficha->soma[d] >= 0.0f ) {
+         float max_futuro = ficha->soma[d] + ( faltantes * 10.0f );
 
-      // Precedência 1: Conselho de Classe
-      if ( ficha->relatorio[d][5] >= 0.0f ) {
-         if ( ficha->relatorio[d][5] >= 6.0f ) strcpy( obs, "Aprov Cons" );
-         else strcpy( obs, "Reprovado" );
-      }
-      // Precedência 2: Recuperação Final
-      else if ( ficha->relatorio[d][4] >= 0.0f ) {
-         if ( ficha->relatorio[d][4] >= 6.0f ) strcpy( obs, "Aprov Final" );
-         else strcpy( obs, "Conselho" );
-      }
-      // Precedência 3: Períodos Normais
-      else {
-         if ( ficha->soma[d] > 22.2f ) {
-            strcpy( obs, "Aprov Dir" );
-         }
-         else if ( max_futuro <= 22.2f && max_futuro >= 0.0f && faltantes < 4 ) {
-            // Mesmo tirando 10 em tudo que falta, não atinge 22.2
-            strcpy( obs, "Rec Final" );
-         }
-         else {
-            strcpy( obs, "Cursando" ); // Preenchimento estético enquanto não há um veredito
+         if ( ficha->relatorio[d][5] >= 0.0f ) {
+            g_strlcpy( obs, ( ficha->relatorio[d][5] >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
+         } else if ( ficha->relatorio[d][4] >= 0.0f ) {
+            g_strlcpy( obs, ( ficha->relatorio[d][4] >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
+         } else if ( ficha->soma[d] > 22.2f ) {
+            g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
+         } else if ( max_futuro <= 22.2f && faltantes < 4 ) {
+            g_strlcpy( obs, "Rec Final", sizeof( obs ) );
+         } else {
+            g_strlcpy( obs, "Cursando", sizeof( obs ) );
          }
       }
 
-      // 3. Insere os dados na GtkListStore
+      // --- PASSO D: Filtro Visual para Alunos Inativos ---
+      if ( !ficha->ativo ) {
+         str_cols[4][0] = '\0';
+         str_cols[5][0] = '\0';
+         str_cols[6][0] = '\0';
+         str_cols[7][0] = '\0';
+         obs[0] = '\0';
+      }
+
+      // --- PASSO E: Inserção Limpa no GTK ---
       gtk_list_store_append( store, &iter );
       gtk_list_store_set( store, &iter,
                           0, i + 1,
@@ -2258,8 +2248,11 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           -1 );
    }
 
-   // 4. Vincula a função de renderização de cores às colunas numéricas dinamicamente
-   // O ListStore mapeia de 2 a 10: 1º a 4º (2-5), Soma (6), Média (7), Rec.Final (8), Conselho (9), Observação (10)
+   // 3. Reanexa o modelo atualizado à TreeView (renderização ocorre toda de uma vez)
+   gtk_tree_view_set_model( tree_view, GTK_TREE_MODEL( store ) );
+   g_object_unref( store );
+
+   // 4. Vincula a função de renderização de cores às colunas numéricas
    for ( int i = 1; i <= 10; i++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
       if ( !col ) continue;
@@ -2267,18 +2260,14 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
       if ( renderers ) {
          GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-
-         // Salva o índice da coluna no próprio renderizador para ser lido na callback
          g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
-
          gtk_tree_view_column_set_cell_data_func( col, renderer, on_renderizar_cores_relatorio, ctx, NULL );
-
          g_list_free( renderers );
       }
    }
 
-   // 5. Retorna o scroll para o topo da lista após preencher
-   GtkTreePath *path_novo = gtk_tree_path_new_from_indices( 0, -1 );
+   // 5. Retorna o scroll para o topo da lista usando a macro idiomática da GLib
+   GtkTreePath *path_novo = gtk_tree_path_new_first();
    if ( path_novo ) {
       gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
       gtk_tree_path_free( path_novo );

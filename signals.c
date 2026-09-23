@@ -255,6 +255,9 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.btn_salvar_avaliacoes, "clicked",
                      G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
+   // RELATÓRIO FINAL
+   g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
+
 
 
 

@@ -156,6 +156,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    // RELATÓRIO
    ctx->ui_diario.scrolled_window_relatorio = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_relatorio" ) );
+   ctx->ui_diario.btn_consolidar        = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
    ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 0, 0.5 );
    treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, 2, 0.5 );
