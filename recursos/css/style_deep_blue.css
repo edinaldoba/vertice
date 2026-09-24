@@ -578,52 +578,50 @@ treeview header button {
 /* ==========================================================================
    8. DIÁLOGOS E MODAIS (GtkMessageDialog)
    ========================================================================== */
+/* --- Message Dialog: Deep Blue --- */
 messagedialog {
-    background-color: #161B22;
-    border: 1px solid #9d7c19;
+    background-color: #0F172A;
+    border: 1px solid #1E293B;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(2, 6, 23, 0.8);
 }
 
 messagedialog headerbar,
 messagedialog .titlebar {
     background-image: none;
-    background-color: #000000;
-    border: 1px solid #9d7c19;
+    background-color: #0B132B;
+    border: none;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.1);
     box-shadow: none;
+}
+
+messagedialog headerbar .title,
+messagedialog .titlebar .title {
+    color: #00ffff; /* Ciano/Azul claro para o título */
+    font-weight: bold;
     text-shadow: none;
 }
 
-messagedialog headerbar,
-messagedialog .title {
-    color: #9d7c19;
-    font-weight: bold;
-}
-
 messagedialog label {
-    color: #B2BEC3;
-    font-size: 23px;
+    color: #94A3B8;
+    font-size: 20px;
 }
 
 messagedialog button {
     background-image: none;
-    background-color: #000000;
-    color: #FFFFFF;
-    padding: 16px 16px;
-    border: 1px solid #9d7c19;
-    border-radius: 7px;
+    background-color: #0B132B;
+    color: #E2E8F0;
+    padding: 8px 16px;
+    border: 1px solid #1E293B;
+    border-radius: 6px;
 }
 
 messagedialog button:hover {
-    background-color: #1E3E62;
-    border: 1px solid #00A8CC;
+    background-color: #1E293B;
+    border: 1px solid #38BDF8;
 }
 
-messagedialog button.suggested-action {
-    background-image: none;
-    background-color: #1A237E;
-    color: #E0E0E0;
-    border: 1px solid #1A237E;
+messagedialog button:hover label {
+    color: #ffffff;
 }
 
-messagedialog button.suggested-action:hover {
-    background-color: #283593;
-}
