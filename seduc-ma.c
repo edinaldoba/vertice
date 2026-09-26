@@ -270,20 +270,27 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
       if ( fread( &siaep, sizeof( FichaSiaep ), 1, f_origem ) == 1 ) {
 
          FichaAluno ficha = {0};
-         ficha.idx = i;
+         ficha.idx_siaep = i;
 
          for ( int k = 0; k < QTD_DISC; k++ ) {
+            // 1. Inicializa as Notas e Frequências dos 4 Períodos
             for ( int ii = 0; ii < 4; ii++ ) {
                for ( int jj = 0; jj < 5; jj++ ) {
-                  ficha.nota[k][ii][jj].av = -1.0f;
-                  ficha.nota[k][ii][jj].rec = -1.0f;
+                  ficha.disciplina[k].periodo[ii].avaliacoes[jj].av  = -1.0f;
+                  ficha.disciplina[k].periodo[ii].avaliacoes[jj].rec = -1.0f;
                }
+               ficha.disciplina[k].periodo[ii].presencas = 0;
+               ficha.disciplina[k].periodo[ii].ausencias = 0;
+
+               // Reseta as médias individuais dos períodos
+               ficha.disciplina[k].relatorio.notas_periodos[ii] = -1.0f;
             }
-            for ( int ii = 0; ii < 6; ii++ ) {
-               ficha.relatorio[k][ii] = -1.0f;
-            }
-            ficha.soma[k] = -1.0f;
-            ficha.media[k] = -1.0f;
+
+            // 2. Inicializa o Consolidado Anual (Soma, Média, Rec. Final e Conselho)
+            ficha.disciplina[k].relatorio.soma        = -1.0f;
+            ficha.disciplina[k].relatorio.media_anual = -1.0f;
+            ficha.disciplina[k].relatorio.rec_final   = -1.0f;
+            ficha.disciplina[k].relatorio.conselho    = -1.0f;
          }
 
          g_autofree char *nome_formatado = converter_nome_proprio( siaep.aluno );

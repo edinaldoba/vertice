@@ -478,7 +478,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
       if ( fread( &temp_ficha, sizeof( FichaAluno ), 1, fa ) == 1 ) {
          temp_ficha.cod_aluno = acesso->cod_aluno;
-         temp_ficha.idx = i;
+         temp_ficha.idx_siaep = i;
          temp_ficha.sit = acesso->sit;
          temp_ficha.ativo = acesso->ativo;
          temp_ficha.ficha_modificada = FALSE;

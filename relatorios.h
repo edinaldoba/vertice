@@ -13,7 +13,7 @@ typedef struct {
    char descricao[40]; // Opcional, para ajudar no debug
 } GrupoHorario;
 
-int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] );
+void calcular_consolidado_anual( FichaAluno *ficha, int disciplina );
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx );

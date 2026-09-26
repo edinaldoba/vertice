@@ -37,8 +37,8 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   const FocoCoordenadas *foco = &( ctx->cascata.foco );
-   const InterfaceDados *dados = &( ctx->dados );
+   const FocoCoordenadas *foco    = &( ctx->cascata.foco );
+   const InterfaceDados   *dados   = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    int qtd_alunos = dados->qtd_alunos_total;
@@ -57,16 +57,19 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      int idx = ficha->idx;
+      int idx = ficha->idx_siaep; // Atualizado para idx_siaep
       if ( idx >= 0 && idx < qtd_alunos ) {
          ordem_original[idx] = ficha;
       }
    }
 
+   int d = foco->disciplina;
+   int per = foco->periodo;
+
    // 3. Exporta exatamente 10 linhas fixas (5 avaliações x 2: AV e REC)
    for ( int j = 0; j < 10; j++ ) {
 
-      // Mapeia j (0 a 9) para o índice correto do vetor de notas (0 a 4)
+      // Mapeia j (0 a 9) para o índice correto do vetor de avaliações (0 a 4)
       int avaliacao_idx = j / 2;
 
       for ( int i = 0; i < qtd_alunos; i++ ) {
@@ -77,13 +80,15 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
             continue;
          }
 
-         float nota_av  = aluno->nota[foco->disciplina][foco->periodo][avaliacao_idx].av;
-         float nota_rec = aluno->nota[foco->disciplina][foco->periodo][avaliacao_idx].rec;
+         // Acesso semântico através da nova hierarquia NotaAvaliacao
+         const NotaAvaliacao *nota = &aluno->disciplina[d].periodo[per].avaliacoes[avaliacao_idx];
+         float nota_av  = nota->av;
+         float nota_rec = nota->rec;
 
          // j par = Avaliação (av); j ímpar = Recuperação (rec)
          float nota_atual = ( j % 2 == 0 ) ? nota_av : nota_rec;
 
-         // Tratamento de nota em branco (igual a -1.0)
+         // Tratamento de nota em branco (menor que 0.0)
          if ( nota_atual < 0.0f ) {
             fprintf( p, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
@@ -113,8 +118,8 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 //===================================================================================================
 static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, const gboolean validas[5] ) {
    g_return_if_fail( ctx && ctx->fichas );
-   const InterfaceDados *dados = &( ctx->dados );
-   const FocoCoordenadas *foco = &( ctx->cascata.foco );
+   const InterfaceDados  *dados = &( ctx->dados );
+   const FocoCoordenadas *foco  = &( ctx->cascata.foco );
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
@@ -165,58 +170,59 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
             "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{7.5mm}{11pt}{\\bf Av1} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av2} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av3} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av4} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av5} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{11mm}{11pt}{\\bf Média}\\\\\\hline\n",
             dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
-   // 4. Loop da Lista de Alunos (Formatação On-the-Fly)
+   int d   = foco->disciplina;
+   int per = foco->periodo;
+
+   // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
 
-      // Matriz zerada garante que células puladas fiquem em branco no LaTeX
-      char s_notas[10][32] = {0};
-      char s_med[32] = {0};
+      // Matrizes zeradas para garantir impressão vazia caso não haja nota
+      char s_notas[10][32] = {{0}};
+      char s_nota_periodo[32] = {0};
+      char s_nome[128] = {0};
 
-      // Extrai e converte APENAS as avaliações marcadas como válidas
+      // --- PASSO A: Formatação do Nome e Status ---
+      if ( ficha->ativo ) {
+         snprintf( s_nome, sizeof( s_nome ), "%.*s", ficha->limite_corte, ficha->aluno );
+      } else {
+         snprintf( s_nome, sizeof( s_nome ), "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
+      }
+
+      // --- PASSO B: Extração e formatação das 5 avaliações (AV e REC) ---
       for ( int k = 0; k < 5; k++ ) {
-         if ( !validas[k] ) continue; // Máscara: ignora avaliações desativadas no ComboBox
+         if ( !validas[k] ) continue;
 
-         float av  = ficha->nota[foco->disciplina][foco->periodo][k].av;
-         float rec = ficha->nota[foco->disciplina][foco->periodo][k].rec;
+         const NotaAvaliacao *nota = &ficha->disciplina[d].periodo[per].avaliacoes[k];
+         float av  = nota->av;
+         float rec = nota->rec;
 
          if ( av >= 0.0f ) {
-            if ( ficha->ativo ) {
-               snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "{\\textcolor{%s}{%.1f}}", ( av < 6.0f ) ? "red" : "black", av );
-            } else {
-               snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "{\\textcolor{gray!70}{%.1f}}", av );
-            }
+            const char *cor = ficha->ativo ? ( ( av < 6.0f ) ? "red" : "black" ) : "gray!70";
+            snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "\\textcolor{%s}{%.1f}", cor, av );
          }
 
          if ( rec >= 0.0f ) {
-            if ( ficha->ativo ) {
-               snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "{\\textcolor{%s}{%.1f}}", ( rec < 6.0f ) ? "red" : "black", rec );
-            } else {
-               snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "{\\textcolor{gray!70}{%.1f}}", rec );
-            }
+            const char *cor = ficha->ativo ? ( ( rec < 6.0f ) ? "red" : "black" ) : "gray!70";
+            snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "\\textcolor{%s}{%.1f}", cor, rec );
          }
       }
 
-      float med = ficha->relatorio[foco->disciplina][foco->periodo];
-      if ( med >= 0.0f ) {
-         if ( ficha->ativo ) {
-            snprintf( s_med, sizeof( s_med ), "{\\textcolor{%s}{%.2f}}", ( med < 6.0f ) ? "red" : "black", med );
-         } else {
-            snprintf( s_med, sizeof( s_med ), "{\\textcolor{gray!70}{%.2f}}", med );
-         }
-      }
-
+      // --- PASSO C: Nota consolidada do período letivo ---
       if ( ficha->ativo ) {
-         fprintf( p, "%.2d & %.*s &%s&%s&%s&%s&%s&%s&%s&%s&%s&%s&{\\bf %s} \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno,
-                  s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
-                  s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9], s_med );
-      } else {
-         fprintf( p, "%.2d & \\textcolor{gray!70}{%.*s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\textcolor{gray!70}{%s} & \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno,
-                  s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
-                  s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9] );
+         float nota_periodo = ficha->disciplina[d].relatorio.notas_periodos[per];
+         if ( nota_periodo >= 0.0f ) {
+            const char *cor = ( nota_periodo < 6.0f ) ? "red" : "black";
+            // Incorpora o bold \bf diretamente na string
+            snprintf( s_nota_periodo, sizeof( s_nota_periodo ), "\\textcolor{%s}{\\bf %.2f}", cor, nota_periodo );
+         }
       }
+
+      // --- PASSO D: Impressão Unificada da Linha ---
+      fprintf( p, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
+               j + 1, s_nome,
+               s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
+               s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9], s_nota_periodo );
    }
 
    // 5. Rodapé
@@ -234,7 +240,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    fclose( p );
 }
 //---------------------------------------------------------------------------------------------
-int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
+static int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
    g_return_val_if_fail( GTK_IS_COMBO_BOX( combo ), 0 );
 
    // Inicializa o vetor de segurança (todas desativadas por padrão)
@@ -264,52 +270,96 @@ int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
 
    return qtd_validas;
 }
-//---------------------------------------------------------------------------------------------
-void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+// ============================================================================
+// CORE: LÓGICA DE CÁLCULO DE NOTAS
+// ============================================================================
 
-   const InterfaceDados   *dados   = &ctx->dados;
-   const FocoCoordenadas  *foco    = &ctx->cascata.foco;
-   const CaminhoDiretorio *caminho = &ctx->caminho;
+/**
+ * Calcula a média de um ÚNICO PERÍODO com base nas avaliações marcadas como válidas.
+ * Atualiza: ficha->disciplina[disciplina].relatorio.notas_periodos[periodo] e ficha_modificada
+ */
+static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int periodo,
+                                       const gboolean validas[5], int qtd_validas ) {
+   float soma_notas = 0.0f;
+   gboolean tem_nota_valida = FALSE;
+   float divisor = ( qtd_validas > 0 ) ? ( float )qtd_validas : 1.0f;
 
-   gerar_arquivo_siaep_notas( ctx );
+   const PeriodoLetivo *p_letivo = &ficha->disciplina[disciplina].periodo[periodo];
 
-   // 1. Obtém o mapa exato de quais avaliações estão ativas
-   gboolean validas[5];
-   int qtd_avaliacoes_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
-   float divisor = ( qtd_avaliacoes_validas > 0 ) ? ( float )qtd_avaliacoes_validas : 1.0f;
+   for ( int j = 0; j < 5; j++ ) {
+      if ( !validas[j] ) continue;
 
-   // 2. Cálculo da Média (Varredura blindada)
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      float soma_notas = 0.0f;
-      gboolean sem_nota = TRUE;
+      float av  = p_letivo->avaliacoes[j].av;
+      float rec = p_letivo->avaliacoes[j].rec;
 
-      for ( int j = 0; j < 5; j++ ) {
-         // Se a avaliação [j] estiver desativada, não entra na soma matemática
-         if ( !validas[j] ) continue;
-
-         float av  = ficha->nota[foco->disciplina][foco->periodo][j].av;
-         float rec = ficha->nota[foco->disciplina][foco->periodo][j].rec;
-
-         float max_nota = MAX( av, rec );
-         if ( max_nota >= 0.0f ) {
-            soma_notas += max_nota;
-            sem_nota = FALSE;
-         }
-      }
-
-      if ( sem_nota || qtd_avaliacoes_validas == 0 ) {
-         ficha->relatorio[foco->disciplina][foco->periodo] = -1.0f;
-      } else {
-         ficha->relatorio[foco->disciplina][foco->periodo] = soma_notas / divisor;
-         ficha->ficha_modificada = TRUE;
+      float max_nota = MAX( av, rec );
+      if ( max_nota >= 0.0f ) {
+         soma_notas += max_nota;
+         tem_nota_valida = TRUE;
       }
    }
 
-   // 3. Repassa o mapa de avaliações para o Gerador LaTeX
-   gerar_tex_avaliacoes( "avaliações", ctx, validas );
-   disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
+   RelatorioAnual *rel = &ficha->disciplina[disciplina].relatorio;
+
+   if ( !tem_nota_valida || qtd_validas == 0 ) {
+      rel->notas_periodos[periodo] = -1.0f;
+   } else {
+      rel->notas_periodos[periodo] = soma_notas / divisor;
+      ficha->ficha_modificada = TRUE;
+   }
+}
+
+/**
+ * Calcula a SOMA ANUAL e a MÉDIA FINAL consolidando os 4 períodos.
+ * Atualiza: ficha->disciplina[disciplina].relatorio.soma, media_anual e ficha_modificada
+ */
+void calcular_consolidado_anual( FichaAluno *ficha, int disciplina ) {
+   if ( !ficha->ativo ) return;
+
+   RelatorioAnual *rel = &ficha->disciplina[disciplina].relatorio;
+   rel->soma = 0.0f;
+   gboolean possui_dados = FALSE;
+
+   // Soma apenas os períodos que já possuem médias processadas
+   for ( int p = 0; p < 4; p++ ) {
+      if ( rel->notas_periodos[p] >= 0.0f ) {
+         rel->soma += rel->notas_periodos[p];
+         possui_dados = TRUE;
+      }
+   }
+
+   // Mantém a correção do bug (preserva aluno com soma 0.0 legítima)
+   if ( !possui_dados ) {
+      rel->soma        = -1.0f;
+      rel->media_anual = -1.0f;
+   } else {
+      rel->media_anual = rel->soma / 4.0f;
+      ficha->ficha_modificada = TRUE;
+   }
+}
+
+void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
+    g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+
+    const InterfaceDados   *dados   = &ctx->dados;
+    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
+    const CaminhoDiretorio *caminho = &ctx->caminho;
+
+    gerar_arquivo_siaep_notas( ctx );
+
+    // 1. Obtém o mapa de configurações da UI
+    gboolean validas[5];
+    int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+
+    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
+    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+        FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+        calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
+    }
+
+    // 3. Exporta para LaTeX
+    gerar_tex_avaliacoes( "avaliações", ctx, validas );
+    disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
 }
 //==================================================================================================
 
@@ -317,9 +367,109 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 
+//===================================================================================================
+// ESTRUTURA AUXILIAR: Encapsula as strings formatadas de uma linha do relatório LaTeX
+//===================================================================================================
+typedef struct {
+   char nome[128];
+   char notas[4][32];
+   char soma[32];
+   char media[32];
+   char rec[32];
+   char cons[32];
+   char obs[128];
+} LinhaRelatorioTeX;
 
 //===================================================================================================
-// FUNÇÃO AUXILIAR: Gera o arquivo LaTeX do Relatório Final diretamente na memória
+// FUNÇÃO AUXILIAR: Processa as regras de negócio e preenche a estrutura da linha TeX
+//===================================================================================================
+static void preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
+   // Zera toda a estrutura de uma vez para garantir strings limpas
+   memset( linha, 0, sizeof( LinhaRelatorioTeX ) );
+
+   const RelatorioAnual *rel = &ficha->disciplina[disc].relatorio;
+
+   // --- PASSO A: Nome do Aluno ---
+   if ( ficha->ativo ) {
+      g_snprintf( linha->nome, sizeof( linha->nome ), "%.*s", ficha->limite_corte, ficha->aluno );
+   } else {
+      g_snprintf( linha->nome, sizeof( linha->nome ), "\\textcolor{gray!50}{%.*s}", ficha->limite_corte, ficha->aluno );
+   }
+
+   // --- PASSO B: Notas dos 4 Períodos e Contagem ---
+   int qtd_periodos = 0;
+   for ( int k = 0; k < 4; k++ ) {
+      float med = rel->notas_periodos[k];
+      if ( med >= 0.0f ) {
+         const char *cor = ficha->ativo ? ( ( med < 6.0f ) ? "red" : "black" ) : "gray!50";
+         g_snprintf( linha->notas[k], sizeof( linha->notas[k] ), "\\textcolor{%s}{%.2f}", cor, med );
+         qtd_periodos++;
+      }
+   }
+
+   // --- PASSO C: Soma, Média, Final e Conselho ---
+   float soma  = rel->soma;
+   float media = rel->media_anual;
+   float rec   = rel->rec_final;
+   float cons  = rel->conselho;
+
+   if ( soma >= 0.0f ) {
+      if ( ficha->ativo ) {
+         g_snprintf( linha->soma, sizeof( linha->soma ), "{\\bf %.2f}", soma );
+
+         // Aplicação da regra de nota vermelha também na média anual
+         const char *cor_media = ( media < 6.0f ) ? "red" : "black";
+         g_snprintf( linha->media, sizeof( linha->media ), "\\textcolor{%s}{%.2f}", cor_media, media );
+      } else {
+         g_snprintf( linha->soma, sizeof( linha->soma ), "\\textcolor{gray!50}{\\bf %.2f}", soma );
+         g_snprintf( linha->media, sizeof( linha->media ), "\\textcolor{gray!50}{%.2f}", media );
+      }
+   }
+
+   if ( rec >= 0.0f ) {
+      const char *cor = ficha->ativo ? ( ( rec < 6.0f ) ? "red" : "black" ) : "gray!50";
+      g_snprintf( linha->rec, sizeof( linha->rec ), "\\textcolor{%s}{%.2f}", cor, rec );
+   }
+
+   if ( cons >= 0.0f ) {
+      const char *cor = ficha->ativo ? ( ( cons < 6.0f ) ? "red" : "black" ) : "gray!50";
+      g_snprintf( linha->cons, sizeof( linha->cons ), "\\textcolor{%s}{%.2f}", cor, cons );
+   }
+
+   // --- PASSO D: Lógica de Status de Aprovação ---
+   if ( soma >= 0.0f ) {
+      char temp_obs[128] = {0};
+
+      if ( cons >= 0.0f ) {
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
+         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. na Final", sizeof( temp_obs ) );
+         else if ( cons >= 6.0f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{Aprov. no Conselho}", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "Reprovado(a)", sizeof( temp_obs ) );
+
+      } else if ( rec >= 0.0f ) {
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
+         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. na Final", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Conselho de Classe}", sizeof( temp_obs ) );
+
+      } else if ( qtd_periodos == 4 ) {
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Recuperação Final}", sizeof( temp_obs ) );
+
+      } else if ( qtd_periodos == 3 ) {
+         if ( soma >= 24.0f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
+         else if ( soma < 12.2f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Recuperação Final}", sizeof( temp_obs ) );
+      }
+
+      if ( ficha->ativo ) {
+         g_snprintf( linha->obs, sizeof( linha->obs ), "%s", temp_obs );
+      } else {
+         g_snprintf( linha->obs, sizeof( linha->obs ), "\\textcolor{gray!50}{%s}", temp_obs );
+      }
+   }
+}
+
+//===================================================================================================
+// FUNÇÃO SECUNDÁRIA: Gera o arquivo LaTeX do Relatório Final diretamente na memória
 //===================================================================================================
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->fichas );
@@ -335,7 +485,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
       return;
    }
 
-   // 1. Escrita do Preâmbulo (baseado no template original embutido nativamente)
+   // 1. Escrita do Preâmbulo
    fprintf( p1,
             "\\documentclass[11pt,a4paper]{report}\n"
             "\\usepackage[utf8]{inputenc}\n"
@@ -348,7 +498,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    fprintf( p1,
             "\\usepackage[brazil]{babel}\n"
             "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-            "\\usepackage{xcolor}\n" // Garantia para o comando \textcolor
+            "\\usepackage{xcolor}\n"
             "\\usepackage{tikz}\n"
             "\\usepackage{multicol}\n"
             "\\usepackage{enumerate}\n"
@@ -369,7 +519,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
    fprintf( p1, "\\begin{spacing}{%.4f}\n", spacing );
 
-   // 3. Cabeçalho da Tabela e colunas
+   // 3. Cabeçalho da Tabela
    fprintf( p1,
             "\\noindent\\begin{tabular}{|c|p{5cm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{9.8mm}|R{8.5mm}|R{7mm}|R{7mm}|c|}\\hline\n"
             "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
@@ -377,74 +527,17 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
             "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{8.5mm}{10pt}{\\bf\\,1º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,2º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,3º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,4º\\,p\\,} & \\resizebox{9.8mm}{11pt}{\\bf Soma} & \\resizebox{8.5mm}{11pt}{\\bf Média} &  \\resizebox{7mm}{11pt}{\\bf Final}& \\resizebox{7.8mm}{11pt}{\\bf Cons.} & \\resizebox{20mm}{11pt}{\\bf Observação}\\\\\\hline\n",
             dados->escola, dados->turma, dados->disciplina, dados->ano );
 
-   // 4. Loop dos Alunos e Extração Direta da Memória RAM
+   // 4. Loop dos Alunos com delegação para a função auxiliar
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+      LinhaRelatorioTeX linha;
 
-      // Matrizes zeradas garantem células limpas e sem lixo de memória
-      char s_notas[4][16] = {"", "", "", ""};
-      char s_soma[24] = "";
-      char s_media[24] = "";
-      char s_rec[16] = "";
-      char s_cons[16] = "";
-      char s_obs[128] = "";
+      preencher_linha_relatorio_tex( ficha, disc, &linha );
 
-      float fsoma = 0.0f;
-      gboolean tem_p[4] = {FALSE, FALSE, FALSE, FALSE};
-      gboolean avaliado = FALSE;
-
-      // Extrai a média dos 4 períodos gravados em relatorio[disc][0 a 3]
-      for ( int k = 0; k < 4; k++ ) {
-         float med = ficha->relatorio[disc][k];
-         if ( med >= 0.0f ) {
-            snprintf( s_notas[k], sizeof( s_notas[k] ), "%.2f", med );
-            fsoma += med;
-            tem_p[k] = TRUE;
-            avaliado = TRUE;
-         }
-      }
-
-      float rec = ficha->relatorio[disc][4];
-      float cons = ficha->relatorio[disc][5];
-
-      if ( rec >= 0.0f ) snprintf( s_rec, sizeof( s_rec ), "%.2f", rec );
-      if ( cons >= 0.0f ) snprintf( s_cons, sizeof( s_cons ), "%.2f", cons );
-
-      if ( avaliado ) {
-         snprintf( s_soma, sizeof( s_soma ), "{\\bf %.2f}", fsoma );
-         snprintf( s_media, sizeof( s_media ), "%.2f", 0.25f * fsoma );
-
-         // Substitui a verificação de arquivos pela verificação direta das variáveis carregadas
-         if ( cons >= 0.0f ) {
-            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
-            else if ( rec >= 6.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Final" );
-            else if ( cons == 6.0f ) snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{Aprov. no Conselho}" );
-            else snprintf( s_obs, sizeof( s_obs ), "Reprovado(a)" );
-         } else if ( rec >= 0.0f ) {
-            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
-            else if ( rec >= 6.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Final" );
-            else snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Conselho de Classe}" );
-         } else if ( tem_p[3] ) {
-            if ( fsoma >= 22.2f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
-            else snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
-         } else if ( tem_p[2] ) {
-            if ( fsoma >= 24.0f ) snprintf( s_obs, sizeof( s_obs ), "Aprov. na Média" );
-            else if ( fsoma < 12.2f ) snprintf( s_obs, sizeof( s_obs ), "\\resizebox{29mm}{8pt}{\\it Recuperação Final}" );
-         }
-      }
-
-      if ( ficha->ativo ) {
-         fprintf( p1, "%.2d & %.*s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno,
-                  s_notas[0], s_notas[1], s_notas[2], s_notas[3],
-                  s_soma, s_media, s_rec, s_cons, s_obs );
-      } else {
-         // Formatação em cinza diretamente embutida na declaração de colunas para alunos transferidos/inativos
-         fprintf( p1, "%.2d & \\textcolor{gray!50}{%.*s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} & \\textcolor{gray!50}{%s} \\\\\\hline\n",
-                  j + 1, ficha->limite_corte, ficha->aluno,
-                  s_notas[0], s_notas[1], s_notas[2], s_notas[3],
-                  s_soma, s_media, s_rec, s_cons, s_obs );
-      }
+      fprintf( p1, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
+               j + 1, linha.nome,
+               linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
+               linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
    }
 
    // 5. Rodapé
@@ -452,7 +545,6 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    snprintf( datatex, sizeof( datatex ), "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
              ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
-   // Injeta os dados da assinatura preservando o caminho da imagem do modelo
    fprintf( p1,
             "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
             "\\end{tabular}\n"
@@ -471,14 +563,21 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
+   int d = ctx->cascata.foco.disciplina;
 
-   // 1. Chamada direta do Gerador LaTeX (100% em memória, sem ler médias.dat ou templates externos)
+   // 1. GARANTIA DE DADOS: Processa os cálculos de soma e média de todos os alunos
+   // antes de gerar o PDF, blindando o sistema contra inconsistências.
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      calcular_consolidado_anual( ficha, d );
+   }
+
+   // 2. Chamada do Gerador LaTeX com os dados validados
    gerar_tex_relatorio_final( "Final", ctx );
 
-   // 2. Dispara a compilação via script shell / pdflatex
+   // 3. Dispara a compilação
    disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
 }
-
 
 
 

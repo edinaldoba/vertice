@@ -8,6 +8,7 @@
 #include <glib.h>
 
 
+
 #define NTI 10
 
 // MEXER NESTA MACRO VAI CORROMPER AS FICHAS DOS ALUNOS
@@ -284,39 +285,100 @@ typedef struct {
    RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
 } __attribute__( ( packed ) ) RegistroDiario;
 
+
+
+// ============================================================================
+// ESTRUTURAS AUXILIARES DE SUPORTE
+// ============================================================================
+
+// Encapsula o par Avaliação/Recuperação de uma avaliação específica
 typedef struct {
-   uint32_t cod_aluno;
-   char aluno[64];      // Nome do aluno
-   char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
-   char nasc[16];       // Data de nascimento do aluno
+   float av;  // Nota da Avaliação (-1.0f para vazia/não realizada)
+   float rec; // Nota da Recuperação da Avaliação (-1.0f para vazia)
+} __attribute__( ( packed ) ) NotaAvaliacao;
 
-   FichaAtipicidade atipico; // Condição de adaptação curricular
+// Registro diário/periódico de desempenho e assiduidade por período
+typedef struct {
+   NotaAvaliacao avaliacoes[5]; // As 5 avaliações do período (Av1..Av5 e suas Recs)
+   uint16_t      presencas;     // Total de presenças no período
+   uint16_t      ausencias;     // Total de ausências no período
+} __attribute__( ( packed ) ) PeriodoLetivo;
 
-   // Dados preenchidos a posteriori conforme período selecionado
-   SituacaoAluno sit;   // Situação do aluno
-   gboolean ativo;      // Status de matrícula global
+// Consolidação anual de resultados para o Relatório Final (LaTeX e UI)
+typedef struct {
+   float notas_periodos[4]; // Médias consolidadas do 1º, 2º, 3º e 4º Períodos
+   float soma;              // Soma das médias dos períodos decorridos
+   float media_anual;       // Média final (Soma / Qtd Períodos Válidos)
+   float rec_final;         // Nota da Recuperação Final (-1.0f se não fez)
+   float conselho;          // Nota do Conselho de Classe (-1.0f se não fez)
+} __attribute__( ( packed ) ) RelatorioAnual;
 
-   int limite_corte;    // Formatação de impressão
-   int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
+// ============================================================================
+// ESTRUTURA PRINCIPAL DO ALUNO (Soberana e Persistida em Disco)
+// ============================================================================
+typedef struct {
+   // 1. Identificação e Dados Pessoais (Alinhados com o SIAEP)
+   uint32_t cod_aluno;        // Código único do aluno no SIAEP
+   char     aluno[64];        // Nome completo do aluno
+   char     sexo[16];         // Masculino / Feminino
+   char     nasc[16];         // Data de Nascimento ("DD/MM/AAAA")
 
-   //-- FREQUÊNCIA
-   int presencas[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
-   int ausencias[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
+   // 2. Condições Curriculares e Inclusão
+   FichaAtipicidade atipico;  // Máscara de bits e metadados de acessibilidade (8 bytes)
 
-   //-- AVALIAÇÕES (NOTAS)
+   // 3. Status Acadêmico e de Matrícula
+   SituacaoAluno sit;         // Cursando, Transferido, Desistente, etc.
+   gboolean      ativo;       // TRUE = Aluno frequente na turma atual
+
+   // 4. Parâmetros de Exibição e Ordenação
+   uint8_t  limite_corte;     // Tamanho máximo do nome na impressão LaTeX
+   uint16_t idx_siaep;        // Índice original da ordem no diário SIAEP
+
+   // 5. Histórico Desempenho por Disciplina (Suporta até QTD_DISC disciplinas)
    struct {
-      float av;
-      float rec;
-   } nota[QTD_DISC][4][5];         // [2 disciplinas][4 Períodos][5 Avaliações]
+      PeriodoLetivo  periodo[4]; // Registro detalhado dos 4 períodos letivos
+      RelatorioAnual relatorio;  // Média anual, rec. final e conselho de classe
+   } disciplina[QTD_DISC];
 
-   float soma[QTD_DISC];     // [2 disciplinas] -> Soma da média dos quatro períodos
-   float media[QTD_DISC];    // [2 disciplinas] -> Média final = soma / 4
-
-   float relatorio[QTD_DISC][6];   // [2 disciplinas][6 notas] Médias dos 4 períodos + rec. final + conselho
-
-   gboolean ficha_modificada; // Reseta a flag
+   // 6. Controle de Persistência I/O
+   gboolean ficha_modificada; // Indicador para Auto-Save e Persistência em Cascata
 
 } __attribute__( ( packed ) ) FichaAluno;
+
+
+// typedef struct {
+//    uint32_t cod_aluno;
+//    char aluno[64];      // Nome do aluno
+//    char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
+//    char nasc[16];       // Data de nascimento do aluno
+//
+//    FichaAtipicidade atipico; // Condição de adaptação curricular
+//
+//    // Dados preenchidos a posteriori conforme período selecionado
+//    SituacaoAluno sit;   // Situação do aluno
+//    gboolean ativo;      // Status de matrícula global
+//
+//    int limite_corte;    // Formatação de impressão
+//    int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
+//
+//    //-- FREQUÊNCIA
+//    int presencas[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
+//    int ausencias[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
+//
+//    //-- AVALIAÇÕES (NOTAS)
+//    struct {
+//       float av;
+//       float rec;
+//    } nota[QTD_DISC][4][5];         // [2 disciplinas][4 Períodos][5 Avaliações]
+//
+//    float soma[QTD_DISC];     // [2 disciplinas] -> Soma da média dos quatro períodos
+//    float media[QTD_DISC];    // [2 disciplinas] -> Média final = soma / 4
+//
+//    float relatorio[QTD_DISC][6];   // [2 disciplinas][6 notas] Médias dos 4 períodos + rec. final + conselho
+//
+//    gboolean ficha_modificada; // Reseta a flag
+//
+// } __attribute__( ( packed ) ) FichaAluno;
 
 // Estrutura para descrever o "Cabeçalho" de cada avaliação
 typedef struct {

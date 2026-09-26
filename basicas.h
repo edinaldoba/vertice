@@ -4,6 +4,9 @@
 #include "comum.h"
 #include "interface.h"
 
+int calcular_digito_verificador( uint32_t sequencia_base );
+uint32_t gerar_codigo_aluno_seguro( uint32_t *ultimo_id_salvo );
+
 gboolean diretorio_esta_vazio( const gchar *caminho );
 
 void gerar_sementes( guint32 *sementes );

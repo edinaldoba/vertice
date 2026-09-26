@@ -26,6 +26,61 @@
 #include "glib_gio.h"
 
 
+/*
+ * 1. A Base Sequencial (Os 7 primeiros algarismos)
+O segredo da unicidade absoluta é ter um contador (sequence) que nunca recua.
+Ele começa no aluno 0000001 e vai até 9999999 (comporta 10 milhões de alunos). Esse número base não é aleatório; ele é simplesmente o "último número gerado + 1". Para garantir que ele nunca se repita entre execuções do programa, esse "último número" deve ser salvo num ficheiro simples (ex: ultimo_id.bin) ou numa base de dados (como um AUTO_INCREMENT no SQLite).
+
+ * 2. O Dígito Verificador (O 8º algarismo)
+Para impedir que alguém digite o código de um aluno errado por engano (erro de digitação no teclado), adicionamos o Dígito Verificador (DV). O método mais robusto e universal é o Módulo 11. Ele aplica "pesos" diferentes a cada posição do número base, soma tudo e calcula o resto da divisão por 11.
+*/
+
+// Função matemática para calcular o Dígito Verificador (Módulo 11)
+int calcular_digito_verificador( uint32_t sequencia_base ) {
+    // Pesos da direita para a esquerda: 2, 3, 4, 5, 6, 7, 8
+    int pesos[] = { 2, 3, 4, 5, 6, 7, 8 };
+    int soma = 0;
+    uint32_t temp = sequencia_base;
+
+    // Extrai cada dígito e multiplica pelo respectivo peso
+    for ( int i = 0; i < 7; i++ ) {
+        int digito = temp % 10;
+        soma += ( digito * pesos[i] );
+        temp /= 10;
+    }
+
+    // Calcula o resto da divisão por 11
+    int resto = soma % 11;
+    int dv = 11 - resto;
+
+    // Regra matemática do Módulo 11: se o resultado for 10 ou 11, o DV vira 0
+    if ( dv >= 10 ) {
+        dv = 0;
+    }
+
+    return dv;
+}
+
+// Função principal que acopla a base ao DV, retornando os 8 dígitos finais
+uint32_t gerar_codigo_aluno_seguro( uint32_t *ultimo_id_salvo ) {
+    // 1. Garante a unicidade incrementando a base
+    (*ultimo_id_salvo)++;
+
+    // 2. Trava de segurança (limite de 7 dígitos)
+    if ( *ultimo_id_salvo > 9999999 ) {
+        fprintf( stderr, "ERRO FATAL: Limite de códigos de aluno esgotado!\n" );
+        return 0;
+    }
+
+    // 3. Calcula o 8º dígito (DV)
+    int dv = calcular_digito_verificador( *ultimo_id_salvo );
+
+    // 4. Monta o número de 8 algarismos (Base * 10 + DV)
+    // Exemplo: se a base for 1234567 e o DV for 4, retorna 12345674
+    return ( *ultimo_id_salvo * 10 ) + dv;
+}
+
+
 
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Verifica se um diretório no sistema de arquivos está vazio

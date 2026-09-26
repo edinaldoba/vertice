@@ -1670,46 +1670,78 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    if ( ctx->fichas != NULL ) {
 //       for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-//          // Aponta para a ficha específica do aluno na memória
+//          // Aponta para a ficha antiga (arquitetura velha) na memória
 //          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 //
-//          //--------------- Transição de arquitetura ---------------------------------
+//          // Zera completamente a nova estrutura garantindo que não haja lixo de memória
 //          FichaAlunoAux ficha_aux = {0};
+//
+//          // =====================================================================
+//          // 1. CÓPIA DOS DADOS BÁSICOS (Mapeamento Direto 1:1)
+//          // =====================================================================
 //          ficha_aux.cod_aluno = ficha->cod_aluno;
 //          g_strlcpy( ficha_aux.aluno, ficha->aluno, sizeof( ficha_aux.aluno ) );
 //          g_strlcpy( ficha_aux.sexo, ficha->sexo, sizeof( ficha_aux.sexo ) );
 //          g_strlcpy( ficha_aux.nasc, ficha->nasc, sizeof( ficha_aux.nasc ) );
-//          // ficha_aux.atipico = ficha->atipico;
+//          ficha_aux.atipico = ficha->atipico; // Seguro, pois FichaAtipicidade manteve os 8 bytes
 //          ficha_aux.sit = ficha->sit;
 //          ficha_aux.ativo = ficha->ativo;
 //          ficha_aux.limite_corte = ficha->limite_corte;
-//          ficha_aux.idx = ficha->idx;
+//          ficha_aux.idx_siaep = ficha->idx;
 //
-//          // Copia blocos de frequência e notas
-//          memcpy( ficha_aux.presencas, ficha->presencas, sizeof( ficha_aux.presencas ) );
-//          memcpy( ficha_aux.ausencias, ficha->ausencias, sizeof( ficha_aux.ausencias ) );
-//          memcpy( ficha_aux.nota, ficha->nota, sizeof( ficha_aux.nota ) );
-//          memcpy( ficha_aux.rec_final, ficha->rec_final, sizeof( ficha_aux.rec_final ) );
-//          memcpy( ficha_aux.conselho, ficha->conselho, sizeof( ficha_aux.conselho ) );
-//          memcpy( ficha_aux.relatorio, ficha->relatorio, sizeof( ficha_aux.relatorio ) );
+//          // =====================================================================
+//          // 2. MIGRAÇÃO DA ARQUITETURA DE DADOS (O fim do memcpy perigoso)
+//          // =====================================================================
+//          for ( int d = 0; d < QTD_DISC; d++ ) {
 //
-//          ficha_aux.ficha_modificada = FALSE; // Reseta a flag na struct auxiliar
-//          //-------------------------------------------------------------------------
+//             // Migra os 4 Períodos Letivos
+//             for ( int p = 0; p < 4; p++ ) {
+//                // Frequência
+//                ficha_aux.disciplina[d].periodo[p].presencas = ficha->presencas[d][p];
+//                ficha_aux.disciplina[d].periodo[p].ausencias = ficha->ausencias[d][p];
 //
+//                // Avaliações (AV e REC)
+//                for ( int k = 0; k < 5; k++ ) {
+//                   ficha_aux.disciplina[d].periodo[p].avaliacoes[k].av  = ficha->nota[d][p][k].av;
+//                   ficha_aux.disciplina[d].periodo[p].avaliacoes[k].rec = ficha->nota[d][p][k].rec;
+//                }
+//
+//                // Média do período (Antigo relatorio[0 a 3])
+//                ficha_aux.disciplina[d].relatorio.notas_periodos[p] = ficha->relatorio[d][p];
+//             }
+//
+//             // Migra o Consolidado Anual
+//             ficha_aux.disciplina[d].relatorio.soma = ficha->soma[d];
+//             ficha_aux.disciplina[d].relatorio.media_anual = ficha->media[d];
+//
+//             // Notas finais (Antigo relatorio[4] e relatorio[5])
+//             // *Nota: Se no seu código antigo rec_final e conselho eram vetores separados
+//             // (ex: ficha->rec_final[d]), basta trocar a atribuição aqui!
+//             ficha_aux.disciplina[d].relatorio.rec_final = ficha->relatorio[d][4];
+//             ficha_aux.disciplina[d].relatorio.conselho  = ficha->relatorio[d][5];
+//          }
+//
+//          // Reseta a flag para que o sistema considere que o disco está sincronizado
+//          ficha_aux.ficha_modificada = FALSE;
+//
+//          // =====================================================================
+//          // 3. GRAVAÇÃO DO NOVO BLOCO (Estrutura Nova)
+//          // =====================================================================
 //          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
 //          g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
 //
-//          // Salva diretamente o bloco da struct auxiliar
+//          // Salva a estrutura convertida FichaAlunoAux no arquivo .bin
 //          _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
 //       }
 //       salvou_algo = TRUE;
 //    }
 //
-//    // Atualização do diretório de salvamento
+//    // Atualização do diretório de salvamento após a conclusão
 //    if ( !final_save ) {
 //       g_free( ctx->dir_save_fichas );
 //       ctx->dir_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
 //    }
+//
 //    return salvou_algo;
 // }
 
@@ -1814,13 +1846,16 @@ static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, 
    // Colunas ímpares (3, 5, 7, 9, 11) são sempre Recuperação
    gboolean is_rec = ( col_model_index % 2 != 0 );
 
-   // 4. Injeção atômica do valor
+   // 4. Injeção atômica do valor na nova estrutura hierárquica
    int foco = ctx->cascata.foco.disciplina;
+   NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
+
    if ( is_rec ) {
-      ficha->nota[foco][periodo][av_index].rec = valor_nota;
+      nota->rec = valor_nota;
    } else {
-      ficha->nota[foco][periodo][av_index].av = valor_nota;
+      nota->av = valor_nota;
    }
+
    ficha->ficha_modificada = TRUE;
 }
 //-------------------------------------------------------------------------------------------------------------
@@ -2050,8 +2085,9 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
       // Constrói as strings para os 5 pares de notas
       for ( int av = 0; av < 5; av++ ) {
-         float nota_av = ficha->nota[foco][periodo][av].av;
-         float nota_rec = ficha->nota[foco][periodo][av].rec;
+         const NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av];
+         float nota_av  = nota->av;
+         float nota_rec = nota->rec;
          int base = av * 2;
 
          if ( nota_av >= 0.0f ) {
@@ -2165,7 +2201,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
    // 1. Otimização de Performance GTK: Desanexa o modelo durante a inserção em massa.
-   // Garante que o GTK não tente redesenhar a interface a cada aluno inserido.
    g_object_ref( store );
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store );
@@ -2175,44 +2210,48 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // 2. Percorre o GArray reconstruindo as linhas
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+
+      // Ponteiro de atalho limpo para os dados consolidados da disciplina em foco
+      const RelatorioAnual *rel = &ficha->disciplina[d].relatorio;
+
       GtkTreeIter iter;
 
       char str_cols[8][8] = {{0}};
       char obs[160] = {0};
       int faltantes = 0;
 
-      // --- PASSO A: Formata as notas dos 4 períodos (usando GLib API) ---
+      // --- PASSO A: Formata as notas dos 4 períodos ---
       for ( int j = 0; j < 4; j++ ) {
-         if ( ficha->relatorio[d][j] >= 0.0f ) {
-            g_snprintf( str_cols[j], sizeof( str_cols[j] ), "%.2f", ficha->relatorio[d][j] );
+         if ( rel->notas_periodos[j] >= 0.0f ) {
+            g_snprintf( str_cols[j], sizeof( str_cols[j] ), "%.2f", rel->notas_periodos[j] );
          } else {
             faltantes++;
          }
       }
 
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
-      if ( ficha->soma[d] > 0.0f /*|| faltantes < 4*/ ) {
-         g_snprintf( str_cols[4], sizeof( str_cols[4] ), "%.2f", ficha->soma[d] );
-         g_snprintf( str_cols[5], sizeof( str_cols[5] ), "%.2f", ficha->media[d] );
+      if ( rel->soma > 0.0f /*|| faltantes < 4*/ ) {
+         g_snprintf( str_cols[4], sizeof( str_cols[4] ), "%.2f", rel->soma );
+         g_snprintf( str_cols[5], sizeof( str_cols[5] ), "%.2f", rel->media_anual );
       }
 
-      if ( ficha->relatorio[d][4] >= 0.0f ) {
-         g_snprintf( str_cols[6], sizeof( str_cols[6] ), "%.2f", ficha->relatorio[d][4] );
+      if ( rel->rec_final >= 0.0f ) {
+         g_snprintf( str_cols[6], sizeof( str_cols[6] ), "%.2f", rel->rec_final );
       }
 
-      if ( ficha->relatorio[d][5] >= 0.0f ) {
-         g_snprintf( str_cols[7], sizeof( str_cols[7] ), "%.2f", ficha->relatorio[d][5] );
+      if ( rel->conselho >= 0.0f ) {
+         g_snprintf( str_cols[7], sizeof( str_cols[7] ), "%.2f", rel->conselho );
       }
 
-      // --- PASSO C: Lógica de Status (Usando g_strlcpy para cópia segura de strings) ---
-      if ( ficha->soma[d] >= 0.0f ) {
-         float max_futuro = ficha->soma[d] + ( faltantes * 10.0f );
+      // --- PASSO C: Lógica de Status ---
+      if ( rel->soma >= 0.0f ) {
+         float max_futuro = rel->soma + ( faltantes * 10.0f );
 
-         if ( ficha->relatorio[d][5] >= 0.0f ) {
-            g_strlcpy( obs, ( ficha->relatorio[d][5] >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
-         } else if ( ficha->relatorio[d][4] >= 0.0f ) {
-            g_strlcpy( obs, ( ficha->relatorio[d][4] >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
-         } else if ( ficha->soma[d] > 22.2f ) {
+         if ( rel->conselho >= 0.0f ) {
+            g_strlcpy( obs, ( rel->conselho >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
+         } else if ( rel->rec_final >= 0.0f ) {
+            g_strlcpy( obs, ( rel->rec_final >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
+         } else if ( rel->soma > 22.2f ) {
             g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
          } else if ( max_futuro <= 22.2f && faltantes < 4 ) {
             g_strlcpy( obs, "Rec Final", sizeof( obs ) );
@@ -2248,7 +2287,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           -1 );
    }
 
-   // 3. Reanexa o modelo atualizado à TreeView (renderização ocorre toda de uma vez)
+   // 3. Reanexa o modelo atualizado à TreeView
    gtk_tree_view_set_model( tree_view, GTK_TREE_MODEL( store ) );
    g_object_unref( store );
 
@@ -2266,13 +2305,12 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       }
    }
 
-   // 5. Retorna o scroll para o topo da lista usando a macro idiomática da GLib
+   // 5. Retorna o scroll para o topo da lista
    GtkTreePath *path_novo = gtk_tree_path_new_first();
    if ( path_novo ) {
       gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
       gtk_tree_path_free( path_novo );
    }
 }
-
 
 

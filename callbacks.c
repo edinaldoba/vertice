@@ -912,45 +912,42 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
+   // for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+   //    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+   //
+   //    for ( int k = 0; k < QTD_DISC; k++ ) {
+   //       for ( int ii = 0; ii < 4; ii++ ) {
+   //          // for ( int jj = 0; jj < 5; jj++ ) {
+   //          //    ficha->nota[k][ii][jj].av = -1.0f;
+   //          //    ficha->nota[k][ii][jj].rec = -1.0f;
+   //          // }
+   //          ficha->relatorio[k].nota[ii] = -1.0f;
+   //       }
+   //       ficha->relatorio[k].soma = -1.0f;
+   //       ficha->relatorio[k].med = -1.0f;
+   //    }
+   // }
+
    // Nada por aqui, não é necessário, por enquanto
 }
 
 
 //===================================================================================================
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+    AppContext *ctx = ( AppContext * )user_data;
+    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-   int d = ctx->cascata.foco.disciplina;
+    int d = ctx->cascata.foco.disciplina;
 
-   // 2. Varredura e Cálculo de todos os alunos
-   for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      if ( !ficha->ativo ) {
-         continue;
-      }
+    // Varredura e Cálculo limpo
+    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+        FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+        calcular_consolidado_anual( ficha, d );
+    }
 
-      ficha->soma[d] = 0.0f;
-      for ( int j = 0; j < 4; j++ ) {
-         if ( ficha->relatorio[d][j] < 0 ) {
-            continue;
-         }
-         ficha->soma[d] += ficha->relatorio[d][j];
-      }
-
-      if ( ficha->soma[d] == 0.0f ) {
-         ficha->soma[d] = -1.0f;
-         continue;
-      }
-
-      // 3. Calcula a média final dividindo a soma anual pelos 4 períodos
-      ficha->media[d] = ficha->soma[d] / 4.0f;
-
-      ficha->ficha_modificada = TRUE;
-   }
-
-   carregar_relatorio_ui( ctx );
+    // Atualiza a Interface
+    carregar_relatorio_ui( ctx );
 }
 //===================================================================================================
 
