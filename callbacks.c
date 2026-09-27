@@ -21,7 +21,7 @@
 #include "provas.h"
 #include "basicas.h"
 #include "acervo.h"
-#include "gabaritos.h"
+#include "omr.h"
 #include "mensagens.h"
 #include "dinamica.h"
 #include "assincrono.h"
@@ -1165,24 +1165,24 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
 
-   // GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
-   //
-   // // Refatoração focada na clareza e prevenção de erros humanos
-   // g_autofree gchar *mensagem = meu_gerador_variadico(
-   //    "Você está prestes a iniciar a leitura óptica das provas.\n\n"
-   //    "<b>ESCOLA:</b> %s\n"
-   //    "<b>ANO LETIVO:</b> %s\n\n"
-   //    "⚠️ <b>Atenção:</b> Como o cartão-resposta não identifica a escola automaticamente, "
-   //    "todos os acertos deste lote de imagens serão vinculados ao destino acima.\n\n"
-   //    "Confirma que as imagens na pasta pertencem a esta escola e ano?",
-   //    ctx->dados.escola, ctx->dados.ano );
-   //
-   // // Sugestão: Mudar o título do pop-up para algo que exija mais atenção
-   // gboolean continuar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Vínculo das Provas", mensagem );
+   GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
 
-   // if ( continuar ) {
-   disparar_processamento_imagens_assincrono( widget, ctx, thread_processar_imagens_background );
-   // }
+   // Refatoração focada na clareza e prevenção de erros humanos
+   g_autofree gchar *mensagem = meu_gerador_variadico(
+      "Você está prestes a iniciar a leitura óptica das provas.\n\n"
+      "<b>ESCOLA:</b> %s\n"
+      "<b>ANO LETIVO:</b> %s\n\n"
+      "⚠️ <b>Atenção:</b> Como o cartão-resposta não identifica a escola automaticamente, "
+      "todos os acertos deste lote de imagens serão vinculados ao destino acima.\n\n"
+      "Confirma que as imagens na pasta pertencem a esta escola e ano?",
+      ctx->dados.escola, ctx->dados.ano );
+
+   // Sugestão: Mudar o título do pop-up para algo que exija mais atenção
+   gboolean continuar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Vínculo das Provas", mensagem );
+
+   if ( continuar ) {
+      disparar_processamento_imagens_assincrono( widget, ctx, thread_processar_imagens_background );
+   }
 }
 
 

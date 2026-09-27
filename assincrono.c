@@ -330,10 +330,16 @@ static gboolean reativar_botao_processar_imagens( gpointer user_data ) {
       painel->format_instrucao = meu_gerador_variadico( "Estes arquivos foram isolados na pasta 'rejeitadas' para sua verificação manual." );
       criar_mensagem_painel( AVISO, painel );
 
-   } else if ( args->n_rejeitadas < 0 ) {
+   } else if ( args->n_rejeitadas == -1 ) {
       painel->format_titulo    = meu_gerador_variadico( "✘ Dados Não Encontrados" );
       painel->format_subtitulo = meu_gerador_variadico( "O sistema não localizou gabaritos estruturais de nenhuma avaliação." );
       painel->format_instrucao = meu_gerador_variadico( "Certifique-se de gerar os cadernos de prova antes de tentar processar as imagens." );
+      criar_mensagem_painel( ERRO, painel );
+
+   } else if ( args->n_rejeitadas <= -2 ) {
+      painel->format_titulo    = meu_gerador_variadico( "✘ Nenhuma Imagem Localizada" );
+      painel->format_subtitulo = meu_gerador_variadico( "O sistema não encontrou fotografias ou digitalizações de respostas na pasta de entrada." );
+      painel->format_instrucao = meu_gerador_variadico( "Transfira os ficheiros de imagem das provas para a pasta 'Downloads/imagens' antes de iniciar o processamento." );
       criar_mensagem_painel( ERRO, painel );
    }
 
@@ -362,7 +368,7 @@ void* thread_processar_imagens_background( void *data ) {
 
    g_print( "[Thread CV] Iniciando o processamento assíncrono das imagens...\n" );
 
-   args->n_rejeitadas = processar_imagens( &args->dados, &args->limite );
+   args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->limite );
 
    g_print( "[Thread CV] Processamento concluído. Retornando o controle para a UI.\n" );
 

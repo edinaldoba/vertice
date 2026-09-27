@@ -14,7 +14,7 @@
 #include "glib_gio.h"
 #include "interface.h"
 #include "provas.h"
-#include "gabaritos.h"
+#include "omr.h"
 #include "comum.h"
 #include "basicas.h"
 #include "latex.h"
@@ -229,7 +229,6 @@ static void anexar_identificadores_latex( GString *tex, uint8_t id_turma, uint8_
 //--------------------------------------------------------------------------------------------------------
 static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dados, const FichaAluno *ficha,
       int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
-   const char *cor_aluno = dados->naopresencial ? "blue" : "CorSerie";
 
    if ( dados->cabecalho_tipo == 1 ) { // PVO11 e PVO12
       if ( is_page1 ) {
@@ -247,18 +246,18 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.3,-2.25) {{\\color{CorSerie}\\bf Professor:} %s};\n", dados->professor );
 
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (13.3,-1.75) {{\\color{CorSerie}\\bf Data:} \\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/\\underline{%d}};\n", data->ano );
-         if ( dados->naopresencial ) g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=blue] at (14.55,-1.71) {\\bf %.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
+         if ( dados->naopresencial ) g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (13.3,-2.25) {{\\color{CorSerie}\\bf Turma:} %s};\n", dados->turma );
 
-         g_string_append( tex, "\\draw[line width=1pt,rounded corners,color=Vinho!70] (17.6,-1.40) rectangle (19,-3.36);\n\\node[inner sep=0pt] at (18.3,-1.71) {\\bf\\uuline{NOTA}};\n" );
+         g_string_append( tex, "\\draw[line width=1pt,rounded corners,color=red] (17.6,-1.40) rectangle (19,-3.36);\n\\node[inner sep=0pt] at (18.3,-1.71) {\\bf\\uuline{NOTA}};\n" );
 
-         g_string_append( tex, "\\node[inner sep=0pt,left] at (1.9,-3.16) {\\bf Aluno(a):};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=%s] at (2.1,-3.12) {\\bf %s};\n", cor_aluno, ficha->aluno );
-         g_string_append( tex, "\\draw (2,-3.36) -- (15.2,-3.36);\n" );
+         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (1.9,-3.16) {\\bf Aluno(a):};\n" );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (2.1,-3.12) {%s};\n", ficha->aluno );
+         g_string_append( tex, "\\draw[color=CorSerie] (2,-3.36) -- (15.2,-3.36);\n" );
 
-         g_string_append( tex, "\\node[inner sep=0pt,left] at (16.2,-3.16) {\\bf Nº:};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=%s] at (16.4,-3.12) {\\bf %.2d};\n", cor_aluno, num_chamada );
-         g_string_append( tex, "\\draw (16.3,-3.36) -- (17.3,-3.36);\n" );
+         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (16.2,-3.16) {\\bf Nº:};\n" );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (16.4,-3.12) {%.2d};\n", num_chamada );
+         g_string_append( tex, "\\draw[color=CorSerie] (16.3,-3.36) -- (17.3,-3.36);\n" );
       }
 
       g_string_append( tex, is_page1 ? "\\pgfmathsetmacro{\\a}{3.56};\n\\pgfmathsetmacro{\\k}{27.65};\n" : "\\pgfmathsetmacro{\\a}{0.01412};\n\\pgfmathsetmacro{\\k}{27.58588};\n" );
@@ -268,13 +267,13 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
          g_string_append_printf( tex, "\\tema%s{0}{0}\n", dados->decoracao_estilo );
          g_string_append_printf( tex, "\\node[inner sep=0pt] at ({8.75},-0.6) {\\LARGE\\bf %s};\n", titulo_prova );
 
-         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (17.6,-0.01412) rectangle (19,-1.85);\n\\node[inner sep=0pt] at (18.3,-0.3) {\\bf\\uuline{NOTA}};\n" );
-         g_string_append( tex, "\\node[inner sep=0pt,left] at (1.9,-1.65) {\\bf Aluno(a):};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=%s] at (2.1,-1.61) {\\bf %s};\n", cor_aluno, ficha->aluno );
-         g_string_append( tex, "\\draw (2,-1.85) -- (15.2,-1.85);\n" );
-         g_string_append( tex, "\\node[inner sep=0pt,left] at (16.2,-1.65) {\\bf Nº:};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=%s] at (16.4,-1.61) {\\bf %.2d};\n", cor_aluno, num_chamada );
-         g_string_append( tex, "\\draw (16.3,-1.85) -- (17.3,-1.85);\n" );
+         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners,color=red] (17.6,-0.01412) rectangle (19,-1.85);\n\\node[inner sep=0pt] at (18.3,-0.3) {\\bf\\uuline{NOTA}};\n" );
+         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (1.9,-1.65) {\\bf Aluno(a):};\n" );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (2.1,-1.61) {%s};\n", ficha->aluno );
+         g_string_append( tex, "\\draw[color=CorSerie] (2,-1.85) -- (15.2,-1.85);\n" );
+         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (16.2,-1.65) {\\bf Nº:};\n" );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (16.4,-1.61) {%.2d};\n", num_chamada );
+         g_string_append( tex, "\\draw[color=CorSerie] (16.3,-1.85) -- (17.3,-1.85);\n" );
 
          g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (0,-2.06) rectangle (91/15,-3.78);\n" );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-2.4) {\\resizebox{5.88cm}{0.35cm}{\\bf %s}};\n", dados->escola );
@@ -477,9 +476,12 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArr
             fputs( "\\begin{center}\n", pp );
             quadro_de_respostas( pp, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
             fputs( "\\end{center}\n", pp );
+
          } else {
-            fputs( "\\noindent\\hspace{-3mm}\n", pp );
+            // fputs( "\\noindent\\hspace{-3mm}\n", pp );
+            fputs( "\\begin{center}\n", pp );
             quadro_de_respostas( pp, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
+            fputs( "\\end{center}\n", pp );
          }
 
          // Encerra arquivo local

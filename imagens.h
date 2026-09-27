@@ -4,7 +4,9 @@
 #include "interface.h"
 
 
-int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
+int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
+
+int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
 
 void corrigir_prova( InterfacePainel *painel, AppContext *ctx );
 
