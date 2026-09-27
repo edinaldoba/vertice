@@ -927,7 +927,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    g_return_if_fail( img && img->image && img_crop && ancora );
 
    int largura, altura;
-   int fator_de_proporcionalidade = 50;
+   int fator_de_proporcionalidade = 60;
 
    if ( direcao == 'h' ) {
       largura = 14 * fator_de_proporcionalidade; // 700 px

@@ -1640,7 +1640,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          // Aponta para a ficha específica do aluno na memória
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 
-         if ( /*!ficha->ativo ||*/ !ficha->ficha_modificada ) {
+         if ( !ficha->ativo || !ficha->ficha_modificada ) {
             continue;
          }
 
