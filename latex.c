@@ -91,15 +91,15 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
       // }
       fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
-      fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] ( 0,-11) circle (0.45) ( 0,-11) circle (0.25); \\fill ( 0,-11) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] ( 0,-11) circle (0.45) ( 0,-11) circle (0.25); \\fill ( 0,-11) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
 
-      // fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      // fprintf( p, "\\fill (0,-11) rectangle (0.6,-10.4);\n" );
-      // fprintf( p, "\\fill (14,-11) rectangle (13.4,-10.4);\n" );
-      // fprintf( p, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
+      fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
+      fprintf( p, "\\fill (0,-11) rectangle (0.6,-10.4);\n" );
+      fprintf( p, "\\fill (14,-11) rectangle (13.4,-10.4);\n" );
+      fprintf( p, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
 
    } else {
       fprintf( p, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
@@ -108,15 +108,15 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
       // }
       fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
-      fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] ( 0,-10) circle (0.45) ( 0,-10) circle (0.25); \\fill ( 0,-10) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
-      fprintf( p, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] ( 0,-10) circle (0.45) ( 0,-10) circle (0.25); \\fill ( 0,-10) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
+      // fprintf( p, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
 
-      // fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      // fprintf( p, "\\fill (0,-10) rectangle (0.6,-9.4);\n" );
-      // fprintf( p, "\\fill (15,-10) rectangle (14.4,-9.4);\n" );
-      // fprintf( p, "\\fill (15,0) rectangle (14.4,-0.6);\n" );
+      fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
+      fprintf( p, "\\fill (0,-10) rectangle (0.6,-9.4);\n" );
+      fprintf( p, "\\fill (15,-10) rectangle (14.4,-9.4);\n" );
+      fprintf( p, "\\fill (15,0) rectangle (14.4,-0.6);\n" );
    }
 
 
@@ -168,8 +168,8 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
          fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
       }
       // Assinalar alternativas para teste
-      // float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
-      // fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
+      float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
+      fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
    }
 
    if ( assinalar_nome_numero ) {

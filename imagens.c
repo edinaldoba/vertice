@@ -159,73 +159,453 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 }
 
 
-//========================================================================================================//
+// //========================================================================================================//
+// /**
+//  * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
+//  * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
+//  */
+// static void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa ) {
+//    // 1. Validação de segurança dos ponteiros de entrada
+//    g_return_if_fail( img && info && ancora );
+//
+//    // Inicialização segura do motor estocástico
+//    guint32 sementes[4];
+//    gerar_sementes( sementes );
+//    g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
+//
+//    // 2. Ajuste dinâmico de hiperparâmetros (O pulo do gato para o resgate)
+//    // Se for a 2ª tentativa (tentativa == 1), expande a exploração para quebrar mínimos locais
+//    double peso_disp_atual = ( tentativa > 0 ) ? 2.3 : 1.8;
+//    int max_geracoes_atual = ( tentativa > 0 ) ? 80  : 65;
+//
+//    GasParametros par = {
+//       .n_pop        = 60,                // Tamanho da população (Calibrado)
+//       .n_gen        = 24,                // Quantidade de substituições (40%)
+//       .n_tor        = 2,                 // Número de indivíduos no torneio
+//       .n_obj        = 4,                 // Número de objetivos da coevolução
+//       .p_rec        = 0.80,              // Probabilidade de recombinação
+//       .p_mut        = 0.90,              // Probabilidade de mutação altíssima
+//       .peso_disp    = peso_disp_atual,   // Ajuste dinâmico de dispersão
+//       .toleracia    = 3.0e-1,            // Tolerância geométrica
+//       .max_geracoes = max_geracoes_atual,// Ajuste dinâmico de fôlego
+//       .limiar       = 1,                 // Limiar de valor do pixel (fitness local)
+//       .alfa         = 0.2,               // Controle fixo de convergência do w1 e w2
+//       .rand         = rand_context
+//    };
+//
+//    GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
+//
+//    // 3. Execução do Pipeline Evolutivo
+//    GasPopulacao *melhor = gas_pipeline( img, &par, lim );
+//    if ( melhor == NULL ) {
+//       gas_limites_liberar( lim, par.n_obj );
+//       return; // Força quarentena com segurança
+//    }
+//
+//    // 4. Extração e arredondamento das coordenadas reais (Subpixel -> Pixel)
+//    for ( int k = 0; k < par.n_obj; k++ ) {
+//       ancora[k].j = ( int )round( melhor[k].x[0] );
+//       ancora[k].i = ( int )round( melhor[k].x[1] );
+//    }
+//
+//    // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
+//    info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
+//                      - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
+//
+//    // 6. Limpeza profunda de memória
+//    gas_liberar_populacao( melhor, par.n_obj );
+//    gas_limites_liberar( lim, par.n_obj );
+// }
+// //========================================================================================================//
+//
+//
+//
+//
+// //========================================================================================================//
+// /**
+//  * Função principal de processamento em lote.
+//  * Executa a visão computacional multithread, cortes e leitura do payload/respostas.
+//  */
+// int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
+//    if ( !dados || !limite ) return -1;
+//
+//    // =========================================================================
+//    // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
+//    // =========================================================================
+//    const char *home = g_get_home_dir();
+//    if ( home == NULL ) home = ".";
+//
+//    g_autofree char *origem = g_build_filename( home, "Downloads", "imagens", NULL );
+//    g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+//    g_autofree char *respostas = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+//    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
+//
+//    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
+//          g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+//          g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+//       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
+//       return -1;
+//    }
+//
+//    g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+//    int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
+//
+//    if ( qtd_bin <= 0 ) {
+//       g_printerr( "[AVISO] Nenhuma prova foi gerada até o momento.\n" );
+//       return -1;
+//    }
+//
+//    ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+//    qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
+//
+//    FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
+//    for ( int i = 0; i < qtd_bin; i++ ) {
+//       g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+//       f[i] = fopen( arquivo, "ab" );
+//    }
+//
+//    ItemTextoCurto *imgs_orig = NULL;
+//    int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+//    int n_rejeitadas = 0;
+//
+//    // =========================================================================
+//    // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
+//    // =========================================================================
+//    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
+//    for ( int i = 0; i < qtd_img; i++ ) {
+//
+//       gboolean sucesso = FALSE; // Inicializamos false e só confirmamos no payload
+//       int tentativas = 0;
+//
+//       MapeamentoGabarito info = {0};
+//       IndiceMatriz ancora[4] = {0};
+//
+//       ImagemColorida img_rgb_orig  = {0};
+//       ImagemColorida img_rgb_crop  = {0};
+//       ImagemCinza img_gray_bin     = {0};
+//       ImagemCinza img_gray_crop    = {0};
+//       ImagemCinza img_gray_alloc   = {0};
+//
+//       g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
+//       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
+//       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
+//
+//       // FASE 1: Carregamento e Conversão de Cor
+//       carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
+//       g_remove( path_orig );
+//       rgb2gray( &img_rgb_orig, &img_gray_bin );
+//
+//       // FASE 2: Normalização de Resolução
+//       int dim = 960;
+//       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
+//
+//       // FASE 3: Visão Computacional Evolutiva (Estratégia de Dupla Passada)
+//       do {
+//          // PROTEÇÃO: Limpa a memória do crop anterior antes de sobrescrever na 2ª tentativa
+//          if ( tentativas > 0 && img_gray_crop.image != NULL ) {
+//             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+//             img_gray_crop.image = NULL;
+//          }
+//
+//          gas_mapear_ancoras( &img_gray_alloc, &info, ancora, tentativas );
+//          transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
+//          binarizar_pgm_metodo_otsu( &img_gray_crop );
+//          info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
+//
+//          // A prova de fogo: O Payload bateu perfeitamente?
+//          sucesso = decodificar_payload_matriz( &info, limite );
+//          tentativas++;
+//
+//       } while ( !sucesso && tentativas < 2 );
+//
+//       if ( !sucesso ) {
+//          fprintf( stderr, "[FALHA CRÍTICA] Payload inválido mesmo após resgate. Imagem: %s\n", imgs_orig[i].str );
+//       }
+//
+//       // FASE 4: Processamento de Dados (Apenas se convergiu)
+//       if ( sucesso ) {
+//          ItemTextoCurto chave;
+//          nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), info.turma, info.disc, info.per, info.seq );
+//          int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
+//
+//          if ( j >= 0 && f[j] != NULL ) {
+//             ler_respostas_gabarito( &img_gray_crop, info.direcao, info.resp );
+//             info.num = ler_numero_aluno( &img_gray_crop, info.direcao );
+//             g_strlcpy( info.nome_img, img_png, sizeof( info.nome_img ) );
+//
+//             // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
+//             #pragma omp critical(escrita_binario)
+//             {
+//                if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
+//                   g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
+//                }
+//                fflush( f[j] ); // Força I/O imediato para evitar corrupção de cache
+//             }
+//          } else {
+//             g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
+//             sucesso = FALSE; // Rebaixa o status para forçar quarentena
+//          }
+//       }
+//
+//       // FASE 5: Renderização do Crop Colorido ou Quarentena
+//       if ( sucesso ) {
+//          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
+//          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
+//
+//          // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
+//          ImagemColorida img_rgb_limpa = {0};
+//          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 ); // raio de 15px
+//
+//          // Salva a imagem tratada com fundo 100% branco
+//          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
+//
+//          liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
+//
+//       } else {
+//          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
+//          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
+//          n_rejeitadas++;
+//       }
+//
+//       // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
+//       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+//       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
+//       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
+//       if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
+//       if ( img_rgb_orig.image )   liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
+//    }
+//
+//    // =========================================================================
+//    // FINALIZAÇÃO GLOBAL
+//    // =========================================================================
+//    for ( int i = 0; i < qtd_bin; i++ ) {
+//       if ( f[i] != NULL ) {
+//          // 1. Fecha o stream para liberar o lock do sistema operacional sobre o arquivo
+//          fclose( f[i] );
+//
+//          // 2. Monta o caminho absoluto/relativo completo para o arquivo físico
+//          g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+//
+//          // 3. Verifica o tamanho lendo os metadados do disco
+//          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
+//             // CORREÇÃO: Usar o caminho completo ('arquivo') ao invés de apenas o nome
+//             if ( g_remove( arquivo ) != 0 ) {
+//                g_printerr( "[ERRO] Falha ao tentar remover o arquivo vazio: %s\n", arquivo );
+//             }
+//          }
+//       }
+//    }
+//
+//    g_free( f );
+//    g_free( imgs_orig );
+//    free( resp_bin );
+//
+//    puts( "Processamento das imagens concluído com sucesso!" );
+//
+//    return n_rejeitadas;
+// }
+// //========================================================================================================//
+
+
+
+
+
+
+// Estrutura auxiliar interna para a heurística OMR
+typedef struct {
+    int min_i, max_i;
+    int min_j, max_j;
+    int area;
+    double centro_i;
+    double centro_j;
+} BlobInfo;
+
 /**
- * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
- * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
+ * Varre a imagem binarizada (Otsu) e extrai os 4 blobs completos dos cantos.
+ * Retorna o número de âncoras encontradas (idealmente 4).
  */
-static void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa ) {
-   // 1. Validação de segurança dos ponteiros de entrada
-   g_return_if_fail( img && info && ancora );
+static int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo candidatos[4] ) {
+    int nrow = img_bin->nrow;
+    int ncol = img_bin->ncol;
 
-   // Inicialização segura do motor estocástico
-   guint32 sementes[4];
-   gerar_sementes( sementes );
-   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
+    // 1. Gestão de Memória GLib: g_autofree liberta a memória automaticamente ao sair da função
+    g_autofree uint8_t *visitado = g_new0( uint8_t, nrow * ncol );
+    g_autofree int *fila_i = g_new( int, nrow * ncol );
+    g_autofree int *fila_j = g_new( int, nrow * ncol );
 
-   // 2. Ajuste dinâmico de hiperparâmetros (O pulo do gato para o resgate)
-   // Se for a 2ª tentativa (tentativa == 1), expande a exploração para quebrar mínimos locais
-   double peso_disp_atual = ( tentativa > 0 ) ? 2.3 : 1.8;
-   int max_geracoes_atual = ( tentativa > 0 ) ? 80  : 65;
+    BlobInfo blobs[128]; // Armazena até 128 candidatos viáveis na folha
+    int num_blobs = 0;
 
-   GasParametros par = {
-      .n_pop        = 60,                // Tamanho da população (Calibrado)
-      .n_gen        = 24,                // Quantidade de substituições (40%)
-      .n_tor        = 2,                 // Número de indivíduos no torneio
-      .n_obj        = 4,                 // Número de objetivos da coevolução
-      .p_rec        = 0.80,              // Probabilidade de recombinação
-      .p_mut        = 0.90,              // Probabilidade de mutação altíssima
-      .peso_disp    = peso_disp_atual,   // Ajuste dinâmico de dispersão
-      .toleracia    = 3.0e-1,            // Tolerância geométrica
-      .max_geracoes = max_geracoes_atual,// Ajuste dinâmico de fôlego
-      .limiar       = 1,                 // Limiar de valor do pixel (fitness local)
-      .alfa         = 0.2,               // Controle fixo de convergência do w1 e w2
-      .rand         = rand_context
-   };
+    for ( int i = 0; i < nrow; i++ ) {
+        for ( int j = 0; j < ncol; j++ ) {
+            // Se encontrar um pixel preto e não visitado
+            if ( img_bin->image[i][j] < 128 && !visitado[i * ncol + j] ) {
 
-   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
+                int start_idx = 0;
+                int end_idx = 0;
 
-   // 3. Execução do Pipeline Evolutivo
-   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
-   if ( melhor == NULL ) {
-      gas_limites_liberar( lim, par.n_obj );
-      return; // Força quarentena com segurança
-   }
+                fila_i[end_idx] = i;
+                fila_j[end_idx] = j;
+                end_idx++;
+                visitado[i * ncol + j] = 1;
 
-   // 4. Extração e arredondamento das coordenadas reais (Subpixel -> Pixel)
-   for ( int k = 0; k < par.n_obj; k++ ) {
-      ancora[k].j = ( int )round( melhor[k].x[0] );
-      ancora[k].i = ( int )round( melhor[k].x[1] );
-   }
+                BlobInfo blob = { i, i, j, j, 0, 0.0, 0.0 };
+                double soma_i = 0, soma_j = 0;
 
-   // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
-   info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
-                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
+                // Propagação BFS (Flood Fill) para descobrir todo o quadradinho
+                while ( start_idx < end_idx ) {
+                    int ci = fila_i[start_idx];
+                    int cj = fila_j[start_idx];
+                    start_idx++;
 
-   // 6. Limpeza profunda de memória
-   gas_liberar_populacao( melhor, par.n_obj );
-   gas_limites_liberar( lim, par.n_obj );
+                    blob.area++;
+                    soma_i += ci;
+                    soma_j += cj;
+
+                    if ( ci < blob.min_i ) blob.min_i = ci;
+                    if ( ci > blob.max_i ) blob.max_i = ci;
+                    if ( cj < blob.min_j ) blob.min_j = cj;
+                    if ( cj > blob.max_j ) blob.max_j = cj;
+
+                    // Varre os 8 vizinhos em redor do pixel atual
+                    for ( int di = -1; di <= 1; di++ ) {
+                        for ( int dj = -1; dj <= 1; dj++ ) {
+                            int ni = ci + di;
+                            int nj = cj + dj;
+                            if ( ni >= 0 && ni < nrow && nj >= 0 && nj < ncol ) {
+                                if ( img_bin->image[ni][nj] < 128 && !visitado[ni * ncol + nj] ) {
+                                    fila_i[end_idx] = ni;
+                                    fila_j[end_idx] = nj;
+                                    end_idx++;
+                                    visitado[ni * ncol + nj] = 1;
+                                }
+                            }
+                        }
+                    }
+                } // Fim BFS
+
+                // Filtros de Morfologia OMR
+                int altura = blob.max_i - blob.min_i + 1;
+                int largura = blob.max_j - blob.min_j + 1;
+                double aspect_ratio = ( double )largura / ( double )altura;
+                double fill_ratio = ( double )blob.area / ( double )( largura * altura );
+
+                if ( blob.area > 50 && blob.area < 6000 &&
+                     aspect_ratio >= 0.5 && aspect_ratio <= 2.0 &&
+                     fill_ratio > 0.6 ) {
+
+                    blob.centro_i = soma_i / blob.area;
+                    blob.centro_j = soma_j / blob.area;
+
+                    if ( num_blobs < 128 ) {
+                        blobs[num_blobs++] = blob;
+                    }
+                }
+            }
+        }
+    }
+
+    if ( num_blobs < 4 ) return 0; // Quarentena
+
+    // Estratégia dos Cantos Extremos
+    double dist_tl = 1e9, dist_tr = 1e9, dist_bl = 1e9, dist_br = 1e9;
+    int idx_tl = -1, idx_tr = -1, idx_bl = -1, idx_br = -1;
+
+    for ( int b = 0; b < num_blobs; b++ ) {
+        double ci = blobs[b].centro_i;
+        double cj = blobs[b].centro_j;
+
+        double d_tl = (ci * ci) + (cj * cj);
+        double d_tr = (ci * ci) + ((ncol - cj) * (ncol - cj));
+        double d_bl = ((nrow - ci) * (nrow - ci)) + (cj * cj);
+        double d_br = ((nrow - ci) * (nrow - ci)) + ((ncol - cj) * (ncol - cj));
+
+        if ( d_tl < dist_tl ) { dist_tl = d_tl; idx_tl = b; }
+        if ( d_tr < dist_tr ) { dist_tr = d_tr; idx_tr = b; }
+        if ( d_bl < dist_bl ) { dist_bl = d_bl; idx_bl = b; }
+        if ( d_br < dist_br ) { dist_br = d_br; idx_br = b; }
+    }
+
+    // Retorna as 4 estruturas completas, não apenas os centros!
+    candidatos[0] = blobs[idx_tl];
+    candidatos[1] = blobs[idx_tr];
+    candidatos[2] = blobs[idx_br];
+    candidatos[3] = blobs[idx_bl];
+
+    return 4;
 }
-//========================================================================================================//
 
 
+// Nova estrutura de ordenação contendo o BlobInfo completo
+typedef struct {
+    BlobInfo blob;
+    double angulo;
+} BlobPolar;
 
+static int comparar_angulos( const void *a, const void *b ) {
+    double ang_a = ((BlobPolar *)a)->angulo;
+    double ang_b = ((BlobPolar *)b)->angulo;
+    return ( ang_a > ang_b ) - ( ang_a < ang_b );
+}
 
-//========================================================================================================//
 /**
- * Função principal de processamento em lote.
- * Executa a visão computacional multithread, cortes e leitura do payload/respostas.
+ * Pipeline OMR Determinístico.
+ * Extrai os blobs, Ordena-os polarmente, e infere o quadrilátero EXTERNO absoluto.
  */
+static gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida ) {
+
+    BlobInfo candidatos[4];
+
+    // 1. Busca os 4 blobs completos
+    if ( extrair_quadrados_pretos( img_bin, candidatos ) < 4 ) {
+        return FALSE;
+    }
+
+    // 2. Cálculo do Centroide Global para a Ordenação Polar
+    double centro_i = 0.0, centro_j = 0.0;
+    for ( int k = 0; k < 4; k++ ) {
+        centro_i += candidatos[k].centro_i;
+        centro_j += candidatos[k].centro_j;
+    }
+    centro_i /= 4.0;
+    centro_j /= 4.0;
+
+    // 3. Ordenação Atan2 (Correção Linha/Coluna aplicada)
+    // Em trigonometria computacional, atan2(Y, X).
+    // Como na imagem Y = linha (i) e X = coluna (j), garantimos a orientação perfeita.
+    BlobPolar pontos[4];
+    for ( int k = 0; k < 4; k++ ) {
+        pontos[k].blob = candidatos[k];
+        pontos[k].angulo = atan2( pontos[k].blob.centro_i - centro_i, pontos[k].blob.centro_j - centro_j );
+    }
+    qsort( pontos, 4, sizeof( BlobPolar ), comparar_angulos );
+
+    // 4. MUDANÇA ARQUITETURAL: Construção do Quadrilátero Envolvente
+    // Com a ordenação resolvida (0:TL, 1:TR, 2:BR, 3:BL), apanhamos os limites externos de cada quadrado.
+
+    // A (Top-Left): Menor linha, Menor coluna
+    ancora[0].i = pontos[0].blob.min_i;
+    ancora[0].j = pontos[0].blob.min_j;
+
+    // B (Top-Right): Menor linha, Maior coluna
+    ancora[1].i = pontos[1].blob.min_i;
+    ancora[1].j = pontos[1].blob.max_j;
+
+    // C (Bottom-Right): Maior linha, Maior coluna
+    ancora[2].i = pontos[2].blob.max_i;
+    ancora[2].j = pontos[2].blob.max_j;
+
+    // D (Bottom-Left): Maior linha, Menor coluna
+    ancora[3].i = pontos[3].blob.max_i;
+    ancora[3].j = pontos[3].blob.min_j;
+
+    // 5. Cálculo de Direção (Fórmula mantida e perfeitamente funcional)
+    *direcao_inferida = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
+                          - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
+
+    return TRUE;
+}
+//-----------------------------------------------------------------------------------------------------
 int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
    if ( !dados || !limite ) return -1;
 
@@ -274,17 +654,18 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
    for ( int i = 0; i < qtd_img; i++ ) {
 
-      gboolean sucesso = FALSE; // Inicializamos false e só confirmamos no payload
-      int tentativas = 0;
-
+      gboolean sucesso = FALSE;
       MapeamentoGabarito info = {0};
       IndiceMatriz ancora[4] = {0};
 
+      // Inicialização das Estruturas de Imagem
       ImagemColorida img_rgb_orig  = {0};
       ImagemColorida img_rgb_crop  = {0};
       ImagemCinza img_gray_bin     = {0};
-      ImagemCinza img_gray_crop    = {0};
       ImagemCinza img_gray_alloc   = {0};
+      ImagemCinza img_gray_fundo   = {0};
+      ImagemCinza img_gray_blur    = {0};
+      ImagemCinza img_gray_crop    = {0};
 
       g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
@@ -295,34 +676,37 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
 
-      // FASE 2: Normalização de Resolução
+      // FASE 2: Normalização de Resolução (Bilinear)
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
-      // FASE 3: Visão Computacional Evolutiva (Estratégia de Dupla Passada)
-      do {
-         // PROTEÇÃO: Limpa a memória do crop anterior antes de sobrescrever na 2ª tentativa
-         if ( tentativas > 0 && img_gray_crop.image != NULL ) {
-            liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
-            img_gray_crop.image = NULL;
-         }
+      // FASE 3: PIPELINE DETERMINÍSTICO OMR (Optical Mark Recognition)
+      // 3.1 - Fundo Mágico (Isola o contraste do papel)
+      filtrar_fundo_magico_cinza( &img_gray_alloc, &img_gray_fundo, 30 ); // Raio calibrável
 
-         gas_mapear_ancoras( &img_gray_alloc, &info, ancora, tentativas );
+      // 3.2 - Filtro Gaussiano Isotrópico (Limpa ruídos antes da binarização)
+      aplicar_filtro_gaussiano_2d( &img_gray_fundo, &img_gray_blur, 1.0f ); // Sigma calibrável
+
+      // 3.3 - Binarização de Otsu (In-place)
+      binarizar_pgm_metodo_otsu( &img_gray_blur );
+
+      // 3.4 - Detecção de Âncoras OMR
+      sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &info.direcao );
+
+      if ( sucesso ) {
+         // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
          transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
-         binarizar_pgm_metodo_otsu( &img_gray_crop );
+
+         // 3.6 - Leitura e Decodificação do Payload
          info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
-
-         // A prova de fogo: O Payload bateu perfeitamente?
          sucesso = decodificar_payload_matriz( &info, limite );
-         tentativas++;
-
-      } while ( !sucesso && tentativas < 2 );
-
-      if ( !sucesso ) {
-         fprintf( stderr, "[FALHA CRÍTICA] Payload inválido mesmo após resgate. Imagem: %s\n", imgs_orig[i].str );
       }
 
-      // FASE 4: Processamento de Dados (Apenas se convergiu)
+      if ( !sucesso ) {
+         fprintf( stderr, "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", imgs_orig[i].str );
+      }
+
+      // FASE 4: Processamento de Dados (Apenas se convergiu e decodificou)
       if ( sucesso ) {
          ItemTextoCurto chave;
          nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), info.turma, info.disc, info.per, info.seq );
@@ -339,7 +723,7 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
                if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
                   g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
                }
-               fflush( f[j] ); // Força I/O imediato para evitar corrupção de cache
+               fflush( f[j] );
             }
          } else {
             g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
@@ -354,13 +738,12 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
 
          // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
-         filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 ); // raio de 15px
+         filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
 
          // Salva a imagem tratada com fundo 100% branco
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
 
          liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
-
       } else {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
@@ -368,6 +751,8 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
       }
 
       // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
+      if ( img_gray_fundo.image ) liberar_matriz_pixels( img_gray_fundo.image, img_gray_fundo.nrow );
+      if ( img_gray_blur.image )  liberar_matriz_pixels( img_gray_blur.image, img_gray_blur.nrow );
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
@@ -380,15 +765,10 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
    // =========================================================================
    for ( int i = 0; i < qtd_bin; i++ ) {
       if ( f[i] != NULL ) {
-         // 1. Fecha o stream para liberar o lock do sistema operacional sobre o arquivo
          fclose( f[i] );
-
-         // 2. Monta o caminho absoluto/relativo completo para o arquivo físico
          g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
 
-         // 3. Verifica o tamanho lendo os metadados do disco
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
-            // CORREÇÃO: Usar o caminho completo ('arquivo') ao invés de apenas o nome
             if ( g_remove( arquivo ) != 0 ) {
                g_printerr( "[ERRO] Falha ao tentar remover o arquivo vazio: %s\n", arquivo );
             }
@@ -400,11 +780,10 @@ int processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite 
    g_free( imgs_orig );
    free( resp_bin );
 
-   puts( "Processamento das imagens concluído com sucesso!" );
+   puts( "Processamento das imagens OMR concluído com sucesso!" );
 
    return n_rejeitadas;
 }
-//========================================================================================================//
 
 
 

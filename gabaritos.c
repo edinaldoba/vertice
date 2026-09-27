@@ -177,6 +177,8 @@ static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, in
    int total_pixels = 0;
    int pixels_pretos = 0;
 
+   int limiar_binario = IMG->max / 2;
+
    for ( int y = y_min; y <= y_max; y++ ) {
       for ( int x = x_min; x <= x_max; x++ ) {
          float dx = x - cx;
@@ -184,7 +186,7 @@ static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, in
 
          if ( ( dx * dx + dy * dy ) <= raio_quad ) {
             total_pixels++;
-            if ( IMG->image[y][x] == 0 ) {
+            if ( IMG->image[y][x] < limiar_binario ) {
                pixels_pretos++;
             }
          }

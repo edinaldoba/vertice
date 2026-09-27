@@ -797,7 +797,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    g_return_if_fail( img && img->image && img_crop && ancora );
 
    int largura, altura;
-   int fator_de_proporcionalidade = 50;
+   int fator_de_proporcionalidade = 60;
 
    if ( direcao == 'h' ) {
       largura = 14 * fator_de_proporcionalidade; // 700 px
@@ -1071,7 +1071,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 // FUNÇÃO: Filtragem Flat-Field Mágica para Imagens em Tons de Cinza (Otimizada)
 //===================================================================================================
 void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int raio_blur ) {
-   if ( !orig || !orig->image || !dest ) return;
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 ) return;
 
    int rows = orig->nrow;
    int cols = orig->ncol;
@@ -1167,7 +1167,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
  * mantendo as cores originais da caneta e marcações para geração de PDFs limpos.
  */
 void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur ) {
-   if ( !orig || !orig->image || !dest ) return;
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 ) return;
 
    int rows = orig->nrow;
    int cols = orig->ncol;
