@@ -16,13 +16,13 @@
 /*
 * Função refinada para desenhar o payload binário dinamicamente em TikZ.
 */
-static void gerar_matriz_identificacao( FILE *p, uint8_t id, uint8_t turma, uint8_t disc, uint8_t per, uint8_t seq ) {
-   if ( !p ) return;
+static void gerar_matriz_identificacao( GString *tex, uint8_t id, uint8_t turma, uint8_t disc, uint8_t per, uint8_t seq ) {
+   if ( !tex ) return;
 
    // 1. Empacotando 23 bits em um inteiro de 32 bits
    uint32_t payload = 0;
-   payload |= ( id    & 0x3F );     // 6 bits (0 a 5)
-   payload |= ( turma & 0xFF ) << 6; // 8 bits (6 a 13)
+   payload |= ( id    & 0x3F );       // 6 bits (0 a 5)
+   payload |= ( turma & 0xFF ) << 6;  // 8 bits (6 a 13)
    payload |= ( disc  & 0x0F ) << 14; // 4 bits (14 a 17)
    payload |= ( per   & 0x07 ) << 18; // 3 bits (18 a 20)
    payload |= ( seq   & 0x03 ) << 21; // 2 bits (21 a 22)
@@ -54,8 +54,8 @@ static void gerar_matriz_identificacao( FILE *p, uint8_t id, uint8_t turma, uint
          double y_start = -( 1.0 + ( 1.0 / 6.0 ) + ( linha * 2.0 / 3.0 ) );
          double y_end   = -( 1.0 + ( 3.0 / 6.0 ) + ( linha * 2.0 / 3.0 ) );
 
-         // Injeção limpa e direta no arquivo TikZ
-         fprintf( p, "\\fill (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x_start, y_start, x_end, y_end );
+         // Injeção limpa e direta na GString (memória RAM)
+         g_string_append_printf( tex, "\\fill (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x_start, y_start, x_end, y_end );
       }
    }
 }
@@ -66,57 +66,57 @@ static void gerar_matriz_identificacao( FILE *p, uint8_t id, uint8_t turma, uint
 
 
 //========================================================================================================//
-void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t id, char direcao, bool assinalar_nome_numero,
-                          const InterfaceDados *dados, const FocoCoordenadas *foco ) {
+void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uint8_t id, char direcao,
+                          bool assinalar_nome_numero, const InterfaceDados *dados, const FocoCoordenadas *foco ) {
 
-   g_return_if_fail( aluno && dados && foco );
+   g_return_if_fail( aluno && dados && foco && tex );
 
    // 1. Lógica de Rotação transferida do LaTeX para o C
-   int  rotacao = ( direcao == 'h' ) ? 0 : 90;
+   int   rotacao = ( direcao == 'h' ) ? 0 : 90;
    float xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
    float yscale = ( direcao == 'h' ) ? 0.6 : 0.6;
 
    // Injeção direta dos valores calculados
-   fprintf( p, "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n",
-            rotacao, xscale, yscale );
+   g_string_append_printf( tex, "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n",
+                           rotacao, xscale, yscale );
 
    // Insere a palavra respostas
-   fprintf( p, "\\node[color=CorSerie,rotate=%d,inner sep=0pt] at (0.32,-5) {\\bf\\Large RESPOSTAS};\n", 90 - rotacao );
+   g_string_append_printf( tex, "\\node[color=CorSerie,rotate=%d,inner sep=0pt] at (0.32,-5) {\\bf\\Large RESPOSTAS};\n", 90 - rotacao );
 
    // 2. Lógica if/else (antigo \ifthenelse) trazida para o C
    if ( direcao == 'h' ) {
-      fprintf( p, "\\draw[CorSerie] (1,-10.3) -- (13,-10.3);\n" );
+      g_string_append( tex, "\\draw[CorSerie] (1,-10.3) -- (13,-10.3);\n" );
       // if ( assinalar_nome_numero ) {
-      //    fprintf( p, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
+      //    g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
       // }
-      fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ALUNO(A)};\n" );
+      g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
-      // fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] ( 0,-11) circle (0.45) ( 0,-11) circle (0.25); \\fill ( 0,-11) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] ( 0,-11) circle (0.45) ( 0,-11) circle (0.25); \\fill ( 0,-11) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
 
-      fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      fprintf( p, "\\fill (0,-11) rectangle (0.6,-10.4);\n" );
-      fprintf( p, "\\fill (14,-11) rectangle (13.4,-10.4);\n" );
-      fprintf( p, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,-11) rectangle (0.6,-10.4);\n" );
+      g_string_append( tex, "\\fill (14,-11) rectangle (13.4,-10.4);\n" );
+      g_string_append( tex, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
 
    } else {
-      fprintf( p, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
+      g_string_append( tex, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
       // if ( assinalar_nome_numero ) {
-      //    fprintf( p, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
+      //    g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
       // }
-      fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ALUNO(A)};\n" );
+      g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ALUNO(A)};\n" );
 
-      // fprintf( p, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] ( 0,-10) circle (0.45) ( 0,-10) circle (0.25); \\fill ( 0,-10) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
-      // fprintf( p, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] ( 0,-10) circle (0.45) ( 0,-10) circle (0.25); \\fill ( 0,-10) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
+      // g_string_append( tex, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
 
-      fprintf( p, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      fprintf( p, "\\fill (0,-10) rectangle (0.6,-9.4);\n" );
-      fprintf( p, "\\fill (15,-10) rectangle (14.4,-9.4);\n" );
-      fprintf( p, "\\fill (15,0) rectangle (14.4,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,-10) rectangle (0.6,-9.4);\n" );
+      g_string_append( tex, "\\fill (15,-10) rectangle (14.4,-9.4);\n" );
+      g_string_append( tex, "\\fill (15,0) rectangle (14.4,-0.6);\n" );
    }
 
 
@@ -124,59 +124,59 @@ void quadro_de_respostas( FILE *p, const char *aluno, int numero, const uint8_t 
    uint8_t disc  = foco->disciplina;
    uint8_t per   = foco->periodo;
    uint8_t seq   = dados->iprova; // Mudei de iprova-1 para iprova apenas, para evitar payload válido nulo.
-   gerar_matriz_identificacao( p, id, turma, disc, per, seq );
+
+   // ATENÇÃO: gerar_matriz_identificacao também precisará receber GString *tex
+   gerar_matriz_identificacao( tex, id, turma, disc, per, seq );
 
 
    // Retângulo e linhas básicas
-   fprintf( p, "\\draw[CorSerie] (1,-1) rectangle (13,-9);\n" );
-   fprintf( p, "\\draw[CorSerie] (1,-7) -- (13,-7);\n" );
-   fprintf( p, "\\draw[CorSerie] (3,-1) -- (3,-9);\n" );
-   fprintf( p, "\\draw[CorSerie] (3,-2) -- (13,-2);\n" );
+   g_string_append( tex, "\\draw[CorSerie] (1,-1) rectangle (13,-9);\n" );
+   g_string_append( tex, "\\draw[CorSerie] (1,-7) -- (13,-7);\n" );
+   g_string_append( tex, "\\draw[CorSerie] (3,-1) -- (3,-9);\n" );
+   g_string_append( tex, "\\draw[CorSerie] (3,-2) -- (13,-2);\n" );
 
    // Linhas verticais das alternativas
    for ( int i = 0; i < 9; i++ ) {
-      fprintf( p, "\\draw[CorSerie] (4+%d,-1) -- (4+%d,-7);\n", i, i );
+      g_string_append_printf( tex, "\\draw[CorSerie] (4+%d,-1) -- (4+%d,-7);\n", i, i );
    }
 
    // Indicação do número da chamada
-   fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (2,-8) {\\Huge{Nº}};\n" );
+   g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (2,-8) {\\Huge{Nº}};\n" );
 
    // Período
-   fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n", foco->periodo + 1 );
+   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n", foco->periodo + 1 );
 
    // Prova
-   fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->iprova );
+   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->iprova );
 
    // Matriz principal de questões e alternativas
    for ( int i = 0; i < NTI; i++ ) { // NTI=10 questões
 
       // Insere o número das questões
-      fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at (3.5+%d,-1.5) {\\small\\bf%.2d};\n", i, i + 1 );
+      g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (3.5+%d,-1.5) {\\small\\bf%.2d};\n", i, i + 1 );
 
       for ( int j = 0; j < 2; j++ ) {
-
          if ( j != 0 || i < 7 ) {
-
-            fprintf( p, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-7.5-%d) circle (0.3);\n", i, j );
-
-            fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-7.5-%d) {\\tiny%d};\n", i, j, i );
+            g_string_append_printf( tex, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-7.5-%d) circle (0.3);\n", i, j );
+            g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-7.5-%d) {\\tiny%d};\n", i, j, i );
          }
       }
 
       for ( int j = 0; j < 5; j++ ) { // 5 alternativas
-         fprintf( p, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-2.5-%d) circle (0.3);\n", i, j );
-         fprintf( p, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
+         g_string_append_printf( tex, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-2.5-%d) circle (0.3);\n", i, j );
+         g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
       }
+
       // Assinalar alternativas para teste
       // float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
-      // fprintf( p, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
+      // g_string_append_printf( tex, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
    }
 
    if ( assinalar_nome_numero ) {
-      fprintf( p, "\\fill (3.5+%d,-7.5 ) circle (0.24) (3.5+%d,-8.5) circle (0.24);\n", numero / 10, numero % 10 );
+      g_string_append_printf( tex, "\\fill (3.5+%d,-7.5 ) circle (0.24) (3.5+%d,-8.5) circle (0.24);\n", numero / 10, numero % 10 );
    }
 
-   fprintf( p, "\\end{tikzpicture}\n" );
+   g_string_append( tex, "\\end{tikzpicture}\n" );
 }
 //========================================================================================================//
 

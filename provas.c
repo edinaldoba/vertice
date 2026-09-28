@@ -39,95 +39,107 @@ void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados )
 void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GArray *fichas,
                                  const InterfaceDados *dados, const CalendarioData *data ) {
 
-
-   // Define o título da lista de frequência
    definir_titulo_documento( titulo_prova, dados );
 
-   // 1. PREPARAÇÃO DOS DADOS (O "Cérebro")
+   // 1. PREPARAÇÃO DOS DADOS
    double p = 26.7 / ( dados->qtd_alunos_total + 2 );
    double ll = 0.6 * p;
 
-   // 2. ABERTURA E ESCRITA (A "Mão")
-   FILE *p1 = fopen( caminho_saida, "w" );
-   if ( !p1 ) return;
+   char str_p[16], str_ll[16];
+   g_ascii_formatd( str_p, sizeof( str_p ), "%.4f", p );
+   g_ascii_formatd( str_ll, sizeof( str_ll ), "%.4f", ll );
 
-   // Cabeçalho Estático (Escrito diretamente)
-   fprintf( p1, "\\documentclass[11pt,a4paper]{report}\n"
-            "\\usepackage[utf8]{inputenc}\n"
-            "\\usepackage[T1]{fontenc}\n" );
+   // 2. CONSTRUÇÃO EM MEMÓRIA (GString)
+   // Pré-aloca 4KB para evitar realocações dinâmicas repetitivas durante o append
+   GString *tex = g_string_sized_new( 4096 );
 
-   if ( dados->fonte_latex == 1 ) fprintf( p1, "\\usepackage{cmbright}\n" );
+   // Cabeçalho Estático
+   g_string_append( tex,
+      "\\documentclass[11pt,a4paper]{report}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n" );
 
-   fprintf( p1, "\\usepackage[brazil]{babel}\n"
-            "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-            "\\usepackage{xcolor,tikz,ifthen,ulem}\n"
-            "\\usetikzlibrary{calc}\n"
-            "\\pagestyle{empty}\n\n"
-            "\\begin{document}\n"
-            "\\noindent\\begin{tikzpicture}\n\n" );
+   if ( dados->fonte_latex == 1 ) {
+      g_string_append( tex, "\\usepackage{cmbright}\n" );
+   }
 
-   // 3. Variáveis de Cálculo (Aqui o C faz a conta que o \pgfmathsetmacro fazia)
-   char str[16];
-   g_ascii_formatd( str, sizeof( str ), "%.4f", p );
-   fprintf( p1, "%% Configurações dinâmicas\n"
-            "\\pgfmathsetmacro{\\p}{%s}\n"
-            "\\fill (0,0) circle (0pt);\n"
-            "\\draw (1,-1) rectangle (20,-28.7);\n\n", str ); // Põe ponto decimal ao ínves de vírgula
+   g_string_append_printf( tex,
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+      "\\usepackage[dvipsnames,table]{xcolor}\n"
+      "\\usepackage[%s]{professor}\n"
+      "\\usepackage{tikz,ifthen,ulem}\n"
+      "\\usetikzlibrary{calc}\n"
+      "\\pagestyle{empty}\n\n"
+      "\\begin{document}\n"
+      "\\noindent\\begin{tikzpicture}\n", dados->cor_destaque );
 
-   // 4. Moldura e Linhas Verticais
-   fprintf( p1, "\\draw (1.6,{-2-\\p}) -- (1.6,{-28.7+\\p})\n"
-            "(7,-1) -- (7,{-28.7+\\p})\n"
-            "(19,-2) -- (19,{-28.7+\\p})\n"
-            "(18,-2) -- (18,{-28.7+\\p})\n"
-            "(7,-2) -- (20,-2);\n\n" );
+   // Variáveis de Cálculo e Moldura
+   g_string_append_printf( tex,
+      "%% Configurações dinâmicas\n"
+      "\\pgfmathsetmacro{\\p}{%s}\n"
+      "\\fill (0,0) circle (0pt);\n"
+      "\\draw (1,-1) rectangle (20,-28.7);\n\n", str_p );
 
-   // 5. Cabeçalho do Documento (Nomes, Turma, Escola)
-   fprintf( p1, "\\node[inner sep=0pt,right] at (1.2,-1.6) {\\bf\\resizebox{5.5cm}{0.44cm}{%s}};\n", dados->escola );
-   fprintf( p1, "\\node[inner sep=0pt,right] at (1.2,{-1.9-0.5*\\p}) {\\large Turma: \\bf %s};\n", dados->turma );
-   fprintf( p1, "\\node[inner sep=0pt,left] at (17.8,{-2-0.5*\\p}) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{%d}};\n", data->ano );
-   fprintf( p1, "\\node[inner sep=0pt,right] at (7.2,{-2-0.5*\\p}) {\\underline{Frequência}};\n" );
-   fprintf( p1, "\\node[inner sep=0pt] at (13.5,-1.6) {\\bf\\resizebox{12.5cm}{0.6cm}{%s}};\n", titulo_prova );
+   g_string_append( tex,
+      "\\draw (1.6,{-2-\\p}) -- (1.6,{-28.7+\\p})\n"
+      "(7,-1) -- (7,{-28.7+\\p})\n"
+      "(19,-2) -- (19,{-28.7+\\p})\n"
+      "(18,-2) -- (18,{-28.7+\\p})\n"
+      "(7,-2) -- (20,-2);\n\n" );
 
-   g_ascii_formatd( str, sizeof( str ), "%.4f", ll );
-   fprintf( p1, "\\node[inner sep=0pt] at (18.5,{-2-0.5*\\p}) {\\resizebox{0.9cm}{%scm}{\\bf Nota}};\n", str );
-   fprintf( p1, "\\node[inner sep=0pt] at (19.5,{-2-0.5*\\p}) {\\resizebox{0.75cm}{%scm}{\\bf Rec}};\n\n", str );
+   // Cabeçalho do Documento
+   g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (1.2,-1.6) {\\bf\\resizebox{5.5cm}{0.44cm}{%s}};\n", dados->escola );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (1.2,{-1.9-0.5*\\p}) {\\large{\\bf Turma:} \\textcolor{black}{%s}};\n", dados->turma );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,left] at (17.8,{-2-0.5*\\p}) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{%d}};\n", data->ano );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.2,{-2-0.5*\\p}) {\\underline{Frequência}};\n" );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,color=CorSerie] at (13.5,-1.6) {\\bf\\resizebox{12.5cm}{0.6cm}{%s}};\n", titulo_prova );
 
-   // 6. O GRANDE TRUNFO: O C substitui o \foreach do TikZ
-   // Isso é muito mais rápido para o LaTeX compilar!
+   g_string_append_printf( tex, "\\node[inner sep=0pt] at (18.5,{-2-0.5*\\p}) {\\resizebox{0.9cm}{%scm}{Nota}};\n", str_ll );
+   g_string_append_printf( tex, "\\node[inner sep=0pt] at (19.5,{-2-0.5*\\p}) {\\resizebox{0.75cm}{%scm}{Rec}};\n\n", str_ll );
+
+   // Linhas Horizontais
    for ( int i = 0; i <= dados->qtd_alunos_total; i++ ) {
-      fprintf( p1, "\\draw (1,{-2-\\p*(%d+1)}) -- (7,{-2-\\p*(%d+1)}) (18,{-2-\\p*(%d+1)}) -- (20,{-2-\\p*(%d+1)});\n", i, i, i, i );
+      g_string_append_printf( tex, "\\draw (1,{-2-\\p*(%d+1)}) -- (7,{-2-\\p*(%d+1)}) (18,{-2-\\p*(%d+1)}) -- (20,{-2-\\p*(%d+1)});\n", i, i, i, i );
    }
 
    for ( int i = 1; i <= dados->qtd_alunos_total; i++ ) {
-      fprintf( p1, "\\draw (7.1,{-2-\\p*(%d+0.85)}) -- (17.9,{-2-\\p*(%d+0.85)});\n", i, i );
+      g_string_append_printf( tex, "\\draw (7.1,{-2-\\p*(%d+0.85)}) -- (17.9,{-2-\\p*(%d+0.85)});\n", i, i );
    }
 
-   // 7. Lista de Alunos e Status (Substituindo os arrays \alunos e \freq)
+   // Lista de Alunos e Status
    for ( int i = 1; i <= dados->qtd_alunos_total; i++ ) {
       int idx_aluno = i - 1;
-
-      // Número
-      fprintf( p1, "\\node[inner sep=0pt] at (1.3,{-2-\\p*(%d+0.5)}) {%02d};\n", i, i );
-
-      // Nome e Status (C decide a cor e o texto aqui)
       const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, idx_aluno );
 
+      g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,{-2-\\p*(%d+0.5)}) {%02d};\n", i, i );
+
       if ( ficha->ativo ) {
-         fprintf( p1, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {%.*s};\n",
-                  i, ficha->limite_corte, ficha->aluno );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {%.*s};\n",
+                                 i, ficha->limite_corte, ficha->aluno );
       } else {
          const char *motivo = ( dados->periodo[0] == 'R' ) ? "Aprovado(a) na Média" : "Não Frequenta";
-         fprintf( p1, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {\\color{gray!50}%.*s};\n",
-                  i, ficha->limite_corte, ficha->aluno );
-         fprintf( p1, "\\node[inner sep=0pt,color=gray!80,right] at (7.1,{-2-\\p*(%d+0.5)}) {%s};\n", i, motivo );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {\\color{gray!50}%.*s};\n",
+                                 i, ficha->limite_corte, ficha->aluno );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,color=gray!80,right] at (7.1,{-2-\\p*(%d+0.5)}) {%s};\n", i, motivo );
       }
    }
 
-   // 8. Rodapé
-   fprintf( p1, "\n\\node[inner sep=0pt] at (10.5,{-2.07-\\p*(%d+1.5)}) {SEDUC $-$ São Luis, \\underline{\\qquad} de \\underline{\\hspace{1.2cm}} de %d \\,/\\, Professor: \\underline{\\hspace{8.8cm}}};\n", dados->qtd_alunos_total, data->ano );
+   // Rodapé e Fechamento do Documento
+   g_string_append_printf( tex, "\n\\node[inner sep=0pt] at (10.5,{-2.07-\\p*(%d+1.5)}) {SEDUC $-$ São Luis, \\underline{\\qquad} de \\underline{\\hspace{1.2cm}} de %d \\,/\\, Professor: \\underline{\\hspace{8.8cm}}};\n",
+                           dados->qtd_alunos_total, data->ano );
 
-   fprintf( p1, "\n\\end{tikzpicture}\n%s\\end{document}\n", dados->qtd_paginas == 2 ? "\\newpage\\," : "" );
-   fclose( p1 );
+   g_string_append_printf( tex, "\n\\end{tikzpicture}\n%s\\end{document}\n", dados->qtd_paginas == 2 ? "\\newpage\\," : "" );
+
+   // 3. GRAVAÇÃO ATÔMICA NO DISCO
+   GError *error = NULL;
+   if ( !g_file_set_contents( caminho_saida, tex->str, tex->len, &error ) ) {
+      g_printerr( "[ERRO] Falha ao salvar a lista de frequência: %s\n", error->message );
+      g_error_free( error );
+   }
+
+   // Libera a estrutura GString e a string interna (TRUE)
+   g_string_free( tex, TRUE );
 }
 
 
@@ -136,38 +148,50 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 //========================================================================================================//
 void imagens_para_prova( const int i, int numero, const GArray *fichas,
                          const InterfaceDados *dados, const FocoCoordenadas *foco ) {
-   char arquivo[256];
-   FILE *p;
 
-   sprintf( arquivo, "./dados/temporarios/img%.2d.tex", i );
-   p = fopen( arquivo, "w+" );
+   // 1. Caminho seguro com g_strdup_printf (substitui sprintf e o buffer fixo de 256)
+   // O g_autofree cuida de liberar a memória automaticamente no fim da função
+   g_autofree char *arquivo = g_strdup_printf( "./dados/temporarios/img%02d.tex", i );
 
-   // 1. Usamos a classe standalone passando o pacote tikz nativamente
-   fprintf( p, "\\documentclass[11pt,tikz,margin=20mm]{standalone}\n" );
-   fprintf( p, "\\usepackage[utf8]{inputenc}\n" );
-   fprintf( p, "\\usepackage[T1]{fontenc}\n" );
-   fprintf( p, "\\usepackage[brazil]{babel}\n" );
+   // 2. Pré-aloca a GString (1KB é o suficiente para o preâmbulo e um quadro TikZ)
+   GString *tex = g_string_sized_new( 1024 );
+
+   // 3. Cabeçalho Estático
+   g_string_append( tex,
+      "\\documentclass[11pt,tikz,margin=20mm]{standalone}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n"
+      "\\usepackage[brazil]{babel}\n" );
 
    if ( dados->fonte_latex == 1 ) {
-      fprintf( p, "\\usepackage{cmbright}\n" );
+      g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   fprintf( p, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
 
-   // O pacote geometry e os cálculos de paperheight foram removidos,
-   // pois o standalone já faz o crop perfeito automaticamente.
    char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
 
-   fprintf( p, "\\begin{document}\n" );
+   g_string_append( tex, "\\begin{document}\n" );
 
-   // \pagebreak, \hspace e \vfill foram removidos.
-   // Eles geravam "enchimento" (padding) invisível.
    const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, numero - 1 );
-   quadro_de_respostas( p, ficha->aluno, numero, i, direcao, true, dados, foco );
 
-   fprintf( p, "\\end{document}\n" );
+   // ATENÇÃO MESTRE:
+   // Para que isto funcione perfeitamente, a assinatura de quadro_de_respostas
+   // deverá ser alterada de (FILE *p, ...) para (GString *tex, ...)
+   // e lá dentro você substituirá fprintf(p, ...) por g_string_append_printf(tex, ...)
+   quadro_de_respostas( tex, ficha->aluno, numero, i, direcao, true, dados, foco );
 
-   fclose( p );
+   g_string_append( tex, "\\end{document}\n" );
+
+   // 4. Gravação Atômica (O "commit" da string para o disco)
+   GError *error = NULL;
+   if ( !g_file_set_contents( arquivo, tex->str, tex->len, &error ) ) {
+      g_printerr( "[ERRO] Falha ao salvar a prova na imagem %d: %s\n", i, error->message );
+      g_error_free( error );
+   }
+
+   // 5. Limpeza de memória
+   g_string_free( tex, TRUE );
 }
 //========================================================================================================//
 
@@ -241,7 +265,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
          g_string_append( tex, "\\draw[line width=1pt, color=CorSerie, rounded corners] (0,-1.4) rectangle (17.5,-2.6);\n" );
          g_string_append( tex, "\\draw[line width=1pt, color=CorSerie] (7,-1.4)--(7,-2.6) (13,-1.4)--(13,-2.6);\n" );
 
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.1,-2.00) {\\resizebox{6.5cm}{0.75cm}{\\bf %s}};\n", dados->escola );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (0.1,-2.00) {\\resizebox{6.5cm}{0.75cm}{\\bf %s}};\n", dados->escola );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.3,-1.75) {{\\color{CorSerie}\\bf Gestor(a):} %s};\n", dados->gestor );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.3,-2.25) {{\\color{CorSerie}\\bf Professor:} %s};\n", dados->professor );
 
@@ -276,7 +300,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
          g_string_append( tex, "\\draw[color=CorSerie] (16.3,-1.85) -- (17.3,-1.85);\n" );
 
          g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (0,-2.06) rectangle (91/15,-3.78);\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-2.4) {\\resizebox{5.88cm}{0.35cm}{\\bf %s}};\n", dados->escola );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (0.09,-2.4) {\\resizebox{5.88cm}{0.35cm}{\\bf %s}};\n", dados->escola );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-2.98) {{\\bf Gestor(a):} %s};\n", dados->gestor );
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-3.5) {{\\bf Professor:} %s};\n", dados->professor );
 
@@ -434,59 +458,61 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArr
          imagens_para_prova( num_ativo, jj + 1, fichas, dados, foco );
       }
 
-      // 3. Montagem Atômica do Arquivo .tex via GLib
+      // 3. Montagem Atômica do Arquivo .tex via GLib (Puramente em RAM)
       g_autofree char *caminho_tex = g_strdup_printf( "./dados/temporarios/prova%.2d.tex", num_ativo );
-      FILE *pp = fopen( caminho_tex, "w+" );
 
-      if ( pp ) {
-         g_autoptr( GString ) tex_corpo = g_string_sized_new( 16384 ); // Buffer otimizado pré-alocado (16kb)
+      // Buffer otimizado pré-alocado (16kb)
+      g_autoptr( GString ) tex_corpo = g_string_sized_new( 16384 );
 
-         anexar_preambulo_latex( tex_corpo, dados );
-         anexar_identificadores_latex( tex_corpo, foco->turma, num_ativo );
+      anexar_preambulo_latex( tex_corpo, dados );
+      anexar_identificadores_latex( tex_corpo, foco->turma, num_ativo );
 
-         g_string_append( tex_corpo, "\\begin{document}\n\\noindent\n\\begin{tikzpicture}\n" );
-         anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, TRUE );
-         anexar_colunas_separadoras_latex( tex_corpo, dados, FALSE );
-         g_string_append( tex_corpo, "\\end{tikzpicture}\n\n" );
+      g_string_append( tex_corpo, "\\begin{document}\n\\noindent\n\\begin{tikzpicture}\n" );
+      anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, TRUE );
+      anexar_colunas_separadoras_latex( tex_corpo, dados, FALSE );
+      g_string_append( tex_corpo, "\\end{tikzpicture}\n\n" );
 
-         g_string_append_printf( tex_corpo, "\\vspace{%.2fcm}\n", dados->cabecalho_tipo == 1 ? -24.44 : -26.04 );
-         g_string_append_printf( tex_corpo, "\\setlength{\\columnsep}{%.1fcm}\n\\begin{multicols}{%d}\n", 1.2 - 0.2 * dados->qtd_colunas, dados->qtd_colunas );
-         if ( dados->cabecalho_tipo == 2 ) g_string_append( tex_corpo, "\\rule{0cm}{3.225cm}\n" );
-         g_string_append( tex_corpo, "\\begin{enumerate}[\\hspace{-1.8mm}]\n" );
+      g_string_append_printf( tex_corpo, "\\vspace{%.2fcm}\n", dados->cabecalho_tipo == 1 ? -24.44 : -26.04 );
+      g_string_append_printf( tex_corpo, "\\setlength{\\columnsep}{%.1fcm}\n\\begin{multicols}{%d}\n", 1.2 - 0.2 * dados->qtd_colunas, dados->qtd_colunas );
+      if ( dados->cabecalho_tipo == 2 ) g_string_append( tex_corpo, "\\rule{0cm}{3.225cm}\n" );
+      g_string_append( tex_corpo, "\\begin{enumerate}[\\hspace{-1.8mm}]\n" );
 
-         // Insere o miolo embaralhado de questões
-         for ( int qi = 0; qi < dados->total_questoes; qi++ ) {
-            if ( qi == 5 && dados->qtd_paginas == 2 ) {
-               g_string_append( tex_corpo, "\\end{enumerate}\n\\end{multicols}\n\\newpage\n\\noindent\n\\begin{tikzpicture}\n" );
-               anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, FALSE );
-               anexar_colunas_separadoras_latex( tex_corpo, dados, TRUE );
-               g_string_append_printf( tex_corpo, "\\end{tikzpicture}\n\n\\vspace{-27.85cm}\n\\begin{multicols}{%d}\n\\begin{enumerate}[\\hspace{-1.8mm}]\n", dados->qtd_colunas );
-            }
-            processar_questao_latex( tex_corpo, pb[qi], qi, G[num_ativo].str[qi] - 65, dados );
+      // Insere o miolo embaralhado de questões
+      for ( int qi = 0; qi < dados->total_questoes; qi++ ) {
+         if ( qi == 5 && dados->qtd_paginas == 2 ) {
+            g_string_append( tex_corpo, "\\end{enumerate}\n\\end{multicols}\n\\newpage\n\\noindent\n\\begin{tikzpicture}\n" );
+            anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, FALSE );
+            anexar_colunas_separadoras_latex( tex_corpo, dados, TRUE );
+            g_string_append_printf( tex_corpo, "\\end{tikzpicture}\n\n\\vspace{-27.85cm}\n\\begin{multicols}{%d}\n\\begin{enumerate}[\\hspace{-1.8mm}]\n", dados->qtd_colunas );
          }
 
-         g_string_append( tex_corpo, "\\end{enumerate}\n" );
+         // ATENÇÃO: processar_questao_latex deve agora receber o tex_corpo (GString*) em vez de FILE*
+         processar_questao_latex( tex_corpo, pb[qi], qi, G[num_ativo].str[qi] - 65, dados );
+      }
 
-         // Descarrega o texto GString massivo no disco de uma vez
-         fputs( tex_corpo->str, pp );
+      g_string_append( tex_corpo, "\\end{enumerate}\n" );
 
-         // Chamada externa segura via ponteiro
-         char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
-         if ( dados->qtd_paginas == 1 ) {
-            fputs( "\\begin{center}\n", pp );
-            quadro_de_respostas( pp, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
-            fputs( "\\end{center}\n", pp );
+      // Chamada externa unificada via ponteiro GString
+      char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
 
-         } else {
-            // fputs( "\\noindent\\hspace{-3mm}\n", pp );
-            fputs( "\\begin{center}\n", pp );
-            quadro_de_respostas( pp, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
-            fputs( "\\end{center}\n", pp );
-         }
+      if ( dados->qtd_paginas == 1 ) {
+         g_string_append( tex_corpo, "\\begin{center}\n" );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
+         g_string_append( tex_corpo, "\\end{center}\n" );
+      } else {
+         g_string_append( tex_corpo, "\\begin{center}\n" );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
+         g_string_append( tex_corpo, "\\end{center}\n" );
+      }
 
-         // Encerra arquivo local
-         fputs( "\\end{multicols}\n\\end{document}\n", pp );
-         fclose( pp );
+      // Encerra código LaTeX
+      g_string_append( tex_corpo, "\\end{multicols}\n\\end{document}\n" );
+
+      // 4. Descarrega o texto GString massivo no disco de uma VEZ SÓ de forma segura
+      GError *error = NULL;
+      if ( !g_file_set_contents( caminho_tex, tex_corpo->str, tex_corpo->len, &error ) ) {
+         g_printerr( "[ERRO] Falha ao salvar a prova %d: %s\n", num_ativo, error->message );
+         g_error_free( error );
       }
 
       // Cleanup do laço interno

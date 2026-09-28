@@ -50,27 +50,23 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
 
    g_autofree char *tema_pdf = g_strdup_printf( "%s.tex", pasta_tema );
 
-   FILE *pp = fopen( tema_pdf, "w+" );
-   if ( !pp ) {
-      g_printerr( "[ERRO] Não foi possível criar o arquivo de destino em: %s\n", pasta_tema );
-      return;
-   }
+   // Pré-aloca 32KB na RAM. Ideal para agregar múltiplas questões sem precisar redimensionar a memória
+   g_autoptr( GString ) tex = g_string_sized_new( 32768 );
 
    // =========================================================================
-   // 1. CABEÇALHO (O Template inteiro agora é ejetado diretamente da RAM)
+   // 1. CABEÇALHO (O Template inteiro injetado na GString)
    // =========================================================================
-   // fputs é mais rápido que fprintf, pois não processa formatadores (%)
-   fputs(
+   g_string_append( tex,
       "\\documentclass[11pt,a4paper]{report}\n"
       "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n", pp );
+      "\\usepackage[T1]{fontenc}\n" );
 
    // Lógica injetada cirurgicamente
    if ( dados->fonte_latex == 1 ) {
-      fputs( "\\usepackage{cmbright}\n", pp );
+      g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   fputs(
+   g_string_append( tex,
       "\\usepackage[brazil]{babel}\n"
       "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
       "\\usepackage[dvipsnames,table]{xcolor}\n"
@@ -84,11 +80,11 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\usepackage{setspace}\n"
       "\\usepackage{ulem}\n"
       "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n\n", pp );
+      "\\pagestyle{empty}\n\n" );
 
-   fprintf( pp, "\\usepackage[%s]{professor}\n\n", dados->cor_destaque );
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n\n", dados->cor_destaque );
 
-   fputs(
+   g_string_append( tex,
       "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n\n"
       "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
       "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
@@ -98,18 +94,17 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
       "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
       "\\begin{document}\n"
-      "\\noindent\\tikz{\n", pp );
+      "\\noindent\\tikz{\n" );
 
    // Injeção do estilo e do título
-   fprintf( pp, "\\tema%sColorida{CorSerie}{1}\n", dados->decoracao_estilo );
-   fprintf( pp, "\\node[inner sep=0pt, right] at (0,-0.65) {\\LARGE\\bf %s: %s};\n}\n\n", dados->tema, subtema );
+   g_string_append_printf( tex, "\\tema%sColorida{CorSerie}{1}\n", dados->decoracao_estilo );
+   g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0,-0.65) {\\LARGE\\bf %s: %s};\n}\n\n", dados->tema, subtema );
 
-   fprintf( pp, "\\setlength{\\columnsep}{%dmm}\n", 12 - 2 * dados->qtd_colunas );
-   fputs( "\\setlength{\\columnseprule}{0.8pt}\n\n", pp );
+   g_string_append_printf( tex, "\\setlength{\\columnsep}{%dmm}\n", 12 - 2 * dados->qtd_colunas );
+   g_string_append( tex, "\\setlength{\\columnseprule}{0.8pt}\n\n" );
 
-   fprintf( pp, "\\begin{multicols}{%d}\n\n", dados->qtd_colunas );
-   fputs( "\\begin{enumerate}[\\hspace{-1.8mm}]\n\n", pp );
-
+   g_string_append_printf( tex, "\\begin{multicols}{%d}\n\n", dados->qtd_colunas );
+   g_string_append( tex, "\\begin{enumerate}[\\hspace{-1.8mm}]\n\n" );
 
    // =========================================================================
    // 2. GERAÇÃO C E INJEÇÃO DAS QUESTÕES (Lógica de montagem preservada)
@@ -127,35 +122,35 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
 
       while ( fgets( str, sizeof str, pb ) != NULL ) {
          if ( strcmp( str, "% QUESTAO\n" ) == 0 ) {
-            fputs( str, pp );
+            g_string_append( tex, str );
 
             if ( strcmp( dados->decoracao_estilo, "Quadrados" ) == 0 )
-               fprintf( pp, "\\item{$\\questao%sColorida{CorSerie}{black}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
+               g_string_append_printf( tex, "\\item{$\\questao%sColorida{CorSerie}{black}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
             else if ( strcmp( dados->decoracao_estilo, "Ondas" ) == 0 )
-               fprintf( pp, "\\item{$\\questao%sColorida{CorSerie}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
+               g_string_append_printf( tex, "\\item{$\\questao%sColorida{CorSerie}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
             else
-               fprintf( pp, "\\item{$\\questao%s{%d}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 0, 3 - dados->qtd_colunas, q + 1 );
+               g_string_append_printf( tex, "\\item{$\\questao%s{%d}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 0, 3 - dados->qtd_colunas, q + 1 );
 
             if ( fgets( str, sizeof str, pb ) ) {
                while ( str[0] != '\n' ) {
-                  fputs( str, pp );
+                  g_string_append( tex, str );
                   if ( !fgets( str, sizeof str, pb ) ) break;
                }
             }
          } else if ( strncmp( str, "% ALTERNATIVAS", 14 ) == 0 ) {
-            fputs( str, pp );
-            fputs( "\\vspace{-2mm}\n\\begin{enumerate}[\\quad]\n", pp );
+            g_string_append( tex, str );
+            g_string_append( tex, "\\vspace{-2mm}\n\\begin{enumerate}[\\quad]\n" );
 
             for ( int letra = 65; letra < 70; letra++ ) {
                if ( fgets( str, sizeof str, pb ) ) {
-                  fprintf( pp, "\\item[$\\circledColorida{CorSerie}{20}{%c}$] %s", letra, str );
+                  g_string_append_printf( tex, "\\item[$\\circledColorida{CorSerie}{20}{%c}$] %s", letra, str );
                }
             }
-            fputs( "\\end{enumerate}\n\n", pp );
+            g_string_append( tex, "\\end{enumerate}\n\n" );
          } else {
-            fputs( "\n", pp );
+            g_string_append( tex, "\n" );
             while ( str[0] != '\n' ) {
-               fputs( str, pp );
+               g_string_append( tex, str );
                if ( !fgets( str, sizeof str, pb ) ) break;
             }
          }
@@ -163,16 +158,21 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       fclose( pb );
    }
 
-
    // =========================================================================
-   // 3. RODAPÉ
+   // 3. RODAPÉ E GRAVAÇÃO ATÔMICA
    // =========================================================================
-   fputs(
+   g_string_append( tex,
       "\\end{enumerate}\n\n"
       "\\end{multicols}\n\n"
-      "\\end{document}\n", pp );
+      "\\end{document}\n" );
 
-   fclose( pp );
+   GError *error = NULL;
+   if ( !g_file_set_contents( tema_pdf, tex->str, tex->len, &error ) ) {
+      g_printerr( "[ERRO] Não foi possível criar o arquivo de destino em: %s (%s)\n", pasta_tema, error->message );
+      g_error_free( error );
+   }
+
+   // O g_autoptr cuida do g_string_free automaticamente no final da função!
 }
 
 
@@ -201,24 +201,6 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    // 2. Dispara o processamento paralelo e assíncrono para gerar os PDFs!
    g_autofree char *pasta_raiz_tema = g_build_filename( caminho->banco_questoes, dados->tema, NULL );
    g_pdflatex_parallel_async( widget, pasta_raiz_tema, painel, ctx );
-
-   // char comando[4096];
-   //
-   //
-   // if ( verificar_pdfs_latex_acervo_questoes( pasta_tema, listas->subtemas, limite->subtemas,
-   //       painel, dados->tema ) ) {
-   //
-   //    snprintf( comando, sizeof( comando ), "pdfunite '%s'/*.pdf '%s/%s'.pdf",
-   //              pasta_tema, caminho->banco_questoes, dados->tema );
-   //
-   //    if ( system( comando ) != 0 ) {
-   //       fprintf( stderr, "[ERRO] Falha ao concatenar PDFs: %s\n", dados->tema );
-   //    }
-   //
-   //    for ( i = 0; i < limite->subtemas; i ++ ) {
-   //       apagar_arquivos_temporarios_latex_nativamente( pasta_tema, listas->subtemas[i].str, 5 );
-   //    }
-   // }
 
 }
 
