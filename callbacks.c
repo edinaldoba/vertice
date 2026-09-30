@@ -1460,6 +1460,43 @@ gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCross
    return FALSE;
 }
 
+
+// Callback disparada quando o usuário CLICA na caixa do feedback (Oculta imediatamente)
+G_MODULE_EXPORT
+gboolean on_painel_feedback_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data ) {
+   g_return_val_if_fail( widget && event, FALSE );
+
+   // Responde apenas ao clique com o botão esquerdo do mouse
+   if ( event->type == GDK_BUTTON_PRESS && event->button == 1 ) {
+      AppContext *ctx = (AppContext *)user_data;
+      InterfacePainel *painel = &ctx->painel;
+
+      if ( painel ) {
+         // 1. Cancela o temporizador para garantir que a callback de ocultação não seja chamada "no vazio" depois
+         if ( painel->timeout_id > 0 ) {
+            g_source_remove( painel->timeout_id );
+            painel->timeout_id = 0;
+         }
+
+         // 2. Reseta o estado do hover (já que estamos dispensando o painel)
+         painel->mouse_hover = FALSE;
+
+         // 3. Recolhe o painel imediatamente acionando a animação do Revealer
+         if ( painel->revealer_painel ) {
+            gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+         }
+      }
+
+      return TRUE; // Consome o evento para que não se propague
+   }
+
+   return FALSE;
+}
+
+
+
+
+
 G_MODULE_EXPORT
 gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data ) {
    g_return_val_if_fail( widget && event, FALSE );

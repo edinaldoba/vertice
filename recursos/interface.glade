@@ -2856,9 +2856,6 @@
                         <property name="position">2</property>
                       </packing>
                     </child>
-                    <child>
-                      <placeholder/>
-                    </child>
                     <style>
                       <class name="painel-feedback-revealer"/>
                     </style>

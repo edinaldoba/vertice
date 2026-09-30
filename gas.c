@@ -9,6 +9,7 @@
 #include <string.h> // Não esqueça de incluir para usar o memcpy
 #include <math.h>
 
+#include "basicas.h"
 #include "gas.h"
 
 
@@ -51,7 +52,7 @@ static GasGenitores *gas_alocar_genitores( const int n_gen, const int n_dim ) {
    return gen;
 }
 
-void gas_liberar_populacao( GasPopulacao *pop, const int n_pop ) {
+static void gas_liberar_populacao( GasPopulacao *pop, const int n_pop ) {
    g_return_if_fail( pop );
    for ( int i = 0; i < n_pop; i++ ) {
       if ( pop[i].x != NULL ) {
@@ -76,7 +77,7 @@ static void gas_liberar_genitores( GasGenitores *gen, const int n_gen ) {
 // ============================================================================
 // FUNÇÃO QUE CALCULA OS LIMITES DOS 4 QUADRANTES (4 OBJETIVOS)
 // ============================================================================
-GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj ) {
+static GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj ) {
    // Validação estrita padrão GLib
    // Como esta função desenha limites para 4 quadrantes, travamos n_obj em 4.
    g_return_val_if_fail( nrow > 0 && ncol > 0 && n_obj == 4, NULL );
@@ -120,7 +121,7 @@ GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj ) {
 }
 
 
-void gas_limites_liberar( GasLimites *lim, int n_obj ) {
+static void gas_limites_liberar( GasLimites *lim, int n_obj ) {
    if ( !lim ) return;
 
    for ( int k = 0; k < n_obj; k++ ) {
@@ -520,7 +521,7 @@ static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elit
 // ============================================================================
 // PIPELINE PRINCIPAL DE COEVOLUÇÃO
 // ============================================================================
-GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim ) {
+static GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim ) {
    g_return_val_if_fail( img && par && lim, NULL );
 
    // Alocação da matriz de dispersão e populações
@@ -638,4 +639,66 @@ GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, co
    // Retorna as âncoras limpas e seguras
    return elite;
 }
+
+
+
+
+//========================================================================================================//
+/**
+ * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
+ * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
+ */
+void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *map, IndiceMatriz *ancora, int tentativa ) {
+   // 1. Validação de segurança dos ponteiros de entrada
+   g_return_if_fail( img && map && ancora );
+
+   // Inicialização segura do motor estocástico
+   guint32 sementes[4];
+   gerar_sementes( sementes );
+   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
+
+   // 2. Ajuste dinâmico de hiperparâmetros (O pulo do gato para o resgate)
+   // Se for a 2ª tentativa (tentativa == 1), expande a exploração para quebrar mínimos locais
+   double peso_disp_atual = ( tentativa > 0 ) ? 2.3 : 1.8;
+   int max_geracoes_atual = ( tentativa > 0 ) ? 80  : 65;
+
+   GasParametros par = {
+      .n_pop        = 60,                // Tamanho da população (Calibrado)
+      .n_gen        = 24,                // Quantidade de substituições (40%)
+      .n_tor        = 2,                 // Número de indivíduos no torneio
+      .n_obj        = 4,                 // Número de objetivos da coevolução
+      .p_rec        = 0.80,              // Probabilidade de recombinação
+      .p_mut        = 0.90,              // Probabilidade de mutação altíssima
+      .peso_disp    = peso_disp_atual,   // Ajuste dinâmico de dispersão
+      .toleracia    = 3.0e-1,            // Tolerância geométrica
+      .max_geracoes = max_geracoes_atual,// Ajuste dinâmico de fôlego
+      .limiar       = 1,                 // Limiar de valor do pixel (fitness local)
+      .alfa         = 0.2,               // Controle fixo de convergência do w1 e w2
+      .rand         = rand_context
+   };
+
+   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
+
+   // 3. Execução do Pipeline Evolutivo
+   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
+   if ( melhor == NULL ) {
+      gas_limites_liberar( lim, par.n_obj );
+      return; // Força quarentena com segurança
+   }
+
+   // 4. Extração e arredondamento das coordenadas reais (Subpixel -> Pixel)
+   for ( int k = 0; k < par.n_obj; k++ ) {
+      ancora[k].j = ( int )round( melhor[k].x[0] );
+      ancora[k].i = ( int )round( melhor[k].x[1] );
+   }
+
+   // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
+   map->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
+                    - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
+
+   // 6. Limpeza profunda de memória
+   gas_liberar_populacao( melhor, par.n_obj );
+   gas_limites_liberar( lim, par.n_obj );
+}
+//========================================================================================================//
 

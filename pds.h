@@ -23,6 +23,8 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
 
 void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, float sigma );
 
+void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida *img, float sigma );
+
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG );
 
 void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMatriz *ancora, char direcao );

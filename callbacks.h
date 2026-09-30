@@ -130,6 +130,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data );
 
 gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_painel_feedback_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 
 

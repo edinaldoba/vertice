@@ -64,9 +64,68 @@ static int comparar_solidez_blob( const void *a, const void *b ) {
    return ( f_a < f_b ) - ( f_a > f_b ); // Ordem decrescente
 }
 
+
+
+// static double gas_calcular_area_poligono_blob( const BlobInfo *ord[4] ) {
+//    g_return_val_if_fail( ord, 0.0 );
+//
+//    double soma = 0.0;
+//    int n_ancoras = 4;
+//
+//    for ( int i = 0; i < n_ancoras; i++ ) {
+//       // O operador modulo (%) garante que o próximo vértice após o último seja o primeiro (0)
+//       int proximo = ( i + 1 ) % n_ancoras;
+//
+//       // Coordenadas do vértice atual (i) e do próximo (proximo) - X=centro_j, Y=centro_i
+//       double x_atual   = ord[i]->centro_j;
+//       double y_atual   = ord[i]->centro_i;
+//
+//       double x_proximo = ord[proximo]->centro_j;
+//       double y_proximo = ord[proximo]->centro_i;
+//
+//       // Produto cruzado em 2D (Determinante da matriz 2x2)
+//       soma += ( x_atual * y_proximo ) - ( x_proximo * y_atual );
+//    }
+//
+//    // A área é a metade do módulo do determinante acumulado
+//    return fabs( soma ) / 2.0;
+// }
+
+/**
+ * Calcula o desvio ortogonal das 4 quinas do quadrilátero.
+ * O retorno é a média dos cossenos absolutos (0.0 = Retângulo Perfeito, ângulos de 90º).
+ */
+static double gas_erro_ortogonal( const double p0[2], const double p1[2],
+                                  const double p2[2], const double p3[2],
+                                  const double top_w, const double bot_w,
+                                  const double left_h, const double right_h ) {
+
+   // Vetores partindo de cada vértice (Produto Escalar)
+   // Canto 0 (Top-Esq): Vetor para P1 e Vetor para P3
+   double dp0 = ( p1[0] - p0[0] ) * ( p3[0] - p0[0] ) + ( p1[1] - p0[1] ) * ( p3[1] - p0[1] );
+
+   // Canto 1 (Top-Dir): Vetor para P0 e Vetor para P2
+   double dp1 = ( p0[0] - p1[0] ) * ( p2[0] - p1[0] ) + ( p0[1] - p1[1] ) * ( p2[1] - p1[1] );
+
+   // Canto 2 (Bot-Dir): Vetor para P1 e Vetor para P3
+   double dp2 = ( p1[0] - p2[0] ) * ( p3[0] - p2[0] ) + ( p1[1] - p2[1] ) * ( p3[1] - p2[1] );
+
+   // Canto 3 (Bot-Esq): Vetor para P2 e Vetor para P0
+   double dp3 = ( p2[0] - p3[0] ) * ( p0[0] - p3[0] ) + ( p2[1] - p3[1] ) * ( p0[1] - p3[1] );
+
+   // O erro é a média dos cossenos absolutos de cada quina.
+   // Como a área na função principal é garantida > 100, não há risco de divisão por zero.
+   double cos0 = fabs( dp0 ) / ( top_w * left_h );
+   double cos1 = fabs( dp1 ) / ( top_w * right_h );
+   double cos2 = fabs( dp2 ) / ( bot_w * right_h );
+   double cos3 = fabs( dp3 ) / ( bot_w * left_h );
+
+   return ( cos0 + cos1 + cos2 + cos3 ) / 4.0;
+}
+
 /**
  * Varre a imagem, extrai candidatos OMR e utiliza Avaliação Geométrica Combinatória
- * para encontrar os 4 quadrados que formam o gabarito perfeito no meio do ruído textual.
+ * e Cantos Extremos para encontrar o gabarito.
  */
 int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[4], char *direcao_inferida ) {
    int nrow = img_bin->nrow;
@@ -80,27 +139,19 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
    BlobInfo blobs[128];
    int num_blobs = 0;
 
-   // Extração BFS (Flood Fill)
+   // Extração BFS (Flood Fill) ... (código mantido) ...
    for ( int i = 0; i < nrow; i++ ) {
       for ( int j = 0; j < ncol; j++ ) {
          if ( img_bin->image[i][j] < limiar_binario && !visitado[i * ncol + j] ) {
             int start_idx = 0, end_idx = 0;
-            fila_i[end_idx] = i;
-            fila_j[end_idx] = j;
-            end_idx++;
-            visitado[i * ncol + j] = 1;
+            fila_i[end_idx] = i; fila_j[end_idx] = j; end_idx++; visitado[i * ncol + j] = 1;
 
             BlobInfo blob = { i, i, j, j, 0, 0.0, 0.0 };
             double soma_i = 0, soma_j = 0;
 
             while ( start_idx < end_idx ) {
-               int ci = fila_i[start_idx];
-               int cj = fila_j[start_idx];
-               start_idx++;
-
-               blob.area++;
-               soma_i += ci;
-               soma_j += cj;
+               int ci = fila_i[start_idx], cj = fila_j[start_idx]; start_idx++;
+               blob.area++; soma_i += ci; soma_j += cj;
 
                if ( ci < blob.min_i ) blob.min_i = ci;
                if ( ci > blob.max_i ) blob.max_i = ci;
@@ -112,10 +163,7 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                      int ni = ci + di, nj = cj + dj;
                      if ( ni >= 0 && ni < nrow && nj >= 0 && nj < ncol ) {
                         if ( img_bin->image[ni][nj] < limiar_binario && !visitado[ni * ncol + nj] ) {
-                           fila_i[end_idx] = ni;
-                           fila_j[end_idx] = nj;
-                           end_idx++;
-                           visitado[ni * ncol + nj] = 1;
+                           fila_i[end_idx] = ni; fila_j[end_idx] = nj; end_idx++; visitado[ni * ncol + nj] = 1;
                         }
                      }
                   }
@@ -127,7 +175,6 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
             double aspect_ratio = ( double )largura / ( double )altura;
             double fill_ratio = ( double )blob.area / ( (double)largura * altura );
 
-            // Filtro morfológico base
             if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
                blob.centro_i = soma_i / blob.area;
                blob.centro_j = soma_j / blob.area;
@@ -137,16 +184,15 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
       }
    }
 
-   if ( num_blobs < 4 ) return 0; // Quarentena (Ruído extremo ou folha vazia)
+   if ( num_blobs < 4 ) return 0;
 
-   // Poda do Espaço de Busca: Limita aos 30 blobs mais sólidos para evitar explosão combinatória
    if ( num_blobs > 30 ) {
       qsort( blobs, num_blobs, sizeof( BlobInfo ), comparar_solidez_blob );
       num_blobs = 30;
    }
 
    // =========================================================================
-   // NOVA ARQUITETURA: BUSCA COMBINATÓRIA COM FITNESS GEOMÉTRICO E CANTOS EXTREMOS
+   // NOVA ARQUITETURA: BUSCA COMBINATÓRIA COM FITNESS GEOMÉTRICO (Agora com Ortogonalidade)
    // =========================================================================
    double menor_erro_global = 1e9;
    gboolean encontrou_padrao = FALSE;
@@ -160,7 +206,7 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                double a0 = blobs[i].area, a1 = blobs[j].area, a2 = blobs[k].area, a3 = blobs[l].area;
                double max_a = fmax( fmax( a0, a1 ), fmax( a2, a3 ) );
                double min_a = fmin( fmin( a0, a1 ), fmin( a2, a3 ) );
-               if ( max_a / min_a > 2.0 ) continue; // Rejeita candidatos desproporcionais
+               if ( max_a / min_a > 2.0 ) continue;
 
                // 2. Ordenação Polar Rápida
                const BlobInfo *candidatos[4] = { &blobs[i], &blobs[j], &blobs[k], &blobs[l] };
@@ -178,9 +224,19 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
 
                if ( larg < 50.0 || alt < 50.0 ) continue;
 
-               // 4. Erro de Retângulo (Lados opostos paralelos devem ser equivalentes)
-               double erro_retangulo = ( fabs( top_w - bot_w ) / larg ) + ( fabs( left_h - right_h ) / alt );
-               if ( erro_retangulo > 0.25 ) continue;
+               // 4. Erro de Paralelogramo (Lados opostos devem ser equivalentes)
+               double erro_paralelogramo = ( fabs( top_w - bot_w ) / larg ) + ( fabs( left_h - right_h ) / alt );
+               if ( erro_paralelogramo > 0.25 ) continue;
+
+               // 4.1. Erro de Ortogonalidade (Garante que seja um Retângulo, não um Rombo inclinado)
+               // Extração dos vértices externos (p[0] = X = coluna j, p[1] = Y = linha i)
+               double p0[2] = { ord[0]->min_j, ord[0]->min_i }; // Top-Esq
+               double p1[2] = { ord[1]->max_j, ord[1]->min_i }; // Top-Dir
+               double p2[2] = { ord[2]->max_j, ord[2]->max_i }; // Bot-Dir
+               double p3[2] = { ord[3]->min_j, ord[3]->max_i }; // Bot-Esq
+
+               double erro_ortogonal = gas_erro_ortogonal( p0, p1, p2, p3, top_w, bot_w, left_h, right_h );
+               if ( erro_ortogonal > 0.20 ) continue; // Rejeita se as quinas fugirem muito de 90 graus (cos 0.20 = ~78º ou 101º)
 
                // 5. Fórmula de Direção e Proporção
                char dir = ( - ord[0]->min_i - ord[1]->min_i + ord[2]->max_i + ord[3]->max_i <
@@ -193,8 +249,7 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                // 6. Erro de Área das Âncoras
                double erro_area_ancoras = ( max_a - min_a ) / max_a;
 
-               // 7. A SUA ESTRATÉGIA DOS CANTOS EXTREMOS (Fuga do ruído interno)
-               // Calculamos a distância quadrática pura para os cantos da imagem
+               // 7. Estratégia dos Cantos Extremos
                double ci_A = ord[0]->centro_i, cj_A = ord[0]->centro_j;
                double ci_B = ord[1]->centro_i, cj_B = ord[1]->centro_j;
                double ci_C = ord[2]->centro_i, cj_C = ord[2]->centro_j;
@@ -205,15 +260,11 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                double d_br = ((nrow - ci_C) * (nrow - ci_C)) + ((ncol - cj_C) * (ncol - cj_C));
                double d_bl = ((nrow - ci_D) * (nrow - ci_D)) + (cj_D * cj_D);
 
-               // Normalizador: A diagonal máxima ao quadrado da imagem
                double max_dist_quad = (double)(nrow * nrow) + (double)(ncol * ncol);
-
-               // Quanto menores as distâncias aos cantos da imagem, mais próximo de 0 é este erro.
-               // Empurra a seleção para o quadrilátero válido mais abrangente (outermost).
                double erro_extremos = (d_tl + d_tr + d_br + d_bl) / max_dist_quad;
 
-               // 8. Cálculo do Erro Total da Função de Aptidão (Fitness)
-               double erro_total = erro_proporcao + erro_retangulo + ( erro_area_ancoras * 0.5 ) + erro_extremos;
+               // 8. Cálculo do Erro Total da Função de Aptidão (Fitness com blindagem ortogonal)
+               double erro_total = erro_proporcao + erro_paralelogramo + erro_ortogonal + ( erro_area_ancoras * 0.5 ) + erro_extremos;
 
                if ( erro_total < menor_erro_global ) {
                   menor_erro_global = erro_total;
@@ -292,28 +343,28 @@ gboolean verificar_paridade_matriz( uint32_t payload_lido ) {
 * Retorna TRUE se a imagem estava íntegra e os dados foram extraídos com sucesso,
 * ou FALSE se a verificação de paridade falhar.
 */
-gboolean decodificar_payload_matriz( MapeamentoGabarito *info, const LimitesFiltro *limite ) {
+gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const LimitesFiltro *limite ) {
    // 1. Validação defensiva dos ponteiros de saída usando macros da GLib
-   g_return_val_if_fail( info != NULL, FALSE );
+   g_return_val_if_fail( map != NULL, FALSE );
    g_return_val_if_fail( limite != NULL, FALSE );
 
    // 2. Executa o teste de integridade via checksum/paridade
-   if ( !verificar_paridade_matriz( info->payload ) ) {
+   if ( !verificar_paridade_matriz( map->payload ) ) {
       // g_warning("Falha na integridade do payload lido: paridade invalida.");
       return FALSE;
    }
 
    // 3. Desempacotamento (Bitwise Shift reverso e aplicação de máscaras)
-   info->id    = ( uint8_t )( info->payload & 0x3F );      // Isola os bits 0 a 5
-   info->turma = ( uint8_t )( ( info->payload >> 6 )  & 0xFF ); // Desloca 6 bits e isola 8 bits (6 a 13)
-   info->disc  = ( uint8_t )( ( info->payload >> 14 ) & 0x0F ); // Desloca 14 bits e isola 4 bits (14 a 17)
-   info->per   = ( uint8_t )( ( info->payload >> 18 ) & 0x07 ); // Desloca 18 bits e isola 3 bits (18 a 20)
-   info->seq   = ( uint8_t )( ( info->payload >> 21 ) & 0x03 ); // Desloca 21 bits e isola 2 bits (21 a 22)
+   map->id    = ( uint8_t )( map->payload & 0x3F );      // Isola os bits 0 a 5
+   map->turma = ( uint8_t )( ( map->payload >> 6 )  & 0xFF ); // Desloca 6 bits e isola 8 bits (6 a 13)
+   map->disc  = ( uint8_t )( ( map->payload >> 14 ) & 0x0F ); // Desloca 14 bits e isola 4 bits (14 a 17)
+   map->per   = ( uint8_t )( ( map->payload >> 18 ) & 0x07 ); // Desloca 18 bits e isola 3 bits (18 a 20)
+   map->seq   = ( uint8_t )( ( map->payload >> 21 ) & 0x03 ); // Desloca 21 bits e isola 2 bits (21 a 22)
 
    // A sequência da prova é o único valor que não pode ser zero (valores 1, 2 e 3)
    // Pois a leitura do binário numa área branca retornava um payload válido onde todos os bits são zero
    // Mudando a sequência da prova de 0, 1, 2 para 1, 2, 3 elimina essa vulnerabilidade.
-   if ( info->turma >= limite->turmas || info->per + 1 >= limite->periodos || info->seq == 0 ) {
+   if ( map->turma >= limite->turmas || map->per + 1 >= limite->periodos || map->seq == 0 ) {
       return FALSE;
    }
 

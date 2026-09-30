@@ -159,64 +159,6 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 }
 
 
-//========================================================================================================//
-/**
- * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
- * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
- */
-static void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa ) {
-   // 1. Validação de segurança dos ponteiros de entrada
-   g_return_if_fail( img && info && ancora );
-
-   // Inicialização segura do motor estocástico
-   guint32 sementes[4];
-   gerar_sementes( sementes );
-   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
-
-   // 2. Ajuste dinâmico de hiperparâmetros (O pulo do gato para o resgate)
-   // Se for a 2ª tentativa (tentativa == 1), expande a exploração para quebrar mínimos locais
-   double peso_disp_atual = ( tentativa > 0 ) ? 2.3 : 1.8;
-   int max_geracoes_atual = ( tentativa > 0 ) ? 80  : 65;
-
-   GasParametros par = {
-      .n_pop        = 60,                // Tamanho da população (Calibrado)
-      .n_gen        = 24,                // Quantidade de substituições (40%)
-      .n_tor        = 2,                 // Número de indivíduos no torneio
-      .n_obj        = 4,                 // Número de objetivos da coevolução
-      .p_rec        = 0.80,              // Probabilidade de recombinação
-      .p_mut        = 0.90,              // Probabilidade de mutação altíssima
-      .peso_disp    = peso_disp_atual,   // Ajuste dinâmico de dispersão
-      .toleracia    = 3.0e-1,            // Tolerância geométrica
-      .max_geracoes = max_geracoes_atual,// Ajuste dinâmico de fôlego
-      .limiar       = 1,                 // Limiar de valor do pixel (fitness local)
-      .alfa         = 0.2,               // Controle fixo de convergência do w1 e w2
-      .rand         = rand_context
-   };
-
-   GasLimites *lim = gas_limites( img->nrow, img->ncol, par.n_obj );
-
-   // 3. Execução do Pipeline Evolutivo
-   GasPopulacao *melhor = gas_pipeline( img, &par, lim );
-   if ( melhor == NULL ) {
-      gas_limites_liberar( lim, par.n_obj );
-      return; // Força quarentena com segurança
-   }
-
-   // 4. Extração e arredondamento das coordenadas reais (Subpixel -> Pixel)
-   for ( int k = 0; k < par.n_obj; k++ ) {
-      ancora[k].j = ( int )round( melhor[k].x[0] );
-      ancora[k].i = ( int )round( melhor[k].x[1] );
-   }
-
-   // 5. Determinação autônoma da direção da folha baseada na geometria (Paisagem vs Retrato)
-   info->direcao = ( - ancora[0].i - ancora[1].i + ancora[2].i + ancora[3].i <
-                     - ancora[0].j + ancora[1].j + ancora[2].j - ancora[3].j ) ? 'h' : 'v';
-
-   // 6. Limpeza profunda de memória
-   gas_liberar_populacao( melhor, par.n_obj );
-   gas_limites_liberar( lim, par.n_obj );
-}
-//========================================================================================================//
 
 
 
@@ -255,6 +197,14 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       return -1;
    }
 
+   ItemTextoCurto *imgs_orig = NULL;
+   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+
+   if ( qtd_img == 0 ) {
+      g_printerr( "[AVISO] Nenhuma imagem de respostas foi encontrada em %s.\n", origem );
+      return -2;
+   }
+
    ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
 
@@ -262,14 +212,6 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
    for ( int i = 0; i < qtd_bin; i++ ) {
       g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
       f[i] = fopen( arquivo, "ab" );
-   }
-
-   ItemTextoCurto *imgs_orig = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
-
-   if ( qtd_img == 0 ) {
-      g_printerr( "[AVISO] Nenhuma imagem de respostas foi encontrada em %s.\n", origem );
-      return -2;
    }
 
    int n_rejeitadas = 0;
@@ -283,14 +225,14 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       gboolean sucesso = FALSE; // Inicializamos false e só confirmamos no payload
       int tentativas = 0;
 
-      MapeamentoGabarito info = {0};
+      MapeamentoGabarito map = {0};
       IndiceMatriz ancora[4] = {0};
 
-      ImagemColorida img_rgb_orig  = {0};
-      ImagemColorida img_rgb_crop  = {0};
-      ImagemCinza img_gray_bin     = {0};
-      ImagemCinza img_gray_crop    = {0};
-      ImagemCinza img_gray_alloc   = {0};
+      ImagemColorida img_rgb_orig = {0};
+      ImagemColorida img_rgb_crop = {0};
+      ImagemCinza img_gray_bin    = {0};
+      ImagemCinza img_gray_crop   = {0};
+      ImagemCinza img_gray_alloc  = {0};
 
       g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
@@ -313,13 +255,13 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
             img_gray_crop.image = NULL;
          }
 
-         gas_mapear_ancoras( &img_gray_alloc, &info, ancora, tentativas );
-         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
+         gas_mapear_ancoras( &img_gray_alloc, &map, ancora, tentativas );
+         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
          binarizar_pgm_metodo_otsu( &img_gray_crop );
-         info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
+         map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
 
          // A prova de fogo: O Payload bateu perfeitamente?
-         sucesso = decodificar_payload_matriz( &info, limite );
+         sucesso = decodificar_payload_matriz( &map, limite );
          tentativas++;
 
       } while ( !sucesso && tentativas < 2 );
@@ -331,18 +273,18 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       // FASE 4: Processamento de Dados (Apenas se convergiu)
       if ( sucesso ) {
          ItemTextoCurto chave;
-         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), info.turma, info.disc, info.per, info.seq );
+         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
          int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
 
          if ( j >= 0 && f[j] != NULL ) {
-            ler_respostas_gabarito( &img_gray_crop, info.direcao, info.resp );
-            info.num = ler_numero_aluno( &img_gray_crop, info.direcao );
-            g_strlcpy( info.nome_img, img_png, sizeof( info.nome_img ) );
+            ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
+            map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
+            g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
 
             // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
             #pragma omp critical(escrita_binario)
             {
-               if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
+               if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
                   g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
                }
                fflush( f[j] ); // Força I/O imediato para evitar corrupção de cache
@@ -356,7 +298,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       // FASE 5: Renderização do Crop Colorido ou Quarentena
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
-         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
+         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
 
          // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
@@ -447,6 +389,14 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       return -1;
    }
 
+   ItemTextoCurto *imgs_orig = NULL;
+   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+
+   if ( qtd_img == 0 ) {
+      g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
+      return -2;
+   }
+
    ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
 
@@ -454,14 +404,6 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
    for ( int i = 0; i < qtd_bin; i++ ) {
       g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
       f[i] = fopen( arquivo, "ab" );
-   }
-
-   ItemTextoCurto *imgs_orig = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
-
-   if ( qtd_img == 0 ) {
-      g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
-      return -2;
    }
 
    int n_rejeitadas = 0;
@@ -473,17 +415,17 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
    for ( int i = 0; i < qtd_img; i++ ) {
 
       gboolean sucesso = FALSE;
-      MapeamentoGabarito info = {0};
+      MapeamentoGabarito map = {0};
       IndiceMatriz ancora[4] = {0};
 
       // Inicialização das Estruturas de Imagem
-      ImagemColorida img_rgb_orig  = {0};
-      ImagemColorida img_rgb_crop  = {0};
-      ImagemCinza img_gray_bin     = {0};
-      ImagemCinza img_gray_alloc   = {0};
-      ImagemCinza img_gray_fundo   = {0};
-      ImagemCinza img_gray_blur    = {0};
-      ImagemCinza img_gray_crop    = {0};
+      ImagemColorida img_rgb_orig = {0};
+      ImagemColorida img_rgb_crop = {0};
+      ImagemCinza img_gray_bin    = {0};
+      ImagemCinza img_gray_alloc  = {0};
+      ImagemCinza img_gray_fundo  = {0};
+      ImagemCinza img_gray_blur   = {0};
+      ImagemCinza img_gray_crop   = {0};
 
       g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
@@ -509,17 +451,19 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       binarizar_pgm_metodo_otsu( &img_gray_blur );
 
       // 3.4 - Detecção de Âncoras OMR
-      sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &info.direcao );
+      sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao );
 
-      // printf( "\ndirecao = %c\nA(%d,%d)  B(%d,%d)\nD(%d,%d)  C(%d,%d)\n\n", info.direcao, ancora[0].i, ancora[0].j, ancora[1].i, ancora[1].j, ancora[3].i, ancora[3].j, ancora[2].i, ancora[2].j );
+      // printf( "\ndirecao = %c\nA(%d,%d)  B(%d,%d)\nD(%d,%d)  C(%d,%d)\n\n", map.direcao, ancora[0].i, ancora[0].j, ancora[1].i, ancora[1].j, ancora[3].i, ancora[3].j, ancora[2].i, ancora[2].j );
 
       if ( sucesso ) {
          // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
-         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, info.direcao );
+         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
+
+         // salvar_imagem_pgm(&img_gray_crop,"./dados/erro.ppm"); // Apenas para inspeção visual
 
          // 3.6 - Leitura e Decodificação do Payload
-         info.payload = extrair_payload_matriz( &img_gray_crop, info.direcao );
-         sucesso = decodificar_payload_matriz( &info, limite );
+         map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
+         sucesso = decodificar_payload_matriz( &map, limite );
       }
 
       if ( !sucesso ) {
@@ -529,18 +473,18 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       // FASE 4: Processamento de Dados (Apenas se convergiu e decodificou)
       if ( sucesso ) {
          ItemTextoCurto chave;
-         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), info.turma, info.disc, info.per, info.seq );
+         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
          int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
 
          if ( j >= 0 && f[j] != NULL ) {
-            ler_respostas_gabarito( &img_gray_crop, info.direcao, info.resp );
-            info.num = ler_numero_aluno( &img_gray_crop, info.direcao );
-            g_strlcpy( info.nome_img, img_png, sizeof( info.nome_img ) );
+            ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
+            map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
+            g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
 
             // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
             #pragma omp critical(escrita_binario)
             {
-               if ( fwrite( &info, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
+               if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
                   g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
                }
                fflush( f[j] );
@@ -554,7 +498,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       // FASE 5: Renderização do Crop Colorido ou Quarentena
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
-         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, info.direcao );
+         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
 
          // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
@@ -636,7 +580,7 @@ static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, 
    }
 }
 //------------------------------------------------------------------------------------------------------
-static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *info, const int qtd_linhas,
+static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *map, const int qtd_linhas,
       const AppContext *ctx ) {
 
    const InterfaceDados *dados = &ctx->dados;
@@ -665,8 +609,8 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < qtd_linhas; i++ ) {
 
-      if ( info[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-         int num_aluno = info[i].num;
+      if ( map[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+         int num_aluno = map[i].num;
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, num_aluno - 1 );
 
          g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", num_aluno );
@@ -682,21 +626,21 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *i
 
 }
 //------------------------------------------------------------------------------------------------------
-static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *info, const AppContext *ctx ) {
+static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &ctx->dados;
 
    // 1º TESTE (Crítico): O número da folha protege o array 'diario'
-   if ( info->num <= 0 || info->num > dados->qtd_alunos_total ) {
+   if ( map->num <= 0 || map->num > dados->qtd_alunos_total ) {
       return ERRO_NUMERO_ALUNO_INVALIDO;
    }
 
    // 2º TESTE (Crítico): O ID protege o array 'G' (Gabaritos)
-   if ( info->id >= dados->qtd_alunos_ativos ) {
+   if ( map->id >= dados->qtd_alunos_ativos ) {
       return ERRO_ID_GABARITO_INVALIDO;
    }
 
-   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, info->num - 1 );
+   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, map->num - 1 );
 
    // 3º TESTE (Regra de Negócio): Se chegou aqui, a memória está segura!
    if ( ficha->ativo == FALSE ) {
@@ -759,6 +703,10 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    int qtd_linhas = contar_registros_binarios( path_resp, sizeof( MapeamentoGabarito ) );
    if ( qtd_linhas <= 0 ) {
       g_printerr( "Aviso: Arquivo de respostas vazio ou corrompido.\n" );
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Gabarito Mestre Ausente" );
+      painel->format_subtitulo = meu_gerador_variadico( "Nenhum gabarito foi gerado para esta turma ainda." );
+      painel->format_instrucao = meu_gerador_variadico( "Acesse a aba de geração de provas e crie o arquivo de gabaritos." );
+      criar_mensagem_painel( ERRO, painel );
       fclose( fr );
       fclose( fg );
       return;
@@ -868,6 +816,10 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
          if ( ctx->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ctx->fichas->len ) {
             FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
             int periodo = map->per;
+
+            // Não depende do estado assinalado na interface, depende do MapeamentoGabarito apenas.
+            // Mas na hora de executar esta função, será buscado o binário de mapeamento condizente com o estado da interface
+            // Lembre-me que pode haver até três binário de mapeamento (3 provas aplicadas em um período)
             int iprova = map->seq;
 
             if ( periodo >= 0 && periodo <= 4 ) {

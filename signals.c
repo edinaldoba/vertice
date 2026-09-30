@@ -330,6 +330,8 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "leave-notify-event",
                      G_CALLBACK( on_painel_feedback_leave_notify_event ), ctx );
 
+   g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "button-press-event",
+                     G_CALLBACK( on_painel_feedback_button_press_event ), ctx );
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_orelhinha ), "button-press-event",
                   G_CALLBACK( on_orelhinha_button_press_event ), ctx );

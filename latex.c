@@ -96,10 +96,10 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
       // g_string_append( tex, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
       // g_string_append( tex, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
 
-      g_string_append( tex, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      g_string_append( tex, "\\fill (0,-11) rectangle (0.6,-10.4);\n" );
-      g_string_append( tex, "\\fill (14,-11) rectangle (13.4,-10.4);\n" );
-      g_string_append( tex, "\\fill (14,0) rectangle (13.4,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,0) rectangle (0.65,-0.65);\n" );
+      g_string_append( tex, "\\fill (0,-11) rectangle (0.65,-10.35);\n" );
+      g_string_append( tex, "\\fill (14,-11) rectangle (13.35,-10.35);\n" );
+      g_string_append( tex, "\\fill (14,0) rectangle (13.35,-0.65);\n" );
 
    } else {
       g_string_append( tex, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
@@ -113,10 +113,10 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
       // g_string_append( tex, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
       // g_string_append( tex, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
 
-      g_string_append( tex, "\\fill (0,0) rectangle (0.6,-0.6);\n" );
-      g_string_append( tex, "\\fill (0,-10) rectangle (0.6,-9.4);\n" );
-      g_string_append( tex, "\\fill (15,-10) rectangle (14.4,-9.4);\n" );
-      g_string_append( tex, "\\fill (15,0) rectangle (14.4,-0.6);\n" );
+      g_string_append( tex, "\\fill (0,0) rectangle (0.65,-0.65);\n" );
+      g_string_append( tex, "\\fill (0,-10) rectangle (0.65,-9.35);\n" );
+      g_string_append( tex, "\\fill (15,-10) rectangle (14.35,-9.35);\n" );
+      g_string_append( tex, "\\fill (15,0) rectangle (14.35,-0.65);\n" );
    }
 
 
@@ -185,10 +185,9 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
 
 
 
-int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const AppContext *ctx, const char *nome_base ) {
+int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx, const char *nome_base ) {
 
-   if ( !gab || !info || !ctx ) return -1;
-
+   if ( !gab || !map || !ctx ) return -1;
 
    const char *LATEX_PREAMBLE_TEMPLATE =
       "\\documentclass[11pt]{report}\n"
@@ -218,16 +217,12 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
       "}\n"
       "\\pagecolor{yellow!20}\n";
 
-
-
    const InterfaceDados *dados  = &ctx->dados;
    const CalendarioData *data   = &ctx->data;
 
-
-
    // 1. BLINDAGEM DE MEMÓRIA: Previne acesso negativo ou além do limite na struct 'diario'
-   if ( info->num < 1 || info->num > dados->qtd_alunos_total ) {
-      g_printerr( "[ERRO CRÍTICO] Número do aluno (%d) inválido. Cancelando renderização LaTeX.\n", info->num );
+   if ( map->num < 1 || map->num > dados->qtd_alunos_total ) {
+      g_printerr( "[ERRO CRÍTICO] Número do aluno (%d) inválido. Cancelando renderização LaTeX.\n", map->num );
       return -1;
    }
 
@@ -236,42 +231,38 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
       "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
    };
 
-   char arquivo[256];
-   snprintf( arquivo, sizeof( arquivo ), "./dados/temporarios/%s.tex", nome_base );
+   // Caminho do arquivo seguro com g_strdup_printf
+   g_autofree char *arquivo = g_strdup_printf( "./dados/temporarios/%s.tex", nome_base );
 
-   FILE *tex_file = fopen( arquivo, "w" );
-   if ( !tex_file ) {
-      g_printerr( "[ERRO] Não foi possível criar o arquivo latex: %s\n", arquivo );
-      return -1;
-   }
+   // Pré-alocação otimizada (16KB) na RAM
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
 
-   int largura = ( info->direcao == 'h' ) ? 18 : 14;
-   int altura  = ( info->direcao == 'h' ) ? 15 : 19;
+   int largura = ( map->direcao == 'h' ) ? 18 : 14;
+   int altura  = ( map->direcao == 'h' ) ? 15 : 19;
 
    // 2. INJEÇÃO DO CABEÇALHO LATEX
-   fprintf( tex_file, LATEX_PREAMBLE_TEMPLATE, largura, altura );
+   g_string_append_printf( tex, LATEX_PREAMBLE_TEMPLATE, largura, altura );
 
    g_autofree gchar *raiz_projeto = g_get_current_dir();
    g_autofree char *imagem = g_build_filename( raiz_projeto, "dados", "gabaritos", dados->ano,
-                             dados->escola, "imagens", info->nome_img, NULL );
+                             dados->escola, "imagens", map->nome_img, NULL );
 
-   fprintf( tex_file,
-            "\\begin{document}\n"
-            "{\\noindent\\small\n"
-            "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n"
-            "\\node at (%.4f,%.4f) {\\includegraphics[width=%dcm, height=%dcm]{\"%s\"}};\n",
-            0.5 * largura, -0.5 * altura, largura - 4, altura - 4, imagem );
+   g_string_append_printf( tex,
+           "\\begin{document}\n"
+           "{\\noindent\\small\n"
+           "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n"
+           "\\node at (%.4f,%.4f) {\\includegraphics[width=%dcm, height=%dcm]{\"%s\"}};\n",
+           0.5 * largura, -0.5 * altura, largura - 4, altura - 4, imagem );
 
-   // Camada de "Máscara" Branca (Limpeza das bordas do escaneamento)
-   fprintf( tex_file, "\\filldraw[white] (2,-2)rectangle(2.65,-2.65) (%d,-2)rectangle(%.4f,-2.65) (%d,%d)rectangle(%.4f,%.4f) (2,%d)rectangle(2.65,%.4f);\n",
-            largura - 2, largura - 2.65, largura - 2, 2 - altura, largura - 2.65, 2.65 - altura, 2 - altura, 2.65 - altura );
+   // Camada de "Máscara" Branca (Limpeza das bordas do escaneamento para âncoras de 7 mm)
+   g_string_append_printf( tex, "\\filldraw[white] (2,-2)rectangle(2.7,-2.7) (%d,-2)rectangle(%.4f,-2.7) (%d,%d)rectangle(%.4f,%.4f) (2,%d)rectangle(2.7,%.4f);\n", largura - 2, largura - 2.7, largura - 2, 2 - altura, largura - 2.7, 2.7 - altura, 2 - altura, 2.7 - altura );
 
    // 3. GRADE DE QUADRADOS (Payload Visual)
    for ( int i = 0; i < 27; i++ ) {
-      int linha  = ( info->direcao == 'h' ) ? i / 3 : i % 3;
-      int coluna = ( info->direcao == 'h' ) ? i % 3 : i / 3;
+      int linha  = ( map->direcao == 'h' ) ? i / 3 : i % 3;
+      int coluna = ( map->direcao == 'h' ) ? i % 3 : i / 3;
 
-      int bit_ativo = ( info->payload >> i ) & 1;
+      int bit_ativo = ( map->payload >> i ) & 1;
 
       if ( bit_ativo ) {
          // Multiplicação e soma exatas primeiro, divisão apenas no final
@@ -281,7 +272,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
          double x3 = ( 43.0 + 8.0 * coluna ) / 12.0;
          double y3 = -( 43.0 + 8.0 * linha ) / 12.0;
 
-         fprintf( tex_file, "\\draw[red,thick] (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x1, y1, x3, y3 );
+         g_string_append_printf( tex, "\\draw[red,thick] (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x1, y1, x3, y3 );
       }
    }
 
@@ -290,29 +281,29 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
 
    // Assumindo que NTI (Número Total de Itens) seja uma macro definida no escopo superior
    for ( int j = 0; j < NTI; j++ ) {
-      double linha  = ( info->direcao == 'h' ) ? -4.5 - gab[j] + 65 : -5.5 - j;
-      double coluna = ( info->direcao == 'h' ) ?  5.5 + j : 4.5 + gab[j] - 65;
-      double x      = ( info->direcao == 'h' ) ?  5.5 + j : 2.5;
-      double y      = ( info->direcao == 'h' ) ? -2.5 : -5.5 - j;
+      double linha  = ( map->direcao == 'h' ) ? -4.5 - gab[j] + 65 : -5.5 - j;
+      double coluna = ( map->direcao == 'h' ) ?  5.5 + j : 4.5 + gab[j] - 65;
+      double x      = ( map->direcao == 'h' ) ?  5.5 + j : 2.5;
+      double y      = ( map->direcao == 'h' ) ? -2.5 : -5.5 - j;
 
-      fprintf( tex_file, "\\coordinate (P) at (%.4f,%.4f);\n", x, y );
+      g_string_append_printf( tex, "\\coordinate (P) at (%.4f,%.4f);\n", x, y );
 
-      if ( gab[j] == info->resp[j] ) {
+      if ( gab[j] == map->resp[j] ) {
          nota++;
-         fprintf( tex_file, "\\correto\n\\draw[line width=4, green] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
+         g_string_append_printf( tex, "\\correto\n\\draw[line width=4, green] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
       } else {
-         fprintf( tex_file, "\\incorreto\n\\draw[line width=4, red] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
+         g_string_append_printf( tex, "\\incorreto\n\\draw[line width=4, red] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
       }
    }
 
    // 5. INJEÇÃO DOS METADADOS E TEXTOS INSTITUCIONAIS
-   fprintf( tex_file, "\\node[left] at (%d,-0.4) {\\Large São Luis, %d de %s de %d};\n",
+   g_string_append_printf( tex, "\\node[left] at (%d,-0.4) {\\Large São Luís, %d de %s de %d};\n",
             largura, data->dia, meses[data->mes - 1], data->ano );
-   fprintf( tex_file, "\\node[left] at (%d,-1.3) {\\Large IDENTIFICADOR $\\to$ \\bf\\Huge %d};\n", largura, info->id );
+   g_string_append_printf( tex, "\\node[left] at (%d,-1.3) {\\Large IDENTIFICADOR $\\to$ \\bf\\Huge %d};\n", largura, map->id );
 
-   fprintf( tex_file, "\\node[right,color=AzulProfessor] at (0.04,-0.4) {\\Large\\bf %s};\n", dados->escola );
-   fprintf( tex_file, "\\node[right,color=AzulProfessor] at (0.04,-1.0) {\\Large\\textbf{Gest.} %s};\n", dados->gestor );
-   fprintf( tex_file, "\\node[right,color=AzulProfessor] at (0.04,-1.6) {\\Large\\textbf{Prof.} %s};\n\n", dados->professor );
+   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-0.4) {\\Large\\bf %s};\n", dados->escola );
+   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.0) {\\Large\\textbf{Gest.} %s};\n", dados->gestor );
+   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.6) {\\Large\\textbf{Prof.} %s};\n\n", dados->professor );
 
    // Formatação Dinâmica do Título da Prova
    char titulo_prova[512];
@@ -324,22 +315,29 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
                 dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
    }
 
-   fprintf( tex_file, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s};\n", 1.6 - altura, titulo_prova );
-   fprintf( tex_file, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s};\n", 1.6 - altura, titulo_prova );
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
 
    // Uso seguro de memória com g_autofree para a string em UpperCase
-   const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, info->num - 1 );
+   const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, map->num - 1 );
    g_autofree gchar *nome_aluno = g_utf8_strup( ficha->aluno, -1 );
-   fprintf( tex_file, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, info->num );
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, map->num );
 
    // Resultado Final
-   fprintf( tex_file, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - altura, nota );
+   g_string_append_printf( tex, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - altura, nota );
 
    // 6. FECHAMENTO DO ARQUIVO
-   fprintf( tex_file, "\\end{tikzpicture}}\n" );
-   fprintf( tex_file, "\\end{document}\n" );
+   g_string_append( tex, "\\end{tikzpicture}}\n" );
+   g_string_append( tex, "\\end{document}\n" );
 
-   fclose( tex_file );
+   // 7. GRAVAÇÃO ATÔMICA E SEGURA NO DISCO
+   GError *error = NULL;
+   if ( !g_file_set_contents( arquivo, tex->str, tex->len, &error ) ) {
+      g_printerr( "[ERRO] Não foi possível salvar o arquivo latex (%s): %s\n", arquivo, error->message );
+      g_error_free( error );
+      return -1;
+   }
 
    return nota;
 }
+

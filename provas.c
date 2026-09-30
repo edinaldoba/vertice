@@ -672,8 +672,16 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
    // LIMPEZA PARALELA DE ARQUIVOS NATIVOS
    // =========================================================================
    apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", "frequencia", 5 );
-   #pragma omp parallel for schedule(static)
+   // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < dados->qtd_alunos_ativos; i++ ) {
+      // if ( i==0 || i==6 || i==39 ) continue; // m100
+      // if ( i==37 ) continue; // m101
+      // if ( i==0 || i==8 || i==11 || i==3 || i==31 || i==38 || i==34 ) continue; // m102
+      // if ( i==18 || i==32 || i==39 ) continue; // m200cns
+      // if ( i==6 || i==14 ) continue; // m300ett
+      // if ( i==1 || i==14 || i==16 ) continue; // v300chl
+      // if ( i==13 ) continue; // v300cns
+      // if ( i==20 || i==28 ) continue; // v300ett
       g_autofree char *nome_base = g_strdup_printf( "prova%.2d", i );
       apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", nome_base, 5 );
    }

@@ -27,16 +27,12 @@ typedef struct {
 } GasGenitores;
 
 
+
 // ============================================================================
 // ASSINATURAS DE FUNÇÕES
 // ============================================================================
-void gas_liberar_populacao( GasPopulacao *pop, const int n_pop );
 
-GasLimites *gas_limites( const int nrow, const int ncol, const int n_obj );
-
-void gas_limites_liberar( GasLimites *lim, int n_obj );
-
-GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *par, const GasLimites *lim );
+void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa );
 
 
 

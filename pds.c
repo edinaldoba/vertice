@@ -712,6 +712,106 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 
 
 
+void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida *img, float sigma ) {
+   if ( !IMG || !img || sigma <= 0.0f ) return;
+
+   // 1. Preparação da Imagem de Destino
+   if ( img->image != NULL ) {
+      liberar_matriz_pixels_colorida( img->image, img->nrow );
+   }
+
+   img->ncol = IMG->ncol;
+   img->nrow = IMG->nrow;
+   img->image = alocar_matriz_pixels_colorida( img->nrow, img->ncol );
+   if ( !img->image ) return;
+
+   g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
+   img->max = IMG->max;
+
+   // 2. Cálculo do tamanho do Kernel
+   // A regra dos 3-sigmas garante que 99.7% da energia da curva gaussiana seja capturada
+   int raio = ( int )ceilf( 3.0f * sigma );
+   int diametro = 2 * raio + 1;
+
+   // Alocamos o kernel como um vetor plano (1D) para maximizar o cache da CPU (L1/L2)
+   g_autofree float *kernel = g_new0( float, diametro * diametro );
+
+   // 3. Geração do Kernel Isotrópico Normalizado
+   float soma_pesos = 0.0f;
+   float divisor_expoente = 2.0f * sigma * sigma;
+   int idx = 0;
+
+   for ( int i = -raio; i <= raio; i++ ) {
+      for ( int j = -raio; j <= raio; j++ ) {
+         // Não precisamos da constante externa da fórmula, pois normalizaremos no final
+         float peso = expf( -( ( i * i ) + ( j * j ) ) / divisor_expoente );
+         kernel[idx++] = peso;
+         soma_pesos += peso;
+      }
+   }
+
+   // Normalização: garante que a soma de todos os pesos seja exatamente 1.0
+   for ( int k = 0; k < diametro * diametro; k++ ) {
+      kernel[k] /= soma_pesos;
+   }
+
+   // 4. Convolução 2D Paralelizada com Padding Virtual (Clamp to Edge)
+   int x_lim = IMG->ncol - 1;
+   int y_lim = IMG->nrow - 1;
+
+   // #pragma omp parallel for schedule(static)
+   for ( int y = 0; y < IMG->nrow; y++ ) {
+      for ( int x = 0; x < IMG->ncol; x++ ) {
+
+         // Acumuladores isolados para cada canal de cor
+         float pixel_r = 0.0f;
+         float pixel_g = 0.0f;
+         float pixel_b = 0.0f;
+         int k_idx = 0;
+
+         // [FAST PATH] - O pixel está seguro no centro da imagem (Nenhum if necessário)
+         if ( x >= raio && x < IMG->ncol - raio && y >= raio && y < IMG->nrow - raio ) {
+            for ( int ky = -raio; ky <= raio; ky++ ) {
+               for ( int kx = -raio; kx <= raio; kx++ ) {
+                  float peso = kernel[k_idx++];
+                  const PixelRGB *p_src = &IMG->image[y + ky][x + kx];
+
+                  pixel_r += p_src->r * peso;
+                  pixel_g += p_src->g * peso;
+                  pixel_b += p_src->b * peso;
+               }
+            }
+         }
+         // [SLOW PATH] - O pixel está na borda. Simulamos a "expansão" travando os índices.
+         else {
+            for ( int ky = -raio; ky <= raio; ky++ ) {
+               int coord_y = y + ky;
+               coord_y = ( coord_y < 0 ) ? 0 : ( ( coord_y > y_lim ) ? y_lim : coord_y );
+
+               for ( int kx = -raio; kx <= raio; kx++ ) {
+                  int coord_x = x + kx;
+                  coord_x = ( coord_x < 0 ) ? 0 : ( ( coord_x > x_lim ) ? x_lim : coord_x );
+
+                  float peso = kernel[k_idx++];
+                  const PixelRGB *p_src = &IMG->image[coord_y][coord_x];
+
+                  pixel_r += p_src->r * peso;
+                  pixel_g += p_src->g * peso;
+                  pixel_b += p_src->b * peso;
+               }
+            }
+         }
+
+         // Arredondamento perfeito para inteiro limitando a 255/max para evitar overflow
+         img->image[y][x].r = (uint8_t)fminf( pixel_r + 0.5f, 255.0f );
+         img->image[y][x].g = (uint8_t)fminf( pixel_g + 0.5f, 255.0f );
+         img->image[y][x].b = (uint8_t)fminf( pixel_b + 0.5f, 255.0f );
+      }
+   }
+}
+
+
+
 
 
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
@@ -797,7 +897,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    g_return_if_fail( img && img->image && img_crop && ancora );
 
    int largura, altura;
-   int fator_de_proporcionalidade = 60;
+   int fator_de_proporcionalidade = 50;
 
    if ( direcao == 'h' ) {
       largura = 14 * fator_de_proporcionalidade; // 700 px
