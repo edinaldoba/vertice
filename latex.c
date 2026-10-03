@@ -102,7 +102,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
       g_string_append( tex, "\\fill (14,0) rectangle (13.35,-0.65);\n" );
 
    } else {
-      g_string_append( tex, "\\draw[CorSerie] (14.3,-0.5) -- (14.3,-9.5);\n" );
+      g_string_append( tex, "\\draw[CorSerie] (14.3,-1.0) -- (14.3,-9.0);\n" );
       // if ( assinalar_nome_numero ) {
       //    g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
       // }

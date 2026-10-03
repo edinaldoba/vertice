@@ -6,9 +6,9 @@
 
 
 
-int** alocar_matriz_pixels( int nrow, int ncol );
+uint8_t** alocar_matriz_pixels( int nrow, int ncol );
 PixelRGB** alocar_matriz_pixels_colorida( int nrow, int ncol );
-void liberar_matriz_pixels( int **matriz, int nrow );
+void liberar_matriz_pixels( uint8_t **matriz, int nrow );
 void liberar_matriz_pixels_colorida( PixelRGB **matriz, int nrow );
 void liberar_imagem_imread( ImagemColorida *img );
 

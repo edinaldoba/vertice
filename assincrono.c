@@ -565,6 +565,7 @@ typedef struct {
    AppContext *ctx;           // O contexto global do app
    InterfacePainel *painel;   // O painel para dar o feedback
    char *dir_compile;         // Diretório temporário
+   GTimer *cronometro;
 } DadosCorrecaoAsync;
 //------------------------------------------------------------------------------------------------------
 static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
@@ -724,6 +725,11 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
    gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
    // -------------------------------------------------------------------------
 
+   if ( async->cronometro ) {
+      display_tempo( "PDF de Correção", async->cronometro );
+      g_timer_destroy( async->cronometro ); // <--- LIBERA O GTIMER AQUI
+   }
+
    // LIBERAÇÃO SEGURA DE MEMÓRIA (O map_array morre AQUI, e não na corrigir_prova)
    g_array_free( async->map_array, TRUE );
    g_free( async->dir_compile );
@@ -733,6 +739,8 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
 }
 //------------------------------------------------------------------------------------------------------
 void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *map_array, AppContext *ctx ) {
+   // g_autoptr( GTimer ) cronometro = g_timer_new();
+
    // Empacota os dados para enviar à callback
    GError *erro = NULL;
 
@@ -741,6 +749,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    async_data->ctx         = ctx;
    async_data->painel      = painel;
    async_data->dir_compile = g_strdup( "./dados/temporarios" );
+   async_data->cronometro = g_timer_new();
 
    int num_cores = ( int ) g_get_num_processors();
    GPid pid;

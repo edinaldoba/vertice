@@ -960,7 +960,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    int orig_w = img->ncol;
    int orig_h = img->nrow;
    int fundo_branco = img->max > 0 ? img->max : 255;
-   int **orig_pixels = img->image;
+   uint8_t **orig_pixels = img->image;
 
    // =========================================================================
    // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR (MULTITHREAD)

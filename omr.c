@@ -19,10 +19,193 @@
 
 
 
+
+
+// Estruturas de dados base
+typedef struct {
+   int min_i, max_i;
+   int min_j, max_j;
+   int area;
+   double centro_i;
+   double centro_j;
+} BlobInfo;
+
+typedef struct {
+   BlobInfo blob;
+   double score;
+} MatchCandidate;
+
+// Parâmetros de controle do Template
+typedef struct {
+   int core_size;      // Largura/Altura do quadrado preto interno
+   int margin_size;    // Largura da margem branca ao redor
+   int total_size;     // core_size + 2 * margin_size
+} TemplateParams;
+
+// OTIMIZAÇÃO DE OPENMP
+static __thread double g_centro_img_i = 0.0;
+static __thread double g_centro_img_j = 0.0;
+
+// ============================================================================
+// MÓDULO 1: Ordenação Polar
+// ============================================================================
+static int comparar_polar(const void *a, const void *b) {
+   const BlobInfo *b1 = (const BlobInfo *)a;
+   const BlobInfo *b2 = (const BlobInfo *)b;
+
+   double angulo1 = atan2(b1->centro_i - g_centro_img_i, b1->centro_j - g_centro_img_j);
+   double angulo2 = atan2(b2->centro_i - g_centro_img_i, b2->centro_j - g_centro_img_j);
+
+   return (angulo1 < angulo2) ? -1 : ((angulo1 > angulo2) ? 1 : 0);
+}
+
+// ============================================================================
+// MÓDULO 2: Correlação Cruzada Direta (Sem Normalização ZNCC)
+// ============================================================================
+/**
+ * Calcula a Correlação Cruzada Direta (Produto Escalar entre Imagem e Template).
+ * Template Sintético:
+ *   - Margem branca = Peso +1 (busca pixels claros nas bordas)
+ *   - Core preto   = Peso -1 (penaliza pixels claros no miolo)
+ *
+ * Retorna o sinal da correlação normalizado em relação à energia máxima teórica.
+ */
+static double calcular_correcao_cruzada_direta(const ImagemCinza *img, int start_i, int start_j, const TemplateParams *tpl) {
+   int soma_margem = 0;
+   int soma_core = 0;
+
+   int ts = tpl->total_size;
+   int ms = tpl->margin_size;
+   int limit_core = ts - ms;
+
+   for (int i = 0; i < ts; i++) {
+      const uint8_t *linha = img->image[start_i + i];
+
+      if (i < ms || i >= limit_core) {
+         for (int j = 0; j < ts; j++) {
+            soma_margem += linha[start_j + j];
+         }
+      } else {
+         for (int j = 0; j < ms; j++) {
+            soma_margem += linha[start_j + j];
+         }
+         for (int j = ms; j < limit_core; j++) {
+            soma_core += linha[start_j + j];
+         }
+         for (int j = limit_core; j < ts; j++) {
+            soma_margem += linha[start_j + j];
+         }
+      }
+   }
+
+   // Produto Escalar da Correlação Cruzada:
+   // Favorece soma_margem alta (branca) e soma_core baixa (preta)
+   double correlacao = (double)soma_margem - (double)soma_core;
+
+   // Energia máxima teórica para o template ideal
+   int pixels_margem = (ts * ts) - (tpl->core_size * tpl->core_size);
+   double max_energia = (double)pixels_margem * 255.0;
+
+   if (max_energia <= 0.0) return 0.0;
+
+   return correlacao / max_energia;
+}
+
+// ============================================================================
+// MÓDULO 3: Non-Maximum Suppression (NMS)
+// ============================================================================
+static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candidatos,
+                                   BlobInfo nova_blob, double novo_score, int raio_supressao) {
+
+   double raio_sq = (double)(raio_supressao * raio_supressao);
+
+   for (int k = 0; k < *num_candidatos; k++) {
+      double dist_i = candidatos[k].blob.centro_i - nova_blob.centro_i;
+      double dist_j = candidatos[k].blob.centro_j - nova_blob.centro_j;
+      double dist_sq = dist_i * dist_i + dist_j * dist_j;
+
+      if (dist_sq < raio_sq) {
+         if (novo_score > candidatos[k].score) {
+            candidatos[k].blob = nova_blob;
+            candidatos[k].score = novo_score;
+         }
+         return;
+      }
+   }
+
+   if (*num_candidatos < 128) {
+      candidatos[*num_candidatos].blob = nova_blob;
+      candidatos[*num_candidatos].score = novo_score;
+      (*num_candidatos)++;
+   }
+}
+
+// ============================================================================
+// MÓDULO 4: Função Principal de Extração por Correlação Cruzada
+// ============================================================================
+static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size) {
+   MatchCandidate candidatos[128];
+   int num_candidatos = 0;
+
+   const double LIMIAR_CORRELACAO = 0.50; // Limiar de correlação cruzada direta
+   const int stride = 3;
+
+   TemplateParams tpl;
+   tpl.core_size = core_size;
+   tpl.margin_size = margin_size;
+   tpl.total_size = core_size + 2 * margin_size;
+
+   int raio_nms = (tpl.total_size * 70) / 100;
+
+   int limite_i = img->nrow - tpl.total_size;
+   int limite_j = img->ncol - tpl.total_size;
+
+   for (int i = 0; i <= limite_i; i += stride) {
+      for (int j = 0; j <= limite_j; j += stride) {
+
+         double score = calcular_correcao_cruzada_direta(img, i, j, &tpl);
+
+         if (score > LIMIAR_CORRELACAO) {
+            BlobInfo blob;
+            blob.min_i = i + tpl.margin_size;
+            blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
+            blob.min_j = j + tpl.margin_size;
+            blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
+
+            blob.area = tpl.core_size * tpl.core_size;
+            blob.centro_i = (double)(blob.min_i + blob.max_i) / 2.0;
+            blob.centro_j = (double)(blob.min_j + blob.max_j) / 2.0;
+
+            adicionar_candidato_nms(candidatos, &num_candidatos, blob, score, raio_nms);
+         }
+      }
+   }
+
+   for (int k = 0; k < num_candidatos; k++) {
+      blobs[k] = candidatos[k].blob;
+   }
+
+   if (num_candidatos > 30) {
+      g_centro_img_i = img->nrow / 2.0;
+      g_centro_img_j = img->ncol / 2.0;
+
+      qsort(blobs, num_candidatos, sizeof(BlobInfo), comparar_polar);
+   }
+
+   return num_candidatos;
+}
+
+
+
+
+
+
+
+
+
 //-----------------------------------------------------------------------------------------------------
 // 1. Função auxiliar inline: Ordenação polar manual para 4 itens
-// Refinada com 'const' correctness para evitar warnings do compilador.
-void ordenar_polar_inline( const BlobInfo *candidatos[4], const BlobInfo *ordenados[4] ) {
+static void blob_ordenar_polar_inline( const BlobInfo *candidatos[4], const BlobInfo *ordenados[4] ) {
    double cx = 0.0, cy = 0.0;
    for ( int i = 0; i < 4; i++ ) {
       cy += candidatos[i]->centro_i;
@@ -36,7 +219,6 @@ void ordenar_polar_inline( const BlobInfo *candidatos[4], const BlobInfo *ordena
       angulos[i] = atan2( candidatos[i]->centro_i - cy, candidatos[i]->centro_j - cx );
    }
 
-   // Selection sort otimizado para pequenos arrays
    int idx[4] = {0, 1, 2, 3};
    for ( int i = 0; i < 3; i++ ) {
       for ( int j = i + 1; j < 4; j++ ) {
@@ -54,7 +236,7 @@ void ordenar_polar_inline( const BlobInfo *candidatos[4], const BlobInfo *ordena
 }
 
 // 2. Ordenação por "solidez" (Fill Ratio) para priorizar quadrados verdadeiros
-static int comparar_solidez_blob( const void *a, const void *b ) {
+static int blob_comparar_solidez( const void *a, const void *b ) {
    const BlobInfo *ba = ( const BlobInfo * )a;
    const BlobInfo *bb = ( const BlobInfo * )b;
 
@@ -64,57 +246,20 @@ static int comparar_solidez_blob( const void *a, const void *b ) {
    return ( f_a < f_b ) - ( f_a > f_b ); // Ordem decrescente
 }
 
-
-
-// static double gas_calcular_area_poligono_blob( const BlobInfo *ord[4] ) {
-//    g_return_val_if_fail( ord, 0.0 );
-//
-//    double soma = 0.0;
-//    int n_ancoras = 4;
-//
-//    for ( int i = 0; i < n_ancoras; i++ ) {
-//       // O operador modulo (%) garante que o próximo vértice após o último seja o primeiro (0)
-//       int proximo = ( i + 1 ) % n_ancoras;
-//
-//       // Coordenadas do vértice atual (i) e do próximo (proximo) - X=centro_j, Y=centro_i
-//       double x_atual   = ord[i]->centro_j;
-//       double y_atual   = ord[i]->centro_i;
-//
-//       double x_proximo = ord[proximo]->centro_j;
-//       double y_proximo = ord[proximo]->centro_i;
-//
-//       // Produto cruzado em 2D (Determinante da matriz 2x2)
-//       soma += ( x_atual * y_proximo ) - ( x_proximo * y_atual );
-//    }
-//
-//    // A área é a metade do módulo do determinante acumulado
-//    return fabs( soma ) / 2.0;
-// }
-
 /**
  * Calcula o desvio ortogonal das 4 quinas do quadrilátero.
  * O retorno é a média dos cossenos absolutos (0.0 = Retângulo Perfeito, ângulos de 90º).
  */
-static double gas_erro_ortogonal( const double p0[2], const double p1[2],
-                                  const double p2[2], const double p3[2],
-                                  const double top_w, const double bot_w,
-                                  const double left_h, const double right_h ) {
+static double blob_erro_ortogonal( const double p0[2], const double p1[2],
+                                   const double p2[2], const double p3[2],
+                                   const double top_w, const double bot_w,
+                                   const double left_h, const double right_h ) {
 
-   // Vetores partindo de cada vértice (Produto Escalar)
-   // Canto 0 (Top-Esq): Vetor para P1 e Vetor para P3
    double dp0 = ( p1[0] - p0[0] ) * ( p3[0] - p0[0] ) + ( p1[1] - p0[1] ) * ( p3[1] - p0[1] );
-
-   // Canto 1 (Top-Dir): Vetor para P0 e Vetor para P2
    double dp1 = ( p0[0] - p1[0] ) * ( p2[0] - p1[0] ) + ( p0[1] - p1[1] ) * ( p2[1] - p1[1] );
-
-   // Canto 2 (Bot-Dir): Vetor para P1 e Vetor para P3
    double dp2 = ( p1[0] - p2[0] ) * ( p3[0] - p2[0] ) + ( p1[1] - p2[1] ) * ( p3[1] - p2[1] );
-
-   // Canto 3 (Bot-Esq): Vetor para P2 e Vetor para P0
    double dp3 = ( p2[0] - p3[0] ) * ( p0[0] - p3[0] ) + ( p2[1] - p3[1] ) * ( p0[1] - p3[1] );
 
-   // O erro é a média dos cossenos absolutos de cada quina.
-   // Como a área na função principal é garantida > 100, não há risco de divisão por zero.
    double cos0 = fabs( dp0 ) / ( top_w * left_h );
    double cos1 = fabs( dp1 ) / ( top_w * right_h );
    double cos2 = fabs( dp2 ) / ( bot_w * right_h );
@@ -123,25 +268,22 @@ static double gas_erro_ortogonal( const double p0[2], const double p1[2],
    return ( cos0 + cos1 + cos2 + cos3 ) / 4.0;
 }
 
-
 /**
- * Função auxiliar inteligente para separar a âncora quadrada de riscos de caneta.
- * Utiliza histogramas de projeção ortogonal (X e Y) para detectar "caudas" e amputá-las,
- * recalculando o Bounding Box estrito e o Centroide apenas com a massa sólida.
+ * Separa a âncora quadrada de riscos de caneta através de projeção ortogonal.
  */
-static void aparar_riscos_blob( BlobInfo *blob, const int *fila_i, const int *fila_j, int num_pixels, int *proj_x, int *proj_y ) {
+static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fila_j, int num_pixels,
+                                int *proj_x, int *proj_y ) {
    int w = blob->max_j - blob->min_j + 1;
    int h = blob->max_i - blob->min_i + 1;
 
    if ( w <= 0 || h <= 0 || num_pixels <= 0 ) return;
 
-   // Limpa apenas o trecho de memória que será usado para este blob (Alta performance)
    memset( proj_x, 0, w * sizeof( int ) );
    memset( proj_y, 0, h * sizeof( int ) );
 
    int max_px = 0, max_py = 0;
 
-   // 1. Constrói o histograma de densidade do blob nos eixos X e Y
+   // 1. Constrói o histograma de densidade
    for ( int k = 0; k < num_pixels; k++ ) {
       int x = fila_j[k] - blob->min_j;
       int y = fila_i[k] - blob->min_i;
@@ -153,15 +295,14 @@ static void aparar_riscos_blob( BlobInfo *blob, const int *fila_i, const int *fi
       if ( proj_y[y] > max_py ) max_py = proj_y[y];
    }
 
-   // 2. Define o Limiar de Corte (50% da massa máxima projetada).
-   // Um risco de caneta tem espessura muito menor que a largura do quadrado âncora.
+   // 2. Limiar de Corte (50% da massa máxima projetada)
    int limiar_x = ( int )( max_px * 0.5 );
    int limiar_y = ( int )( max_py * 0.5 );
 
    int novo_min_j = blob->min_j, novo_max_j = blob->max_j;
    int novo_min_i = blob->min_i, novo_max_i = blob->max_i;
 
-   // 3. Amputa as extremidades de baixa densidade (Caudas/Riscos)
+   // 3. Amputa as extremidades (Riscos finos)
    for ( int j = 0; j < w; j++ ) {
       if ( proj_x[j] >= limiar_x ) { novo_min_j = blob->min_j + j; break; }
    }
@@ -175,7 +316,7 @@ static void aparar_riscos_blob( BlobInfo *blob, const int *fila_i, const int *fi
       if ( proj_y[i] >= limiar_y ) { novo_max_i = blob->min_i + i; break; }
    }
 
-   // 4. Consolida o Bounding Box limpo e recalcula Área e Centroide exatos
+   // 4. Consolida o Bounding Box limpo e recalcula
    blob->min_i = novo_min_i;
    blob->max_i = novo_max_i;
    blob->min_j = novo_min_j;
@@ -201,11 +342,12 @@ static void aparar_riscos_blob( BlobInfo *blob, const int *fila_i, const int *fi
    }
 }
 
+
+
 /**
- * Varre a imagem, extrai candidatos OMR (com inteligência contra riscos)
- * e utiliza Avaliação Geométrica para encontrar os 4 quadrados formadores.
+ * Varre a imagem e extrai candidatos OMR (com inteligência contra riscos)
  */
-int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[4], char *direcao_inferida ) {
+static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *blobs ) {
    int nrow = img_bin->nrow;
    int ncol = img_bin->ncol;
 
@@ -213,15 +355,12 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
    g_autofree int *fila_i = g_new( int, nrow * ncol );
    g_autofree int *fila_j = g_new( int, nrow * ncol );
 
-   // Alocação única para os arrays de histograma usados na poda de riscos (Sem gargalos de malloc)
    g_autofree int *proj_x = g_new( int, ncol );
    g_autofree int *proj_y = g_new( int, nrow );
 
    int limiar_binario = img_bin->max / 2;
-   BlobInfo blobs[128];
    int num_blobs = 0;
 
-   // Extração BFS (Flood Fill)
    for ( int i = 0; i < nrow; i++ ) {
       for ( int j = 0; j < ncol; j++ ) {
          if ( img_bin->image[i][j] < limiar_binario && !visitado[i * ncol + j] ) {
@@ -248,17 +387,16 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                      }
                   }
                }
-            } // Fim BFS
+            }
 
-            // ===== INTELIGÊNCIA CONTRA RISCOS DE CANETA =====
-            // Ao fim do BFS, a função apara falhas finas nas bordas do Bounding Box capturado
-            aparar_riscos_blob( &blob, fila_i, fila_j, end_idx, proj_x, proj_y );
+            blob_aparar_riscos( &blob, fila_i, fila_j, end_idx, proj_x, proj_y );
 
             int altura = blob.max_i - blob.min_i + 1;
             int largura = blob.max_j - blob.min_j + 1;
             double aspect_ratio = ( double )largura / ( double )altura;
             double fill_ratio = ( double )blob.area / ( (double)largura * altura );
 
+            // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
             if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
                if ( num_blobs < 128 ) blobs[num_blobs++] = blob;
             }
@@ -269,15 +407,29 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
    if ( num_blobs < 4 ) return 0;
 
    if ( num_blobs > 30 ) {
-      qsort( blobs, num_blobs, sizeof( BlobInfo ), comparar_solidez_blob );
+      qsort( blobs, num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
       num_blobs = 30;
    }
 
-   // ... [Resto do código de Busca Combinatória mantém-se INTACTO] ...
+   return num_blobs;
+}
 
-   // =========================================================================
-   // NOVA ARQUITETURA: BUSCA COMBINATÓRIA COM FITNESS GEOMÉTRICO (Agora com Ortogonalidade)
-   // =========================================================================
+//------------------------------------------------------------------------------------------------------------
+static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
+                                         char *direcao_inferida, gboolean resgate ) {
+   int nrow = img_bin->nrow;
+   int ncol = img_bin->ncol;
+
+   BlobInfo blobs[128] = {0};
+   int num_blobs = 0;
+   if ( resgate ) {
+      int core_size = 31;        // 30 ou 31
+      int margin_size = 7;       // 5 a 9
+      num_blobs = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
+   } else {
+      num_blobs = blob_extrair_quadrados_pretos( img_bin, blobs );
+   }
+
    double menor_erro_global = 1e9;
    gboolean encontrou_padrao = FALSE;
 
@@ -286,18 +438,22 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
          for ( int k = j + 1; k < num_blobs - 1; k++ ) {
             for ( int l = k + 1; l < num_blobs; l++ ) {
 
-               // 1. Filtro Rápido de Área
                double a0 = blobs[i].area, a1 = blobs[j].area, a2 = blobs[k].area, a3 = blobs[l].area;
                double max_a = fmax( fmax( a0, a1 ), fmax( a2, a3 ) );
                double min_a = fmin( fmin( a0, a1 ), fmin( a2, a3 ) );
                if ( max_a / min_a > 2.0 ) continue;
 
-               // 2. Ordenação Polar Rápida
                const BlobInfo *candidatos[4] = { &blobs[i], &blobs[j], &blobs[k], &blobs[l] };
                const BlobInfo *ord[4];
-               ordenar_polar_inline( candidatos, ord );
+               blob_ordenar_polar_inline( candidatos, ord );
 
-               // 3. Medidas reais das arestas do polígono usando limites EXTERNOS
+               // Trava de Rotação (Máx 10 graus)
+               double dx_top = ord[1]->centro_j - ord[0]->centro_j;
+               double dy_top = ord[1]->centro_i - ord[0]->centro_i;
+               double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * 180.0 / M_PI );
+
+               if ( angulo_top_graus > 10.0 && fabs( angulo_top_graus - 90.0 ) > 10.0 ) continue;
+
                double top_w   = hypot( ord[1]->max_j - ord[0]->min_j, ord[1]->min_i - ord[0]->min_i );
                double bot_w   = hypot( ord[2]->max_j - ord[3]->min_j, ord[2]->max_i - ord[3]->max_i );
                double left_h  = hypot( ord[3]->min_j - ord[0]->min_j, ord[3]->max_i - ord[0]->min_i );
@@ -308,21 +464,17 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
 
                if ( larg < 50.0 || alt < 50.0 ) continue;
 
-               // 4. Erro de Paralelogramo (Lados opostos devem ser equivalentes)
                double erro_paralelogramo = ( fabs( top_w - bot_w ) / larg ) + ( fabs( left_h - right_h ) / alt );
                if ( erro_paralelogramo > 0.25 ) continue;
 
-               // 4.1. Erro de Ortogonalidade (Garante que seja um Retângulo, não um Rombo inclinado)
-               // Extração dos vértices externos (p[0] = X = coluna j, p[1] = Y = linha i)
-               double p0[2] = { ord[0]->min_j, ord[0]->min_i }; // Top-Esq
-               double p1[2] = { ord[1]->max_j, ord[1]->min_i }; // Top-Dir
-               double p2[2] = { ord[2]->max_j, ord[2]->max_i }; // Bot-Dir
-               double p3[2] = { ord[3]->min_j, ord[3]->max_i }; // Bot-Esq
+               double p0[2] = { ord[0]->min_j, ord[0]->min_i };
+               double p1[2] = { ord[1]->max_j, ord[1]->min_i };
+               double p2[2] = { ord[2]->max_j, ord[2]->max_i };
+               double p3[2] = { ord[3]->min_j, ord[3]->max_i };
 
-               double erro_ortogonal = gas_erro_ortogonal( p0, p1, p2, p3, top_w, bot_w, left_h, right_h );
-               if ( erro_ortogonal > 0.20 ) continue; // Rejeita se as quinas fugirem muito de 90 graus (cos 0.20 = ~78º ou 101º)
+               double erro_ortogonal = blob_erro_ortogonal( p0, p1, p2, p3, top_w, bot_w, left_h, right_h );
+               if ( erro_ortogonal > 0.20 ) continue;
 
-               // 5. Fórmula de Direção e Proporção
                char dir = ( - ord[0]->min_i - ord[1]->min_i + ord[2]->max_i + ord[3]->max_i <
                             - ord[0]->min_j + ord[1]->max_j + ord[2]->max_j - ord[3]->min_j ) ? 'h' : 'v';
 
@@ -330,10 +482,8 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                double proporcao_real = larg / alt;
                double erro_proporcao = fabs( proporcao_real - proporcao_alvo ) / proporcao_alvo;
 
-               // 6. Erro de Área das Âncoras
                double erro_area_ancoras = ( max_a - min_a ) / max_a;
 
-               // 7. Estratégia dos Cantos Extremos
                double ci_A = ord[0]->centro_i, cj_A = ord[0]->centro_j;
                double ci_B = ord[1]->centro_i, cj_B = ord[1]->centro_j;
                double ci_C = ord[2]->centro_i, cj_C = ord[2]->centro_j;
@@ -347,7 +497,6 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                double max_dist_quad = (double)(nrow * nrow) + (double)(ncol * ncol);
                double erro_extremos = (d_tl + d_tr + d_br + d_bl) / max_dist_quad;
 
-               // 8. Cálculo do Erro Total da Função de Aptidão (Fitness com blindagem ortogonal)
                double erro_total = erro_proporcao + erro_paralelogramo + erro_ortogonal + ( erro_area_ancoras * 0.5 ) + erro_extremos;
 
                if ( erro_total < menor_erro_global ) {
@@ -364,23 +513,21 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
          }
       }
    }
-
-   return encontrou_padrao ? 4 : 0;
+   return encontrou_padrao;
 }
 
 /**
  * Pipeline OMR Determinístico Atualizado.
- * O trabalho geométrico e de blindagem contra ruído é feito na extração.
  */
-gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida ) {
+gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida, gboolean resgate ) {
    BlobInfo melhores_blobs[4];
 
-   // Busca integrada: retorna as 4 âncoras validadas geometricamente e ordenadas
-   if ( extrair_quadrados_pretos( img_bin, melhores_blobs, direcao_inferida ) < 4 ) {
+   // CORREÇÃO CRÍTICA: Se não encontrar (FALSE), deve retornar FALSE. O código anterior abortava em caso de sucesso.
+   if ( !blob_busca_combinatoria( img_bin, melhores_blobs, direcao_inferida, resgate ) ) {
       return FALSE;
    }
 
-   // Construção do Quadrilátero Envolvente usando a orientação validada
+   // Construção do Quadrilátero Envolvente (Limites externos da âncora já limpos do ruído de caneta)
    ancora[0].i = melhores_blobs[0].min_i;
    ancora[0].j = melhores_blobs[0].min_j;
 
@@ -395,7 +542,6 @@ gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4
 
    return TRUE;
 }
-//-----------------------------------------------------------------------------------------------------
 
 
 

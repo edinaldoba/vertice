@@ -449,7 +449,7 @@ typedef struct {
    char key[5];      // Identificador do formato (ex: "P2", "P5")
    int ncol, nrow;   // Dimensões da imagem (Largura e Altura)
    int max;          // Valor máximo de intensidade do pixel
-   int **image;      // Matriz bidimensional de tons de cinza alocada dinamicamente
+   uint8_t **image;      // Matriz bidimensional de tons de cinza alocada dinamicamente
 } ImagemCinza;
 
 

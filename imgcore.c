@@ -21,10 +21,10 @@
 
 
 /* Função auxiliar para alocar a matriz de pixels usando GLib */
-int** alocar_matriz_pixels( int nrow, int ncol ) {
-   int **matriz = g_new( int*, nrow );
+uint8_t** alocar_matriz_pixels( int nrow, int ncol ) {
+   uint8_t **matriz = g_new( uint8_t*, nrow );
    for ( int i = 0; i < nrow; i++ ) {
-      matriz[i] = g_new0( int, ncol ); // g_new0 já zera a memória
+      matriz[i] = g_new0( uint8_t, ncol ); // g_new0 já zera a memória
    }
    return matriz;
 }
@@ -38,7 +38,7 @@ PixelRGB** alocar_matriz_pixels_colorida( int nrow, int ncol ) {
    return matriz;
 }
 
-void liberar_matriz_pixels( int **matriz, int nrow ) {
+void liberar_matriz_pixels( uint8_t **matriz, int nrow ) {
    for ( int i = 0; i < nrow; i++ ) {
       g_free( matriz[i] );
    }
@@ -599,9 +599,9 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
    sprintf( IMG->key, "P5" );
 
    // 1. Pré-alocação segura da matriz 2D
-   IMG->image = ( int** ) malloc( IMG->nrow * sizeof( int* ) );
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      IMG->image[i] = ( int* ) malloc( IMG->ncol * sizeof( int ) );
+   IMG->image = ( uint8_t** ) malloc( IMG->nrow * sizeof( uint8_t* ) );
+   for ( uint8_t i = 0; i < IMG->nrow; i++ ) {
+      IMG->image[i] = ( uint8_t* ) malloc( IMG->ncol * sizeof( uint8_t ) );
    }
 
    // 2. I/O em Bloco (Leitura Massiva)
@@ -661,9 +661,9 @@ void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
    snprintf( IMG->key, sizeof( IMG->key ), "P5" ); // Mais seguro que sprintf
 
    // 2. Pré-alocação segura da matriz 2D com GLib
-   IMG->image = g_new0( int*, IMG->nrow );
+   IMG->image = g_new0( uint8_t*, IMG->nrow );
    for ( int i = 0; i < IMG->nrow; i++ ) {
-      IMG->image[i] = g_new0( int, IMG->ncol );
+      IMG->image[i] = g_new0( uint8_t, IMG->ncol );
    }
 
    // 3. I/O em Bloco (Leitura Massiva)

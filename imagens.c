@@ -114,7 +114,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
       // O processamento interno pesado
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
-         g_remove(path_origem);
+         // g_remove(path_origem);
       } else {
          // g_printerr é thread-safe no Linux, não corrompe o terminal
          g_printerr( "Falha no processamento da imagem: %s\n", file_atual );
@@ -451,20 +451,43 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
       // 3.3 - Binarização de Otsu (In-place)
       binarizar_pgm_metodo_otsu( &img_gray_blur );
 
-      // 3.4 - Detecção de Âncoras OMR
-      sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao );
-
-      // printf( "\ndirecao = %c\nA(%d,%d)  B(%d,%d)\nD(%d,%d)  C(%d,%d)\n\n", map.direcao, ancora[0].i, ancora[0].j, ancora[1].i, ancora[1].j, ancora[3].i, ancora[3].j, ancora[2].i, ancora[2].j );
+      // 3.4 - Detecção de Âncoras OMR (Caminho Rápido)
+      sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao, FALSE );
 
       if ( sucesso ) {
          // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
-         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
-
-         // salvar_imagem_pgm(&img_gray_crop,"./dados/erro.ppm"); // Apenas para inspeção visual
+         transformada_homografica( &img_gray_blur, &img_gray_crop, ancora, map.direcao );
 
          // 3.6 - Leitura e Decodificação do Payload
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
          sucesso = decodificar_payload_matriz( &map, limite );
+      }
+
+      // ======================================================================
+      // PROTEÇÃO DE MEMÓRIA E RESGATE (Slow Path)
+      // ======================================================================
+      if ( !sucesso ) {
+         // Se o payload falhou na 1ª tentativa, 'img_gray_crop' contém matriz alocada.
+         // Precisamos libertá-la antes de tentar o recorte novamente para evitar memory leak!
+         if ( img_gray_crop.image ) {
+            liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+            img_gray_crop.image = NULL;
+            img_gray_crop.nrow = 0;
+            img_gray_crop.ncol = 0;
+         }
+
+         // Tenta detectar âncoras forçando algoritmos de resgate
+         sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao, TRUE );
+
+         if ( sucesso ) {
+            // 3.5 - Transformada Homográfica do Resgate
+            transformada_homografica( &img_gray_blur, &img_gray_crop, ancora, map.direcao );
+            // salvar_imagem_pgm( &img_gray_crop, "./dados/erro.ppm" );
+
+            // 3.6 - Leitura e Decodificação do Payload do Resgate
+            map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
+            sucesso = decodificar_payload_matriz( &map, limite );
+         }
       }
 
       if ( !sucesso ) {
@@ -505,8 +528,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
          ImagemColorida img_rgb_limpa = {0};
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
 
-         // --- NOVO: REALCE DE CORES (Vibrância e Contraste) ---
-         // Exemplo: +30% de contraste e +60% de saturação (ajuste ao seu gosto)
+         // --- REALCE DE CORES (Vibrância e Contraste) ---
          realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
 
          // Salva a imagem tratada com fundo 100% branco e cores vivas
@@ -553,8 +575,6 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
    return n_rejeitadas;
 }
-
-
 
 
 
