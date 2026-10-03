@@ -12,6 +12,6 @@ void* thread_processar_imagens_background( void *data );
 
 void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, InterfacePainel *painel, const AppContext *ctx );
 
-
+void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *map_array, AppContext *ctx );
 
 #endif

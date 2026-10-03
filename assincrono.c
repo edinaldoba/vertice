@@ -8,12 +8,15 @@
 #include <stdlib.h>
 
 #include "assincrono.h"
+#include "comum.h"
 #include "glib/gstdio.h"
+#include "interface.h"
 #include "mensagens.h"
 #include "provas.h"
 #include "basicas.h"
 #include "imagens.h"
 #include "glib_gio.h"
+#include "imgcore.h"
 
 
 
@@ -553,6 +556,223 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
 
 
 
+
+
+//=========================================================================================================
+// Estrutura para transportar o contexto da correção para a callback
+typedef struct {
+   GArray *map_array;        // O array com os dados dos alunos
+   AppContext *ctx;           // O contexto global do app
+   InterfacePainel *painel;   // O painel para dar o feedback
+   char *dir_compile;         // Diretório temporário
+} DadosCorrecaoAsync;
+//------------------------------------------------------------------------------------------------------
+static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
+      const char *arquivo_saida ) {
+   g_autofree char *nome_arquivo_escola = NULL;
+   if ( dados->periodo[0] == 'R' ) {
+      nome_arquivo_escola = g_strdup_printf( "Correção Recuperação Final - %s - %s - %s.pdf",
+                                             dados->ano, dados->turma, dados->disciplina );
+   } else {
+      nome_arquivo_escola = g_strdup_printf( "Correção %s Prova - %s_%c - %s - %s.pdf",
+                                             dados->prova_sequencia, dados->ano, dados->periodo[0],
+                                             dados->turma, dados->disciplina );
+   }
+
+   g_autofree char *pasta_provas_escola = g_build_filename( caminho->externo_escola, "Correções", NULL );
+   g_autofree char *destino_escola      = g_build_filename( pasta_provas_escola, nome_arquivo_escola, NULL );
+
+   // Garante que a pasta "Provas" exista lá no drive/nuvem da escola
+   g_mkdir_with_parents( pasta_provas_escola, 0777 );
+
+   if ( !gio_copiar_arquivo( arquivo_saida, destino_escola ) ) {
+      g_printerr( "Erro ao salvar a cópia institucional na pasta Provas da Escola!\n" );
+   }
+}
+//------------------------------------------------------------------------------------------------------
+static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *map, const int qtd_linhas,
+      const AppContext *ctx ) {
+
+   const InterfaceDados *dados = &ctx->dados;
+   const CaminhoDiretorio *caminho = &ctx->caminho;
+
+   g_autofree char *diretorio_imagens = NULL;
+
+   // 1. Construção simplificada: Não precisamos criar o diretório "Notas" separadamente.
+   // O g_mkdir_with_parents já cria toda a árvore genealógica de pastas se não existirem.
+   if ( dados->periodo[0] == 'R' ) {
+      diretorio_imagens = g_build_filename( caminho->externo, "Notas", "Recuperação Final Imagens Corrigidas", NULL );
+
+   } else {
+      g_autofree char *pasta_imagens = g_strdup_printf( "%s Prova Imagens Corrigidas", dados->prova_sequencia );
+      diretorio_imagens = g_build_filename( caminho->externo, "Notas", pasta_imagens, NULL );
+   }
+
+   // 2. Apenas uma chamada de criação de pasta resolve tudo
+   if ( g_mkdir_with_parents( diretorio_imagens, 0777 ) != 0 ) {
+      g_printerr( "ERRO CRÍTICO: Falha ao criar a hierarquia externa de pastas: %s\n", diretorio_imagens );
+      return;
+   }
+
+   // 3. Libere o poder do OpenMP! A conversão de PDF para PNG consome muita CPU.
+   // Fazer isso em paralelo para 40 alunos economiza dezenas de segundos.
+   #pragma omp parallel for schedule(static)
+   for ( int i = 0; i < qtd_linhas; i++ ) {
+
+      if ( map[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+         int num_aluno = map[i].num;
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, num_aluno - 1 );
+
+         g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", num_aluno );
+         g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
+         g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
+
+         if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 1.5 ) ) {
+            // Em laços OpenMP, evite GTK, mas g_printerr é seguro.
+            g_printerr( "[AVISO] Falha ao converter e mover imagem %s\n", thread_caminho_png );
+         }
+      }
+   }
+
+}
+//------------------------------------------------------------------------------------------------------
+// Callback disparada quando o GNU Parallel + pdflatex terminam a correção
+static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_data ) {
+   DadosCorrecaoAsync *async = ( DadosCorrecaoAsync * ) user_data;
+
+   AppContext *ctx = async->ctx;
+   InterfaceDados *dados = &ctx->dados;
+   CaminhoDiretorio *caminho = &ctx->caminho;
+   InterfacePainel *painel = async->painel;
+   GArray *map_array = async->map_array;
+
+   if ( status == 0 ) {
+      g_print( "[SUCESSO] Processamento assíncrono do LaTeX concluído.\n" );
+
+      // 5.1. Arquivos Não Presenciais
+      if ( dados->naopresencial ) {
+         copiar_arquivos_correcao_nao_presencial( ( MapeamentoGabarito * )map_array->data, map_array->len, ctx );
+      }
+
+      // ====================================================================================
+      // 6. UNIFICAÇÃO DOS PDFS E LIMPEZA NATIVA
+      // ====================================================================================
+      int total_provas = map_array->len;
+      g_auto( GStrv ) arquivos_pdf = g_new0( char *, total_provas + 1 );
+      int qtd_sucessos = 0;
+
+      for ( int i = 0; i < total_provas; i++ ) {
+         MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
+         if ( map->status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+            arquivos_pdf[qtd_sucessos] = g_strdup_printf( "%.2d.pdf", map->num );
+            qtd_sucessos++;
+         }
+      }
+
+      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->iprova );
+      g_autofree char *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
+
+      g_remove( arquivo_saida );
+
+      // Unifica os PDFs
+      g_pdfunite( async->dir_compile, ( const char ** )arquivos_pdf, qtd_sucessos, arquivo_saida );
+
+      // Limpeza com OpenMP
+      #pragma omp parallel for schedule(static)
+      for ( int i = 0; i < total_provas; i++ ) {
+         MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
+         if ( map->status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
+            g_autofree gchar *nome_base = g_strdup_printf( "%.2d", map->num );
+            apagar_arquivos_temporarios_latex_nativamente( async->dir_compile, nome_base, 5 );
+         }
+      }
+
+      // ====================================================================================
+      // 7. EXIBIÇÃO AUTOMÁTICA E FEEDBACK NA INTERFACE
+      // ====================================================================================
+      if ( g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
+         if ( dados->expor ) {
+            copiar_arquivos_correcao_externamente( dados, caminho, arquivo_saida );
+         }
+
+         g_xdg_open( arquivo_saida );
+
+         painel->format_titulo    = meu_gerador_variadico( "✔ Correção Finalizada" );
+         painel->format_subtitulo = meu_gerador_variadico( "%d provas unificadas com sucesso.", qtd_sucessos );
+         painel->format_instrucao = meu_gerador_variadico( "As imagens corrigidas estão prontas no diretório base." );
+         criar_mensagem_painel( SUCESSO, painel );
+
+      } else {
+         painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Geração do PDF" );
+         painel->format_subtitulo = meu_gerador_variadico( "Ocorreu um erro ao unificar os arquivos." );
+         painel->format_instrucao = meu_gerador_variadico( "Verifique se o LaTeX apresentou erros ou se o pdfunite falhou." );
+         criar_mensagem_painel( ERRO, painel );
+      }
+
+   } else {
+      g_printerr( "[ERRO FATAL] O comando LaTeX assíncrono falhou (Status: %d).\n", status );
+      painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Compilação" );
+      painel->format_subtitulo = meu_gerador_variadico( "O motor LaTeX abortou o processamento." );
+      painel->format_instrucao = meu_gerador_variadico( "Verifique os logs do terminal." );
+      criar_mensagem_painel( ERRO, painel );
+   }
+
+   // -------------------------------------------------------------------------
+   // DESBLOQUEIO DE INTERFACE:
+   // Se você bloqueia o botão de "Corrigir" lá na função principal,
+   // desbloqueie-o aqui. Exemplo:
+   gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+   // -------------------------------------------------------------------------
+
+   // LIBERAÇÃO SEGURA DE MEMÓRIA (O map_array morre AQUI, e não na corrigir_prova)
+   g_array_free( async->map_array, TRUE );
+   g_free( async->dir_compile );
+   g_free( async );
+
+   g_spawn_close_pid( pid );
+}
+//------------------------------------------------------------------------------------------------------
+void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *map_array, AppContext *ctx ) {
+   // Empacota os dados para enviar à callback
+   GError *erro = NULL;
+
+   DadosCorrecaoAsync *async_data = g_new0( DadosCorrecaoAsync, 1 );
+   async_data->map_array  = map_array; // Transferência da posse da memória
+   async_data->ctx         = ctx;
+   async_data->painel      = painel;
+   async_data->dir_compile = g_strdup( "./dados/temporarios" );
+
+   int num_cores = ( int ) g_get_num_processors();
+   GPid pid;
+
+   g_autofree char *comando_interno = g_strdup_printf(
+            "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
+   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+
+   if ( !g_spawn_async( async_data->dir_compile, argv, NULL,
+                        G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
+                        NULL, NULL, &pid, &erro ) ) {
+
+      g_printerr( "[ERRO FATAL] Falha ao iniciar correção assíncrona: %s\n", erro->message );
+      g_clear_error( &erro );
+
+      // Como falhou ao iniciar a thread, liberamos a memória do array e da struct agora
+      g_array_free( async_data->map_array, TRUE );
+      g_free( async_data->dir_compile );
+      g_free( async_data );
+
+      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+
+      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o GNU Parallel." );
+      painel->format_instrucao = meu_gerador_variadico( "Tente novamente." );
+      criar_mensagem_painel( ERRO, painel );
+
+   } else {
+      // O GNU Parallel iniciou! A callback `ao_terminar_correcao_prova` assume o controle.
+      g_child_watch_add( pid, ao_terminar_correcao_prova, async_data );
+   }
+}
 
 
 
