@@ -1369,3 +1369,51 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
    liberar_matriz_pixels_colorida( fundo.image, rows );
 }
 
+
+
+/**
+ * Realça o contraste e a saturação da imagem in-place.
+ * @param img Matriz de pixels a ser alterada.
+ * @param contraste Fator de contraste (1.0 = original, > 1.0 aumenta. Ex: 1.2)
+ * @param saturacao Fator de saturação (1.0 = original, > 1.0 aumenta. Ex: 1.5)
+ */
+void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturacao ) {
+   if ( !img || !img->image ) return;
+
+   int nrow = img->nrow;
+   int ncol = img->ncol;
+
+   for ( int i = 0; i < nrow; i++ ) {
+      for ( int j = 0; j < ncol; j++ ) {
+         PixelRGB *p = &img->image[i][j];
+
+         float r = (float)p->r;
+         float g = (float)p->g;
+         float b = (float)p->b;
+
+         // 1. Aplicação de Contraste (afasta do ponto central 128)
+         r = 128.0f + ( r - 128.0f ) * contraste;
+         g = 128.0f + ( g - 128.0f ) * contraste;
+         b = 128.0f + ( b - 128.0f ) * contraste;
+
+         // 2. Aplicação de Saturação
+         // Calcula a luminância (brilho percebido do pixel) usando os pesos standard da ITU-R
+         float luma = 0.299f * r + 0.587f * g + 0.114f * b;
+
+         // Afasta os canais individuais da sua versão em tons de cinza
+         r = luma + ( r - luma ) * saturacao;
+         g = luma + ( g - luma ) * saturacao;
+         b = luma + ( b - luma ) * saturacao;
+
+         // 3. Clamping seguro (impede que os valores ultrapassem 0 e 255)
+         r = fmaxf( 0.0f, fminf( r, 255.0f ) );
+         g = fmaxf( 0.0f, fminf( g, 255.0f ) );
+         b = fmaxf( 0.0f, fminf( b, 255.0f ) );
+
+         // 4. Arredondamento e devolução ao pixel
+         p->r = (uint8_t)( r + 0.5f );
+         p->g = (uint8_t)( g + 0.5f );
+         p->b = (uint8_t)( b + 0.5f );
+      }
+   }
+}

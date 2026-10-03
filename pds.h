@@ -35,6 +35,8 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
 void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur );
 
+void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturacao );
+
 
 
 #endif

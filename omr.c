@@ -123,9 +123,87 @@ static double gas_erro_ortogonal( const double p0[2], const double p1[2],
    return ( cos0 + cos1 + cos2 + cos3 ) / 4.0;
 }
 
+
 /**
- * Varre a imagem, extrai candidatos OMR e utiliza Avaliação Geométrica Combinatória
- * e Cantos Extremos para encontrar o gabarito.
+ * Função auxiliar inteligente para separar a âncora quadrada de riscos de caneta.
+ * Utiliza histogramas de projeção ortogonal (X e Y) para detectar "caudas" e amputá-las,
+ * recalculando o Bounding Box estrito e o Centroide apenas com a massa sólida.
+ */
+static void aparar_riscos_blob( BlobInfo *blob, const int *fila_i, const int *fila_j, int num_pixels, int *proj_x, int *proj_y ) {
+   int w = blob->max_j - blob->min_j + 1;
+   int h = blob->max_i - blob->min_i + 1;
+
+   if ( w <= 0 || h <= 0 || num_pixels <= 0 ) return;
+
+   // Limpa apenas o trecho de memória que será usado para este blob (Alta performance)
+   memset( proj_x, 0, w * sizeof( int ) );
+   memset( proj_y, 0, h * sizeof( int ) );
+
+   int max_px = 0, max_py = 0;
+
+   // 1. Constrói o histograma de densidade do blob nos eixos X e Y
+   for ( int k = 0; k < num_pixels; k++ ) {
+      int x = fila_j[k] - blob->min_j;
+      int y = fila_i[k] - blob->min_i;
+
+      proj_x[x]++;
+      proj_y[y]++;
+
+      if ( proj_x[x] > max_px ) max_px = proj_x[x];
+      if ( proj_y[y] > max_py ) max_py = proj_y[y];
+   }
+
+   // 2. Define o Limiar de Corte (50% da massa máxima projetada).
+   // Um risco de caneta tem espessura muito menor que a largura do quadrado âncora.
+   int limiar_x = ( int )( max_px * 0.5 );
+   int limiar_y = ( int )( max_py * 0.5 );
+
+   int novo_min_j = blob->min_j, novo_max_j = blob->max_j;
+   int novo_min_i = blob->min_i, novo_max_i = blob->max_i;
+
+   // 3. Amputa as extremidades de baixa densidade (Caudas/Riscos)
+   for ( int j = 0; j < w; j++ ) {
+      if ( proj_x[j] >= limiar_x ) { novo_min_j = blob->min_j + j; break; }
+   }
+   for ( int j = w - 1; j >= 0; j-- ) {
+      if ( proj_x[j] >= limiar_x ) { novo_max_j = blob->min_j + j; break; }
+   }
+   for ( int i = 0; i < h; i++ ) {
+      if ( proj_y[i] >= limiar_y ) { novo_min_i = blob->min_i + i; break; }
+   }
+   for ( int i = h - 1; i >= 0; i-- ) {
+      if ( proj_y[i] >= limiar_y ) { novo_max_i = blob->min_i + i; break; }
+   }
+
+   // 4. Consolida o Bounding Box limpo e recalcula Área e Centroide exatos
+   blob->min_i = novo_min_i;
+   blob->max_i = novo_max_i;
+   blob->min_j = novo_min_j;
+   blob->max_j = novo_max_j;
+   blob->area = 0;
+
+   double soma_i = 0, soma_j = 0;
+
+   for ( int k = 0; k < num_pixels; k++ ) {
+      int ci = fila_i[k];
+      int cj = fila_j[k];
+
+      if ( ci >= novo_min_i && ci <= novo_max_i && cj >= novo_min_j && cj <= novo_max_j ) {
+         blob->area++;
+         soma_i += ci;
+         soma_j += cj;
+      }
+   }
+
+   if ( blob->area > 0 ) {
+      blob->centro_i = soma_i / blob->area;
+      blob->centro_j = soma_j / blob->area;
+   }
+}
+
+/**
+ * Varre a imagem, extrai candidatos OMR (com inteligência contra riscos)
+ * e utiliza Avaliação Geométrica para encontrar os 4 quadrados formadores.
  */
 int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[4], char *direcao_inferida ) {
    int nrow = img_bin->nrow;
@@ -135,11 +213,15 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
    g_autofree int *fila_i = g_new( int, nrow * ncol );
    g_autofree int *fila_j = g_new( int, nrow * ncol );
 
+   // Alocação única para os arrays de histograma usados na poda de riscos (Sem gargalos de malloc)
+   g_autofree int *proj_x = g_new( int, ncol );
+   g_autofree int *proj_y = g_new( int, nrow );
+
    int limiar_binario = img_bin->max / 2;
    BlobInfo blobs[128];
    int num_blobs = 0;
 
-   // Extração BFS (Flood Fill) ... (código mantido) ...
+   // Extração BFS (Flood Fill)
    for ( int i = 0; i < nrow; i++ ) {
       for ( int j = 0; j < ncol; j++ ) {
          if ( img_bin->image[i][j] < limiar_binario && !visitado[i * ncol + j] ) {
@@ -147,11 +229,9 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
             fila_i[end_idx] = i; fila_j[end_idx] = j; end_idx++; visitado[i * ncol + j] = 1;
 
             BlobInfo blob = { i, i, j, j, 0, 0.0, 0.0 };
-            double soma_i = 0, soma_j = 0;
 
             while ( start_idx < end_idx ) {
                int ci = fila_i[start_idx], cj = fila_j[start_idx]; start_idx++;
-               blob.area++; soma_i += ci; soma_j += cj;
 
                if ( ci < blob.min_i ) blob.min_i = ci;
                if ( ci > blob.max_i ) blob.max_i = ci;
@@ -170,14 +250,16 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
                }
             } // Fim BFS
 
+            // ===== INTELIGÊNCIA CONTRA RISCOS DE CANETA =====
+            // Ao fim do BFS, a função apara falhas finas nas bordas do Bounding Box capturado
+            aparar_riscos_blob( &blob, fila_i, fila_j, end_idx, proj_x, proj_y );
+
             int altura = blob.max_i - blob.min_i + 1;
             int largura = blob.max_j - blob.min_j + 1;
             double aspect_ratio = ( double )largura / ( double )altura;
             double fill_ratio = ( double )blob.area / ( (double)largura * altura );
 
             if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
-               blob.centro_i = soma_i / blob.area;
-               blob.centro_j = soma_j / blob.area;
                if ( num_blobs < 128 ) blobs[num_blobs++] = blob;
             }
          }
@@ -190,6 +272,8 @@ int extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo ancora_final[
       qsort( blobs, num_blobs, sizeof( BlobInfo ), comparar_solidez_blob );
       num_blobs = 30;
    }
+
+   // ... [Resto do código de Busca Combinatória mantém-se INTACTO] ...
 
    // =========================================================================
    // NOVA ARQUITETURA: BUSCA COMBINATÓRIA COM FITNESS GEOMÉTRICO (Agora com Ortogonalidade)

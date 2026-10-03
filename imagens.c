@@ -113,7 +113,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
       // O processamento interno pesado
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
-         // g_remove(path_origem);
+         g_remove(path_origem);
       } else {
          // g_printerr é thread-safe no Linux, não corrompe o terminal
          g_printerr( "Falha no processamento da imagem: %s\n", file_atual );
@@ -500,11 +500,15 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
 
-         // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
+         // --- FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
 
-         // Salva a imagem tratada com fundo 100% branco
+         // --- NOVO: REALCE DE CORES (Vibrância e Contraste) ---
+         // Exemplo: +30% de contraste e +60% de saturação (ajuste ao seu gosto)
+         realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
+
+         // Salva a imagem tratada com fundo 100% branco e cores vivas
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
 
          liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
