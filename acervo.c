@@ -197,6 +197,12 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
       motor_gerador_latex( pasta_tema, listas->subtemas[i].str, dados );
    }
 
+   if ( widget == ctx->button.compilar_latex_acervo ) {
+      painel->format_titulo    = meu_gerador_variadico( "⏳ Compilação em Andamento" );
+      painel->format_subtitulo = meu_gerador_variadico( "O documento PDF deste acervo ainda não foi gerado." );
+      painel->format_instrucao = meu_gerador_variadico( "Processando as questões de %s. Aguarde a conclusão para visualizar o material.", dados->tema );
+      criar_mensagem_painel( INFO, painel );
+   }
 
    // 2. Dispara o processamento paralelo e assíncrono para gerar os PDFs!
    g_autofree char *pasta_raiz_tema = g_build_filename( caminho->banco_questoes, dados->tema, NULL );

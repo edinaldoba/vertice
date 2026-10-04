@@ -114,7 +114,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
       // O processamento interno pesado
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
-         // g_remove(path_origem);
+         g_remove(path_origem);
       } else {
          // g_printerr é thread-safe no Linux, não corrompe o terminal
          g_printerr( "Falha no processamento da imagem: %s\n", file_atual );
@@ -529,7 +529,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
 
          // --- REALCE DE CORES (Vibrância e Contraste) ---
-         realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
+         realcar_cores_in_place( &img_rgb_limpa, 1.4f, 1.8f );
 
          // Salva a imagem tratada com fundo 100% branco e cores vivas
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );

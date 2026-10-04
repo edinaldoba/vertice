@@ -61,13 +61,6 @@ bool verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, con
 
 
 
-//=================================================================================================================
-
-//=================================================================================================================
-
-
-
-
 
 void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados ) {
    char artigo = ( dados->periodo[0] == 'R' ) ? 'a' : 'o';
@@ -127,6 +120,7 @@ void reexibir_ultima_mensagem( InterfacePainel *painel ) {
    painel->timeout_id = g_timeout_add( 5000, ocultar_painel_feedback_cb, painel );
 }
 
+//=================================================================================================================
 void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    g_return_if_fail( painel != NULL );
    g_return_if_fail( painel->revealer_painel != NULL );
@@ -181,9 +175,9 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    }
 
    // 4. Injeção dos textos formatados
-   gtk_label_set_text( GTK_LABEL( painel->titulo ), painel->format_titulo );
-   gtk_label_set_text( GTK_LABEL( painel->subtitulo ), painel->format_subtitulo );
-   gtk_label_set_text( GTK_LABEL( painel->instrucao ), painel->format_instrucao );
+   gtk_label_set_markup( GTK_LABEL( painel->titulo )   , painel->format_titulo    );
+   gtk_label_set_markup( GTK_LABEL( painel->subtitulo ), painel->format_subtitulo );
+   gtk_label_set_markup( GTK_LABEL( painel->instrucao ), painel->format_instrucao );
 
    // 5. Liberação de memória das strings temporárias
    g_free( painel->format_titulo );
@@ -216,15 +210,64 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    painel->timeout_id = g_timeout_add( tempo_exibicao, ocultar_painel_feedback_cb, painel );
 }
 //-------------------------------------------------------------------------------
+void agendar_ou_exibir_mensagem_painel( MensagemTipo tipo, InterfacePainel *painel,
+                                        gchar *titulo, gchar *subtitulo, gchar *instrucao ) {
+
+   if ( !painel || !painel->revealer_painel ) {
+      g_free( titulo );
+      g_free( subtitulo );
+      g_free( instrucao );
+      return;
+   }
+
+   GtkRevealer *rev = GTK_REVEALER( painel->revealer_painel );
+
+   gboolean painel_ocupado = ( painel->timeout_id > 0 ) ||
+                             gtk_revealer_get_reveal_child( rev ) ||
+                             gtk_revealer_get_child_revealed( rev );
+
+   if ( painel_ocupado ) {
+      // Limpa agendamento anterior se houver
+      g_free( painel->proximo_titulo );
+      g_free( painel->proximo_subtitulo );
+      g_free( painel->proximo_instrucao );
+
+      // Guarda a NOVA mensagem na fila
+      painel->proximo_tipo       = tipo;
+      painel->proximo_titulo     = titulo;
+      painel->proximo_subtitulo  = subtitulo;
+      painel->proximo_instrucao  = instrucao;
+      painel->tem_proxima_mensagem = TRUE;
+
+   } else {
+      // Tela completamente limpa. Exibe direto!
+      painel->format_titulo    = titulo;
+      painel->format_subtitulo = subtitulo;
+      painel->format_instrucao = instrucao;
+      criar_mensagem_painel( tipo, painel );
+   }
+}
+//=================================================================================================================
 
 
 
 
 
+/**
+ * Encapsula a formatação variádica de strings com escape automático de marcação Markup/Pango.
+ * Retorna uma nova string alocada (deve ser liberada com g_free() ou usada em g_autofree).
+ */
 gchar* meu_gerador_variadico( const char *formato, ... ) {
+   g_return_val_if_fail( formato != NULL, NULL );
+
    va_list args;
    va_start( args, formato );
+
+   // g_markup_vprintf_escaped já faz o trabalho pesado de escapar caracteres de markup
+   // e alocar exatamente o buffer necessário em memória RAM.
    gchar *resultado = g_markup_vprintf_escaped( formato, args );
+
    va_end( args );
+
    return resultado;
 }

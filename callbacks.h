@@ -132,6 +132,7 @@ gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCross
 gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_painel_feedback_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
+void on_revealer_child_revealed_notify( GtkWidget *widget, GParamSpec *pspec, gpointer user_data );
 
 
 

@@ -388,9 +388,9 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
    else if ( contador == dados->qtd_alunos_ativos ) {
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
 
-      // Exemplo de uso na rotina de verificação do Diário/Gabarito:
       char *msg_gabarito = meu_gerador_variadico(
-                              "<b>ESCOLA:</b> %s\n"  "<b>TURMA:</b> %s\n\n"
+                              "<b>ESCOLA:</b> %s\n"
+                              "<b>TURMA:</b> %s\n\n"
                               "O arquivo de <b>Gabaritos</b> da <b>%s Prova</b> do <b>%s</b> já existe.\n\n"
                               "Deseja criar um novo arquivo e sobrescrever o anterior?",
                               dados->escola, dados->turma, dados->prova_sequencia, dados->periodo
@@ -410,8 +410,17 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
          painel->format_instrucao = meu_gerador_variadico( "O arquivo antigo foi sobrescrito conforme solicitado." );
       }
 
-      // Dispara o motor central com estado de SUCESSO
+      // 1. Sobe a mensagem de SUCESSO (ficará visível por 4 segundos)
       criar_mensagem_painel( SUCESSO, painel );
+
+      // 2. Prepara e AGENDA a mensagem de INFO sem interromper a atual (passando FALSE)
+      gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
+      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 30 segundos." );
+      gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.",
+                                                        ctx->dados.escola, ctx->dados.ano );
+
+      // O FALSE garante que o SUCESSO não seja cortado abruptamente!
+      agendar_ou_exibir_mensagem_painel( INFO, painel, format_titulo, format_subtitulo, format_instrucao );
    }
 }
 

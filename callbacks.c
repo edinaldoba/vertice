@@ -1167,7 +1167,7 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
 
    GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
 
-   // Refatoração focada na clareza e prevenção de erros humanos
+   // Pop-up de confirmação de segurança e vínculo dos gabaritos
    g_autofree gchar *mensagem = meu_gerador_variadico(
       "Você está prestes a iniciar a leitura óptica das provas.\n\n"
       "<b>ESCOLA:</b> %s\n"
@@ -1177,10 +1177,19 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
       "Confirma que as imagens na pasta pertencem a esta escola e ano?",
       ctx->dados.escola, ctx->dados.ano );
 
-   // Sugestão: Mudar o título do pop-up para algo que exija mais atenção
    gboolean continuar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Vínculo das Provas", mensagem );
 
    if ( continuar ) {
+      InterfacePainel *painel = &ctx->painel;
+
+      // Mensagem indicando o início do processamento assíncrono das imagens em segundo plano
+      painel->format_titulo    = meu_gerador_variadico( "⏳ Leitura Óptica em Andamento" );
+      painel->format_subtitulo = meu_gerador_variadico( "O processamento das imagens foi iniciado em segundo plano." );
+      painel->format_instrucao = meu_gerador_variadico( "As provas de '%s' (%s) estão sendo decodificadas.",
+                                                        ctx->dados.escola, ctx->dados.ano );
+      criar_mensagem_painel( INFO, painel );
+
+      // Dispara a thread em background para liberar o loop da interface GTK3
       disparar_processamento_imagens_assincrono( widget, ctx, thread_processar_imagens_background );
    }
 }
@@ -1512,4 +1521,36 @@ gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *eve
    return FALSE;
 }
 
+
+
+
+// Callback que dispara quando o Revealer termina a animação (abriu 100% ou fechou 100%)
+void on_revealer_child_revealed_notify( GtkWidget *widget, GParamSpec *pspec, gpointer user_data ) {
+   (void)pspec;
+   GtkRevealer *revealer = GTK_REVEALER( widget );
+   AppContext *ctx = ( AppContext * )user_data;
+   InterfacePainel *painel = &ctx->painel;
+
+   // Verifica se o revealer acabou de FECHAR completamente
+   if ( !gtk_revealer_get_child_revealed( revealer ) ) {
+
+      // Se houver uma nova mensagem na fila aguardando a descida:
+      if ( painel->tem_proxima_mensagem ) {
+         painel->tem_proxima_mensagem = FALSE;
+
+         // Atribui os textos preparados
+         painel->format_titulo    = painel->proximo_titulo;
+         painel->format_subtitulo = painel->proximo_subtitulo;
+         painel->format_instrucao = painel->proximo_instrucao;
+
+         // Reseta os ponteiros de espera
+         painel->proximo_titulo    = NULL;
+         painel->proximo_subtitulo = NULL;
+         painel->proximo_instrucao = NULL;
+
+         // Exibe imediatamente a nova mensagem INFO de processamento longo
+         criar_mensagem_painel( painel->proximo_tipo, painel );
+      }
+   }
+}
 

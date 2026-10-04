@@ -254,7 +254,8 @@ void inicializacao_app_context( AppContext *ctx ) {
       .painel = {
          .format_titulo    = NULL,
          .format_subtitulo = NULL,
-         .format_instrucao = NULL
+         .format_instrucao = NULL,
+         .tem_proxima_mensagem = FALSE
       },
 
       .handlers = {

@@ -336,5 +336,8 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_orelhinha ), "button-press-event",
                   G_CALLBACK( on_orelhinha_button_press_event ), ctx );
 
+   g_signal_connect( ctx->painel.revealer_painel, "notify::child-revealed",
+                  G_CALLBACK( on_revealer_child_revealed_notify ), ctx );
+
 
 }

@@ -21,6 +21,11 @@
 
 
 
+// ============================================================================
+// CONSTANTES E CONFIGURAÇÕES
+// ============================================================================
+#define MAX_CANDIDATOS 128
+
 // Estruturas de dados base
 typedef struct {
    int min_i, max_i;
@@ -40,11 +45,13 @@ typedef struct {
    int core_size;      // Largura/Altura do quadrado preto interno
    int margin_size;    // Largura da margem branca ao redor
    int total_size;     // core_size + 2 * margin_size
+   double max_energia; // Pré-calculado para otimização
 } TemplateParams;
 
 // OTIMIZAÇÃO DE OPENMP
-static __thread double g_centro_img_i = 0.0;
-static __thread double g_centro_img_j = 0.0;
+// Nota: O uso de _Thread_local (C11) é o padrão moderno em substituição ao __thread
+static _Thread_local double g_centro_img_i = 0.0;
+static _Thread_local double g_centro_img_j = 0.0;
 
 // ============================================================================
 // MÓDULO 1: Ordenação Polar
@@ -60,62 +67,52 @@ static int comparar_polar(const void *a, const void *b) {
 }
 
 // ============================================================================
-// MÓDULO 2: Correlação Cruzada Direta (Sem Normalização ZNCC)
+// MÓDULO 2: Correlação Cruzada Direta (Otimizada)
 // ============================================================================
-/**
- * Calcula a Correlação Cruzada Direta (Produto Escalar entre Imagem e Template).
- * Template Sintético:
- *   - Margem branca = Peso +1 (busca pixels claros nas bordas)
- *   - Core preto   = Peso -1 (penaliza pixels claros no miolo)
- *
- * Retorna o sinal da correlação normalizado em relação à energia máxima teórica.
- */
 static double calcular_correcao_cruzada_direta(const ImagemCinza *img, int start_i, int start_j, const TemplateParams *tpl) {
    int soma_margem = 0;
    int soma_core = 0;
 
-   int ts = tpl->total_size;
-   int ms = tpl->margin_size;
-   int limit_core = ts - ms;
+   const int ts = tpl->total_size;
+   const int ms = tpl->margin_size;
+   const int limit_core = ts - ms;
 
-   for (int i = 0; i < ts; i++) {
+   // 1. Margem Superior (Apenas branco)
+   for (int i = 0; i < ms; i++) {
       const uint8_t *linha = img->image[start_i + i];
-
-      if (i < ms || i >= limit_core) {
-         for (int j = 0; j < ts; j++) {
-            soma_margem += linha[start_j + j];
-         }
-      } else {
-         for (int j = 0; j < ms; j++) {
-            soma_margem += linha[start_j + j];
-         }
-         for (int j = ms; j < limit_core; j++) {
-            soma_core += linha[start_j + j];
-         }
-         for (int j = limit_core; j < ts; j++) {
-            soma_margem += linha[start_j + j];
-         }
+      for (int j = 0; j < ts; j++) {
+         soma_margem += linha[start_j + j];
       }
    }
 
-   // Produto Escalar da Correlação Cruzada:
-   // Favorece soma_margem alta (branca) e soma_core baixa (preta)
+   // 2. Miolo (Margem Esquerda + Core Preto + Margem Direita)
+   for (int i = ms; i < limit_core; i++) {
+      const uint8_t *linha = img->image[start_i + i];
+
+      for (int j = 0; j < ms; j++) soma_margem += linha[start_j + j];
+      for (int j = ms; j < limit_core; j++) soma_core += linha[start_j + j];
+      for (int j = limit_core; j < ts; j++) soma_margem += linha[start_j + j];
+   }
+
+   // 3. Margem Inferior (Apenas branco)
+   for (int i = limit_core; i < ts; i++) {
+      const uint8_t *linha = img->image[start_i + i];
+      for (int j = 0; j < ts; j++) {
+         soma_margem += linha[start_j + j];
+      }
+   }
+
    double correlacao = (double)soma_margem - (double)soma_core;
 
-   // Energia máxima teórica para o template ideal
-   int pixels_margem = (ts * ts) - (tpl->core_size * tpl->core_size);
-   double max_energia = (double)pixels_margem * 255.0;
-
-   if (max_energia <= 0.0) return 0.0;
-
-   return correlacao / max_energia;
+   if (tpl->max_energia <= 0.0) return 0.0;
+   return correlacao / tpl->max_energia;
 }
 
 // ============================================================================
 // MÓDULO 3: Non-Maximum Suppression (NMS)
 // ============================================================================
 static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candidatos,
-                                   BlobInfo nova_blob, double novo_score, int raio_supressao) {
+                                    BlobInfo nova_blob, double novo_score, int raio_supressao) {
 
    double raio_sq = (double)(raio_supressao * raio_supressao);
 
@@ -129,11 +126,12 @@ static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candida
             candidatos[k].blob = nova_blob;
             candidatos[k].score = novo_score;
          }
-         return;
+         return; // Supressão ocorreu (atualizando ou descartando), podemos sair
       }
    }
 
-   if (*num_candidatos < 128) {
+   // Adiciona novo candidato se houver espaço no buffer
+   if (*num_candidatos < MAX_CANDIDATOS) {
       candidatos[*num_candidatos].blob = nova_blob;
       candidatos[*num_candidatos].score = novo_score;
       (*num_candidatos)++;
@@ -141,31 +139,38 @@ static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candida
 }
 
 // ============================================================================
-// MÓDULO 4: Função Principal de Extração por Correlação Cruzada
+// MÓDULO 4: Função Principal de Extração
 // ============================================================================
 static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size) {
-   MatchCandidate candidatos[128];
-   int num_candidatos = 0;
+   float limiar_correlacao = 0.5;
+   int stride_busca = 1;
+   int max_blobs_saida = MAX_CANDIDATOS;
 
-   const double LIMIAR_CORRELACAO = 0.50; // Limiar de correlação cruzada direta
-   const int stride = 3;
+   MatchCandidate candidatos[MAX_CANDIDATOS];
+   int num_candidatos = 0;
 
    TemplateParams tpl;
    tpl.core_size = core_size;
    tpl.margin_size = margin_size;
    tpl.total_size = core_size + 2 * margin_size;
 
-   int raio_nms = (tpl.total_size * 70) / 100;
+   // Pré-cálculo da energia máxima teórica para O(1) dentro do laço
+   int pixels_margem = (tpl.total_size * tpl.total_size) - (core_size * core_size);
+   tpl.max_energia = (double)pixels_margem * 255.0;
 
+   int raio_nms = (tpl.total_size * 70) / 100;
    int limite_i = img->nrow - tpl.total_size;
    int limite_j = img->ncol - tpl.total_size;
 
-   for (int i = 0; i <= limite_i; i += stride) {
-      for (int j = 0; j <= limite_j; j += stride) {
+   // ATENÇÃO (OPENMP): Se for paralelizar este laço (ex: #pragma omp parallel for),
+   // a matriz 'candidatos' e 'num_candidatos' sofrerão Race Conditions na chamada de NMS.
+   // Recomenda-se buffers locais por thread fundidos ao final em caso de paralelismo aqui.
+   for (int i = 0; i <= limite_i; i += stride_busca) {
+      for (int j = 0; j <= limite_j; j += stride_busca) {
 
          double score = calcular_correcao_cruzada_direta(img, i, j, &tpl);
 
-         if (score > LIMIAR_CORRELACAO) {
+         if (score > limiar_correlacao) {
             BlobInfo blob;
             blob.min_i = i + tpl.margin_size;
             blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
@@ -181,15 +186,17 @@ static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, in
       }
    }
 
+   // Transfere o resultado e aplica ordenação e corte se necessário
    for (int k = 0; k < num_candidatos; k++) {
       blobs[k] = candidatos[k].blob;
    }
 
-   if (num_candidatos > 30) {
+   if (num_candidatos > max_blobs_saida) {
       g_centro_img_i = img->nrow / 2.0;
       g_centro_img_j = img->ncol / 2.0;
 
       qsort(blobs, num_candidatos, sizeof(BlobInfo), comparar_polar);
+      num_candidatos = max_blobs_saida;
    }
 
    return num_candidatos;
@@ -398,7 +405,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
             // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
             if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
-               if ( num_blobs < 128 ) blobs[num_blobs++] = blob;
+               if ( num_blobs < MAX_CANDIDATOS ) blobs[num_blobs++] = blob;
             }
          }
       }
@@ -417,14 +424,15 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 //------------------------------------------------------------------------------------------------------------
 static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
                                          char *direcao_inferida, gboolean resgate ) {
+   // (void)resgate;
    int nrow = img_bin->nrow;
    int ncol = img_bin->ncol;
 
-   BlobInfo blobs[128] = {0};
+   BlobInfo blobs[MAX_CANDIDATOS] = {0};
    int num_blobs = 0;
    if ( resgate ) {
-      int core_size = 31;        // 30 ou 31
-      int margin_size = 7;       // 5 a 9
+      int core_size = 28;
+      int margin_size = 7;
       num_blobs = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
    } else {
       num_blobs = blob_extrair_quadrados_pretos( img_bin, blobs );

@@ -255,6 +255,13 @@ typedef struct {
    gchar *format_titulo, *format_subtitulo, *format_instrucao, *format_cabecalho;
    guint timeout_id;
    gboolean mouse_hover;
+
+   // Novos campos para encadeamento de mensagens
+   gboolean tem_proxima_mensagem;
+   MensagemTipo proximo_tipo;
+   char *proximo_titulo;
+   char *proximo_subtitulo;
+   char *proximo_instrucao;
 } InterfacePainel;
 
 
