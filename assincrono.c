@@ -22,14 +22,17 @@
 
 
 typedef struct {
-   InterfacePainel  *painel;      // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
-   InterfaceDados   dados;        // ◄ Por valor (Cópia estática blindada)
-   InterfaceListas  listas;       // ◄ Por valor
-   FocoCoordenadas  foco;         // ◄ Por valor
-   CaminhoDiretorio caminho;      // ◄ Por valor
-   CalendarioData   data;         // ◄ Por valor
-   GArray           *fichas;      // ◄ Ponteiro (Clone seguro na Heap para a Thread)
-   GtkWidget        *botao_gerar; // ◄ Ponteiro (Widget vivo)
+   InterfacePainel  *painel;         // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
+   InterfaceDados   dados;           // ◄ Por valor (Cópia estática blindada)
+   InterfaceListas  listas;          // ◄ Por valor
+   FocoCoordenadas  foco;            // ◄ Por valor
+   CaminhoDiretorio caminho;         // ◄ Por valor
+   CalendarioData   data;            // ◄ Por valor
+   GArray           *fichas;         // ◄ Ponteiro (Clone seguro na Heap para a Thread)
+   GtkWidget        *botao_gerar;    // ◄ Ponteiro (Widget vivo)
+   GtkWidget        *botao_corrigir; // ◄ Ponteiro (Widget vivo)
+   GtkWidget        *botao_importar; // ◄ Ponteiro (Widget vivo)
+   GtkWidget        *aba_latex;      // ◄ Ponteiro (Widget vivo)
    bool             sucesso;
 } ProvaThreadArgs;
 
@@ -67,15 +70,30 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->painel      = &ctx->painel; // Ponteiro para o painel atual do AppContext
    args->fichas      = clonar_diario_alunos( ctx->fichas );
    args->botao_gerar = widget;
+   args->botao_corrigir = ctx->button.corrigir_prova;
+   args->botao_importar = ctx->button.importar_dados;
+
+   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 ); // ABA LATEX
+   args->aba_latex = aba_latex;
 
    pthread_t thread_id;
    pthread_attr_t attr;
    pthread_attr_init( &attr );
    pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
 
+   gtk_widget_set_sensitive( widget, FALSE );
+   gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
+   gtk_widget_set_sensitive( ctx->button.importar_dados, FALSE );
+   gtk_widget_set_sensitive( aba_latex, FALSE );
+
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
-      g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
+
       gtk_widget_set_sensitive( widget, TRUE );
+      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+      gtk_widget_set_sensitive( ctx->button.importar_dados, TRUE );
+      gtk_widget_set_sensitive( aba_latex, TRUE );
+
+      g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
       if ( args->fichas ) g_array_unref( args->fichas );
       free( args );
    }
@@ -122,9 +140,10 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
    if ( !args ) return FALSE;
 
-   if ( args->botao_gerar ) {
-      gtk_widget_set_sensitive( args->botao_gerar, TRUE );
-   }
+   if ( args->botao_gerar )    gtk_widget_set_sensitive( args->botao_gerar,    TRUE );
+   if ( args->botao_corrigir ) gtk_widget_set_sensitive( args->botao_corrigir, TRUE );
+   if ( args->botao_importar ) gtk_widget_set_sensitive( args->botao_importar, TRUE );
+   if ( args->aba_latex )      gtk_widget_set_sensitive( args->aba_latex,      TRUE );
 
    char instrucao[256] = {0};
    InterfacePainel *painel = args->painel;
@@ -240,6 +259,7 @@ typedef struct {
    InterfaceDados   dados;            // ◄ Por valor (Cópia estática blindada)
    LimitesFiltro    limite;           // ◄ Por valor (Cópia estática blindada)
    GtkWidget        *botao_processar; // Para reativar o clique ao final
+   GtkWidget        *botao_corrigir; // Para reativar o clique ao final
    int              n_rejeitadas;     // Número de imagens rejeitadas e movidas para a quarentena
 } ProcessarThreadArgs;
 
@@ -258,9 +278,11 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
    // Referências Vivas
    args->painel          = &ctx->painel; // Passagem por referência para acesso em tempo real
    args->botao_processar = widget;
+   args->botao_corrigir = ctx->button.corrigir_prova;
    args->n_rejeitadas    = -1;
 
    gtk_widget_set_sensitive( widget, FALSE );
+   gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
 
    pthread_t thread_id;
    pthread_attr_t attr;
@@ -270,6 +292,8 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       g_printerr( "ERRO: Falha ao criar a thread de processamento de imagens.\n" );
       gtk_widget_set_sensitive( widget, TRUE );
+      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+      gtk_widget_set_sensitive( ctx->button.importar_dados, TRUE );
       free( args );
    }
 
@@ -316,6 +340,7 @@ static gboolean reativar_botao_processar_imagens( gpointer user_data ) {
 
    if ( args->botao_processar ) {
       gtk_widget_set_sensitive( args->botao_processar, TRUE );
+      gtk_widget_set_sensitive( args->botao_corrigir, TRUE );
    }
 
    InterfacePainel *painel = args->painel;
@@ -723,6 +748,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
    // Se você bloqueia o botão de "Corrigir" lá na função principal,
    // desbloqueie-o aqui. Exemplo:
    gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+   gtk_widget_set_sensitive( ctx->button.processar_imagens, TRUE );
    // -------------------------------------------------------------------------
 
    if ( async->cronometro ) {

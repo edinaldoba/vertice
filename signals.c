@@ -270,9 +270,9 @@ void app_signals_connect( gpointer user_data ) {
 
 
    // Operação Crítica: Passa o ponteiro 'opt' para leitura e aplicação estável do cache físico (.dat)
-   g_signal_connect( ctx->button.carregar_dados,    "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
+   g_signal_connect( ctx->button.importar_dados, "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
    g_signal_connect( ctx->button.gerar_prova,       "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
-   g_signal_connect( ctx->button.processamento_img, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
+   g_signal_connect( ctx->button.processar_imagens, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
    g_signal_connect( ctx->button.corrigir_prova,    "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
 
    g_signal_connect( ctx->button.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );

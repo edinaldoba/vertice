@@ -164,10 +164,10 @@ typedef struct {
    // =========================================================================
    // CICLO DE PRODUÇÃO: GERAÇÃO E CORREÇÃO AUTOMÁTICA DE PROVAS
    // =========================================================================
-   GtkWidget *carregar_dados;          // Sincroniza informações com o sistema escolar
+   GtkWidget *importar_dados;          // Sincroniza informações com o sistema escolar
    GtkWidget *gerar_prova;             // Dispara a montagem do documento LaTeX final
-   GtkWidget *corrigir_prova;        // Interface para leitura automatizada de cartões-resposta
-   GtkWidget *processamento_img;       // Processa os escaneamentos via rotinas de Visão Computacional
+   GtkWidget *corrigir_prova;          // Interface para leitura automatizada de cartões-resposta
+   GtkWidget *processar_imagens;       // Processa os escaneamentos via rotinas de Visão Computacional
 
 } InterfaceButton;
 

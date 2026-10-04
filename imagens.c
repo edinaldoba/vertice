@@ -529,7 +529,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
 
          // --- REALCE DE CORES (Vibrância e Contraste) ---
-         realcar_cores_in_place( &img_rgb_limpa, 1.4f, 1.8f );
+         realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
 
          // Salva a imagem tratada com fundo 100% branco e cores vivas
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
@@ -794,6 +794,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    // -------------------------------------------------------------------------
    // BLOQUEIO DA INTERFACE: (Descomente a linha abaixo e insira o widget do seu botão)
    gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
+   gtk_widget_set_sensitive( ctx->button.processar_imagens, FALSE );
    // -------------------------------------------------------------------------
 
    painel->format_titulo    = meu_gerador_variadico( "⏳ Processando Provas..." );

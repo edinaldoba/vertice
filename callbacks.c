@@ -1152,7 +1152,6 @@ void on_button_gerar_prova_clicked( GtkWidget *widget, gpointer user_data ) {
    gerenciar_fluxo_gabaritos( widget, &ctx->painel, ctx );
 
    // 3. 🚀 DISPARO ASSÍNCRONO
-   gtk_widget_set_sensitive( widget, FALSE );
    disparar_geracao_prova_assincrona( widget, ctx, thread_gerar_prova_background );
 }
 
@@ -1185,7 +1184,7 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
       // Mensagem indicando o início do processamento assíncrono das imagens em segundo plano
       painel->format_titulo    = meu_gerador_variadico( "⏳ Leitura Óptica em Andamento" );
       painel->format_subtitulo = meu_gerador_variadico( "O processamento das imagens foi iniciado em segundo plano." );
-      painel->format_instrucao = meu_gerador_variadico( "As provas de '%s' (%s) estão sendo decodificadas.",
+      painel->format_instrucao = meu_gerador_variadico( "As provas de <b>%s</b> (%s) estão sendo decodificadas.",
                                                         ctx->dados.escola, ctx->dados.ano );
       criar_mensagem_painel( INFO, painel );
 

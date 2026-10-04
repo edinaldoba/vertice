@@ -48,22 +48,15 @@ typedef struct {
    double max_energia; // Pré-calculado para otimização
 } TemplateParams;
 
-// OTIMIZAÇÃO DE OPENMP
-// Nota: O uso de _Thread_local (C11) é o padrão moderno em substituição ao __thread
-static _Thread_local double g_centro_img_i = 0.0;
-static _Thread_local double g_centro_img_j = 0.0;
+// Ordenação por "solidez" (Fill Ratio) para priorizar quadrados verdadeiros
+static int blob_comparar_solidez( const void *a, const void *b ) {
+   const BlobInfo *ba = ( const BlobInfo * )a;
+   const BlobInfo *bb = ( const BlobInfo * )b;
 
-// ============================================================================
-// MÓDULO 1: Ordenação Polar
-// ============================================================================
-static int comparar_polar(const void *a, const void *b) {
-   const BlobInfo *b1 = (const BlobInfo *)a;
-   const BlobInfo *b2 = (const BlobInfo *)b;
+   double f_a = ( double )ba->area / ( ( ba->max_i - ba->min_i + 1 ) * ( ba->max_j - ba->min_j + 1 ) );
+   double f_b = ( double )bb->area / ( ( bb->max_i - bb->min_i + 1 ) * ( bb->max_j - bb->min_j + 1 ) );
 
-   double angulo1 = atan2(b1->centro_i - g_centro_img_i, b1->centro_j - g_centro_img_j);
-   double angulo2 = atan2(b2->centro_i - g_centro_img_i, b2->centro_j - g_centro_img_j);
-
-   return (angulo1 < angulo2) ? -1 : ((angulo1 > angulo2) ? 1 : 0);
+   return ( f_a < f_b ) - ( f_a > f_b ); // Ordem decrescente
 }
 
 // ============================================================================
@@ -191,17 +184,15 @@ static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, in
       blobs[k] = candidatos[k].blob;
    }
 
-   if (num_candidatos > max_blobs_saida) {
-      g_centro_img_i = img->nrow / 2.0;
-      g_centro_img_j = img->ncol / 2.0;
+   if ( num_candidatos < 4 ) return 0;
 
-      qsort(blobs, num_candidatos, sizeof(BlobInfo), comparar_polar);
+   if ( num_candidatos > max_blobs_saida ) {
+      qsort( blobs, num_candidatos, sizeof( BlobInfo ), blob_comparar_solidez );
       num_candidatos = max_blobs_saida;
    }
 
    return num_candidatos;
 }
-
 
 
 
@@ -240,17 +231,6 @@ static void blob_ordenar_polar_inline( const BlobInfo *candidatos[4], const Blob
    for ( int i = 0; i < 4; i++ ) {
       ordenados[i] = candidatos[idx[i]];
    }
-}
-
-// 2. Ordenação por "solidez" (Fill Ratio) para priorizar quadrados verdadeiros
-static int blob_comparar_solidez( const void *a, const void *b ) {
-   const BlobInfo *ba = ( const BlobInfo * )a;
-   const BlobInfo *bb = ( const BlobInfo * )b;
-
-   double f_a = ( double )ba->area / ( ( ba->max_i - ba->min_i + 1 ) * ( ba->max_j - ba->min_j + 1 ) );
-   double f_b = ( double )bb->area / ( ( bb->max_i - bb->min_i + 1 ) * ( bb->max_j - bb->min_j + 1 ) );
-
-   return ( f_a < f_b ) - ( f_a > f_b ); // Ordem decrescente
 }
 
 /**
@@ -357,6 +337,7 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
 static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *blobs ) {
    int nrow = img_bin->nrow;
    int ncol = img_bin->ncol;
+   int max_blobs_saida = 30;
 
    g_autofree uint8_t *visitado = g_new0( uint8_t, nrow * ncol );
    g_autofree int *fila_i = g_new( int, nrow * ncol );
@@ -413,9 +394,9 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
    if ( num_blobs < 4 ) return 0;
 
-   if ( num_blobs > 30 ) {
+   if ( num_blobs > max_blobs_saida ) {
       qsort( blobs, num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
-      num_blobs = 30;
+      num_blobs = max_blobs_saida;
    }
 
    return num_blobs;

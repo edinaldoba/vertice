@@ -214,7 +214,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    }
 
    // --- [ COLUNA 4 ORIGINAL / DIÁRIO E MOTORES DE AÇÃO ] ---
-   ctx->button.carregar_dados   = GTK_WIDGET( gtk_builder_get_object( builder, "button_carregar_dados" ) );
+   ctx->button.importar_dados   = GTK_WIDGET( gtk_builder_get_object( builder, "button_importar_dados" ) );
    ctx->button.frequencia       = GTK_WIDGET( gtk_builder_get_object( builder, "button_frequencia" ) );
    ctx->button.conteudos        = GTK_WIDGET( gtk_builder_get_object( builder, "button_conteudos" ) );
    ctx->button.avaliacoes       = GTK_WIDGET( gtk_builder_get_object( builder, "button_avaliacoes" ) );
@@ -223,7 +223,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->button.gerar_prova       = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
    ctx->button.corrigir_prova    = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
-   ctx->button.processamento_img = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
+   ctx->button.processar_imagens = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
 
    ctx->latex.listbox_subtemas      = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
    ctx->provas.listbox_subtemas     = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas" ) );
