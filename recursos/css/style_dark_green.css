@@ -255,6 +255,15 @@ button:hover label {
     color: #FFFFFF;
 }
 
+.button-travado {
+    background-color: #009400;
+    border: 1px solid #00ff00;
+}
+
+.button-travado label {
+    color: #FFFFFF;
+}
+
 /* --- Campos de Texto (GtkEntry) --- */
 entry {
     background-color: #37474F;

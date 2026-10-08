@@ -580,6 +580,201 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
 
 
+int cs_omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
+   if ( !dados || !limite ) return -1;
+
+   // =========================================================================
+   // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
+   // =========================================================================
+   const char *home = g_get_home_dir();
+   if ( home == NULL ) home = ".";
+
+   g_autofree char *origem = g_build_filename( home, "Downloads", "imagens", NULL );
+   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+   g_autofree char *respostas = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+   g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
+
+   if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
+         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+      g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
+      return -1;
+   }
+
+   g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
+
+   if ( qtd_bin <= 0 ) {
+      g_printerr( "[AVISO] Nenhuma prova foi gerada até o momento.\n" );
+      return -1;
+   }
+
+   ItemTextoCurto *imgs_orig = NULL;
+   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+
+   if ( qtd_img == 0 ) {
+      g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
+      return -2;
+   }
+
+   ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
+
+   FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
+   for ( int i = 0; i < qtd_bin; i++ ) {
+      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+      f[i] = fopen( arquivo, "ab" );
+   }
+
+   int n_rejeitadas = 0;
+
+   // =========================================================================
+   // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
+   // =========================================================================
+   #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
+   for ( int i = 0; i < qtd_img; i++ ) {
+
+      gboolean sucesso = FALSE;
+      MapeamentoGabarito map = {0};
+      IndiceMatriz ancora[4] = {0};
+
+      // Inicialização das Estruturas de Imagem (Limpas das versões anteriores)
+      ImagemColorida img_rgb_orig = {0};
+      ImagemColorida img_rgb_crop = {0};
+      ImagemCinza img_gray_bin    = {0};
+      ImagemCinza img_gray_alloc  = {0};
+      ImagemCinza img_gray_crop   = {0};
+
+      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
+      g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
+      g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
+
+      // FASE 1: Carregamento e Conversão de Cor
+      carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
+      g_remove( path_orig ); // Operação "consume": remove original para poupar disco
+      rgb2gray( &img_rgb_orig, &img_gray_bin );
+
+      // FASE 2: Normalização de Resolução (Bilinear)
+      int dim = 960;
+      redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
+
+      // 3.3 - Binarização de Otsu (In-place)
+      binarizar_pgm_metodo_otsu( &img_gray_alloc );
+
+      // 3.4 - Detecção de Âncoras OMR (Caminho Rápido)
+      sucesso = detectar_ancoras_omr( &img_gray_alloc, ancora, &map.direcao, FALSE );
+
+      if ( sucesso ) {
+         // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
+         transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
+
+         // 3.6 - Leitura e Decodificação do Payload
+         map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
+         sucesso = decodificar_payload_matriz( &map, limite );
+      }
+
+      // ======================================================================
+      // PROTEÇÃO DE MEMÓRIA E RESGATE (Slow Path)
+      // ======================================================================
+      if ( !sucesso ) {
+         // Libera matriz previamente alocada antes de tentar o recorte novamente
+         if ( img_gray_crop.image ) {
+            liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+            img_gray_crop.image = NULL;
+            img_gray_crop.nrow = 0;
+            img_gray_crop.ncol = 0;
+         }
+
+         // Tenta detectar âncoras forçando algoritmos de resgate
+         sucesso = detectar_ancoras_omr( &img_gray_alloc, ancora, &map.direcao, TRUE );
+
+         if ( sucesso ) {
+            transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
+            map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
+            sucesso = decodificar_payload_matriz( &map, limite );
+         }
+      }
+
+      if ( !sucesso ) {
+         g_printerr( "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", imgs_orig[i].str );
+      }
+
+      // FASE 4: Processamento de Dados (Apenas se convergiu e decodificou)
+      if ( sucesso ) {
+         ItemTextoCurto chave;
+         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
+         int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
+
+         if ( j >= 0 && f[j] != NULL ) {
+            ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
+            map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
+            g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
+
+            // PROTEÇÃO CRÍTICA: Thread Safety sem gargalo de I/O de disco
+            #pragma omp critical(escrita_binario)
+            {
+               if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
+                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
+               }
+               // fflush removido daqui para evitar travamento de threads. O fclose final cuidará disso.
+            }
+         } else {
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
+            sucesso = FALSE; // Rebaixa o status para forçar quarentena
+         }
+      }
+
+      // FASE 5: Renderização do Crop Colorido ou Quarentena
+      if ( sucesso ) {
+         normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
+         transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
+
+         // Salva a imagem tratada com fundo 100% branco e cores vivas
+         salvar_imagem_png_nativa( path_png, &img_rgb_crop );
+
+      } else {
+         g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
+         salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
+         n_rejeitadas++;
+      }
+
+      // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
+      if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+      if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
+      if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
+      if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
+      if ( img_rgb_orig.image )   liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
+   }
+
+   // =========================================================================
+   // FINALIZAÇÃO GLOBAL
+   // =========================================================================
+   for ( int i = 0; i < qtd_bin; i++ ) {
+      if ( f[i] != NULL ) {
+         fclose( f[i] ); // O fclose garante o flush seguro de todos os fwrites pendentes
+         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+
+         if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
+            if ( g_remove( arquivo ) != 0 ) {
+               g_printerr( "[ERRO] Falha ao tentar remover o arquivo vazio: %s\n", arquivo );
+            }
+         }
+      }
+   }
+
+   g_free( f );
+   g_free( imgs_orig );
+   free( resp_bin );
+
+   g_print( "Processamento das imagens OMR concluído com sucesso!\n" );
+
+   return n_rejeitadas;
+}
+
+
+
+
+
 
 
 //------------------------------------------------------------------------------------------------------

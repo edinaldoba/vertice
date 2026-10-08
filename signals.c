@@ -193,7 +193,7 @@ void app_signals_connect( gpointer user_data ) {
    // =========================================================================
    g_signal_connect( ctx->button.frequencia,        "clicked", G_CALLBACK( on_button_relatorio_de_frequencia_clicked ), ctx );
    g_signal_connect( ctx->button.conteudos,         "clicked", G_CALLBACK( on_button_relatorio_de_conteudos_clicked ), ctx );
-   g_signal_connect( ctx->button.avaliacoes,        "clicked", G_CALLBACK( on_button_relatorio_de_avalicoes_clicked ), ctx );
+   g_signal_connect( ctx->button.avaliacoes,        "clicked", G_CALLBACK( on_button_relatorio_de_avaliacoes_clicked ), ctx );
    g_signal_connect( ctx->button.relatorio_final,   "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
    g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
@@ -266,6 +266,9 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event), ctx );
    g_signal_connect( ctx->button.relatorio_final, "enter-notify-event",
                      G_CALLBACK( on_button_relatorio_enter_notify_event ), ctx );
+
+   g_signal_connect( ctx->ui_diario.check_modo_edicao, "toggled", G_CALLBACK( on_check_modo_edicao_toggled ), ctx );
+   g_signal_connect( ctx->notebook, "switch-page", G_CALLBACK( on_notebook_principal_switch_page ), ctx );
 
 
 

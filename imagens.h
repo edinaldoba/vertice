@@ -8,6 +8,8 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
 int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
 
+int cs_omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite );
+
 void corrigir_prova( InterfacePainel *painel, AppContext *ctx );
 
 

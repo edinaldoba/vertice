@@ -12,6 +12,11 @@
 
 typedef struct {
 
+   // Dentro da definição da struct no seu header:
+   gboolean botoes_travados;   // TRUE se o stack_pages estiver bloqueado
+   GtkWidget *botao_ativo;     // Ponteiro para o botão que está travado no momento
+   GtkWidget *check_modo_edicao;
+
    /*** CONTEÚDO ***/
 
    //-- Calendário

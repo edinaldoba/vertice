@@ -971,6 +971,11 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
+   // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
+   if ( ctx->ui_diario.botoes_travados ) {
+      return FALSE;
+   }
+
    if ( ctx->cascata.foco.periodo == 5 ) {
       // Conselho de classe
       return FALSE;
@@ -986,6 +991,11 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event && ctx, FALSE );
+
+   // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
+   if ( ctx->ui_diario.botoes_travados ) {
+      return FALSE;
+   }
 
    if ( ctx->cascata.foco.periodo == 5 ) {
       // Conselho de classe
@@ -1014,6 +1024,11 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
+   // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
+   if ( ctx->ui_diario.botoes_travados ) {
+      return FALSE;
+   }
+
    if ( ctx->cascata.foco.periodo == 4 || ctx->cascata.foco.periodo == 5 ) {
       // Recuperação Final ou Conselho de classe
       return FALSE;
@@ -1030,6 +1045,11 @@ gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCros
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
 
+   // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
+   if ( ctx->ui_diario.botoes_travados ) {
+      return FALSE;
+   }
+
    if ( _ui_diario_mudar_aba( ctx->stack_pages, "page_relatorio" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
    }
@@ -1038,38 +1058,251 @@ gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCros
 }
 //===================================================================================================
 
+// Função auxiliar para gerenciar a classe CSS
+static void _ui_diario_atualizar_css_botoes( AppContext *ctx, GtkWidget *botao_clicado ) {
+   GtkWidget *botoes[4] = { ctx->button.conteudos, ctx->button.frequencia,
+                           ctx->button.avaliacoes, ctx->button.relatorio_final };
 
+   for ( int i = 0; i < 4; i++ ) {
+      if ( !botoes[i] ) continue;
 
+      gtk_button_set_relief( GTK_BUTTON( botoes[i] ), GTK_RELIEF_NONE );
+      GtkStyleContext *sc = gtk_widget_get_style_context( botoes[i] );
 
-
-void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
-   AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
-   if ( !ctx ) return;
-   relatorio_de_avaliacoes( &ctx->painel, ctx );
-   carregar_relatorio_ui( ctx );
+      if ( botoes[i] == botao_clicado ) {
+         gtk_style_context_add_class( sc, "button-travado" );
+      } else {
+         gtk_style_context_remove_class( sc, "button-travado" );
+      }
+   }
 }
 
+// ======================================================================================
+// FUNÇÃO AUXILIAR: INFERE OS WIDGETS CASO A EDIÇÃO SEJA ATIVADA FORA DO CLIQUE (EX: ATALHO)
+// ======================================================================================
+static const gchar *_ui_diario_inferir_widgets_de_edicao( const AppContext *ctx, GObject *object ) {
+   GtkWidget *botoes[4] = { ctx->button.conteudos, ctx->button.frequencia,
+                            ctx->button.avaliacoes, ctx->button.relatorio_final };
+
+   // Mapeamento correto dos widgets que devem receber foco inicial em cada respectiva aba
+   GtkWidget *focos[4] =  { ctx->ui_diario.tipo_registro,
+                            ctx->ui_diario.combo_data,
+                            ctx->ui_diario.combo_avaliacoes,
+                            ctx->ui_diario.btn_consolidar };
+
+   const gchar *stack_pages[4] = { "page_conteudo", "page_frequencia", "page_avaliacoes", "page_relatorio" };
+   const gchar *page_name = gtk_stack_get_visible_child_name( GTK_STACK( ctx->stack_pages ) );
+
+   for ( int i = 0; i < 4; i++ ) {
+      if ( g_strcmp0( page_name, stack_pages[i] ) == 0 ) {
+         g_object_set_data( object, "widget_button", ( gpointer ) botoes[i] );
+         g_object_set_data( object, "widget_focus",  ( gpointer ) focos[i] );
+         break;
+      }
+   }
+
+   return page_name;
+}
+
+
+// ======================================================================================
+// CENTRALIZADOR DE ESTADO DE EDIÇÃO E TRAVAMENTO
+// ======================================================================================
+void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_CHECK_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   GObject *object = G_OBJECT( widget );
+
+   gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
+   ctx->ui_diario.botoes_travados = estado;
+
+   if ( estado ) {
+      // 1. Resgata as informações passadas pelo clique do botão
+      const gchar *page_name = ( const gchar * ) g_object_get_data( object, "page_name" );
+
+      // Fallback: se o modo edição foi ativado por atalho/código sem passar dados no GObject
+      if ( !page_name ) {
+         page_name = _ui_diario_inferir_widgets_de_edicao( ctx, object );
+      }
+
+      // Agora os dados existem no GObject (ou pelo clique ou pelo fallback)
+      GtkWidget *widget_button = GTK_WIDGET( g_object_get_data( object, "widget_button" ) );
+      GtkWidget *widget_focus  = GTK_WIDGET( g_object_get_data( object, "widget_focus" ) );
+
+      // 2. Muda a aba dinamicamente
+      if ( page_name ) {
+         _ui_diario_mudar_aba( ctx->stack_pages, page_name );
+      }
+
+      // 3. Trava o estado no botão correto e injeta o CSS verde
+      ctx->ui_diario.botao_ativo = widget_button;
+      _ui_diario_atualizar_css_botoes( ctx, widget_button );
+
+      // 4. Move o cursor para o primeiro campo de edição (se houver)
+      if ( widget_focus ) {
+         gtk_widget_grab_focus( widget_focus );
+      }
+
+   } else {
+      // 5. Limpeza de resíduos no GObject ao desativar
+      g_object_set_data( object, "page_name", NULL );
+      g_object_set_data( object, "widget_button", NULL );
+      g_object_set_data( object, "widget_focus", NULL );
+
+      // Destrava os botões e remove as classes CSS de todos
+      ctx->ui_diario.botao_ativo = NULL;
+      _ui_diario_atualizar_css_botoes( ctx, NULL );
+   }
+}
+
+// ======================================================================================
+// CONTROLE DE NAVEGAÇÃO GLOBAL
+// ======================================================================================
+void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_NOTEBOOK( widget ) && page );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   // Se saiu da aba principal de Relatórios/Diário (índice 0), destrava o modo edição
+   if ( page_num != 0 ) {
+      // Isso irá acionar automaticamente on_check_modo_edicao_toggled( ... , FALSE )
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), FALSE );
+   }
+}
+
+// ======================================================================================
+// CALLBACKS DOS BOTÕES DE RELATÓRIO / NAVEGAÇÃO
+// ======================================================================================
 void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
-   AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
+   AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   relatorio_de_conteudos( &ctx->painel, ctx );
+
+   // 1º CASO: Primeiro clique (ou botão inativo) -> Ativa o modo de edição
+   if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
+      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
+
+      // Associa a string da página e o ponteiro do botão diretamente ao objeto
+      g_object_set_data( object, "page_name", ( gpointer ) "page_conteudo" );
+      g_object_set_data( object, "widget_button", ( gpointer ) widget );
+      g_object_set_data( object, "widget_focus", ( gpointer ) ctx->ui_diario.tipo_registro );
+
+      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
+      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
+         // Se já estava ativo, apenas reaplica o estado para a nova aba
+         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
+      } else {
+         // Dispara o sinal 'toggled' naturalmente
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+      }
+
+   // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
+   } else {
+      g_print( "Gerando PDF de Conteúdos...\n" );
+      relatorio_de_conteudos( &ctx->painel, ctx );
+   }
 }
 
 void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
-   AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
+   AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   relatorio_de_frequencia( &ctx->painel, ctx );
+
+   if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
+      if ( ctx->ui_diario.editando ) {
+         ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Edição em Andamento" );
+         ctx->painel.format_subtitulo = meu_gerador_variadico( "Registro de aula não salvo" );
+         ctx->painel.format_instrucao = meu_gerador_variadico( "Conclua as modificações e salve o conteúdo atual antes de alternar para a frequência." );
+         criar_mensagem_painel( AVISO, &ctx->painel );
+         return;
+      }
+
+      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
+
+      // Associa a string da página e o ponteiro do botão diretamente ao objeto
+      g_object_set_data( object, "page_name", ( gpointer ) "page_frequencia" );
+      g_object_set_data( object, "widget_button", ( gpointer ) widget );
+      g_object_set_data( object, "widget_focus", ( gpointer ) ctx->ui_diario.combo_data );
+
+      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
+      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
+         // Se já estava ativo, apenas reaplica o estado para a nova aba
+         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
+      } else {
+         // Dispara o sinal 'toggled' naturalmente
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+      }
+
+   } else {
+      g_print( "Gerando PDF de Frequência...\n" );
+      relatorio_de_frequencia( &ctx->painel, ctx );
+   }
+}
+
+// Corrigido pequeno erro de digitação no nome: avalicoes -> avaliacoes
+void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
+      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
+
+      // Associa a string da página e o ponteiro do botão diretamente ao objeto
+      g_object_set_data( object, "page_name", ( gpointer ) "page_avaliacoes" );
+      g_object_set_data( object, "widget_button", ( gpointer ) widget );
+      g_object_set_data( object, "widget_focus", ( gpointer ) ctx->ui_diario.combo_avaliacoes );
+
+      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
+      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
+         // Se já estava ativo, apenas reaplica o estado para a nova aba
+         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
+      } else {
+         // Dispara o sinal 'toggled' naturalmente
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+      }
+
+   } else {
+      g_print( "Gerando PDF de Avaliações...\n" );
+      relatorio_de_avaliacoes( &ctx->painel, ctx );
+      carregar_relatorio_ui( ctx );
+   }
 }
 
 void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
-   AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
+   AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   relatorio_final( &ctx->painel, ctx );
+
+   if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
+      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
+
+      // Associa a string da página e o ponteiro do botão diretamente ao objeto
+      g_object_set_data( object, "page_name", ( gpointer ) "page_relatorio" );
+      g_object_set_data( object, "widget_button", ( gpointer ) widget );
+      g_object_set_data( object, "widget_focus", ( gpointer ) ctx->ui_diario.btn_consolidar );
+
+      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
+      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
+         // Se já estava ativo, apenas reaplica o estado para a nova aba
+         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
+      } else {
+         // Dispara o sinal 'toggled' naturalmente
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+      }
+
+   } else {
+      g_print( "Gerando PDF de Relatório Final...\n" );
+      relatorio_final( &ctx->painel, ctx );
+   }
 }
+
+
+
+
+
 
 void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );

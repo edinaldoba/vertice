@@ -60,19 +60,24 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data );
 
 
-gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
+
+void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data );
+void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data );
 
 // =========================================================================
 // 2. EMISSÃO DE RELATÓRIOS E DIÁRIOS DE CLASSE
 // =========================================================================
 // Gerenciam a leitura de arquivos locais e geração de planilhas/dados de acompanhamento
-void on_button_relatorio_de_avalicoes_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
+
+
 void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );
 
 // =========================================================================

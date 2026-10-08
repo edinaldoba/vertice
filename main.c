@@ -287,7 +287,8 @@ void inicializacao_app_context( AppContext *ctx ) {
       .ui_diario = {
          .handler_combo_data = 0,
          .handler_combo_alunos = 0,
-         .handler_check_desativar = 0
+         .handler_check_desativar = 0,
+         .botoes_travados = FALSE
       },
 
       .diarios   = NULL,

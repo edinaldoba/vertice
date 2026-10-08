@@ -396,7 +396,9 @@ void* thread_processar_imagens_background( void *data ) {
 
    g_print( "[Thread CV] Iniciando o processamento assíncrono das imagens...\n" );
 
-   args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->limite );
+   // args->n_rejeitadas = gas_processar_imagens( &args->dados, &args->limite );
+   // args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->limite );
+   args->n_rejeitadas = cs_omr_processar_imagens( &args->dados, &args->limite );
 
    g_print( "[Thread CV] Processamento concluído. Retornando o controle para a UI.\n" );
 
