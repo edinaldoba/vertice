@@ -232,7 +232,7 @@ void estilo_interface( AppContext *ctx ) {
    interface_style( ctx );
 
    char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, FALSE );
+   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, TRUE );
    g_free( caminho_arquivo );
 
    recarregar_estilo_frequencia( ctx );

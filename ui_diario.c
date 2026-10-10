@@ -500,9 +500,17 @@ void registrar_aula( AppContext *ctx ) {
    GdkRGBA cor_texto;
    int r = _cor_texto_linha_liststore( &nova_aula, foco_estilo, &cor_texto );
 
+   const char *fonte_numerica = "Monospace 11";
+
    gtk_list_store_set( store_view, &iter,
-                       0, nova_aula.data,      1, nova_aula.qtd_aulas,    2, nova_aula.tema,
-                       3, nova_aula.descricao, 4, nova_aula.tipo_registro, 5, ( r == 0 ) ? NULL : &cor_texto, -1 );
+                       0, nova_aula.data,
+                       1, nova_aula.qtd_aulas,
+                       2, nova_aula.tema,
+                       3, nova_aula.descricao,
+                       4, nova_aula.tipo_registro,
+                       5, ( r == 0 ) ? NULL : &cor_texto,
+                       6, fonte_numerica,
+                       -1 );
 
    // =====================================================================
    // 5. AJUSTES FINAIS DE UI
@@ -625,6 +633,8 @@ void modificar_registro_aula( AppContext *ctx ) {
    GdkRGBA cor_texto;
    int r_estilo = _cor_texto_linha_liststore( &reg_clone, ctx->dados.interface_style, &cor_texto );
 
+   const char *fonte_numerica = "Monospace 11";
+
    gtk_list_store_set( store_view, &iter,
                        0, reg_clone.data,
                        1, reg_clone.qtd_aulas,
@@ -632,6 +642,7 @@ void modificar_registro_aula( AppContext *ctx ) {
                        3, reg_clone.descricao,
                        4, reg_clone.tipo_registro,
                        5, ( r_estilo == 0 ) ? NULL : &cor_texto,
+                       6, fonte_numerica,
                        -1 );
 
    g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
@@ -697,13 +708,17 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
       GdkRGBA cor_texto;
       int r = _cor_texto_linha_liststore( &registros[i], foco_estilo, &cor_texto );
 
+      const char *fonte_numerica = "Monospace 11";
+
       gtk_list_store_set( store_view, &iter,
                           0, registros[i].data,
                           1, registros[i].qtd_aulas,
                           2, registros[i].tema,
                           3, registros[i].descricao,
                           4, registros[i].tipo_registro,
-                          5, ( r == 0 ) ? NULL : &cor_texto, -1 );
+                          5, ( r == 0 ) ? NULL : &cor_texto,
+                          6, fonte_numerica,
+                          -1 );
    }
 
    // =====================================================================
@@ -857,7 +872,10 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
 
    // 2. Atualiza a interface e processa os inativos
    if ( modo_edicao ) {
-      gtk_list_store_set( store_view, &iter_view, 3, str_status, 5, tem_cor ? cor_texto : NULL, -1 );
+      gtk_list_store_set( store_view, &iter_view,
+                          3, str_status,
+                          5, tem_cor ? cor_texto : NULL,
+                          -1 );
 
       // Inicia a busca pelo próximo aluno ativo
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
@@ -869,6 +887,8 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
 
+      const char *fonte_numerica = "Monospace 11";
+
       gtk_list_store_append( store_view, &iter_view );
       gtk_list_store_set( store_view, &iter_view,
                           0, idx_aluno + 1,
@@ -876,7 +896,9 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                           2, nasc,
                           3, str_status,
                           4, !ficha->ativo,
-                          5, tem_cor ? cor_texto : NULL, -1 );
+                          5, tem_cor ? cor_texto : NULL,
+                          6, fonte_numerica,
+                          -1 );
 
       // Processa e renderiza os inativos subsequentes na sequência da chamada
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
@@ -897,7 +919,9 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                              2, nasc_inativo,
                              3, ctx->listas.status_assiduidade[0].str,
                              4, !ficha->ativo, // Será TRUE
-                             5, tem_cor_inativo ? &cor_inativo : NULL, -1 );
+                             5, tem_cor_inativo ? &cor_inativo : NULL,
+                             6, fonte_numerica,
+                             -1 );
       }
    }
 
@@ -1019,6 +1043,8 @@ void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed 
 
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
 
+      const char *fonte_numerica = "Monospace 11";
+
       gtk_list_store_set( store_view, &iter,
                           0, i + 1,
                           1, ficha->aluno,
@@ -1026,6 +1052,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed 
                           3, ctx->listas.status_assiduidade[status_atual].str,
                           4, !ficha->ativo, // TRUE para aplicar o risco do GtkCellRendererText
                           5, ( tem_cor == 0 ) ? NULL : &cor_texto,
+                          6, fonte_numerica,
                           -1 );
 
       linhas_renderizadas++;
@@ -1257,7 +1284,15 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
 }
 
 
-
+/**
+ * @brief Sincroniza o estado do `combo_status` com o registro de assiduidade.
+ *
+ * Atualiza o seletor de status de presença (combo_status) na aba de frequência
+ * ("page_frequencia") com base na combinação do aluno selecionado (`combo_alunos`)
+ * e da data da aula (`combo_data`).
+ *
+ * @param[in] ctx Ponteiro para o contexto global da aplicação (AppContext).
+ */
 void selecionar_combo_status( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
@@ -1902,8 +1937,10 @@ void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *pat
 
       gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
 
+      const char *fonte_nota = "Monospace 11";
+
       // Salva a nota padronizada na UI (ex: "8.00")
-      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
+      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, 14, fonte_nota, -1 );
 
       // 6. SINCRONIZAÇÃO EM MEMÓRIA
       _sincronizar_nota_ficha( ctx, path_string, col_model_index, ( float )valor_nota );
@@ -2099,6 +2136,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
          }
       }
 
+      const char *fonte_nota = "Monospace 11";
+
       gtk_list_store_append( store, &iter );
 
       // Injeta todas as colunas de uma vez só na linha recém-criada
@@ -2111,6 +2150,7 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
                           8, str_notas[6],   9, str_notas[7],
                           10, str_notas[8],  11, str_notas[9],
                           12, !ficha->ativo,
+                          14, fonte_nota,
                           -1 );
    }
 
@@ -2269,6 +2309,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          obs[0] = '\0';
       }
 
+      const char *fonte_nota = "Monospace 11";
+
       // --- PASSO E: Inserção Limpa no GTK ---
       gtk_list_store_append( store, &iter );
       gtk_list_store_set( store, &iter,
@@ -2284,6 +2326,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           9, str_cols[7],
                           10, obs,
                           11, !ficha->ativo,
+                          13, fonte_nota,
                           -1 );
    }
 

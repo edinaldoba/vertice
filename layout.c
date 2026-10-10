@@ -13,6 +13,81 @@
 
 
 
+/**
+ * @brief Aplica espaçamento uniforme intercalando Hair Spaces (\u200A)
+ *        diretamente no texto de um GtkLabel. O espaçamento é aplicado
+ *        entre TODOS os caracteres, incluindo espaços em branco, para
+ *        manter a proporção visual simétrica entre letras e palavras.
+ *
+ * @param label_widget Ponteiro para o GtkWidget (GtkLabel).
+ * @param quantidade_espacos Número de \u200A a serem inseridos (1 a 4).
+ */
+static void _ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos ) {
+   g_return_if_fail( GTK_IS_LABEL( label_widget ) );
+
+   // 1. Extrai o texto do label
+   const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
+   if ( !texto_original || *texto_original == '\0' ) return;
+
+   GString *resultado = g_string_new( "" );
+   const gchar *p = texto_original;
+
+   while ( *p != '\0' ) {
+      gunichar c = g_utf8_get_char( p );
+      const gchar *proximo = g_utf8_next_char( p );
+
+      // Blindagem: ignora Hair Spaces (\u200A) pré-existentes para evitar duplicação
+      if ( c == 0x200A ) {
+         p = proximo;
+         continue;
+      }
+
+      // Copia o caractere atual para a nova string
+      g_string_append_unichar( resultado, c );
+
+      gunichar proximo_c = g_utf8_get_char( proximo );
+
+      // Injeta a quantidade desejada de Hair Spaces (\u200A) entre TODOS os caracteres,
+      // desde que não seja o fim da string e o próximo não seja um Hair Space acidental.
+      if ( *proximo != '\0' && proximo_c != 0x200A ) {
+         for ( gint i = 0; i < quantidade_espacos; i++ ) {
+            g_string_append( resultado, "\u200A" );
+         }
+      }
+
+      p = proximo;
+   }
+
+   // 2. Aplica o texto formatado de volta no label
+   gtk_label_set_text( GTK_LABEL( label_widget ), resultado->str );
+
+   // 3. Libera a memória da estrutura GString
+   g_string_free( resultado, TRUE );
+}
+
+
+/**
+ * @brief Extrai o GtkLabel interno de um botão configurado pelo Glade e aplica
+ *        o espaçamento manual usando Hair Spaces.
+ *
+ * @param button_widget Ponteiro para o GtkWidget do botão (GtkButton).
+ * @param quantidade_espacos Número de \u200A a serem inseridos entre cada letra (1 a 4).
+ */
+static void ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widget, gint quantidade_espacos ) {
+   g_return_if_fail( GTK_IS_BUTTON( button_widget ) );
+
+   // 1. Resgata o GtkLabel interno do botão
+   GtkWidget *label_interno = gtk_bin_get_child( GTK_BIN( button_widget ) );
+
+   // 2. Passa a responsabilidade para a função base
+   if ( GTK_IS_LABEL( label_interno ) ) {
+      _ui_label_aplicar_espacamento_manual( label_interno, quantidade_espacos );
+   }
+}
+
+
+
+
 
 static void treeview_alinhar_coluna_renderizada( GtkWidget *widget, int coluna, float alinhamento ) {
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
@@ -88,6 +163,7 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
    ctx->stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
    ctx->ui_diario.check_modo_edicao = GTK_WIDGET( gtk_builder_get_object( builder, "check_modo_edicao" ) );
+
 
    //-- CONTEÚDOS
    ctx->ui_diario.entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
@@ -172,6 +248,32 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
 
 
 
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_consolidar, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_nova_avaliacao, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_salvar_avaliacoes, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_salvar_conteudo, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_salvar_frequencia, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->ui_diario.btn_popover_nomear, 1 );
+
+
+   GtkWidget *label = NULL;
+   const gchar *labels[7] = {
+      "label_conteudo"   , "label_frequencia", "label_avaliacoes", "label_relatorio",
+      "label_tema_acervo", "label_tema_prova", "label_montagem_da_prova"
+   };
+
+   for ( int i = 0; i < 7; i++ ) {
+      label = GTK_WIDGET( gtk_builder_get_object( builder, labels[i] ) );
+      if ( label ) {
+         _ui_label_aplicar_espacamento_manual( label, 1 );
+      } else {
+         g_warning( "Aviso: Widget '%s' não foi encontrado no GtkBuilder.", labels[i] );
+      }
+   }
+
+
+
+
    ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
 
@@ -185,9 +287,13 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->entry.tema         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
    ctx->entry.tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
 
-   ctx->button.abrir_pdf_acervo      = GTK_WIDGET( gtk_builder_get_object( builder, "button_pdf_latex" ) );
+   ctx->button.abrir_pdf_acervo = GTK_WIDGET( gtk_builder_get_object( builder, "button_pdf_latex" ) );
    ctx->button.compilar_latex_acervo = GTK_WIDGET( gtk_builder_get_object( builder, "button_compilar" ) );
    ctx->button.executar_gcc_acervo   = GTK_WIDGET( gtk_builder_get_object( builder, "button_gcc" ) );
+
+   ui_button_label_aplicar_espacamento_manual( ctx->button.abrir_pdf_acervo, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.compilar_latex_acervo, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.executar_gcc_acervo, 1 );
 
    // --- [ COLUNA 1 ORIGINAL / ABA CONFIGURAÇÕES LATEX (BOTÕES DE RÁDIO) ] ---
    char id_string[64];
@@ -222,9 +328,19 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    ctx->button.relatorio_final  = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
    ctx->button.atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
 
+   ui_button_label_aplicar_espacamento_manual( ctx->button.importar_dados, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.frequencia, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.conteudos, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.avaliacoes, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.relatorio_final, 1 );
+
    ctx->button.gerar_prova       = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
    ctx->button.corrigir_prova    = GTK_WIDGET( gtk_builder_get_object( builder, "button_corrigir_prova" ) );
    ctx->button.processar_imagens = GTK_WIDGET( gtk_builder_get_object( builder, "button_processar_imagens" ) );
+
+   ui_button_label_aplicar_espacamento_manual( ctx->button.gerar_prova, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.corrigir_prova, 1 );
+   ui_button_label_aplicar_espacamento_manual( ctx->button.processar_imagens, 1 );
 
    ctx->latex.listbox_subtemas      = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
    ctx->provas.listbox_subtemas     = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas" ) );

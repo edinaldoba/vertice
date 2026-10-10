@@ -176,7 +176,7 @@ scrollbar slider {
 }
 
 scrollbar slider:hover {
-    background-color: #00A8CC;
+    background-color: rgba(255, 255, 255, 0.85);
     border-color: #00ffff;
 }
 
@@ -209,15 +209,20 @@ separator {
 
 .titulo-secao-principal,
 .titulo-secao-principal label {
-    color: #00A8CC;
+    color: rgba(255, 255, 255, 0.85);
     font-size: 26px;
     font-weight: bold;
+
+    border: 1px solid #0055ff;
+    border-radius: 12px;
+    padding: 0px 12px 0px 12px;
 }
 
 .titulo-secao,
 .titulo-secao label {
-    color: #00A8CC;
+    color: rgba(255, 255, 255, 0.85);
     font-weight: bold;
+
 }
 
 .indicador-item-subtema {
@@ -238,18 +243,20 @@ button {
     font-weight: bold;
     border: 1px solid #1E3E62;
     border-radius: 10px;
-    box-shadow: none;
+    box-shadow: inset 0 0 6px #1E3E62;
     text-shadow: none;
 }
 
 button label {
     font-size: 24px;
-    color: #00A8CC;
+    color: rgba(255, 255, 255, 0.85);
+
 }
 
 button:hover {
     background-color: #0055ff;
-    border: 1px solid #00ffff;
+    border: 1px solid #00d5ff;
+    box-shadow: inset 0 0 6px #00d5ff;
 }
 
 button:hover label {
@@ -257,12 +264,13 @@ button:hover label {
 }
 
 .button-travado {
-    background-color: #0055ff;
-    border: 1px solid #00ffff;
+    background-color: #002e7e;
+    border: 1px solid #0055ff;
+    box-shadow: inset 0 0 6px #0055ff;
 }
 
 .button-travado label {
-    color: #FFFFFF;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* --- Campos de Texto (GtkEntry) --- */
@@ -311,6 +319,7 @@ button cellview {
     font-weight: bold;
     border: 1px solid #002e7e;
     border-radius: 7px;
+    box-shadow: none;
 }
 
 button cellview {
@@ -320,6 +329,7 @@ button cellview {
 combobox button:hover {
     background-color: #002e7e;
     border: 1px solid #0055ff;
+    box-shadow: none;
 }
 
 window.popup menu,
@@ -436,6 +446,8 @@ treeview {
     color: #ffffff;
     font-size: 20px;
     border-color: #283abf;
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 treeview:selected {
@@ -445,13 +457,20 @@ treeview:selected {
 treeview header label {
     font-size: 20px;
     font-weight: bold;
-    color: #00aaff;
+    color: rgba( 255, 255, 255, 0.85 );
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 treeview header button {
-    background-color: #00003f;
+    background-color: rgba(32, 32, 128, 0.2);
     border: none;
     padding: 6px;
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-bottom: 3px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 6px rgba(40, 40, 160, 1.0);
 }
 
 /* ==========================================================================
@@ -491,6 +510,7 @@ treeview header button {
 .btn-stepper {
     background-color: #0f233b;
     padding: 0px 0px;
+    box-shadow: inset 0 0 6px #1E3E62;
 }
 
 .btn-stepper label {
@@ -503,6 +523,7 @@ treeview header button {
     background-color: rgba(73, 153, 239, 0.15);
     border-radius: 50%;
     border-color: #0055ff;
+    box-shadow: inset 0 0 3px #0055ff;
 }
 
 .btn-stepper:hover label {
@@ -568,7 +589,7 @@ treeview header button {
 
 
 
-.sucesso-titulo { color: #00A8CC; font-size: 28px; font-weight: bold; }
+.sucesso-titulo { color: rgba(255, 255, 255, 0.85); font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
 .sucesso-instrucao { color: #00ffff; font-size: 20px; font-weight: normal; }
 

@@ -687,6 +687,7 @@ void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
    // Aponta o popover para o botão NOVA e exibe
    gtk_popover_set_relative_to( GTK_POPOVER( ctx->ui_diario.popover_nomear_avaliacao ), widget );
    gtk_widget_show_all( ctx->ui_diario.popover_nomear_avaliacao );
+   gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_popover_nomear ), "" );
    gtk_widget_grab_focus( ctx->ui_diario.entry_popover_nomear );
 }
 

@@ -37,6 +37,8 @@
       <column type="gboolean"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
+      <!-- column-name fonte_num -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_combo_aluno">
@@ -93,6 +95,8 @@
       <column type="guint"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
+      <!-- column-name fonte_num -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_frequencia">
@@ -109,6 +113,8 @@
       <column type="gboolean"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
+      <!-- column-name fonte_num -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_relatorio">
@@ -139,6 +145,8 @@
       <column type="gboolean"/>
       <!-- column-name cor -->
       <column type="GdkRGBA"/>
+      <!-- column-name fonte_num -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkApplicationWindow" id="janela_principal">
@@ -293,7 +301,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkCheckButton">
+                          <object class="GtkCheckButton" id="check_modo_edicao">
                             <property name="label" translatable="yes">Modo Edição</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -438,7 +446,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel">
+                                  <object class="GtkLabel" id="label_conteudo">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="label" translatable="yes">CONTEÚDOS</property>
@@ -448,7 +456,7 @@
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
-                                    <property name="fill">True</property>
+                                    <property name="fill">False</property>
                                     <property name="position">2</property>
                                   </packing>
                                 </child>
@@ -479,6 +487,9 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <style>
+                                      <class name="button-travado"/>
+                                    </style>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -584,11 +595,12 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">112</property>
+                                        <property name="fixed-width">130</property>
                                         <property name="title" translatable="yes">DATA</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">6</attribute>
                                             <attribute name="text">0</attribute>
                                             <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
@@ -601,6 +613,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">6</attribute>
                                             <attribute name="text">1</attribute>
                                             <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
@@ -644,12 +657,6 @@
                                             <attribute name="text">4</attribute>
                                           </attributes>
                                         </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn">
-                                        <property name="visible">False</property>
-                                        <property name="title" translatable="yes">COR</property>
                                       </object>
                                     </child>
                                   </object>
@@ -733,7 +740,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel">
+                                  <object class="GtkLabel" id="label_frequencia">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="label" translatable="yes">FREQUÊNCIA</property>
@@ -743,7 +750,7 @@
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
-                                    <property name="fill">True</property>
+                                    <property name="fill">False</property>
                                     <property name="position">2</property>
                                   </packing>
                                 </child>
@@ -908,6 +915,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">6</attribute>
                                             <attribute name="text">0</attribute>
                                           </attributes>
                                         </child>
@@ -929,11 +937,12 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">220</property>
+                                        <property name="fixed-width">210</property>
                                         <property name="title" translatable="yes">NASCIMENTO</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">6</attribute>
                                             <attribute name="text">2</attribute>
                                             <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
@@ -942,7 +951,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">220</property>
+                                        <property name="fixed-width">210</property>
                                         <property name="title" translatable="yes">ASSIDUIDADE</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -951,18 +960,6 @@
                                             <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn">
-                                        <property name="visible">False</property>
-                                        <property name="title" translatable="yes">RISCAR</property>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn">
-                                        <property name="visible">False</property>
-                                        <property name="title" translatable="yes">COR</property>
                                       </object>
                                     </child>
                                   </object>
@@ -1074,7 +1071,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel">
+                                  <object class="GtkLabel" id="label_avaliacoes">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="label" translatable="yes">AVALIAÇÕES</property>
@@ -1084,7 +1081,7 @@
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
-                                    <property name="fill">True</property>
+                                    <property name="fill">False</property>
                                     <property name="position">3</property>
                                   </packing>
                                 </child>
@@ -1162,6 +1159,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">0</attribute>
                                           </attributes>
                                         </child>
@@ -1191,6 +1189,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">2</attribute>
                                           </attributes>
                                         </child>
@@ -1207,6 +1206,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">3</attribute>
                                           </attributes>
                                         </child>
@@ -1223,6 +1223,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">4</attribute>
                                           </attributes>
                                         </child>
@@ -1239,6 +1240,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">5</attribute>
                                           </attributes>
                                         </child>
@@ -1255,6 +1257,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">6</attribute>
                                           </attributes>
                                         </child>
@@ -1271,6 +1274,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">7</attribute>
                                           </attributes>
                                         </child>
@@ -1287,6 +1291,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">8</attribute>
                                           </attributes>
                                         </child>
@@ -1303,6 +1308,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">9</attribute>
                                           </attributes>
                                         </child>
@@ -1319,6 +1325,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">10</attribute>
                                           </attributes>
                                         </child>
@@ -1335,6 +1342,7 @@
                                             <property name="editable">True</property>
                                           </object>
                                           <attributes>
+                                            <attribute name="font">14</attribute>
                                             <attribute name="text">11</attribute>
                                           </attributes>
                                         </child>
@@ -1366,12 +1374,14 @@
                               <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="homogeneous">True</property>
                                 <child>
-                                  <object class="GtkButton">
-                                    <property name="label" translatable="yes">CONSOLIDAR</property>
+                                  <object class="GtkBox">
                                     <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">True</property>
+                                    <property name="can-focus">False</property>
+                                    <child>
+                                      <placeholder/>
+                                    </child>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1380,26 +1390,41 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel">
+                                  <object class="GtkLabel" id="label_relatorio">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="label" translatable="yes">RELATÓRIO  FINAL</property>
+                                    <attributes>
+                                      <attribute name="stretch" value="ultra-expanded"/>
+                                    </attributes>
                                     <style>
                                       <class name="titulo-secao-principal"/>
                                     </style>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
-                                    <property name="fill">True</property>
+                                    <property name="fill">False</property>
                                     <property name="position">1</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton" id="button_consolidar">
-                                    <property name="label" translatable="yes">CONSOLIDAR</property>
+                                  <object class="GtkBox">
                                     <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">True</property>
+                                    <property name="can-focus">False</property>
+                                    <child>
+                                      <object class="GtkButton" id="button_consolidar">
+                                        <property name="label" translatable="yes">CONSOLIDAR</property>
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">False</property>
+                                        <property name="pack-type">end</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1431,11 +1456,11 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">50</property>
                                         <property name="title" translatable="yes">Nº</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">0</attribute>
                                           </attributes>
                                         </child>
@@ -1443,7 +1468,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">290</property>
+                                        <property name="fixed-width">280</property>
                                         <property name="title" translatable="yes">NOME DO ALUNO</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -1456,12 +1481,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">1º Per</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">2</attribute>
                                           </attributes>
                                         </child>
@@ -1469,12 +1495,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">2º Per</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">3</attribute>
                                           </attributes>
                                         </child>
@@ -1482,12 +1509,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">3º Per</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">4</attribute>
                                           </attributes>
                                         </child>
@@ -1495,12 +1523,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">4º Per</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">5</attribute>
                                           </attributes>
                                         </child>
@@ -1508,12 +1537,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">Soma</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">6</attribute>
                                           </attributes>
                                         </child>
@@ -1521,12 +1551,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">Média</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">7</attribute>
                                           </attributes>
                                         </child>
@@ -1534,12 +1565,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">Final</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">8</attribute>
                                           </attributes>
                                         </child>
@@ -1547,12 +1579,13 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">Cons</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
+                                            <attribute name="font">13</attribute>
                                             <attribute name="text">9</attribute>
                                           </attributes>
                                         </child>
@@ -1560,8 +1593,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">160</property>
-                                        <property name="title" translatable="yes">Observação</property>
+                                        <property name="title" translatable="yes">OBS</property>
                                         <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -1698,19 +1730,30 @@
                         <property name="spacing">10</property>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">360</property>
+                            <property name="width-request">370</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
-                              <object class="GtkLabel" id="label_tema_acervo">
+                              <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">TEMAS</property>
-                                <style>
-                                  <class name="titulo-secao-principal"/>
-                                </style>
+                                <child>
+                                  <object class="GtkLabel" id="label_tema_acervo">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">TEMAS</property>
+                                    <style>
+                                      <class name="titulo-secao-principal"/>
+                                    </style>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">True</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -1731,14 +1774,14 @@
                             </child>
                             <child>
                               <object class="GtkScrolledWindow" id="scrolled_subtemas_disponiveis1">
-                                <property name="width-request">360</property>
+                                <property name="width-request">370</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="propagate-natural-width">True</property>
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">360</property>
+                                    <property name="width-request">370</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -1765,10 +1808,11 @@
                         </child>
                         <child>
                           <object class="GtkBox" id="box_configuracoes">
-                            <property name="width-request">775</property>
+                            <property name="width-request">786</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="margin-top">5</property>
+                            <property name="margin-top">6</property>
+                            <property name="margin-bottom">5</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">9</property>
                             <child>
@@ -1784,7 +1828,7 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_colunas">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
@@ -1856,7 +1900,7 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_separadores">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
@@ -1927,7 +1971,7 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_fontes">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
@@ -1998,7 +2042,7 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_paginas">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
@@ -2069,7 +2113,7 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_cabecalho_estilo">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
@@ -2140,12 +2184,12 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_decoracoes">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
                                 <property name="margin-end">105</property>
-                                <property name="spacing">30</property>
+                                <property name="spacing">80</property>
                                 <child>
                                   <object class="GtkLabel" id="label_decoracao">
                                     <property name="visible">True</property>
@@ -2196,12 +2240,12 @@
                             </child>
                             <child>
                               <object class="GtkBox" id="box_cor_serie">
-                                <property name="height-request">44</property>
+                                <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
                                 <property name="margin-end">105</property>
-                                <property name="spacing">30</property>
+                                <property name="spacing">80</property>
                                 <child>
                                   <object class="GtkLabel" id="label_cor_serie">
                                     <property name="visible">True</property>
@@ -2357,19 +2401,30 @@
                         <property name="spacing">10</property>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">360</property>
+                            <property name="width-request">370</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
-                              <object class="GtkLabel">
+                              <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">TEMAS</property>
-                                <style>
-                                  <class name="titulo-secao-principal"/>
-                                </style>
+                                <child>
+                                  <object class="GtkLabel" id="label_tema_prova">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">TEMAS</property>
+                                    <style>
+                                      <class name="titulo-secao-principal"/>
+                                    </style>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">True</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -2390,14 +2445,14 @@
                             </child>
                             <child>
                               <object class="GtkScrolledWindow" id="scrolled_subtemas_disponiveis">
-                                <property name="width-request">360</property>
+                                <property name="width-request">370</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="propagate-natural-width">True</property>
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">360</property>
+                                    <property name="width-request">370</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -2424,19 +2479,30 @@
                         </child>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">761</property>
+                            <property name="width-request">772</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
-                              <object class="GtkLabel">
+                              <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">MONTAGEM  DA  PROVA</property>
-                                <style>
-                                  <class name="titulo-secao-principal"/>
-                                </style>
+                                <child>
+                                  <object class="GtkLabel" id="label_montagem_da_prova">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">MONTAGEM  DA  PROVA</property>
+                                    <style>
+                                      <class name="titulo-secao-principal"/>
+                                    </style>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">True</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -2453,7 +2519,7 @@
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">761</property>
+                                    <property name="width-request">772</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>

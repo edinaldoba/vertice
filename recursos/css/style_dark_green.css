@@ -208,15 +208,20 @@ separator {
 
 .titulo-secao-principal,
 .titulo-secao-principal label {
-    color: #a5d6a7;
+    color: rgba(255, 255, 255, 0.85);
     font-size: 26px;
     font-weight: bold;
+
+    border: 1px solid #00aa00;
+    border-radius: 12px;
+    padding: 0px 12px 0px 12px;
 }
 
 .titulo-secao,
 .titulo-secao label {
-    color: #a5d6a7;
+    color: rgba(255, 255, 255, 0.85);
     font-weight: bold;
+
 }
 
 .indicador-item-subtema {
@@ -232,23 +237,25 @@ separator {
 /* --- Botões Gerais --- */
 button {
     background-image: none;
-    background-color: #26343e;
+    background-color: #1e2b32;
     color: #00ff00;
     font-weight: bold;
-    border: 1px solid #37474F;
+/*     letter-spacing: 2px; */
+    border: 1px solid #364c5a;
     border-radius: 10px;
-    box-shadow: none;
+    box-shadow: inset 0 0 6px #364c5a;
     text-shadow: none;
 }
 
 button label {
     font-size: 24px;
-    color: #a5d6a7;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 button:hover {
     background-color: #009400;
     border: 1px solid #00ff00;
+    box-shadow: inset 0 0 6px #00ff00;
 }
 
 button:hover label {
@@ -256,12 +263,13 @@ button:hover label {
 }
 
 .button-travado {
-    background-color: #009400;
-    border: 1px solid #00ff00;
+    background-color: #005500;
+    border: 1px solid #009400;
+    box-shadow: inset 0 0 6px #009400;
 }
 
 .button-travado label {
-    color: #FFFFFF;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* --- Campos de Texto (GtkEntry) --- */
@@ -310,6 +318,7 @@ button cellview {
     font-weight: bold;
     border: 1px solid #005500;
     border-radius: 7px;
+    box-shadow: none;
 }
 
 button cellview {
@@ -319,6 +328,7 @@ button cellview {
 combobox button:hover {
     background-color: #005500;
     border: 1px solid #00aa00;
+    box-shadow: none;
 }
 
 window.popup menu,
@@ -435,7 +445,8 @@ treeview {
     color: #ffffff;
     font-size: 20px;
     border-color: #008200;
-/*     padding: 1px; */
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 treeview:selected {
@@ -445,13 +456,20 @@ treeview:selected {
 treeview header label {
     font-size: 20px;
     font-weight: bold;
-    color: #81C784;
+    color: rgba(255, 255, 255, 0.85);
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 treeview header button {
-    background-color: #002f00;
+    background-color: rgba(0, 100, 0, 0.2);
     border: none;
     padding: 6px;
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-bottom: 3px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 6px rgba(0, 100, 0, 1.0);
 }
 
 
@@ -491,6 +509,7 @@ treeview header button {
 .btn-stepper {
     background-color: #242f35;
     padding: 0px 0px;
+    box-shadow: inset 0 0 3px #364c5a;
 }
 
 .btn-stepper label {
@@ -503,6 +522,7 @@ treeview header button {
     background-color: #2c3c47;
     border-radius: 50%;
     border-color: #00aa00;
+    box-shadow: inset 0 0 3px #009400;
 }
 
 .btn-stepper:hover label {

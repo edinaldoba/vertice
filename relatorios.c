@@ -31,8 +31,6 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 
 
 
-
-
 //==================================================================================================
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
