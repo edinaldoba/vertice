@@ -788,6 +788,9 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <style>
+                                      <class name="button-travado"/>
+                                    </style>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1119,6 +1122,9 @@
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">True</property>
+                                    <style>
+                                      <class name="button-travado"/>
+                                    </style>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1393,7 +1399,7 @@
                                   <object class="GtkLabel" id="label_relatorio">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">RELATÓRIO  FINAL</property>
+                                    <property name="label" translatable="yes">RELATÓRIO FINAL</property>
                                     <attributes>
                                       <attribute name="stretch" value="ultra-expanded"/>
                                     </attributes>
@@ -1417,6 +1423,9 @@
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
+                                        <style>
+                                          <class name="button-travado"/>
+                                        </style>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1704,10 +1713,10 @@
                   </packing>
                 </child>
                 <child type="tab">
-                  <object class="GtkLabel" id="aba_relatorios">
+                  <object class="GtkLabel" id="aba_diario">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Relatórios</property>
+                    <property name="label" translatable="yes">DIÁRIOS</property>
                   </object>
                   <packing>
                     <property name="tab-fill">False</property>
@@ -1733,6 +1742,7 @@
                             <property name="width-request">370</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="margin-top">3</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
@@ -2319,7 +2329,7 @@
                         <property name="homogeneous">True</property>
                         <child>
                           <object class="GtkButton" id="button_pdf_latex">
-                            <property name="label" translatable="yes">PDF LaTeX</property>
+                            <property name="label" translatable="yes">PDF LATEX</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="receives-default">True</property>
@@ -2377,7 +2387,7 @@
                   <object class="GtkLabel" id="aba_latex">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">LaTeX</property>
+                    <property name="label" translatable="yes">LATEX</property>
                   </object>
                   <packing>
                     <property name="position">1</property>
@@ -2404,6 +2414,7 @@
                             <property name="width-request">370</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="margin-top">3</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
@@ -2482,6 +2493,7 @@
                             <property name="width-request">772</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="margin-top">3</property>
                             <property name="orientation">vertical</property>
                             <property name="spacing">10</property>
                             <child>
@@ -2492,7 +2504,7 @@
                                   <object class="GtkLabel" id="label_montagem_da_prova">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">MONTAGEM  DA  PROVA</property>
+                                    <property name="label" translatable="yes">MONTAGEM DA PROVA</property>
                                     <style>
                                       <class name="titulo-secao-principal"/>
                                     </style>
@@ -2764,7 +2776,7 @@
                   <object class="GtkLabel" id="aba_provas">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Provas</property>
+                    <property name="label" translatable="yes">PROVAS</property>
                   </object>
                   <packing>
                     <property name="position">2</property>
@@ -2975,6 +2987,16 @@
       </object>
     </child>
   </object>
+  <object class="GtkPopover" id="popover_calendario">
+    <property name="can-focus">False</property>
+    <property name="relative-to">entry_data</property>
+    <child>
+      <object class="GtkCalendar" id="calendar_data">
+        <property name="visible">True</property>
+        <property name="can-focus">True</property>
+      </object>
+    </child>
+  </object>
   <object class="GtkPopover" id="popover_nomear_avaliacao">
     <property name="can-focus">False</property>
     <property name="relative-to">button_nova_avaliacao</property>
@@ -3048,15 +3070,6 @@
       <widget name="radio_cabecalho_1"/>
       <widget name="radio_paginas_1"/>
     </widgets>
-  </object>
-  <object class="GtkPopover" id="popover_calendario">
-    <property name="can-focus">False</property>
-    <child>
-      <object class="GtkCalendar" id="calendar_data">
-        <property name="visible">True</property>
-        <property name="can-focus">True</property>
-      </object>
-    </child>
   </object>
   <object class="GtkSizeGroup" id="sizegroup1"/>
 </interface>

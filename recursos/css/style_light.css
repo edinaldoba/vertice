@@ -70,6 +70,11 @@ notebook > header {
     border-bottom: none;
 }
 
+notebook > header label {
+    font-family: "Liberation Sans", "Ubuntu", "DejaVu Sans", sans-serif;
+    letter-spacing: 4px;
+}
+
 notebook > header > tabs > tab {
     background-color: #CFD8DC;
     padding: 6px;

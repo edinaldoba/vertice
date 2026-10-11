@@ -346,40 +346,6 @@ typedef struct {
 } __attribute__( ( packed ) ) FichaAluno;
 
 
-// typedef struct {
-//    uint32_t cod_aluno;
-//    char aluno[64];      // Nome do aluno
-//    char sexo[16];       // Masculino ou Feminino (conforme SIAEP)
-//    char nasc[16];       // Data de nascimento do aluno
-//
-//    FichaAtipicidade atipico; // Condição de adaptação curricular
-//
-//    // Dados preenchidos a posteriori conforme período selecionado
-//    SituacaoAluno sit;   // Situação do aluno
-//    gboolean ativo;      // Status de matrícula global
-//
-//    int limite_corte;    // Formatação de impressão
-//    int idx;             // No Vértice sempre ordem alfabética (idx siaep de origem preservado)
-//
-//    //-- FREQUÊNCIA
-//    int presencas[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (presenças reais) somatório (StatusAssiduidade)PRESENTE
-//    int ausencias[QTD_DISC][4];     // [2 disciplinas][4 Períodos] (ausências reais) somatório (StatusAssiduidade)AUSENTE
-//
-//    //-- AVALIAÇÕES (NOTAS)
-//    struct {
-//       float av;
-//       float rec;
-//    } nota[QTD_DISC][4][5];         // [2 disciplinas][4 Períodos][5 Avaliações]
-//
-//    float soma[QTD_DISC];     // [2 disciplinas] -> Soma da média dos quatro períodos
-//    float media[QTD_DISC];    // [2 disciplinas] -> Média final = soma / 4
-//
-//    float relatorio[QTD_DISC][6];   // [2 disciplinas][6 notas] Médias dos 4 períodos + rec. final + conselho
-//
-//    gboolean ficha_modificada; // Reseta a flag
-//
-// } __attribute__( ( packed ) ) FichaAluno;
-
 // Estrutura para descrever o "Cabeçalho" de cada avaliação
 typedef struct {
    char nome_av[32];     // Ex: "Prova Escrita", "Seminário"

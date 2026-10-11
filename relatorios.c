@@ -142,11 +142,8 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
             "\\usepackage[table]{xcolor}\n"
             "\\usepackage{tikz}\n"
             "\\usepackage{multicol}\n"
-            "\\usepackage{enumerate}\n"
-            "\\usepackage{wasysym}\n"
             "\\usepackage{array,multirow,graphicx}\n"
             "\\usepackage{amssymb}\n"
-            "\\usepackage{ifthen}\n"
             "\\usepackage{setspace}\n"
             "\\usepackage{ulem}\n"
             "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
@@ -499,11 +496,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
             "\\usepackage{xcolor}\n"
             "\\usepackage{tikz}\n"
             "\\usepackage{multicol}\n"
-            "\\usepackage{enumerate}\n"
-            "\\usepackage{wasysym}\n"
             "\\usepackage{array,multirow,graphicx}\n"
-            "\\usepackage{amssymb}\n"
-            "\\usepackage{ifthen}\n"
             "\\usepackage{setspace}\n"
             "\\usepackage{ulem}\n"
             "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
@@ -582,158 +575,178 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 //==================================================================================================
-static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx, GString *def_dia, GString *def_pres, GString *def_falt, GString *def_alunos, GString *def_num, int *ndias, int *meses_idx ) {
-   g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n" );
+static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx ) {
+   g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
+                         "\\usepackage[utf8]{inputenc}\n"
+                         "\\usepackage[T1]{fontenc}\n" );
 
    if ( ctx->dados.fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   g_string_append( tex,
-                    "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                    "\\usepackage[dvipsnames]{xcolor}\n"
-                    "\\usepackage{pdflscape,lscape,tikz,ifthen,ulem,graphicx}\n"
-                    "\\usetikzlibrary{calc}\n"
-                    "\\pagestyle{empty}\n\n"
-                  );
-
-   g_string_append_printf( tex, "\\pgfmathsetmacro{\\nal}{%d}\n", ctx->dados.qtd_alunos_total );
-   g_string_append_printf( tex, "\\pgfmathsetmacro{\\nn}{%d}\n", ctx->diarios->len );
-   g_string_append( tex, "\\pgfmathsetmacro{\\p}{199/330}\n\n" );
-
-   // Macros de marcação de presença e falta nativas do Vértice
-   g_string_append( tex,
-                    "\\newcommand{\\suspenso}[2]{\\draw[red,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {S};}\n"
-                    "\\newcommand{\\dispensado}[2]{\\draw[YellowOrange,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {D};}\n"
-                    "\\newcommand{\\novoaluno}[2]{\\draw[gray,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {N};}\n"
-                    "\\newcommand{\\faltajustificada}[2]{\\draw[Aquamarine,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FJ};}\n"
-                    "\\newcommand{\\foiembora}[2]{\\draw[red,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FE};}\n"
-                    "\\newcommand{\\foradesala}[2]{\\draw[YellowOrange,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf FS};}\n"
-                    "\\newcommand{\\atividadedomiciliar}[2]{\\draw[Orchid,text=black,thick] ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (0.23) node {\\scriptsize\\bf AD};}\n"
-
-                    "\\newcommand{\\pa}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
-                    "\\newcommand{\\pb}[2]{\\fill ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.5)}) circle (1.5pt);}\n"
-                    "\\newcommand{\\pc}[2]{\\fill ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.65-sqrt(3)/6)}) circle (1.5pt) ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt) ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.65)}) circle (1.5pt);}\n"
-                    "\\newcommand{\\fa}[2]{\\node at ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.5)}) {F};}\n"
-                    "\\newcommand{\\fb}[2]{\\node at ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.5)}) {\\scriptsize\\bf F}; \\node at ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.5)}) {\\scriptsize\\bf F};}\n"
-                    "\\newcommand{\\fc}[2]{\\node at ({7+\\p*(#2+0.5)},{-1.2-\\p*(#1+2.65-sqrt(3)/6)}) {\\tiny\\bf F}; \\node at ({7+\\p*(#2+1/3)},{-1.2-\\p*(#1+2.65)}) {\\tiny\\bf F}; \\node at ({7+\\p*(#2+2/3)},{-1.2-\\p*(#1+2.65)}) {\\tiny\\bf F};}\n\n"
-                  );
-
-   // Injeção direta dos arrays de dados
-   g_string_append( tex, def_alunos->str );
-   g_string_append( tex, def_num->str );
-   g_string_append( tex, def_pres->str );
-   g_string_append( tex, def_falt->str );
-   g_string_append( tex, def_dia->str );
-
-   const char *m_str[] = {"jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"};
-   g_string_append_printf( tex, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
-   g_string_append_printf( tex, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n",
-                           ( meses_idx[0] > 0 ) ? m_str[meses_idx[0] - 1] : "",
-                           ( meses_idx[1] > 0 ) ? m_str[meses_idx[1] - 1] : "",
-                           ( meses_idx[2] > 0 ) ? m_str[meses_idx[2] - 1] : "" );
-
-   g_string_append( tex, "\\begin{document}\n\\begin{landscape}\n\n" );
+   g_string_append( tex, "\\usepackage[brazil]{babel}\n"
+                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                         "\\usepackage[dvipsnames]{xcolor}\n"
+                         "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
+                         "\\usetikzlibrary{calc}\n"
+                         "\\pagestyle{empty}\n\n"
+                         "\\begin{document}\n\\begin{landscape}\n\n" );
 }
+
 //-------------------------------------------------------------------------------------------------------------
-static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext *ctx, int ad, int ap, GString *feriados, GString *marcacoes, GString *inativos ) {
+static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext *ctx, int ad, int ap, int *pres, int *falt, GString *feriados, GString *marcacoes, int *meses_acumulados, int *meses_id, int num_meses ) {
    int start = ( pagina == 1 ) ? 1 : 28;
    int end = ( pagina == 1 ) ? 27 : 54;
    int offset = ( pagina == 1 ) ? 0 : 27;
 
    const InterfaceDados *dados = &ctx->dados;
    gboolean eh_recuperacao = ( dados->periodo[0] == 'R' );
+   int nal = dados->qtd_alunos_total;
+   int nn = ctx->diarios->len;
+   double p = 199.0 / 330.0;
 
    g_string_append( tex, "\\noindent\\begin{tikzpicture}\n\\fill (0,0) circle (0pt);\n\\draw (1,-1) rectangle (28.7,-20);\n" );
-   g_string_append( tex,
-                    "\\draw (1.6,{-1.2-3*\\p}) -- (1.6,{-1.2-(27+3)*\\p})\n"
-                    "(7,-1) -- (7,{-1.2-(27+3)*\\p})\n"
-                    "(27.8,{-1.2-2*\\p}) -- (27.8,{-1.2-(27+3)*\\p})\n"
-                    "(26.9,{-1.2-1*\\p}) -- (26.9,{-1.2-(27+3)*\\p});\n"
-                    "\\node at (27.35,{-1.2-2.5*\\p}) {\\bf\\Large P};\n"
-                    "\\node at (28.25,{-1.2-2.5*\\p}) {\\bf\\Large F};\n"
-                    "\\draw (7,{-1.2-\\p}) -- (28.7,{-1.2-\\p})\n"
-                    "(7,{-1.2-2*\\p}) -- (28.7,{-1.2-2*\\p});\n"
-                  );
 
-   g_string_append( tex, "\\foreach \\i in {0,...,32}\n{\\draw ({7+\\i*\\p},{-1.2-2*\\p}) -- ({7+\\i*\\p},{-1.2-(27+3)*\\p});}\n" );
-
-   // Topo (Datas e Cabeçalhos de Meses)
-   g_string_append( tex,
-                    "\\ifthenelse{\\nn>0}{\n"
-                    "  \\foreach \\i in {1,...,\\nn}{\\node[inner sep=0pt] at ({7+\\p*(\\i-0.5)},{-1.2-\\p*2.5}) {\\pgfmathparse{\\dia[\\i-1]}\\pgfmathresult};}\n"
-                    "  \\foreach \\i in {0,...,2}\n  {\n"
-                    "    \\pgfmathsetmacro{\\t}{\\ndias[\\i+1]}\n"
-                    "    \\ifthenelse{\\t>0}\n    {\n"
-                    "      \\draw ({7+\\ndias[\\i+1]*\\p},{-1.2-\\p}) -- ({7+\\ndias[\\i+1]*\\p},{-1.2-2*\\p});\n"
-                    "      \\node at ({7+0.5*(\\ndias[\\i+1]+\\ndias[\\i])*\\p},{-1.2-1.5*\\p}) {\\Large\\pgfmathparse{\\mes[\\i]}\\pgfmathresult};\n"
-                    "    }{}\n  }\n"
-                  );
-
-   // Colunas Finais (Presenças e Faltas Totais)
+   // Estruturas Fixas
    g_string_append_printf( tex,
-                           "  \\foreach \\i in {%d,...,%d}{\n"
-                           "    \\ifthenelse{\\i<\\nal\\OR\\i=\\nal}{\n"
-                           "      \\node[inner sep=0pt] at (27.35,{-1.2-(2.5+\\i-%d)*\\p}) {\\bf\\pgfmathparse{\\pres[\\i-1]}\\pgfmathresult};\n"
-                           "      \\node[inner sep=0pt] at (28.25,{-1.2-(2.5+\\i-%d)*\\p}) {\\bf\\pgfmathparse{\\falt[\\i-1]}\\pgfmathresult};\n"
-                           "    }{}\n  }\n", start, end, offset, offset );
+      "\\draw (1.6,%.4f) -- (1.6,%.4f)\n"
+      "(7,-1) -- (7,%.4f)\n"
+      "(27.8,%.4f) -- (27.8,%.4f)\n"
+      "(26.9,%.4f) -- (26.9,%.4f);\n"
+      "\\node at (27.35,%.4f) {\\bf\\Large P};\n"
+      "\\node at (28.25,%.4f) {\\bf\\Large F};\n"
+      "\\draw (7,%.4f) -- (28.7,%.4f)\n"
+      "(7,%.4f) -- (28.7,%.4f);\n",
+      -1.2 - 3*p, -1.2 - 30*p,
+      -1.2 - 30*p,
+      -1.2 - 2*p, -1.2 - 30*p,
+      -1.2 - 1*p, -1.2 - 30*p,
+      -1.2 - 2.5*p, -1.2 - 2.5*p,
+      -1.2 - p, -1.2 - p,
+      -1.2 - 2*p, -1.2 - 2*p
+   );
 
-   if ( inativos->len > 0 ) g_string_append( tex, inativos->str );
-   g_string_append( tex, "}{}\n" );
+   // Grid Vertical
+   for ( int i = 0; i <= 32; i++ ) {
+      g_string_append_printf( tex, "\\draw (%.4f,%.4f) -- (%.4f,%.4f);\n", 7.0 + i*p, -1.2 - 2*p, 7.0 + i*p, -1.2 - 30*p );
+   }
+
+   // Topo (Datas)
+   for ( int i = 0; i < nn; i++ ) {
+      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+      int dia = 0;
+      sscanf( r->data, "%d", &dia );
+      g_string_append_printf( tex, "\\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n", 7.0 + p*(i + 0.5), -1.2 - 2.5*p, dia );
+   }
+
+   // Cabeçalhos de Meses (Calculado Dinamicamente)
+   const char *m_str[] = {"", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"};
+   int colunas_acumuladas_prev = 0;
+
+   for ( int i = 0; i < num_meses; i++ ) {
+      int colunas_acumuladas_curr = meses_acumulados[i];
+      int m_val = meses_id[i];
+
+      if ( colunas_acumuladas_curr > 0 && m_val >= 1 && m_val <= 12 ) {
+         // Linha divisória vertical do fim do mês
+         g_string_append_printf( tex, "\\draw (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 7.0 + colunas_acumuladas_curr*p, -1.2 - p,
+                                 7.0 + colunas_acumuladas_curr*p, -1.2 - 2*p );
+
+         // Centraliza o texto do mês entre a coluna final do mês passado e a atual
+         double centro_x = 7.0 + 0.5 * (colunas_acumuladas_curr + colunas_acumuladas_prev) * p;
+         g_string_append_printf( tex, "\\node at (%.4f,%.4f) {\\Large %s};\n",
+                                 centro_x, -1.2 - 1.5*p, m_str[m_val] );
+      }
+      colunas_acumuladas_prev = colunas_acumuladas_curr;
+   }
+
+   // Nomes, Totais e processamento dos Alunos Inativos direto no laço C
+   for ( int i = start; i <= end; i++ ) {
+      int j = i - 1;
+      double y_center = -1.2 - p * (i - offset + 2.5);
+      double y_name   = -1.2 - p * (i - offset + 2.52);
+
+      if ( i <= nal ) {
+         const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+
+         if ( ficha->ativo ) {
+            g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%02d};\n", y_center, i );
+            g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.7,%.4f) {%.*s};\n", y_name, ficha->limite_corte, ficha->aluno );
+            g_string_append_printf( tex, "\\node[inner sep=0pt] at (27.35,%.4f) {\\bf %d};\n", y_center, pres[j] );
+            g_string_append_printf( tex, "\\node[inner sep=0pt] at (28.25,%.4f) {\\bf %d};\n", y_center, falt[j] );
+         } else {
+            g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%02d};\n", y_center, i );
+            g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.7,%.4f) {\\color{gray!50}%.*s};\n", y_name, ficha->limite_corte, ficha->aluno );
+
+            // Desenha os traços cinzas por cima das linhas do aluno inativo calculando X e Y nativamente
+            int r_idx = i - offset;
+            double y1_inativo = -1.2 - p*(2.8 + r_idx);
+            double y2_inativo = -1.2 - p*(2.2 + r_idx);
+
+            for( int k = 1; k <= 33; k++ ) {
+               g_string_append_printf( tex, "\\draw[line width=0.8pt,gray!50] (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                  7.0 + (-0.8 + k)*p, y1_inativo, 7.0 + (-0.2 + k)*p, y2_inativo );
+            }
+            g_string_append_printf( tex, "\\draw[line width=0.8pt,gray!50] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
+               27.35 - 0.3*p, y1_inativo, 27.35 + 0.3*p, y2_inativo, 28.25 - 0.3*p, y1_inativo, 28.25 + 0.3*p, y2_inativo );
+         }
+      } else {
+         g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%d};\n", y_center, i ); // Linhas vazias
+      }
+   }
 
    // Identificadores de Turma e Disciplina
-   g_string_append( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-0.6*(3*\\p+0.2)/3}) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n" );
-   g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-1.5*(3*\\p+0.2)/3}) {\\large\\bf\\underline{%s}};\n", dados->escola );
-   g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.2,{-1-2.4*(3*\\p+0.2)/3}) {\\large\\bf\\underline{%s}};\n", dados->turma );
-   g_string_append_printf( tex, "\\node[inner sep=0pt] at (17.85,{-1.05-(0.2+\\p)/2}) {\\bf\\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};\n",
-                           dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
-
-   g_string_append( tex, "\\foreach \\i in {0,...,27}\n{\\draw (1,{-1.2-\\p*(\\i+3)}) -- (28.7,{-1.2-\\p*(\\i+3)});\n}\n" );
-
-   // Nomes dos Alunos
    g_string_append_printf( tex,
-                           "\\foreach \\i in {%d,...,%d}{\n  \\ifthenelse{\\i<\\nal\\OR\\i=\\nal}{\n"
-                           "    \\node[inner sep=0pt] at (1.3,{-1.2-\\p*(\\i-%d+2.5)}) {\\pgfmathparse{\\num[\\i-1]}\\pgfmathresult};\n"
-                           "    \\node[inner sep=0pt,right] at (1.7,{-1.2-\\p*(\\i-%d+2.52)}) {\\pgfmathparse{\\alunos[\\i-1]}\\pgfmathresult};\n"
-                           "  }{\\node[inner sep=0pt] at (1.3,{-1.2-\\p*(\\i-%d+2.5)}) {\\i};}\n}\n", start, end, offset, offset, offset );
+      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
+      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
+      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
+      "\\node[inner sep=0pt] at (17.85,%.4f) {\\bf\\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};\n",
+      -1.0 - 0.6*(3*p+0.2)/3.0,
+      -1.0 - 1.5*(3*p+0.2)/3.0, dados->escola,
+      -1.0 - 2.4*(3*p+0.2)/3.0, dados->turma,
+      -1.05 - (0.2+p)/2.0, dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
 
-   // Rodapé com Totais e Injeção de Faltas/Feriados
-   if ( ctx->diarios->len > 0 ) {
+   // Grid Horizontal
+   for ( int i = 0; i <= 27; i++ ) {
+      g_string_append_printf( tex, "\\draw (1,%.4f) -- (28.7,%.4f);\n", -1.2 - p*(i+3), -1.2 - p*(i+3) );
+   }
+
+   // Rodapé
+   if ( nn > 0 ) {
       g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\,%d\\,} \\qquad Aulas previstas: \\underline{\\,%d\\,} \\qquad Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n",
                               ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
    } else {
       g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\qquad} \\qquad Aulas previstas: \\underline{\\qquad} \\qquad Professor(a): \\underline{\\hspace{11cm}}};\n", ctx->data.ano );
    }
 
+   // Injeta os blocos processados no código chamador
    g_string_append( tex, marcacoes->str );
    g_string_append( tex, feriados->str );
    g_string_append( tex, "\\end{tikzpicture}\n" );
 }
+
 //------------------------------------------------------------------------------------------------------------------
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel && ctx && ctx->diarios );
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   // GStrings para evitar o inferno do sprintf/snprintf
-   g_autoptr( GString ) def_dia = g_string_new( "\\def\\dia{{" );
-   g_autoptr( GString ) def_pres = g_string_new( "\\def\\pres{{" );
-   g_autoptr( GString ) def_falt = g_string_new( "\\def\\falt{{" );
-   g_autoptr( GString ) def_alunos = g_string_new( "\\def\\alunos{{" );
-   g_autoptr( GString ) def_num = g_string_new( "\\def\\num{{" );
-
    g_autoptr( GString ) bloco_feriados = g_string_new( "% FERIADOS E PEDAGÓGICOS\n" );
    g_autoptr( GString ) marcacoes_pg1 = g_string_new( "% MARCAÇÕES DE FREQUÊNCIA (PG 1)\n" );
    g_autoptr( GString ) marcacoes_pg2 = g_string_new( "% MARCAÇÕES DE FREQUÊNCIA (PG 2)\n" );
-   g_autoptr( GString ) inativos_pg1 = g_string_new( "% ALUNOS INATIVOS (PG 1)\n" );
-   g_autoptr( GString ) inativos_pg2 = g_string_new( "% ALUNOS INATIVOS (PG 2)\n" );
 
    int falt[64] = {0};
    int pres[64] = {0};
    int ad = 0, ap = 0;
-   int ndias[4] = {0};
-   int meses_idx[3] = {0};
+
+   // Arrays para o mapeamento dinâmico dos meses (suporta até 12 meses no mesmo período)
+   int meses_id[12] = {0};
+   int meses_acumulados[12] = {0};
+   int num_meses = 0;
+
+   double p = 199.0 / 330.0;
+   double sqrt3_6 = 0.28867513459; // sqrt(3)/6 pré-calculado
 
    // 1. Processamento direto do GArray em RAM
    for ( guint i = 0; i < ctx->diarios->len; i++ ) {
@@ -741,156 +754,122 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
       int dia, mes, ano;
       sscanf( r->data, "%d/%d/%d", &dia, &mes, &ano );
-      g_string_append_printf( def_dia, "\"%.2d\",", dia );
 
-      // Lógica de separação dos meses
-      if ( meses_idx[0] == 0 ) meses_idx[0] = mes;
+      // Verifica se é um mês novo e guarda no mapeamento dinâmico
+      if ( num_meses == 0 || meses_id[num_meses - 1] != mes ) {
+         if ( num_meses < 12 ) { // Blindagem contra overflow
+            meses_id[num_meses] = mes;
+            num_meses++;
+         }
+      }
 
-      if ( mes == meses_idx[0] ) ndias[1]++;
-      else if ( mes == meses_idx[0] + 1 ) {
-         meses_idx[1] = mes;
-         ndias[2]++;
-      } else if ( mes == meses_idx[0] + 2 ) {
-         meses_idx[2] = mes;
-         ndias[3]++;
+      // Diferença em relação aos "Conteúdos": aqui a tabela cresce em colunas, não em carga horária.
+      // O índice da coluna é "i". Logo, até agora, temos "i + 1" colunas acumuladas.
+      if ( num_meses > 0 && num_meses <= 12 ) {
+         meses_acumulados[num_meses - 1] = i + 1;
       }
 
       int ch = r->qtd_aulas;
-      char char_macro = 'a' + ( ch - 1 );
-      if ( char_macro > 'c' ) char_macro = 'c';
-
-      ap += ch; // Presume-se Aulas Previstas padrão
+      ap += ch;
 
       g_autofree gchar *tema_upper = NULL;
       g_autofree gchar *descricao_upper = NULL;
 
+      double x_col = 7.0 + p * (i + 0.5); // Centro do Eixo X para a coluna da aula
+
       switch ( r->tipo_registro ) {
       case TIPO_REGISTRO_FERIADO:
-         ap -= ch; // Feriados anulam Aulas Previstas
-
-         tema_upper = g_utf8_strup( r->tema, -1 );
-         descricao_upper = g_utf8_strup( r->descricao, -1 );
-
-         g_string_append_printf( bloco_feriados,
-                                 "\\node[rotate=90,inner sep=0pt,color=red] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s $\\to$ %s};\n",
-                                 i, tema_upper, descricao_upper );
-         break;
-
       case TIPO_REGISTRO_PEDAGOGICO:
+         ap -= (r->tipo_registro == TIPO_REGISTRO_FERIADO) ? ch : 0;
          tema_upper = g_utf8_strup( r->tema, -1 );
          descricao_upper = g_utf8_strup( r->descricao, -1 );
-
          g_string_append_printf( bloco_feriados,
-                                 "\\node[rotate=90,inner sep=0pt,color=blue] at ({7+(0.5+%d)*\\p},{-1.2-16.5*\\p}) {%s $\\to$ %s};\n",
-                                 i, tema_upper, descricao_upper );
+               "\\node[rotate=90,inner sep=0pt,color=%s] at (%.4f,%.4f) {%s $\\to$ %s};\n",
+               (r->tipo_registro == TIPO_REGISTRO_FERIADO) ? "red" : "blue",
+               x_col, -1.2 - 16.5*p, tema_upper, descricao_upper );
          break;
 
       default: // Aulas Normais e Extras
-         ad += ch; // Somam em Aulas Dadas
+         ad += ch;
 
-         // Injeção explícita de símbolos sem \foreach no TeX
          for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
             const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
             if ( !ficha->ativo ) continue;
 
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
-            int r_idx = ( j < 27 ) ? j : j - 27; // Reset de eixo Y para a Página 2
+            int r_idx = ( j < 27 ) ? j : j - 27;
+            double y_row = -1.2 - p * (r_idx + 3.5); // Centro do Eixo Y para a linha do aluno
 
             switch ( r->chamada[j].status ) {
             case PRESENTE:
                pres[j] += ch;
-               g_string_append_printf( target, "\\p%c{%d}{%d}\n", char_macro, r_idx + 1, i );
+               if (ch == 1) {
+                  g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt);\n", x_col, y_row );
+               } else if (ch == 2) {
+                  g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt);\n",
+                     7.0 + p*(i + 1.0/3.0), y_row, 7.0 + p*(i + 2.0/3.0), y_row );
+               } else {
+                  g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt);\n",
+                     x_col, -1.2 - p*(r_idx + 3.65 - sqrt3_6),
+                     7.0 + p*(i + 1.0/3.0), -1.2 - p*(r_idx + 3.65), 7.0 + p*(i + 2.0/3.0), -1.2 - p*(r_idx + 3.65) );
+               }
                break;
 
             case AUSENTE:
                falt[j] += ch;
-               g_string_append_printf( target, "\\f%c{%d}{%d}\n", char_macro, r_idx + 1, i );
+               if (ch == 1) {
+                  g_string_append_printf( target, "\\node at (%.4f,%.4f) {F};\n", x_col, y_row );
+               } else if (ch == 2) {
+                  g_string_append_printf( target, "\\node at (%.4f,%.4f) {\\scriptsize\\bf F}; \\node at (%.4f,%.4f) {\\scriptsize\\bf F};\n",
+                     7.0 + p*(i + 1.0/3.0), y_row, 7.0 + p*(i + 2.0/3.0), y_row );
+               } else {
+                  g_string_append_printf( target, "\\node at (%.4f,%.4f) {\\tiny\\bf F}; \\node at (%.4f,%.4f) {\\tiny\\bf F}; \\node at (%.4f,%.4f) {\\tiny\\bf F};\n",
+                     x_col, -1.2 - p*(r_idx + 3.65 - sqrt3_6),
+                     7.0 + p*(i + 1.0/3.0), -1.2 - p*(r_idx + 3.65), 7.0 + p*(i + 2.0/3.0), -1.2 - p*(r_idx + 3.65) );
+               }
                break;
 
             case FALTA_JUSTIFICADA:
-               g_string_append_printf( target, "\\faltajustificada{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[Aquamarine,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FJ};\n", x_col, y_row );
                break;
-
             case DISPENSADO:
-               g_string_append_printf( target, "\\dispensado{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {D};\n", x_col, y_row );
                break;
-
             case FORA_DE_SALA:
-               g_string_append_printf( target, "\\foradesala{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FS};\n", x_col, y_row );
                break;
-
             case FOI_EMBORA:
                falt[j] += ch;
-               g_string_append_printf( target, "\\foiembora{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FE};\n", x_col, y_row );
                break;
-
             case ATIVIDADE_DOMICILIAR:
-               g_string_append_printf( target, "\\atividadedomiciliar{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[Orchid,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf AD};\n", x_col, y_row );
                break;
-
             case SUSPENSO:
                falt[j] += ch;
-               g_string_append_printf( target, "\\suspenso{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {S};\n", x_col, y_row );
                break;
-
             case NOVO_ALUNO:
-               g_string_append_printf( target, "\\novoaluno{%d}{%d}\n", r_idx + 1, i );
+               g_string_append_printf( target, "\\draw[gray,thick] (%.4f,%.4f) circle (0.23) node {N};\n", x_col, y_row );
                break;
-
-            default:
-               break;
+            default: break;
             }
          }
          break;
       }
    }
 
-   // 2. Acumulação das colunas mensais (Exatamente como na matemática original)[cite: 1]
-   ndias[3] += ( ndias[1] + ndias[2] ) * ( ndias[3] != 0 );
-   ndias[2] += ndias[1] * ( ndias[2] != 0 );
-
-   // Fechamento de Arrays e processamento dos Inativos
-   g_string_append( def_dia, "\"\"}}\n" );
-
-   for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      // pres[j] = ad - falt[j];
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
-
-      if ( ficha->ativo ) {
-         g_string_append_printf( def_alunos, "\"%.*s\",", ficha->limite_corte, ficha->aluno );
-         g_string_append_printf( def_num, "\"%.2d\",", j + 1 );
-         g_string_append_printf( def_pres, "\"%d\",", pres[j] );
-         g_string_append_printf( def_falt, "\"%d\",", falt[j] );
-      } else {
-         g_string_append_printf( def_alunos, "\"{\\color{gray!50}%.*s}\",", ficha->limite_corte, ficha->aluno );
-         g_string_append_printf( def_num, "\"{\\color{black}%.2d}\",", j + 1 );
-         g_string_append( def_pres, "\"\"," );
-         g_string_append( def_falt, "\"\"," );
-
-         // Desenha os traços cinzas por cima das linhas do aluno inativo[cite: 1]
-         GString *target = ( j < 27 ) ? inativos_pg1 : inativos_pg2;
-         int r_idx = ( j < 27 ) ? j : j - 27;
-
-         g_string_append_printf( target, "\\foreach \\i in {1,...,33} { \\draw[line width=0.8pt,gray!50] ({7+(-0.8+\\i)*\\p},{-1.2-\\p*(2.8+%d)}) -- ({7+(-0.2+\\i)*\\p},{-1.2-\\p*(2.2+%d)}); }\n", r_idx + 1, r_idx + 1 );
-         g_string_append_printf( target, "\\draw[line width=0.8pt,gray!50] ({27.35-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({27.35+0.3*\\p},{-1.2-(2.2+%d)*\\p}) ({28.25-0.3*\\p},{-1.2-(2.8+%d)*\\p}) -- ({28.25+0.3*\\p},{-1.2-(2.2+%d)*\\p});\n", r_idx + 1, r_idx + 1, r_idx + 1, r_idx + 1 );
-      }
-   }
-
-   g_string_append( def_alunos, "\"\"}}\n" );
-   g_string_append( def_num, "\"\"}}\n" );
-   g_string_append( def_pres, "\"\"}}\n" );
-   g_string_append( def_falt, "\"\"}}\n" );
-
    // 3. Montagem do Arquivo LaTeX Final (Gerenciamento de Memória Dinâmico)
    g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Buffer otimizado
 
-   gerar_preambulo_latex_frequencia( tex, ctx, def_dia, def_pres, def_falt, def_alunos, def_num, ndias, meses_idx );
+   gerar_preambulo_latex_frequencia( tex, ctx );
 
-   gerar_pagina_frequencia( tex, 1, ctx, ad, ap, bloco_feriados, marcacoes_pg1, inativos_pg1 );
+   // Renderiza Página 1 passando as variáveis de meses corrigidas
+   gerar_pagina_frequencia( tex, 1, ctx, ad, ap, pres, falt, bloco_feriados, marcacoes_pg1, meses_acumulados, meses_id, num_meses );
 
    if ( dados->qtd_alunos_total >= 28 ) {
       g_string_append( tex, "\n\\newpage\n" );
-      gerar_pagina_frequencia( tex, 2, ctx, ad, ap, bloco_feriados, marcacoes_pg2, inativos_pg2 );
+      gerar_pagina_frequencia( tex, 2, ctx, ad, ap, pres, falt, bloco_feriados, marcacoes_pg2, meses_acumulados, meses_id, num_meses );
    }
 
    g_string_append( tex, "\n\\end{landscape}\n\\end{document}\n" );
@@ -963,129 +942,163 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 
    int nn = registros->len;
    int somach = 0, ad = 0, ap = 0;
-   int ndias[4] = {0, 0, 0, 0};
-   int mes_inicial = 0;
+
+   // Arrays para o mapeamento dinâmico dos meses (suporta até 12 meses no mesmo período)
+   int meses_id[12] = {0};
+   int meses_acumulados[12] = {0};
+   int num_meses = 0;
 
    const char *Meses[] = { "", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez" };
 
-   g_autoptr( GString ) macros_cont = g_string_new( "\\def\\cont{{" );
-   g_autoptr( GString ) macros_nhoras = g_string_new( "\\def\\nhoras{{\"0\"," );
-   g_autoptr( GString ) macros_dia = g_string_new( "\\def\\dia{{" );
-
+   // =========================================================================
+   // PASSO 1: MAPEAMENTO DINÂMICO E CÁLCULO DOS TOTAIS
+   // =========================================================================
    for ( int i = 0; i < nn; i++ ) {
       RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
       int dia = 0, mes = 0, ano = 0;
       sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
-      if ( i == 0 ) mes_inicial = mes;
+      // Verifica se é um mês novo (assume que 'registros' está em ordem cronológica)
+      if ( num_meses == 0 || meses_id[num_meses - 1] != mes ) {
+         if ( num_meses < 12 ) { // Blindagem contra overflow
+            meses_id[num_meses] = mes;
+            num_meses++;
+         }
+      }
 
       somach += d->qtd_aulas;
 
-      if ( d->tipo_registro == 0 ) {
-         ad += d->qtd_aulas; // Aulas Dadas
+      // Atualiza automaticamente o limite inferior (cumulativo) do mês atual
+      if ( num_meses > 0 && num_meses <= 12 ) {
+         meses_acumulados[num_meses - 1] = somach;
       }
 
-      if ( d->tipo_registro != 2 ) {
-         ap += d->qtd_aulas;  // Aulas Previstas
-      }
-
-      // Histograma de carga horária para renderização das chaves no LaTeX
-      if ( mes == mes_inicial ) ndias[1] += d->qtd_aulas;
-      else if ( mes == mes_inicial + 1 ) ndias[2] += d->qtd_aulas;
-      else if ( mes == mes_inicial + 2 ) ndias[3] += d->qtd_aulas;
-
-      // Montagem das macros de listas do LaTeX
-      if ( d->tipo_registro == 1 ) {
-         g_string_append_printf( macros_cont, "\"{\\color{blue}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
-
-      } else if ( d->tipo_registro == 2 ) {
-         g_string_append_printf( macros_cont, "\"{\\color{red}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
-
-      } else if ( d->tipo_registro == 3 ) {
-         g_string_append_printf( macros_cont, "\"{\\color{olive}\\textbf{%s} $-$ %s}\",", d->tema, d->descricao );
-
-      } else {
-         g_string_append_printf( macros_cont, "\"\\textbf{%s} $-$ %s\",", d->tema, d->descricao );
-      }
-
-      g_string_append_printf( macros_dia, "\"%02d\",", dia );
-      g_string_append_printf( macros_nhoras, "\"%d\",", somach );
+      if ( d->tipo_registro == 0 ) ad += d->qtd_aulas; // Aulas Dadas
+      if ( d->tipo_registro != 2 ) ap += d->qtd_aulas; // Aulas Previstas
    }
 
-   g_string_append( macros_cont, "\"\"}}\n" );
-   g_string_append( macros_nhoras, "\"\"}}\n" );
-   g_string_append( macros_dia, "\"\"}}\n" );
-
-   // Acumulação visual do mês
-   if ( ndias[3] != 0 ) ndias[3] += ndias[1] + ndias[2];
-   if ( ndias[2] != 0 ) ndias[2] += ndias[1];
-
+   // =========================================================================
+   // PASSO 2: CÁLCULOS MATEMÁTICOS DE COORDENADAS
+   // =========================================================================
    int valor_p = ( nn <= 22 ) ? 480 : 10 * ( somach + 4 );
    int valor_s = ( nn <= 22 ) ? 47  : somach + 3;
 
-   // --- CONSTRUÇÃO DO DOCUMENTO LATEX ---
+   double p = 277.0 / (double)valor_p;
+   double s = (double)valor_s;
+
+   // --- CABEÇALHO DO DOCUMENTO LATEX ---
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                    "\\usepackage[utf8]{inputenc}\n"
-                    "\\usepackage[T1]{fontenc}\n" );
+                         "\\usepackage[utf8]{inputenc}\n"
+                         "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
 
+   g_string_append( tex, "\\usepackage[brazil]{babel}\n"
+                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                         "\\usepackage{tikz,ulem,graphicx}\n"
+                         "\\usetikzlibrary{calc}\n"
+                         "\\pagestyle{empty}\n\n"
+                         "\\begin{document}\n"
+                         "  \\noindent\\begin{tikzpicture}\n"
+                         "  \\fill (0,0) circle (0pt);\n"
+                         "  \\draw (1,-1) rectangle (20,-28.7);\n" );
+
+   // Renderização das Linhas Estruturais Fixas
    g_string_append_printf( tex,
-                           "\\usepackage[brazil]{babel}\n"
-                           "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                           "\\usepackage{tikz,ifthen,ulem,graphicx}\n"
-                           "\\usetikzlibrary{calc}\n"
-                           "\\pagestyle{empty}\n\n"
-                           "\\pgfmathsetmacro{\\nn}{%d}\n"
-                           "\\pgfmathsetmacro{\\p}{277/%d}\n"
-                           "\\pgfmathsetmacro{\\s}{%d}\n\n", nn, valor_p, valor_s );
+                         "  \\draw (2,%.4f) -- (2,%.4f)\n"
+                         "        (%.4f,%.4f) -- (%.4f,%.4f)\n"
+                         "        (7,-1) -- (7,%.4f)\n"
+                         "        (7,%.4f) -- (20,%.4f)\n"
+                         "        (1,%.4f) -- (20,%.4f)\n"
+                         "        (1,%.4f) -- (20,%.4f);\n"
+                         "  \\node[right] at (7,%.4f) {\\LARGE\\it Conteúdos};\n",
+                         -1.0 - 3.0*p, -1.0 - s*p,
+                         2.0 + p, -1.0 - 3.0*p, 2.0 + p, -1.0 - s*p,
+                         -1.0 - 3.0*p,
+                         -1.0 - 1.8*p, -1.0 - 1.8*p,
+                         -1.0 - 3.0*p, -1.0 - 3.0*p,
+                         -1.0 - s*p, -1.0 - s*p,
+                         -1.0 - 2.45*p );
 
-   g_string_append( tex, macros_cont->str );
-   g_string_append( tex, macros_nhoras->str );
-   g_string_append( tex, macros_dia->str );
+   // =========================================================================
+   // PASSO 3: LAÇO DOS CONTEÚDOS
+   // =========================================================================
+   if ( nn > 0 ) {
+      int h_acumulado_prev = 0;
+      int h_acumulado_curr = 0;
 
-   int mes_1 = ( mes_inicial >= 1 && mes_inicial <= 12 ) ? mes_inicial : 1;
-   int mes_2 = ( mes_1 + 1 <= 12 ) ? mes_1 + 1 : 12;
-   int mes_3 = ( mes_1 + 2 <= 12 ) ? mes_1 + 2 : 12;
+      for ( int i = 0; i < nn; i++ ) {
+         RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
+         int dia = 0, mes = 0, ano = 0;
+         sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
-   g_string_append_printf( tex, "\\def\\ndias{{\"0\",\"%d\",\"%d\",\"%d\"}}\n", ndias[1], ndias[2], ndias[3] );
-   g_string_append_printf( tex, "\\def\\mes{{\"%s\",\"%s\",\"%s\"}}\n\n", Meses[mes_1], Meses[mes_2], Meses[mes_3] );
+         h_acumulado_prev = h_acumulado_curr;
+         h_acumulado_curr += d->qtd_aulas;
 
+         // Coordenadas Y calculadas diretamente em C
+         double y_centro = -1.0 - ( 3.0 + 0.5 * ( h_acumulado_prev + h_acumulado_curr ) ) * p;
+         double y_base   = -1.0 - p * ( h_acumulado_curr + 3.0 );
+
+         g_autofree gchar *str_conteudo = NULL;
+         if ( d->tipo_registro == 1 ) {
+            str_conteudo = g_strdup_printf( "{\\color{blue}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
+         } else if ( d->tipo_registro == 2 ) {
+            str_conteudo = g_strdup_printf( "{\\color{red}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
+         } else if ( d->tipo_registro == 3 ) {
+            str_conteudo = g_strdup_printf( "{\\color{olive}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
+         } else {
+            str_conteudo = g_strdup_printf( "\\textbf{%s} $-$ %s", d->tema, d->descricao );
+         }
+
+         g_string_append_printf( tex,
+            "    \\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n"
+            "    \\node[right] at (%.4f,%.4f) {\\parbox{17.15cm}{%s}};\n"
+            "    \\draw (2,%.4f) -- (20,%.4f);\n",
+            2.0 + p/2.0, y_centro, dia,
+            2.0 + p, y_centro, str_conteudo,
+            y_base, y_base );
+      }
+   }
+
+   // =========================================================================
+   // PASSO 4: DESENHO DINÂMICO DOS MESES
+   // =========================================================================
+   int h_mes_prev = 0;
+
+   for ( int i = 0; i < num_meses; i++ ) {
+      int mes_atual = meses_id[i];
+      int h_mes_curr = meses_acumulados[i];
+
+      // Validação extra de segurança para os índices de meses (1 a 12)
+      if ( mes_atual >= 1 && mes_atual <= 12 ) {
+         double y_linha_mes = -1.0 - p * ( 3.0 + h_mes_curr );
+         double y_centro_mes = -1.0 - 3.0*p - 0.5 * ( h_mes_curr + h_mes_prev ) * p;
+
+         g_string_append_printf( tex,
+            "    \\draw (1,%.4f) -- (2,%.4f);\n"
+            "    \\node at (1.5,%.4f) {\\Large %s};\n",
+            y_linha_mes, y_linha_mes,
+            y_centro_mes, Meses[mes_atual] );
+      }
+      h_mes_prev = h_mes_curr;
+   }
+
+   // =========================================================================
+   // PASSO 5: RODAPÉ E FINALIZAÇÃO ESTRUTURAL
+   // =========================================================================
    g_string_append_printf( tex,
-                           "\\begin{document}\n"
-                           "  \\noindent\\begin{tikzpicture}\n"
-                           "  \\fill (0,0) circle (0pt);\n"
-                           "  \\draw (1,-1) rectangle (20,-28.7);\n"
-                           "  \\draw (2,{-1-3*\\p}) -- (2,{-1-\\s*\\p})\n"
-                           "        ({2+\\p},{-1-3*\\p}) -- ({2+\\p},{-1-\\s*\\p})\n"
-                           "        (7,-1) -- (7,{-1-3*\\p})\n"
-                           "        (7,{-1-1.8*\\p}) -- (20,{-1-1.8*\\p})\n"
-                           "        (1,{-1-3*\\p}) -- (20,{-1-3*\\p})\n"
-                           "        (1,{-1-\\s*\\p}) -- (20,{-1-\\s*\\p});\n"
-                           "  \\node[right] at (7,{-1-2.45*\\p}) {\\LARGE\\it Conteúdos};\n"
-                           "  \\ifthenelse{\\nn>0}{\n"
-                           "    \\foreach \\i in {1,...,\\nn}{\n"
-                           "      \\node[inner sep=0pt] at ({2+\\p/2},{-1-(3+0.5*(\\nhoras[\\i-1]+\\nhoras[\\i]))*\\p}) {\\pgfmathparse{\\dia[\\i-1]}\\pgfmathresult};\n"
-                           "      \\node[right] at ({2+\\p},{-1-(3+0.5*(\\nhoras[\\i-1]+\\nhoras[\\i]))*\\p}) {\\parbox{17.15cm}{\\pgfmathparse{\\cont[\\i-1]}\\pgfmathresult}};\n"
-                           "      \\draw (2,{-1-\\p*(\\nhoras[\\i]+3)}) -- (20,{-1-\\p*(\\nhoras[\\i]+3)});\n"
-                           "    }\n"
-                           "    \\foreach \\i in {0,...,2} {\n"
-                           "      \\pgfmathsetmacro{\\t}{\\ndias[\\i+1]}\n"
-                           "      \\ifthenelse{\\t>0}{\n"
-                           "        \\draw (1,{-1-\\p*(3+\\ndias[\\i+1])}) -- (2,{-1-\\p*(3+\\ndias[\\i+1])});\n"
-                           "        \\node at (1.5,{-1-3*\\p-0.5*(\\ndias[\\i+1]+\\ndias[\\i])*\\p}) {\\Large\\pgfmathparse{\\mes[\\i]}\\pgfmathresult};\n"
-                           "      }{}\n"
-                           "    }\n"
-                           "  }{}\n"
-                           "  \\node[right] at (1,{-1-\\p/2}) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
-                           "  \\node[right] at (1,{-1-3*\\p/2}) {\\large\\bf\\underline{%s}};\n" // Escola
-                           "  \\node[right] at (1,{-1-5*\\p/2}) {\\large\\bf\\underline{%s}};\n" // Turma
-                           "  \\node[inner sep=0pt] at (13.5,{-1-\\p}) {\\bf\\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};\n" // Disciplina, a/o, periodo, ano
-                           "  \\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \\underline{\\,%02d\\,}/\\underline{\\,%02d\\,}/\\underline{\\,%d\\,} \\hspace{5mm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{5mm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{5mm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n"
-                           "  \\end{tikzpicture}\n"
-                           "\\end{document}\n",
-                           dados->escola, dados->turma, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
-                           ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
+      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
+      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
+      "  \\node[inner sep=0pt] at (13.5,%.4f) {\\bf\\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};\n"
+      "  \\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \\underline{\\,%02d\\,}/\\underline{\\,%02d\\,}/\\underline{\\,%d\\,} \\hspace{5mm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{5mm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{5mm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n"
+      "  \\end{tikzpicture}\n"
+      "\\end{document}\n",
+      -1.0 - p/2.0,
+      -1.0 - 3.0*p/2.0, dados->escola,
+      -1.0 - 5.0*p/2.0, dados->turma,
+      -1.0 - p, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
+      ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
 
    g_file_set_contents( caminho_saida, tex->str, -1, NULL );
 }

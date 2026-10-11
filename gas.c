@@ -426,9 +426,44 @@ static double gas_erro_ortogonal( const double p0[2], const double p1[2],
 }
 
 // ============================================================================
+// NOVA FUNÇÃO: ERRO DE CANTOS MAIS EXTERNOS (PRESSÃO EXPANSIVA)
+// ============================================================================
+static double gas_erro_cantos_externos( const GasPopulacao *simulacao, int nrow, int ncol ) {
+   // Coordenadas ideais dos 4 cantos da imagem (k = 0, 1, 2, 3 no sentido horário)
+   // k=0: Topo-Esquerdo  | k=1: Topo-Direito | k=2: Fundo-Direito | k=3: Fundo-Esquerdo
+
+   // ATENÇÃO: Assumindo que simulacao[k].x[0] = COLUNA (eixo X)
+   // e simulacao[k].x[1] = LINHA (eixo Y).
+   // Se no seu motor for o inverso (x[0]=linha, x[1]=coluna), basta inverter os arrays abaixo!
+   double cantos_x[4] = { 0.0, (double)ncol, (double)ncol, 0.0 };
+   double cantos_y[4] = { 0.0, 0.0, (double)nrow, (double)nrow };
+
+   double erro_total = 0.0;
+   // A distância máxima possível dentro da imagem é a diagonal
+   double diagonal = (double)nrow * nrow + (double)ncol * ncol;
+
+   if ( diagonal == 0.0 ) return 1.0; // Barreira de segurança
+
+   for ( int k = 0; k < 4; k++ ) {
+      double dx = simulacao[k].x[0] - cantos_x[k];
+      double dy = simulacao[k].x[1] - cantos_y[k];
+      double dist = dx * dx + dy * dy;
+
+      // Normaliza a distância pela diagonal da imagem.
+      // Se o ponto estiver grudado no canto da imagem, erro = 0.
+      // Quanto mais ele encolher para o centro da imagem, maior o erro.
+      erro_total += ( dist / diagonal );
+   }
+
+   // Retorna a média do erro dos 4 cantos (gravita entre 0.0 e 1.0)
+   return erro_total / 4.0;
+}
+
+// ============================================================================
 // FUNÇÃO DE FITNESS GEOMÉTRICO (ATUALIZADA)
 // ============================================================================
-static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite, const int k ) {
+static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite,
+                                      const int nrow, const int ncol, const int k ) {
    g_return_val_if_fail( x && elite && k >= 0 && k < 4, 0.0 );
 
    // 1. O PULO DO GATO: Simulação do polígono
@@ -475,9 +510,11 @@ static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite
                            simulacao[2].x, simulacao[3].x,
                            top_w, bot_w, left_h, right_h );
 
+   double erro_expansao = gas_erro_cantos_externos( simulacao, nrow, ncol );
+
    // 6. Fitness (Erro Relativo Normalizado)
    // Os três erros gravitam de 0.0 a 1.0 (ou mais em deformações severas).
-   double f_geo = 1.0 / ( 1.0 + erro_w + erro_h + erro_ortogonal );
+   double f_geo = 1.0 / ( 1.0 + erro_w + erro_h + erro_ortogonal + erro_expansao );
 
    return f_geo;
 }
@@ -507,7 +544,7 @@ static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elit
 
    // 3. GERAÇÕES > 0: A elite existe, ativando a pressão evolutiva geométrica
    // Avalia como a coordenada 'x' se comporta em relação às outras 3 âncoras
-   double f_geo = gas_fitness_geometrico( x, elite, k );
+   double f_geo = gas_fitness_geometrico( x, elite, img->nrow, img->ncol, k );
 
    // 4. FITNESS ATRIBUÍDO (Equilíbrio de Nash)
    double f_atribuido = ( w1 * f_local ) + ( w2 * f_geo );

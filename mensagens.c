@@ -66,7 +66,7 @@ void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados
    char artigo = ( dados->periodo[0] == 'R' ) ? 'a' : 'o';
 
    painel->format_titulo    = meu_gerador_variadico( "Bem-vindo ao Vértice!" );
-   painel->format_subtitulo = meu_gerador_variadico( "Sistema de Gestão Educacional - %s", dados->ano );
+   painel->format_subtitulo = meu_gerador_variadico( "Sistema de Gestão Educacional e Diagramação Automatizada - %s.", dados->ano );
    painel->format_instrucao = meu_gerador_variadico( "Pronto para organizar %c %s?", artigo, dados->periodo );
 
    criar_mensagem_painel( SUCESSO, painel );
