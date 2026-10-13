@@ -157,7 +157,7 @@ const ItemCombo cores_destaque[] = {
 };
 
 const ItemCombo decoracoes_estilo[] = {
-   {"Trapezios"}, {"Ondas"}, {"Quadrados"}, {"Linhas"}, {"Senoides"}, {"Circulos"}
+   {"Trapezios"}, {"Ondas"}, {"Quadrados"}, {"Linhas"}, {"Senoides"}, {"Circulos"}, {"Hexagonos"}
 };
 
 const ItemCombo provas_sequencia[] = {
@@ -198,7 +198,7 @@ void inicializacao_app_context( AppContext *ctx ) {
          .periodo           = "",
          .gestor            = "",
          .professor         = "",
-         .tema    = "",
+         .tema              = "",
          .decoracao_estilo = "",
          .cor_destaque     = "",
          .prova_sequencia  = "Primeira",
@@ -238,7 +238,7 @@ void inicializacao_app_context( AppContext *ctx ) {
       .listas = {
          .qtd_subtemas     = NULL,
          .subtemas         = NULL,
-         .temas = NULL,
+         .temas            = NULL,
          .anos             = NULL,
          .escolas          = NULL,
          .turmas           = NULL,

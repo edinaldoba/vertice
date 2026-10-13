@@ -416,7 +416,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
 
       // 2. Prepara e AGENDA a mensagem de INFO sem interromper a atual (passando FALSE)
       gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 30 segundos." );
+      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 15 segundos." );
       gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.",
                                                         ctx->dados.escola, ctx->dados.ano );
 
@@ -1042,7 +1042,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
                            limite->cores_destaque, handlers->cor_destaque );
    snprintf( dados->cor_destaque, sizeof( dados->cor_destaque ), "%s", listas->cores_destaque[ foco->cor_destaque ].str );
 
-   foco->decoracao_estilo = 1;
+   foco->decoracao_estilo = 0;
    popular_combo_box_text( entry->decoracao_estilo, listas->decoracoes_estilo, foco->decoracao_estilo,
                            limite->decoracoes_estilo, handlers->decoracao_estilo );
    snprintf( dados->decoracao_estilo, sizeof( dados->decoracao_estilo ), "%s",

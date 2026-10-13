@@ -269,6 +269,8 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
             anexar_tema_pagina_senoides( tex, k_tema );
          } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
             anexar_tema_pagina_circulos( tex, k_tema );
+         } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
+            anexar_tema_pagina_hexagonos( tex, k_tema );
          }
 
          g_string_append_printf( tex, "\\node[inner sep=0pt, color=CorSerie] at (9.5,-0.64) {\\LARGE\\bf %s};\n", titulo_prova );
@@ -316,6 +318,8 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
             anexar_tema_pagina_senoides( tex, k_tema );
          } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
             anexar_tema_pagina_circulos( tex, k_tema );
+         } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
+            anexar_tema_pagina_hexagonos( tex, k_tema );
          }
 
          g_string_append_printf( tex, "\\node[inner sep=0pt] at (8.75,-0.6) {\\LARGE\\bf %s};\n", titulo_prova );
@@ -380,10 +384,12 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
 
 //--------------------------------------------------------------------------------------------------------
 static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados *dados, gboolean is_page2 ) {
-   gboolean decorado = ( strcmp( dados->decoracao_estilo, "Quadrados" ) == 0 || strcmp( dados->decoracao_estilo, "Ondas" ) == 0 );
-   int dots = is_page2 ? ( decorado ? 276 : 273 ) : 240;
 
-   // Reconstroi os offsets de ancoragem para as colunas baseados no tipo do cabecalho e página
+   // Como TODAS as 6 decorações agora assumem o padrão unificado colorido (decorado = TRUE),
+   // a quantidade de pontos pode ser fixada diretamente.
+   int dots = is_page2 ? 276 : 240;
+
+   // Reconstrói os offsets de ancoragem para as colunas baseados no tipo do cabecalho e página
    double a = 0.0, k = 0.0;
    if ( dados->cabecalho_tipo == 1 ) {
       a = is_page2 ? 0.01412 : 3.56;
@@ -393,35 +399,37 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
       k = 27.55764;
    }
 
-   double offset_y = ( !is_page2 && !decorado ) ? 0.1 : 0.0;
-   const char *color_str = decorado ? ( dados->qtd_colunas == 2 ? "[CorSerie!40]" : "[CorSerie!30]" ) : "";
-   const char *size_str = decorado ? "0.5pt" : "0.6pt";
+   // A cor (suave) e o tamanho dos pontilhados agora são fixos para o padrão colorido
+   const char *color_str = ( dados->qtd_colunas == 2 ) ? "[CorSerie!40]" : "[CorSerie!30]";
+   const char *size_str = "0.5pt";
 
    if ( dados->qtd_colunas == 2 ) {
       if ( dados->separadores == 1 ) {
          for ( int i = 1; i <= dots; i++ ) {
-            double y_dot = -a - offset_y - (0.1 * i);
-            g_string_append_printf( tex, "\\fill%s (9.5,%.4f) circle (%s);\n", color_str, y_dot, size_str );
+            double y_dot = -a - (0.1 * i);
+            g_string_append_printf( tex, "  \\fill%s (9.5,%.4f) circle (%s);\n", color_str, y_dot, size_str );
          }
       } else {
-         g_string_append_printf( tex, "\\draw[line width=0.8pt] (9.5,%.4f) -- (9.5,%.4f);\n", -a, -k );
+         // Linha contínua
+         g_string_append_printf( tex, "  \\draw[line width=0.8pt] (9.5,%.4f) -- (9.5,%.4f);\n", -a, -k );
       }
+
    } else if ( dados->qtd_colunas == 3 ) {
-      int exp = 16 - 4 * dados->qtd_colunas;
-      double s = exp / 10.0;
+      int exp = 16 - 4 * dados->qtd_colunas; // Para 3 colunas, exp = 4
+      double s = exp / 10.0;                 // s = 0.4
       double x1 = (38.0 - s) / 6.0;
       double x2 = (76.0 + s) / 6.0;
 
       if ( dados->separadores == 1 ) {
          for ( int i = 1; i <= dots; i++ ) {
-            double y_dot = -a - offset_y - (0.1 * i);
-            g_string_append_printf( tex, "\\fill%s (%.4f,%.4f) circle (%s); \\fill%s (%.4f,%.4f) circle (%s);\n",
+            double y_dot = -a - (0.1 * i);
+            g_string_append_printf( tex, "  \\fill%s (%.4f,%.4f) circle (%s); \\fill%s (%.4f,%.4f) circle (%s);\n",
                                     color_str, x1, y_dot, size_str, color_str, x2, y_dot, size_str );
          }
       } else {
-         double y_start = ( !decorado && is_page2 ) ? -0.1 - a : -a;
-         g_string_append_printf( tex, "\\draw[line width=0.8pt] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
-                                 x1, y_start, x1, -k, x2, y_start, x2, -k );
+         // Linhas contínuas (O y_start antigo que variava com !decorado agora é sempre -a)
+         g_string_append_printf( tex, "  \\draw[line width=0.8pt] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 x1, -a, x1, -k, x2, -a, x2, -k );
       }
    }
 }
@@ -450,6 +458,8 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
             anexar_cabecalho_questao_senoides( tex, "black", col_factor, q_idx + 1 );
          } else if ( strcmp( dados->decoracao_estilo, "Circulos" ) == 0 ) {
             anexar_cabecalho_questao_circulos( tex, col_factor, q_idx + 1 );
+         } else if ( strcmp( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
+            anexar_cabecalho_questao_hexagonos( tex, col_factor, q_idx + 1 );
          }
 
          // Captura o enunciado da questão

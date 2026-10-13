@@ -122,6 +122,8 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
       anexar_tema_pagina_senoides( tex, k_tema );
    } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
       anexar_tema_pagina_circulos( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
+      anexar_tema_pagina_hexagonos( tex, k_tema );
    }
 
    // Título da Página injetado logo abaixo do tema vetorial
@@ -172,6 +174,8 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
                anexar_cabecalho_questao_senoides( tex, "black", k_questao, q + 1 );
             } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
                anexar_cabecalho_questao_circulos( tex, k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
+               anexar_cabecalho_questao_hexagonos( tex, k_questao, q + 1 );
             }
 
             // Coleta o bloco da questão até a próxima linha em branco

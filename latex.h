@@ -11,14 +11,10 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const A
 
 void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const gchar *texto );
 
-void anexar_tema_pagina_ondas( GString *tex, gint k );
-void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao );
 
-void anexar_tema_pagina_quadrados( GString *tex, gint intensidade );
+
+void anexar_tema_pagina_quadrados( GString *tex, gint k );
 void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao );
-
-void anexar_tema_pagina_trapezios( GString *tex, gint k );
-void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao );
 
 void anexar_tema_pagina_linhas( GString *tex, gint k );
 void anexar_cabecalho_questao_linhas( GString *tex, const gchar *cor_texto, gint k, gint num_questao );
@@ -26,8 +22,19 @@ void anexar_cabecalho_questao_linhas( GString *tex, const gchar *cor_texto, gint
 void anexar_tema_pagina_senoides( GString *tex, gint k );
 void anexar_cabecalho_questao_senoides( GString *tex, const gchar *cor_texto, gint k, gint num_questao );
 
+
+
+void anexar_tema_pagina_trapezios( GString *tex, gint k );
+void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao );
+
+void anexar_tema_pagina_ondas( GString *tex, gint k );
+void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao );
+
 void anexar_tema_pagina_circulos( GString *tex, gint k );
 void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao );
+
+void anexar_tema_pagina_hexagonos( GString *tex, gint k );
+void anexar_cabecalho_questao_hexagonos( GString *tex, gint k, gint num_questao );
 
 
 #endif
