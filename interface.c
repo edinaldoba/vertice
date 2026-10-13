@@ -26,6 +26,7 @@
 
 
 
+
 // void interface_style( AppContext *ctx ) {
 //    if ( !ctx ) return;
 //
@@ -1177,6 +1178,10 @@ gboolean atualizar_turma_interface( AppContext *ctx, const char *nova_turma, gbo
    if ( cascata->limite.disciplinas > 0 ) {
       listas->disciplinas = carregar_diretorios_temas( cascata->limite.disciplinas, diretorio, NULL );
    }
+
+   int foco = obter_foco_inicial_disciplina( ctx, ctx->cascata.limite.disciplinas );
+   popular_combo_box_generico( ctx->entry.disciplina, ctx, ctx->cascata.limite.disciplinas, foco,
+                               ctx->handlers.disciplina, mapear_disciplinas );
 
    return TRUE; // Retorna TRUE indicando que a carga lógica foi realizada com sucesso
 }

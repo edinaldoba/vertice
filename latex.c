@@ -341,3 +341,476 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    return nota;
 }
 
+
+
+
+
+
+
+
+void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const gchar *texto ) {
+   // A lógica de contraste é calculada instantaneamente no C
+   const gchar *cor_texto = ( intensidade > 50 ) ? "white" : "black";
+
+   g_string_append_printf( tex,
+      "\\tikz[baseline=(char.base)]{\n"
+      "  \\node[\n"
+      "    shape=circle, draw=CorSerie, fill=CorSerie!%d,\n"
+      "    line width=0.8pt, inner sep=1.5pt, font=\\bf\\small, text=%s\n"
+      "  ] (char) {%s};\n"
+      "}",
+      intensidade, cor_texto, texto
+   );
+}
+
+
+
+
+//=======================================================================================================
+// Função C pura para renderizar o tema decorativo de página "Ondas"
+void anexar_tema_pagina_ondas( GString *tex, gint k ) {
+
+   // 1. Cálculos matemáticos resolvidos nativamente em C
+   double largura = 17.5 + 1.5 * k;
+   int amostras = (int)( 15.0 * largura );
+   double passo = largura / amostras;
+
+   // 2. Abertura do ambiente TikZ
+   g_string_append( tex, "\\begin{tikzpicture}[remember picture, overlay]\n" );
+
+   // ==========================================
+   // --- Barra Superior ---
+   // ==========================================
+   g_string_append_printf( tex, "  \\fill[CorSerie!15] (0,0) rectangle (%.4f, -0.28);\n", largura );
+
+   // MÁGICA: preaction + coordenadas pré-calculadas no C
+   g_string_append( tex, "  \\draw[CorSerie, line width=0.8pt, preaction={draw=white, line width=2.8pt}, smooth] plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -0.14 - 0.06 * sin( 12.0 * x ); // Calculado instantaneamente pela CPU
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "};\n" );
+
+   // ==========================================
+   // --- Barra Inferior ---
+   // ==========================================
+   g_string_append_printf( tex, "  \\fill[CorSerie!15] (0,-1) rectangle (%.4f, -1.28);\n", largura );
+
+   g_string_append( tex, "  \\draw[CorSerie, line width=0.8pt, preaction={draw=white, line width=2.8pt}, smooth] plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -1.14 - 0.06 * sin( 12.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "};\n" );
+
+   // Fechamento
+   g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// Função C pura para renderizar o cabeçalho "Ondas" da questão
+void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao ) {
+
+   // 1. Cálculos matemáticos resolvidos nativamente em C
+   double largura_barra = 3.2 + 3.25 * k;
+   int amostras = (int)( 15.0 * largura_barra );
+   double passo = largura_barra / amostras;
+   int num_pontos = 59 + 32 * k;
+
+   // 2. Abertura do ambiente TikZ
+   g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
+
+   // Nó do texto da questão
+   g_string_append_printf( tex, "  \\node[inner sep=0pt, font=\\bf\\small, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.38cm}{QUEST\\~AO %.2d}\\,\\,};\n", num_questao );
+
+   // Retângulo de fundo
+   g_string_append_printf( tex, "  \\fill[CorSerie!15] (2.7, -0.14) rectangle (%.4f, 0.14);\n", 2.7 + largura_barra );
+
+   // MÁGICA: preaction + coordenadas pré-calculadas
+   g_string_append( tex, "  \\draw[CorSerie, line width=0.8pt, preaction={draw=white, line width=2.8pt}, smooth] plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = 0.06 * sin( 12.0 * x ); // O C cuida da matemática
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x + 2.7, y ); // O offset +2.7 de X aplicado aqui
+   }
+   g_string_append( tex, "};\n" );
+
+   // 3. O loop do TikZ (\foreach) convertido em pura força bruta no C
+   for ( int i = 0; i <= num_pontos; i++ ) {
+      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
+   }
+
+   // Fechamento
+   g_string_append( tex, "}}\\\\\n" );
+}
+//=======================================================================================================
+
+
+
+
+//=======================================================================================================
+// Função C pura para renderizar o tema da página "Quadrados"
+void anexar_tema_pagina_quadrados( GString *tex, gint intensidade ) {
+
+   // 1. Cálculos matemáticos resolvidos nativamente em C
+   int n = 86; // Número de quadrados
+   double s = ( 19.0 / ( n + 1 ) ) - 0.14; // Cálculo de espaçamento da largura
+
+   // 2. Linhas horizontais principais na cor forte
+   g_string_append_printf( tex,
+      "  \\draw[line width=1pt, color=CorSerie] (0,0) -- (19,0)    (0,-0.28) -- (19,-0.28);\n"
+      "  \\draw[line width=1pt, color=CorSerie] (0,-1.00) -- (19,-1.00)    (0,-1.28) -- (19,-1.28);\n"
+   );
+
+   // 3. Loop desenrolado no C (Aniquila o gargalo do \foreach no LaTeX)
+   for ( int i = 0; i <= n; i++ ) {
+      double x_left = 0.5 * s + ( 0.14 + s ) * i;
+      double x_right = x_left + 0.14;
+
+      // Quadrado superior
+      g_string_append_printf( tex,
+         "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!%d] (%.4f, -0.07) rectangle (%.4f, -0.21);\n",
+         intensidade, x_left, x_right
+      );
+
+      // Quadrado inferior
+      g_string_append_printf( tex,
+         "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!%d] (%.4f, -1.07) rectangle (%.4f, -1.21);\n",
+         intensidade, x_left, x_right
+      );
+   }
+}
+//-------------------------------------------------------------------------------------------------------
+// Função C pura para renderizar o cabeçalho "Quadrados" da questão
+void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
+
+   // 1. Cálculos do layout baseados em K
+   int k_math = 15 * k;
+   int n = 10 + k_math;
+
+   g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
+
+   // 2. Caixa Principal com cantos arredondados (Node)
+   g_string_append_printf( tex,
+      "  \\node[\n"
+      "    shape=rectangle, rounded corners, draw=CorSerie,\n"
+      "    fill=CorSerie!10, align=center, inner sep=2pt,\n"
+      "    line width=1pt, font=\\bf\\small, text=%s\n"
+      "  ] (char) {\\hspace{1mm}\\resizebox{2.6cm}{0.38cm}{QUEST\\~AO %.2d}\\hspace{1mm}};\n",
+      cor_texto, num_questao
+   );
+
+   // 3. Mini-Quadrados da Esquerda
+   for ( int i = 0; i <= 2; i++ ) {
+      double x_left = -2.10 + 0.21 * i;
+      double x_right = -1.96 + 0.21 * i;
+
+      g_string_append_printf( tex,
+         "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!10] (%.4f, -0.07) rectangle (%.4f, +0.07);\n",
+         x_left, x_right
+      );
+   }
+
+   // 4. Mini-Quadrados da Direita
+   for ( int i = 0; i <= n; i++ ) {
+      double x_left = 1.54 + 0.21 * i;
+      double x_right = 1.68 + 0.21 * i;
+
+      g_string_append_printf( tex,
+         "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!10] (%.4f, -0.07) rectangle (%.4f, +0.07);\n",
+         x_left, x_right
+      );
+   }
+
+   // 5. Linhas Laterais duplas calculadas
+   double limite_direito = 3.815 + 0.21 * k_math;
+
+   g_string_append_printf( tex,
+      "  \\draw[line width=0.8pt, color=CorSerie]\n"
+      "  (-2.135,-0.14) -- (-1.47,-0.14) (1.475,-0.14) -- (%.4f,-0.14)\n"
+      "  (-2.135,+0.14) -- (-1.47,+0.14) (1.475,+0.14) -- (%.4f,+0.14);\n",
+      limite_direito, limite_direito
+   );
+
+   // Fechamento da sub-árvore TikZ
+   g_string_append( tex, "}}\\\\\n" );
+}
+//=======================================================================================================
+
+
+
+
+
+//=======================================================================================================
+void anexar_tema_pagina_trapezios( GString *tex, gint k ) {
+   double n = 42.0 + 4.0 * k;
+   double largura = 0.7 - 0.1 * k + 0.4 * n;
+
+   g_string_append_printf( tex,
+      "\\begin{tikzpicture}[remember picture, overlay]\n"
+      "  \\fill[CorSerie!30] (0,0) rectangle (%.4f, -0.24);\n"
+      "  \\fill[CorSerie!30] (0,-0.9) rectangle (%.4f, -1.14);\n",
+      largura, largura
+   );
+
+   for ( int i = 0; i <= (int)n; i++ ) {
+      double offset = -0.05 * k + 0.4 * i;
+      // Recortes superiores (Branco)
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f,-0.24)--(%.4f,-0.14)--(%.4f,-0.04)--(%.4f,-0.24)--cycle;\n",
+         0.3 + offset, 0.2 + offset, 0.3 + offset, 0.5 + offset
+      );
+      // Recortes inferiores (Branco)
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f,-1.14)--(%.4f,-1.04)--(%.4f,-0.94)--(%.4f,-1.14)--cycle;\n",
+         0.3 + offset, 0.2 + offset, 0.3 + offset, 0.5 + offset
+      );
+   }
+   g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+//-------------------------------------------------------------------------------------------------------
+void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao ) {
+   double largura = (101.0 / 30.0) + (91.0 / 30.0) * k;
+   int nn = 7 + 8 * k;
+   double s = ( largura + 0.1 - 0.4 * (nn + 1) ) / 2.0;
+   int num_pontos = 60 + 30 * k;
+
+   g_string_append_printf( tex,
+      "\\item{\\noindent\\tikz[baseline=(char.base)]{\n"
+      "  \\node[inner sep=0pt, anchor=west] (char) at (0,-0.1) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
+      "  \\fill[CorSerie!30] (2.7,0) rectangle (%.4f, -0.24);\n",
+      num_questao, 2.7 + largura
+   );
+
+   for ( int i = 0; i <= nn; i++ ) {
+      double x = s + 2.7 + 0.4 * i;
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f,-0.24)--(%.4f,-0.14)--(%.4f,-0.04)--(%.4f,-0.24)--cycle;\n",
+         x + 0.1, x, x + 0.1, x + 0.3
+      );
+   }
+
+   for ( int i = 0; i <= num_pontos; i++ ) {
+      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.34) circle (0.6pt);\n", 0.02118 + 0.1 * i );
+   }
+   g_string_append( tex, "}}\\\\\n" );
+}
+//=======================================================================================================
+
+
+
+
+//=======================================================================================================
+void anexar_tema_pagina_linhas( GString *tex, gint k ) {
+   int n = 145 + 13 * k;
+   double largura = 17.5 + 1.5 * k;
+   double s = largura / ( n + 1 );
+
+   g_string_append( tex, "\\begin{tikzpicture}[remember picture, overlay]\n" );
+
+   for ( int i = 0; i <= n; i++ ) {
+      double x = 0.5 * s + s * i;
+      g_string_append_printf( tex,
+         "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.0141) -- (%.4f, -0.2541);\n"
+         "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.9000) -- (%.4f, -1.1400);\n",
+         x, x, x, x
+      );
+   }
+
+   g_string_append_printf( tex,
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-0.0141) -- (%.4f,-0.0141) (0,-0.2541) -- (%.4f,-0.2541);\n"
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-0.9000) -- (%.4f,-0.9000) (0,-1.1400) -- (%.4f,-1.1400);\n"
+      "\\end{tikzpicture}\n",
+      largura, largura, largura, largura
+   );
+}
+//-------------------------------------------------------------------------------------------------------
+void anexar_cabecalho_questao_linhas( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
+   int n = 21 + 25 * k;
+   double offset_k = 3.0 * k; // 0.12 * 25 = 3
+
+   g_string_append_printf( tex,
+      "\\item{\\noindent\\tikz[baseline=(char.base)]{\n"
+      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner sep=2pt, line width=1pt, font=\\bf\\small, text=%s]\n"
+      "    (char) {\\hspace{1mm}\\resizebox{2.6cm}{0.38cm}{QUEST\\~AO %.2d}\\hspace{1mm}};\n",
+      cor_texto, num_questao
+   );
+
+   for ( int i = 0; i <= 4; i++ ) {
+      g_string_append_printf( tex, "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.12) -- (%.4f, +0.12);\n", -2.0 + 0.12 * i, -2.0 + 0.12 * i );
+   }
+
+   for ( int i = 1; i <= n; i++ ) {
+      g_string_append_printf( tex, "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.12) -- (%.4f, +0.12);\n", 1.4 + 0.12 * i, 1.4 + 0.12 * i );
+   }
+
+   g_string_append_printf( tex,
+      "  \\draw[line width=0.8pt, color=CorSerie]\n"
+      "    (-2.06,-0.12) -- (-1.40,-0.12) (1.40,-0.12) -- (%.4f,-0.12)\n"
+      "    (-2.06,+0.12) -- (-1.40,+0.12) (1.40,+0.12) -- (%.4f,+0.12);\n"
+      "}}\\\\\n",
+      3.98 + offset_k, 3.98 + offset_k
+   );
+}
+//=======================================================================================================
+
+
+
+
+
+//=======================================================================================================
+void anexar_tema_pagina_senoides( GString *tex, gint k ) {
+   // 1. Cálculos de largura e passos transferidos para o C
+   double largura = 17.5 + 1.5 * k;
+   int amostras = (int)( 15.0 * largura );
+   double passo = largura / amostras;
+
+   g_string_append( tex, "\\begin{tikzpicture}[remember picture, overlay]\n" );
+   g_string_append( tex, "  \\draw[line width=0.8pt, CorSerie, smooth]\n" );
+
+   // Onda 1: Superior Positiva
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -0.1341 + 0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "}\n" );
+
+   // Onda 2: Superior Negativa (Espelhada)
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -0.1341 - 0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "}\n" );
+
+   // Onda 3: Inferior Positiva
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -1.0200 + 0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "}\n" );
+
+   // Onda 4: Inferior Negativa (Espelhada)
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -1.0200 - 0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x, y );
+   }
+   g_string_append( tex, "};\n" ); // Fim do comando \draw
+
+   // Linhas retas de contenção (Superior e Inferior)
+   g_string_append_printf( tex,
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-0.0141) -- (%.4f,-0.0141) (0,-0.2541) -- (%.4f,-0.2541);\n"
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-0.9000) -- (%.4f,-0.9000) (0,-1.1400) -- (%.4f,-1.1400);\n"
+      "\\end{tikzpicture}\n",
+      largura, largura, largura, largura
+   );
+}
+
+//-------------------------------------------------------------------------------------------------------
+void anexar_cabecalho_questao_senoides( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
+   // 1. Cálculos geométricos no C
+   double largura = 3.15 + 3.05 * k;
+   int amostras = (int)( 15.0 * largura );
+   double passo = largura / amostras;
+
+   g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
+
+   // Nó do texto
+   g_string_append_printf( tex,
+      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner sep=2pt, line width=1pt, font=\\bf\\small, text=%s]\n"
+      "    (char) {\\hspace{1mm}\\resizebox{2.6cm}{0.38cm}{QUEST\\~AO %.2d}\\hspace{1mm}};\n",
+      cor_texto, num_questao
+   );
+
+   g_string_append( tex, "  \\draw[line width=0.8pt, CorSerie, smooth]\n" );
+
+   // Onda 1: Positiva com offset X
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = +0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x + 1.45, y ); // Offset X de 1.45 aplicado diretamente
+   }
+   g_string_append( tex, "}\n" );
+
+   // Onda 2: Negativa com offset X
+   g_string_append( tex, "    plot coordinates {" );
+   for ( int i = 0; i <= amostras; i++ ) {
+      double x = i * passo;
+      double y = -0.088 * sin( 11.0 * x );
+      g_string_append_printf( tex, "(%.3f,%.3f) ", x + 1.45, y );
+   }
+   g_string_append( tex, "};\n" ); // Fim do comando \draw
+
+   // Linhas laterais que fecham a caixa
+   double limite_direito = 1.46 + largura;
+   g_string_append_printf( tex,
+      "  \\draw[line width=0.8pt, color=CorSerie]\n"
+      "    (1.45,-0.12) -- (%.4f,-0.12) (1.45,+0.12) -- (%.4f,+0.12);\n"
+      "}}\\\\\n",
+      limite_direito, limite_direito
+   );
+}
+//=======================================================================================================
+
+
+
+
+//=======================================================================================================
+void anexar_tema_pagina_circulos( GString *tex, gint k ) {
+   double largura = 17.5 + 1.5 * k;
+   int n = 34 + 3 * k;
+   double s = ( largura - 0.24 ) / n;
+
+   // Mantemos o gradiente bonito original, mas agora usando a cor principal desvanecendo para branco!
+   g_string_append_printf( tex,
+      "\\begin{tikzpicture}[remember picture, overlay]\n"
+      "  \\fill[left color=CorSerie, right color=white] (0,0) rectangle (%.4f, -0.24);\n"
+      "  \\fill[left color=CorSerie, right color=white] (0,-0.9) rectangle (%.4f, -1.14);\n",
+      largura, largura
+   );
+
+   for ( int i = 0; i <= n; i++ ) {
+      double x = s * i + 0.12;
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f, -0.12) circle (0.12);\n"
+         "  \\fill[white] (%.4f, -1.02) circle (0.12);\n",
+         x, x
+      );
+   }
+   g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+//-------------------------------------------------------------------------------------------------------
+void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao ) {
+   double largura = 3.23 + 3.02 * k;
+   int n_circ = 6 + 6 * k;
+   int n_pontos = 60 + 30 * k;
+
+   g_string_append_printf( tex,
+      "\\item{\\noindent\\hspace{-1.5mm}\\tikz[baseline=(char.base)]{\n"
+      "  \\node[inner sep=0pt, anchor=west] (char) at (0,0.13) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
+      "  \\fill[left color=CorSerie, right color=white] (2.7, 0) rectangle (%.4f, 0.24);\n",
+      num_questao, 2.7 + largura
+   );
+
+   for ( int i = 0; i <= n_circ; i++ ) {
+      g_string_append_printf( tex, "  \\fill[white] (%.4f, 0.12) circle (0.12);\n", (0.5 * i) + 2.82 );
+   }
+
+   for ( int i = 0; i <= n_pontos; i++ ) {
+      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.1) circle (0.6pt);\n", (0.1 * i) );
+   }
+   g_string_append( tex, "}}\\\\\n" );
+}
+//=======================================================================================================
+
+

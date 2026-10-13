@@ -973,8 +973,9 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
          meses_acumulados[num_meses - 1] = somach;
       }
 
-      if ( d->tipo_registro == 0 ) ad += d->qtd_aulas; // Aulas Dadas
-      if ( d->tipo_registro != 2 ) ap += d->qtd_aulas; // Aulas Previstas
+      if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += d->qtd_aulas; // Aulas Dadas
+      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA  ) ad += d->qtd_aulas; // Aulas Dadas
+      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO     ) ap += d->qtd_aulas; // Aulas Previstas
    }
 
    // =========================================================================

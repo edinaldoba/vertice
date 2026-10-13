@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h> // Certifique-se de incluir para ter acesso às chaves GDK_KEY_*
 
-#include "auxiliar.h"
 #include "signals.h"
 #include "callbacks.h"
 #include "comum.h"
@@ -94,10 +93,6 @@ void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
    g_free( turma_selecionada );
 
    if ( !turma_mudou ) return;
-
-   int foco = obter_foco_inicial_disciplina( ctx, ctx->cascata.limite.disciplinas );
-   popular_combo_box_generico( ctx->entry.disciplina, ctx, ctx->cascata.limite.disciplinas, foco,
-                               ctx->handlers.disciplina, mapear_disciplinas );
 
    on_entry_atualizar_disciplina_interface_changed( NULL, ctx );
 }

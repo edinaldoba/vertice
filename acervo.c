@@ -11,6 +11,8 @@
 #include "mensagens.h"
 #include "interface.h"
 #include "assincrono.h"
+#include "latex.h"
+#include "./acervo/estatistica.h"
 
 #include <stdbool.h> // Caso ainda não tenha no seu header
 #include <stdio.h>
@@ -23,45 +25,50 @@ static bool executar_gerador_c_nativamente( const char *pasta_tema ) {
 
    if ( quantidade_arquivos_por_extensao( pasta_tema, ".c" ) == 1 ) {
 
-      // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
-      char *argv[] = { ( char * )"sh", ( char * )"-c",
-                       ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
-                     };
-      GError *erro = NULL;
+      if ( quantidade_arquivos_por_extensao( pasta_tema, ".h" ) == 1 ) {
 
-      if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
-         g_printerr( "[ERRO FATAL] Falha ao compilar gerador C em '%s': %s\n", pasta_tema, erro->message );
-         g_clear_error( &erro );
-         return false;
+         // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
+         char *argv[] = { ( char * )"sh", ( char * )"-c",
+                        ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
+                        };
+         GError *erro = NULL;
+
+         if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
+            g_printerr( "[ERRO FATAL] Falha ao compilar gerador C em '%s': %s\n", pasta_tema, erro->message );
+            g_clear_error( &erro );
+            return false;
+         }
+
+         return true; // Compilou e executou o gerador com sucesso
+
+      } else {
+         ac_estatistica();
       }
-
-      return true; // Compilou e executou o gerador com sucesso
    }
 
-   return false; // Não encontrou o arquivo .c neste subtema
+   return true; // Não encontrou o arquivo .c neste subtema
 }
 
 
 
-static void motor_gerador_latex( const char *pasta_tema, const char *subtema, const InterfaceDados *dados ) {
+static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, const InterfaceDados *dados ) {
    g_return_if_fail( pasta_tema != NULL );
    g_return_if_fail( subtema != NULL );
    g_return_if_fail( dados != NULL );
 
-   g_autofree char *tema_pdf = g_strdup_printf( "%s.tex", pasta_tema );
+   g_autofree gchar *tema_pdf = g_strdup_printf( "%s.tex", pasta_tema );
 
-   // Pré-aloca 32KB na RAM. Ideal para agregar múltiplas questões sem precisar redimensionar a memória
+   // Pré-aloca 32KB na RAM para máxima performance (excelente prática!)
    g_autoptr( GString ) tex = g_string_sized_new( 32768 );
 
    // =========================================================================
-   // 1. CABEÇALHO (O Template inteiro injetado na GString)
+   // 1. CABEÇALHO DO DOCUMENTO LATEX
    // =========================================================================
    g_string_append( tex,
       "\\documentclass[11pt,a4paper]{report}\n"
       "\\usepackage[utf8]{inputenc}\n"
       "\\usepackage[T1]{fontenc}\n" );
 
-   // Lógica injetada cirurgicamente
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
@@ -73,7 +80,7 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\usepackage{multicol}\n"
       "\\usepackage{enumerate}\n"
       "\\usepackage[nointegrals]{wasysym}\n"
-      "\\usepackage{bm}"
+      "\\usepackage{bm}\n"
       "\\usepackage{array,multirow,graphicx}\n"
       "\\usepackage{amsmath,amssymb}\n"
       "\\usepackage{ifthen}\n"
@@ -82,6 +89,7 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\onehalfspacing\n"
       "\\pagestyle{empty}\n\n" );
 
+   // O pacote de cores do professor recebe o parâmetro (ex: "sexto") e converte para "CorSerie"
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n\n", dados->cor_destaque );
 
    g_string_append( tex,
@@ -96,8 +104,27 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       "\\begin{document}\n"
       "\\noindent\\tikz{\n" );
 
-   // Injeção do estilo e do título
-   g_string_append_printf( tex, "\\tema%sColorida{CorSerie}{1}\n", dados->decoracao_estilo );
+   // =========================================================================
+   // INJEÇÃO NATIVA DO TEMA DE PÁGINA (Com g_strcmp0 NULL-safe)
+   // =========================================================================
+   gint k_tema = 1;
+
+   // O uso nativo de "CorSerie" fará o elo direto com o professor.sty
+   if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
+      anexar_tema_pagina_trapezios( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
+      anexar_tema_pagina_ondas( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
+      anexar_tema_pagina_quadrados( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
+      anexar_tema_pagina_linhas( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
+      anexar_tema_pagina_senoides( tex, k_tema );
+   } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
+      anexar_tema_pagina_circulos( tex, k_tema );
+   }
+
+   // Título da Página injetado logo abaixo do tema vetorial
    g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0,-0.65) {\\LARGE\\bf %s: %s};\n}\n\n", dados->tema, subtema );
 
    g_string_append_printf( tex, "\\setlength{\\columnsep}{%dmm}\n", 12 - 2 * dados->qtd_colunas );
@@ -107,59 +134,87 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
    g_string_append( tex, "\\begin{enumerate}[\\hspace{-1.8mm}]\n\n" );
 
    // =========================================================================
-   // 2. GERAÇÃO C E INJEÇÃO DAS QUESTÕES (Lógica de montagem preservada)
+   // 2. GERAÇÃO C E INJEÇÃO DAS QUESTÕES (Livre de limite de buffer)
    // =========================================================================
    executar_gerador_c_nativamente( pasta_tema );
 
    int narq = quantidade_arquivos_por_extensao( pasta_tema, ".tex" );
-   char str[2048];
+   gint k_questao = 3 - dados->qtd_colunas;
 
    for ( int q = 0; q < narq; q++ ) {
-      g_autofree char *questao = g_strdup_printf( "%s/Q%d.tex", pasta_tema, q + 1 );
-      FILE *pb = fopen( questao, "r" );
+      g_autofree gchar *questao = g_strdup_printf( "%s/Q%d.tex", pasta_tema, q + 1 );
 
-      if ( !pb ) continue;
+      // g_autofree evita memory leak atômico no loop
+      g_autofree gchar *conteudo_arquivo = NULL;
+      if ( !g_file_get_contents( questao, &conteudo_arquivo, NULL, NULL ) ) continue;
 
-      while ( fgets( str, sizeof str, pb ) != NULL ) {
-         if ( strcmp( str, "% QUESTAO\n" ) == 0 ) {
-            g_string_append( tex, str );
+      // Fatiamento nativo em matriz de strings baseada nas quebras de linha (\n)
+      g_auto(GStrv) linhas = g_strsplit( conteudo_arquivo, "\n", -1 );
 
-            if ( strcmp( dados->decoracao_estilo, "Quadrados" ) == 0 )
-               g_string_append_printf( tex, "\\item{$\\questao%sColorida{CorSerie}{black}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
-            else if ( strcmp( dados->decoracao_estilo, "Ondas" ) == 0 )
-               g_string_append_printf( tex, "\\item{$\\questao%sColorida{CorSerie}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 3 - dados->qtd_colunas, q + 1 );
-            else
-               g_string_append_printf( tex, "\\item{$\\questao%s{%d}{%d}{%.2d}$}\\\\\n", dados->decoracao_estilo, 0, 3 - dados->qtd_colunas, q + 1 );
+      // Usar while e controle manual de índice impede Segmentation Fault!
+      int i = 0;
+      while ( linhas[i] != NULL ) {
+         gchar *linha = linhas[i];
 
-            if ( fgets( str, sizeof str, pb ) ) {
-               while ( str[0] != '\n' ) {
-                  g_string_append( tex, str );
-                  if ( !fgets( str, sizeof str, pb ) ) break;
-               }
+         if ( g_str_has_prefix( linha, "% QUESTAO" ) ) {
+            g_string_append_printf( tex, "%s\n", linha );
+
+            // Injeção do Cabeçalho
+            if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
+               anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
+               anexar_cabecalho_questao_ondas( tex, k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
+               anexar_cabecalho_questao_quadrados( tex, "black", k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
+               anexar_cabecalho_questao_linhas( tex, "black", k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
+               anexar_cabecalho_questao_senoides( tex, "black", k_questao, q + 1 );
+            } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
+               anexar_cabecalho_questao_circulos( tex, k_questao, q + 1 );
             }
-         } else if ( strncmp( str, "% ALTERNATIVAS", 14 ) == 0 ) {
-            g_string_append( tex, str );
+
+            // Coleta o bloco da questão até a próxima linha em branco
+            i++;
+            while ( linhas[i] != NULL && linhas[i][0] != '\0' ) {
+               g_string_append_printf( tex, "%s\n", linhas[i] );
+               i++;
+            }
+
+         } else if ( g_str_has_prefix( linha, "% ALTERNATIVAS" ) ) {
+            g_string_append_printf( tex, "%s\n", linha );
             g_string_append( tex, "\\vspace{-2mm}\n\\begin{enumerate}[\\quad]\n" );
 
+            i++; // Move o cursor para a primeira alternativa
             for ( int letra = 65; letra < 70; letra++ ) {
-               if ( fgets( str, sizeof str, pb ) ) {
-                  g_string_append_printf( tex, "\\item[$\\circledColorida{CorSerie}{20}{%c}$] %s", letra, str );
-               }
+               if ( linhas[i] == NULL ) break;
+
+               gchar letra_str[2] = { (gchar)letra, '\0' };
+
+               // SOLUÇÃO: Abraçando o argumento do \item com { }
+               g_string_append( tex, "\\item[{" );
+               anexar_circulo_alternativa_colorida( tex, 20, letra_str );
+               g_string_append_printf( tex, "}] %s\n", linhas[i] );
+               i++;
             }
             g_string_append( tex, "\\end{enumerate}\n\n" );
-         } else {
+
+         } else if ( linha[0] != '\0' ) {
+            // Qualquer outro bloco extra de texto detectado no parser
             g_string_append( tex, "\n" );
-            while ( str[0] != '\n' ) {
-               g_string_append( tex, str );
-               if ( !fgets( str, sizeof str, pb ) ) break;
+            while ( linhas[i] != NULL && linhas[i][0] != '\0' ) {
+               g_string_append_printf( tex, "%s\n", linhas[i] );
+               i++;
             }
+         } else {
+            // Pula linhas vazias seguras que não pertencem a blocos ativos
+            i++;
          }
       }
-      fclose( pb );
    }
 
    // =========================================================================
-   // 3. RODAPÉ E GRAVAÇÃO ATÔMICA
+   // 3. RODAPÉ E GRAVAÇÃO ATÔMICA DO ARQUIVO .TEX
    // =========================================================================
    g_string_append( tex,
       "\\end{enumerate}\n\n"
@@ -171,8 +226,6 @@ static void motor_gerador_latex( const char *pasta_tema, const char *subtema, co
       g_printerr( "[ERRO] Não foi possível criar o arquivo de destino em: %s (%s)\n", pasta_tema, error->message );
       g_error_free( error );
    }
-
-   // O g_autoptr cuida do g_string_free automaticamente no final da função!
 }
 
 
