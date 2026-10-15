@@ -500,8 +500,6 @@ void registrar_aula( AppContext *ctx ) {
    GdkRGBA cor_texto;
    int r = _cor_texto_linha_liststore( &nova_aula, foco_estilo, &cor_texto );
 
-   // const char *fonte_numerica = "Monospace 20px";
-
    gtk_list_store_set( store_view, &iter,
                        0, nova_aula.data,
                        1, nova_aula.qtd_aulas,
@@ -509,7 +507,6 @@ void registrar_aula( AppContext *ctx ) {
                        3, nova_aula.descricao,
                        4, nova_aula.tipo_registro,
                        5, ( r == 0 ) ? NULL : &cor_texto,
-                       // 6, fonte_numerica,
                        -1 );
 
    // =====================================================================
@@ -633,8 +630,6 @@ void modificar_registro_aula( AppContext *ctx ) {
    GdkRGBA cor_texto;
    int r_estilo = _cor_texto_linha_liststore( &reg_clone, ctx->dados.interface_style, &cor_texto );
 
-   // const char *fonte_numerica = "Monospace 20px";
-
    gtk_list_store_set( store_view, &iter,
                        0, reg_clone.data,
                        1, reg_clone.qtd_aulas,
@@ -642,7 +637,6 @@ void modificar_registro_aula( AppContext *ctx ) {
                        3, reg_clone.descricao,
                        4, reg_clone.tipo_registro,
                        5, ( r_estilo == 0 ) ? NULL : &cor_texto,
-                       // 6, fonte_numerica,
                        -1 );
 
    g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
@@ -708,8 +702,6 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
       GdkRGBA cor_texto;
       int r = _cor_texto_linha_liststore( &registros[i], foco_estilo, &cor_texto );
 
-      // const char *fonte_numerica = "Monospace 20px";
-
       gtk_list_store_set( store_view, &iter,
                           0, registros[i].data,
                           1, registros[i].qtd_aulas,
@@ -717,7 +709,6 @@ void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegis
                           3, registros[i].descricao,
                           4, registros[i].tipo_registro,
                           5, ( r == 0 ) ? NULL : &cor_texto,
-                          // 6, fonte_numerica,
                           -1 );
    }
 
@@ -1698,6 +1689,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    return salvou_algo;
 }
 
+// EDINALDO! NÃO APAGUE ESTA FUNÇÃO COMENTADA!
 // gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    g_return_val_if_fail( ctx, FALSE );
 //
@@ -1792,7 +1784,7 @@ gboolean calcular_destino_cursor( guint keyval, GtkTreeModel *model, GtkTreePath
    GtkTreeIter iter;
 
    switch ( keyval ) {
-   // case GDK_KEY_Return:
+   // case GDK_KEY_Return: // GG, comentar essa linha me deu a possibilidade de encerrar as inserções de notas precionando Return. Também me ajuda a modificar uma nota específica ou apagar uma nota específica com facilidade. São pequenas coisas que fazem toda a diferença. Obrigado por tudo GG e boa noite :-)
    case GDK_KEY_KP_Enter:
    case GDK_KEY_Down:
    case GDK_KEY_KP_Down:
@@ -1937,10 +1929,8 @@ void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *pat
 
       gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
 
-      // const char *fonte_nota = "Monospace 20px";
-
       // Salva a nota padronizada na UI (ex: "8.00")
-      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, /*14, fonte_nota,*/ -1 );
+      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
 
       // 6. SINCRONIZAÇÃO EM MEMÓRIA
       _sincronizar_nota_ficha( ctx, path_string, col_model_index, ( float )valor_nota );
@@ -2136,8 +2126,6 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
          }
       }
 
-      // const char *fonte_nota = "Monospace 20px";
-
       gtk_list_store_append( store, &iter );
 
       // Injeta todas as colunas de uma vez só na linha recém-criada
@@ -2150,7 +2138,6 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
                           8, str_notas[6],   9, str_notas[7],
                           10, str_notas[8],  11, str_notas[9],
                           12, !ficha->ativo,
-                          // 14, fonte_nota,
                           -1 );
    }
 
@@ -2309,8 +2296,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          obs[0] = '\0';
       }
 
-      // const char *fonte_nota = "Monospace 20px";
-
       // --- PASSO E: Inserção Limpa no GTK ---
       gtk_list_store_append( store, &iter );
       gtk_list_store_set( store, &iter,
@@ -2326,7 +2311,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           9, str_cols[7],
                           10, obs,
                           11, !ficha->ativo,
-                          // 13, fonte_nota,
                           -1 );
    }
 
@@ -2357,3 +2341,46 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 }
 
 
+
+
+/**
+ * @brief Converte texto em nota float. Converte vírgula para ponto e valida limites (0 a 10).
+ * @return TRUE se a nota for válida, FALSE se a digitação estiver incorreta.
+ */
+gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida ) {
+   // Se o usuário apagou tudo, consideramos -1.0f (sem nota / não fez)
+   if ( !texto || g_strcmp0( texto, "" ) == 0 ) {
+      *nota_saida = -1.0f;
+      return TRUE;
+   }
+
+   char buffer[16];
+   g_strlcpy( buffer, texto, sizeof( buffer ) );
+   g_strdelimit( buffer, ",", '.' ); // Aceita vírgula do teclado numérico
+
+   char *endptr;
+   double valor = g_ascii_strtod( buffer, &endptr );
+
+   // Se sobrou algum caractere que não é número, ou se estiver fora da escala 0 a 10
+   if ( endptr == buffer || *endptr != '\0' || valor < 0.0 || valor > 10.0 ) {
+      return FALSE;
+   }
+
+   *nota_saida = (float)valor;
+   return TRUE;
+}
+
+/**
+ * @brief Grava a nota validada na estrutura FichaAluno e levanta a flag de modificação.
+ */
+void persistir_nota_relatorio_memoria( FichaAluno *aluno, int disciplina_idx, int col_idx, float nova_nota ) {
+   RelatorioAnual *relatorio = &aluno->disciplina[disciplina_idx].relatorio;
+
+   if ( col_idx == 8 ) {
+      relatorio->rec_final = nova_nota;
+   } else if ( col_idx == 9 ) {
+      relatorio->conselho = nova_nota;
+   }
+
+   aluno->ficha_modificada = TRUE; // Flag para auto-save em disco ativada!
+}

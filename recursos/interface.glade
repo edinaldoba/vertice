@@ -1577,7 +1577,9 @@
                                         <property name="title" translatable="yes">Final</property>
                                         <property name="expand">True</property>
                                         <child>
-                                          <object class="GtkCellRendererText"/>
+                                          <object class="GtkCellRendererText">
+                                            <property name="editable">True</property>
+                                          </object>
                                           <attributes>
                                             <attribute name="font">13</attribute>
                                             <attribute name="text">8</attribute>
@@ -1591,7 +1593,9 @@
                                         <property name="title" translatable="yes">Cons</property>
                                         <property name="expand">True</property>
                                         <child>
-                                          <object class="GtkCellRendererText"/>
+                                          <object class="GtkCellRendererText">
+                                            <property name="editable">True</property>
+                                          </object>
                                           <attributes>
                                             <attribute name="font">13</attribute>
                                             <attribute name="text">9</attribute>

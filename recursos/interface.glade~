@@ -939,7 +939,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">210</property>
+                                        <property name="fixed-width">230</property>
                                         <property name="title" translatable="yes">NASCIMENTO</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -953,7 +953,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">210</property>
+                                        <property name="fixed-width">230</property>
                                         <property name="title" translatable="yes">ASSIDUIDADE</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>

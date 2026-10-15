@@ -156,8 +156,46 @@ void interface_style( AppContext *ctx ) {
 
 
 
+//---------------------------------------------------------------------------------------------------------------
+static void recarregar_estilo_frequencia( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+
+   if ( modo_por_aluno ) {
+      // Repopula o ListStore usando as novas cores para o modo Por Aluno
+      renderizar_frequencia_modo_por_aluno( ctx, TRUE );
+   } else {
+      // Repopula o ListStore usando as novas cores para o modo Chamada Normal
+      renderizar_frequencia_modo_normal( ctx, TRUE );
+   }
+
+   // Garante que a seleção e o alinhamento de tela continuem perfeitos
+   rolagem_automatica_treeview_frequencia( ctx );
+}
+
+void estilo_interface( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+   ctx->dados.interface_style = ctx->cascata.foco.estilo;
+
+   interface_style( ctx );
+
+   char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, TRUE );
+   g_free( caminho_arquivo );
+
+   recarregar_estilo_frequencia( ctx );
+}
+
+
+
+
+
+
+
 void atualizar_booleanos_interface( const bool estado, const int categoria, AppContext *ctx ) {
-   if ( !ctx ) return;
+   g_return_if_fail( ctx );
+
    InterfaceDados          *dados    = &ctx->dados;
    const InterfaceCheck    *check    = &ctx->check;
    const InterfaceHandlers *handlers = &ctx->handlers;
@@ -206,76 +244,39 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
 }
 
 
-
-
-//---------------------------------------------------------------------------------------------------------------
-static void recarregar_estilo_frequencia( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
-
-   if ( modo_por_aluno ) {
-      // Repopula o ListStore usando as novas cores para o modo Por Aluno
-      renderizar_frequencia_modo_por_aluno( ctx, TRUE );
-   } else {
-      // Repopula o ListStore usando as novas cores para o modo Chamada Normal
-      renderizar_frequencia_modo_normal( ctx, TRUE );
-   }
-
-   // Garante que a seleção e o alinhamento de tela continuem perfeitos
-   rolagem_automatica_treeview_frequencia( ctx );
-}
-
-void estilo_interface( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-   ctx->dados.interface_style = ctx->cascata.foco.estilo;
-
-   interface_style( ctx );
-
-   char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, TRUE );
-   g_free( caminho_arquivo );
-
-   recarregar_estilo_frequencia( ctx );
-}
-
-
 //---------------------------------------------------------------------------------------------------------------
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor ) {
-   InterfaceDados *dados = ( InterfaceDados * ) & ( ctx->dados );
-   InterfaceListas *listas = ( InterfaceListas * ) & ( ctx->listas );
+   g_return_if_fail( ctx != NULL );
+
+   InterfaceDados  *dados  = &ctx->dados;
+   InterfaceListas *listas = &ctx->listas;
 
    switch ( categoria ) {
    case 1: // Colunas
-      dados->qtd_colunas = valor; // valor 2 ou 3
+      dados->qtd_colunas = valor; // 2 ou 3
       break;
    case 2: // Separadores
-      dados->separadores = valor; // valor 1 (pontinhado) ou 2 (contínuo)
+      dados->separadores = valor; // 1 (pontilhado) ou 2 (contínuo)
       break;
-   case 3: // Fonte
-      dados->fonte_latex = valor; // valor 1 (CMB Right) ou 2 (CMU Serif)
+   case 3: // Fonte TeX
+      dados->fonte_latex = valor; // 1 (CMB Right) ou 2 (CMU Serif)
       break;
    case 4: // Quantidade de páginas
-      dados->qtd_paginas = valor; // valor 1 ou 2
+      dados->qtd_paginas = valor; // 1 ou 2
       break;
    case 5: // Cabeçalho (tipo)
-      dados->cabecalho_tipo = valor; // valor 1 (acima) ou 2 (à esquerda)
+      dados->cabecalho_tipo = valor; // 1 (acima) ou 2 (à esquerda)
       break;
    case 6: // Prova
-      dados->iprova = valor; // valor 1 (Primeira), 2 (Segunda) ou 3 (Terceira)
-      snprintf( dados->prova_sequencia, sizeof( dados->prova_sequencia ), "%s", listas->provas_sequencia[valor - 1].str );
-      break;
-   case 7: // Interface Style
-
-      // dados->interface_style = valor;
-
-
+      dados->iprova = valor; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira)
+      if ( valor >= 1 && valor <= 3 ) {
+         snprintf( dados->prova_sequencia, sizeof( dados->prova_sequencia ), "%s", listas->provas_sequencia[valor - 1].str );
+      }
       break;
    default:
-      g_print( "Categoria desconhecida: %d\n", categoria );
+      g_warning( "Categoria desconhecida no despacho da interface: %d", categoria );
       break;
    }
-
 }
 
 

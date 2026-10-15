@@ -18,123 +18,126 @@
 
 
 /**
- * @brief Define os IDs (nomes) dos widgets de opções para uso no CSS ou nos callbacks.
+ * @brief Atribui metadados GObject (categoria e valor) aos radio buttons e nomeia widgets para o CSS.
  */
 void configurar_nomes_dos_widgets( AppContext *ctx ) {
+   g_return_if_fail( ctx != NULL );
 
+   // 1. Nomes específicos para seletores do CSS
    gtk_widget_set_name( ctx->entry.tema, "tema" );
+   gtk_widget_set_name( ctx->check.validar_ciclos, "Números Cruzados" );
+   gtk_widget_set_name( ctx->check.nao_presencial, "Não Presencial" );
+   gtk_widget_set_name( ctx->check.expor_dados, "Expôr Dados" );
 
-   gtk_widget_set_name( ctx->check.validar_ciclos, "check_validar_ciclos_1" );
-   gtk_widget_set_name( ctx->check.nao_presencial, "nao_presencial_2" );
-   gtk_widget_set_name( ctx->check.expor_dados, "expor_dados_3" );
+   g_object_set_data( G_OBJECT( ctx->check.validar_ciclos ), "categoria", GINT_TO_POINTER( 1 ) );
+   g_object_set_data( G_OBJECT( ctx->check.nao_presencial ), "categoria", GINT_TO_POINTER( 2 ) );
+   g_object_set_data( G_OBJECT( ctx->check.expor_dados ),    "categoria", GINT_TO_POINTER( 3 ) );
 
-   char id_string[64];
-
+   // 2. Categoria 1: Colunas (Valor 2 ou 3)
    for ( int i = 0; i < 2; i++ ) {
-      // Mapeamento de Colunas (Categoria 1: ID 12 = 2 colunas, ID 13 = 3 colunas)
-      snprintf( id_string, sizeof( id_string ), "qtd_colunas_%.2d", i + 12 );
-      gtk_widget_set_name( ctx->radio.qtd_colunas[i], id_string );
-
-      // Mapeamento de Separadores de Linha (Categoria 2: ID 21 = Ativo, ID 22 = Inativo)
-      snprintf( id_string, sizeof( id_string ), "separadores_%.2d", i + 21 );
-      gtk_widget_set_name( ctx->radio.separadores[i], id_string );
-
-      // Mapeamento de Fontes TeX (Categoria 3: ID 31 = Padrão, ID 32 = Alternativa)
-      snprintf( id_string, sizeof( id_string ), "fonte_latex_%.2d", i + 31 );
-      gtk_widget_set_name( ctx->radio.fonte_latex[i], id_string );
-
-      // Mapeamento do Limite de Páginas (Categoria 4: ID 41 = 1 página, ID 42 = 2 páginas)
-      snprintf( id_string, sizeof( id_string ), "qtd_paginas_%.2d", i + 41 );
-      gtk_widget_set_name( ctx->radio.qtd_paginas[i], id_string );
-
-      // Mapeamento de Estilo do Cabeçalho TikZ (Categoria 5: ID 51 = Padrão, ID 52 = Reduzido)
-      snprintf( id_string, sizeof( id_string ), "cabecalho_tipo_%.2d", i + 51 );
-      gtk_widget_set_name( ctx->radio.cabecalho_tipo[i], id_string );
+      gtk_widget_set_name( ctx->radio.qtd_colunas[i], "Colunas" );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "categoria", GINT_TO_POINTER( 1 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "valor",     GINT_TO_POINTER( i + 2 ) ); // 2 ou 3
    }
 
+   // 3. Categoria 2: Separadores (Valor 1 = Pontilhado, Valor 2 = Contínuo)
+   for ( int i = 0; i < 2; i++ ) {
+      gtk_widget_set_name( ctx->radio.separadores[i], "Separadores" );
+      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "categoria", GINT_TO_POINTER( 2 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+   }
+
+   // 4. Categoria 3: Fonte TeX (Valor 1 = CMB Right, Valor 2 = CMU Serif)
+   for ( int i = 0; i < 2; i++ ) {
+      gtk_widget_set_name( ctx->radio.fonte_latex[i], "Fonte TeX" );
+      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "categoria", GINT_TO_POINTER( 3 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+   }
+
+   // 5. Categoria 4: Quantidade de Páginas (Valor 1 ou 2)
+   for ( int i = 0; i < 2; i++ ) {
+      gtk_widget_set_name( ctx->radio.qtd_paginas[i], "Qtd Páginas" );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "categoria", GINT_TO_POINTER( 4 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+   }
+
+   // 6. Categoria 5: Tipo de Cabeçalho (Valor 1 = Acima, Valor 2 = À esquerda)
+   for ( int i = 0; i < 2; i++ ) {
+      gtk_widget_set_name( ctx->radio.cabecalho_tipo[i], "Cabeçalho" );
+      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( 5 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+   }
+
+   // 7. Categoria 6: Sequência Prova (Valor 1 = 1ª, Valor 2 = 2ª, Valor 3 = 3ª)
    for ( int i = 0; i < 3; i++ ) {
-      // Mapeamento do Bloco de Avaliações (Categoria 6: IDs 61, 62 e 63 para Provas 1, 2 e 3)
-      snprintf( id_string, sizeof( id_string ), "sequencia_prova_%.2d", i + 61 );
-      gtk_widget_set_name( ctx->radio.avaliacao[i], id_string );
+      gtk_widget_set_name( ctx->radio.avaliacao[i], "Seq Prova" );
+      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "categoria", GINT_TO_POINTER( 6 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1, 2 ou 3
    }
-
 }
 
 
 
 
-static void conectar_renderizadores_liststore_avaliacoes( AppContext *ctx ) {
+/**
+ * @brief Configura e conecta os sinais de edição para todas as colunas de avaliações e recuperações (Índices 2 a 11).
+ */
+static void configurar_sinais_edicao_avaliacoes( AppContext *ctx ) {
    GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
 
-   // Percorre todas as colunas de avaliação/recuperação para registrar o sinal de edição
-   for ( int i = 0; i < 5; i++ ) {
+   // Avaliações e Recuperações ocupam de forma contígua as colunas 2 a 11
+   for ( int col_idx = 2; col_idx <= 11; col_idx++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( treeview, col_idx );
+      if ( !col ) continue;
 
-      int idx_av  = 2 + ( i * 2 );
-      int idx_rec = 3 + ( i * 2 );
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers && GTK_IS_CELL_RENDERER_TEXT( renderers->data ) ) {
+         GtkCellRendererText *r = GTK_CELL_RENDERER_TEXT( renderers->data );
 
-      GtkTreeViewColumn *col_av  = gtk_tree_view_get_column( treeview, idx_av );
-      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_rec );
+         // 1. Garante que o renderizador permite edição
+         g_object_set( G_OBJECT( r ), "editable", TRUE, NULL );
 
-      // Conecta no renderizador da avaliação
-      if ( col_av ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
-         if ( renderers ) {
-            g_signal_connect( renderers->data, "editing-started", G_CALLBACK( on_cell_editing_started ), ctx );
-            g_list_free( renderers );
-         }
-      }
+         // 2. Salva o índice da coluna no próprio GObject para resgate no callback 'edited'
+         g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_idx ) );
 
-      // Conecta no renderizador da recuperação
-      if ( col_rec ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
-         if ( renderers ) {
-            g_signal_connect( renderers->data, "editing-started", G_CALLBACK( on_cell_editing_started ), ctx );
-            g_list_free( renderers );
-         }
+         // 3. Conecta os sinais de preparação e gravação da nota
+         g_signal_connect( r, "editing-started", G_CALLBACK( on_cell_editing_started ),        ctx );
+         g_signal_connect( r, "edited",          G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
+
+         g_list_free( renderers );
       }
    }
 }
 
 
 
-static void conectar_sinais_edicao_notas( AppContext *ctx ) {
-   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
 
-   for ( int i = 0; i < 5; i++ ) {
-      int idx_view_av  = 2 + ( i * 2 );
-      int idx_view_rec = 3 + ( i * 2 );
+/**
+ * @brief Configura e conecta os sinais de edição para as colunas Rec Final (8) e Conselho (9).
+ */
+static void configurar_sinais_edicao_relatorio_final( AppContext *ctx ) {
+   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
 
-      // Mapeie aqui os índices correspondentes no seu GtkListStore (ex: colunas 4, 5, 6...)
-      int col_store_av  = 2 + ( i * 2 );
-      int col_store_rec = 3 + ( i * 2 );
+   // Coluna 8: rec_final | Coluna 9: conselho
+   for ( int col_idx = 8; col_idx <= 9; col_idx++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( treeview, col_idx );
+      if ( !col ) continue;
 
-      // Coluna Avaliação
-      GtkTreeViewColumn *col_av = gtk_tree_view_get_column( treeview, idx_view_av );
-      if ( col_av ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_av ) );
-         if ( renderers ) {
-            GtkCellRendererText *r = GTK_CELL_RENDERER_TEXT( renderers->data );
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers && GTK_IS_CELL_RENDERER_TEXT( renderers->data ) ) {
+         GtkCellRendererText *r = GTK_CELL_RENDERER_TEXT( renderers->data );
 
-            // Guarda o índice do ListStore dentro do próprio renderizador
-            g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_av ) );
+         // Garante que o renderizador permite edição
+         g_object_set( G_OBJECT( r ), "editable", TRUE, NULL );
 
-            g_signal_connect( r, "edited", G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
-            g_list_free( renderers );
-         }
-      }
+         // Salva o índice da coluna no próprio GObject para resgate no callback
+         g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_idx ) );
 
-      // Coluna Recuperação
-      GtkTreeViewColumn *col_rec = gtk_tree_view_get_column( treeview, idx_view_rec );
-      if ( col_rec ) {
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_rec ) );
-         if ( renderers ) {
-            GtkCellRenderer *r = GTK_CELL_RENDERER( renderers->data );
+         // Conecta os sinais de início e conclusão de edição
+         g_signal_connect( r, "editing-started", G_CALLBACK( on_cell_relatorio_editing_started ), ctx );
+         g_signal_connect( r, "edited",          G_CALLBACK( on_cell_relatorio_nota_edited ),     ctx );
 
-            g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_store_rec ) );
-
-            g_signal_connect( r, "edited", G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
-            g_list_free( renderers );
-         }
+         g_list_free( renderers );
       }
    }
 }
@@ -247,8 +250,7 @@ void app_signals_connect( gpointer user_data ) {
    ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
          G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
-   conectar_renderizadores_liststore_avaliacoes( ctx );
-   conectar_sinais_edicao_notas( ctx );
+   configurar_sinais_edicao_avaliacoes( ctx );
 
    g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "cursor-changed",
                      G_CALLBACK( on_treeview_notas_cursor_changed ), ctx );
@@ -257,7 +259,7 @@ void app_signals_connect( gpointer user_data ) {
 
    // RELATÓRIO FINAL
    g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
-
+   configurar_sinais_edicao_relatorio_final( ctx );
 
 
 

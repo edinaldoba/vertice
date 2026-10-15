@@ -35,7 +35,6 @@ void display_tempo( const char *descricao, GTimer *cronometro );
 
 int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext );
 ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int n );
-int extrair_id_widget( const char *string_id );
 int atoi_seguro( const char *num_string );
 
 void ajustar_nomes( const char *arquivo, AppContext *ctx );

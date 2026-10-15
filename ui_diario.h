@@ -51,5 +51,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 void carregar_notas_ui_por_periodo( AppContext *ctx );
 
 void carregar_relatorio_ui( AppContext *ctx );
+gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida );
+void persistir_nota_relatorio_memoria( FichaAluno *aluno, int disciplina_idx, int col_idx, float nova_nota );
 
 #endif

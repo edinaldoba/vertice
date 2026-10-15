@@ -430,46 +430,6 @@ ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const cha
 
 
 
-
-int extrair_id_widget( const char *string_id ) {
-   // Encontra o último sublinhado (garante suporte a múltiplos underscores anteriores)
-   const char *ultimo_sublinhado = strrchr( string_id, '_' );
-   if ( !ultimo_sublinhado ) {
-      g_warning( "Erro: O widget '%s' não possui um caractere sublinhado de separação!", string_id );
-      return -1;
-   }
-
-   // Ponteiro apontando exatamente para o início do fragmento que deve ser o ID
-   const char *sufixo_id = ultimo_sublinhado + 1;
-
-   // 2. VALIDAÇÃO DEFENSIVA: Verifica se o sufixo é composto APENAS por números digitais
-   // Se a string for vazia (ex: "botao_") ou o primeiro caractere não for número, rejeita.
-   if ( *sufixo_id == '\0' ) return -1;
-
-   for ( const char *p = sufixo_id; *p != '\0'; p++ ) {
-      if ( !isdigit( ( unsigned char )*p ) ) {
-         g_warning( "Erro de Sintaxe: O sufixo '%s' no widget '%s' não é um ID numérico válido!", sufixo_id, string_id );
-         return -1; // Aborta a operação com segurança sem quebrar o app
-      }
-   }
-
-   // --- Abordagem Avançada com Ponteiro e Loop While ---
-   // const char *p = sufixo_id;
-   // while ( *p != '\0' ) {
-   //    if ( !isdigit( ( unsigned char )*p ) ) {
-   //       g_warning( "Erro de Sintaxe: O sufixo '%s' no widget '%s' não é um ID numérico válido!", sufixo_id, string_id );
-   //       return -1; // Aborta a operação com segurança
-   //    }
-   //    p++; // Avança o ponteiro diretamente na memória RAM
-   // }
-
-   return atoi( sufixo_id );
-}
-
-
-
-
-
 int atoi_seguro( const char *num_string ) {
    // 1. Defesa básica: se o ponteiro for nulo ou a string for vazia, retorna 0
    if ( !num_string || num_string[0] == '\0' ) {

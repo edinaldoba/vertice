@@ -908,6 +908,8 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
+   // EDINALDO! POR ENQUANTO, NÃO PRECISAMOS DESTA FUNÇÃO, MAS A MANTENHA AQUI, NÃO A APAGUE!
+
    // for ( guint i = 0; i < ctx->fichas->len; i++ ) {
    //    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
    //
@@ -925,6 +927,86 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
    // }
 
    // Nada por aqui, não é necessário, por enquanto
+}
+
+
+
+
+
+
+/**
+ * @brief Disparado quando o usuário finaliza a digitação da nota (pressiona Enter ou clica fora).
+ */
+void on_cell_relatorio_nota_edited( GtkCellRendererText *renderer, const gchar *path_string,
+                                    const gchar *new_text, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * ) user_data;
+
+   // Resgata o índice da coluna que embutimos no configurar_sinais...
+   int col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+
+   // 1. Validação Sintática da String
+   float nova_nota;
+   if ( !validar_conversao_nota_final( new_text, &nova_nota ) ) {
+      g_print( "[UI Relatório] Digitação inválida ignorada: '%s'\n", new_text );
+      return;
+   }
+
+   // 2. Preparação do Model
+   GtkTreeView  *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
+   GtkTreeModel *model    = gtk_tree_view_get_model( treeview );
+   GtkTreeIter   iter;
+
+   if ( gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
+
+      int index_aluno = atoi( path_string );
+      g_return_if_fail( index_aluno >= 0 && ( guint )index_aluno < ctx->fichas->len );
+
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
+
+      if ( ficha ) {
+         // 4. Atualiza a memória estrutural e ativa a flag de persistência
+         persistir_nota_relatorio_memoria( ficha, ctx->cascata.foco.disciplina, col_idx, nova_nota );
+
+         // 5. Atualiza o visual no GtkListStore
+         gchar texto_formatado[16] = ""; // Default para -1.0f
+         if ( nova_nota >= 0.0f ) {
+            snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", nova_nota );
+         }
+
+         gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
+
+         // 6. Recalcular Status do Aluno (Aprovado, Reprovado)
+         // Como Rec e Conselho afetam o resultado final, você pode chamar sua rotina de recálculo aqui.
+         // recalcular_e_atualizar_status_final( model, &iter, ficha );
+
+         g_print( "[UI Relatório] Nota %.2f salva na coluna %d do ficha %s\n", nova_nota, col_idx, ficha->aluno );
+      }
+   }
+}
+
+
+
+/**
+ * @brief Prepara a célula GtkEntry quando a edição da nota começa.
+ */
+void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
+                                        const gchar *path, gpointer user_data ) {
+   (void)renderer; (void)path; (void)user_data;
+   if ( !GTK_IS_ENTRY( editable ) ) return;
+
+   GtkEntry *entry = GTK_ENTRY( editable );
+   const gchar *texto_atual = gtk_entry_get_text( entry );
+
+   // Alinha o Entry à direita para manter o padrão visual da sua tabela
+   gtk_entry_set_alignment( entry, 1.0 );
+
+   // Se a célula estiver vazia ou com um traço de placeholder, limpa para facilitar digitação
+   if ( g_strcmp0( texto_atual, "" ) == 0 ) {
+      gtk_entry_set_text( entry, "" );
+   } else {
+      // Seleciona toda a nota existente para ser substituída facilmente
+      gtk_editable_select_region( GTK_EDITABLE( entry ), 0, -1 );
+   }
 }
 
 
@@ -1437,43 +1519,30 @@ void on_button_corrigir_prova_clicked( GtkWidget *widget, gpointer user_data ) {
 
 
 
-/* * NOTA DE ESTUDO ACERCA DE ABORDAGENS ALTERNATIVAS:
- * Atualmente, esta callback utiliza um "ID Composto" numérico (ex: "radio_opcao_42"),
- * onde a dezena (4) representa a categoria e a unidade (2) representa o valor.
- * * POSSIBILIDADE DE ABORDAGEM COMPLEMENTAR (strcmp + ID simples):
- * Uma alternativa para aumentar a legibilidade textual do código seria nomear os widgets
- * com base no seu grupo semântico seguido de um ID simples (ex: "radio_fonte_1", "radio_fonte_2").
- * O fluxo de captura seria dividido em duas etapas:
- * 1. Identificação do Grupo via String:
- * if (strstr(nome_do_radio_toggle, "fonte")) categoria = CAT_FONTE;
- * else if (strstr(nome_do_radio_toggle, "colunas")) categoria = CAT_COLUNAS;
- * 2. Extração do Valor Numérico:
- * int valor = extrair_id_widget(nome_do_radio_toggle);
- * * Opção atual mantida por centralizar toda a lógica em aritmética pura de alta performance.
- */
-void on_radio_atualizar_generic_interface_toggled( GtkWidget *widget, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
+void on_radio_atualizar_generic_interface_toggled( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_TOGGLE_BUTTON( widget ) );
+
+   // Executa apenas quando o radio button for ATIVADO
    if ( !gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) ) ) return;
 
    AppContext *ctx = ( AppContext * ) user_data;
-   if ( !ctx || !widget ) return;
+   if ( !ctx ) return;
 
-   const char *nome_do_radio_toggle = gtk_widget_get_name( widget );
-   if ( !nome_do_radio_toggle ) return;
+   const char *radio_nome = gtk_widget_get_name( widget );
 
-   int id_composto = extrair_id_widget( nome_do_radio_toggle );
-   if ( id_composto == -1 ) return;
+   // Recupera a categoria e o valor diretamente das propriedades nativas do GObject
+   int categoria = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "categoria" ) );
+   int valor     = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "valor" ) );
 
-   int categoria = id_composto / 10;  // Pega a dezena
-   int valor = id_composto % 10;      // Pega a unidade
+   // Sanity check: aborta se o widget não possuir os metadados configurados
+   if ( categoria == 0 || valor == 0 ) return;
 
-   // Passa o endereço direto da sub-struct dados
+   // Atualiza os dados da interface de forma genérica e limpa
    atualizar_generic_interface( ctx, categoria, valor );
 
-   // Opcional: feedback no terminal para depuração
-   g_print( "Estado alterado com segurança: Widget '%s' (Cat %d) -> (Valor %d)\n", nome_do_radio_toggle, categoria, valor );
-
+   // Debug limpo no terminal
+   g_print( "[UI Radio] Alterado: Widget '%s' (Cat %d) -> %d\n", radio_nome, categoria, valor );
 }
 
 
@@ -1487,21 +1556,20 @@ void on_check_atualizar_booleanos_interface_toggled( GtkWidget *widget, gpointer
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
 
-   // 1. Descobre quem foi o "culpado" pelo disparo do evento
    const char *check_nome = gtk_widget_get_name( widget );
-   if ( !check_nome ) return;
 
-   // 3. Agora sim, conversão 100% segura
-   int categoria = extrair_id_widget( check_nome );
-   if ( categoria == -1 ) return;
+   int categoria = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "categoria" ) );
 
    bool estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
+
+   // Sanity check: aborta se o widget não possuir os metadados configurados
+   if ( categoria == 0 ) return;
 
    // Dentro de callbacks.c (Linha 381):
    atualizar_booleanos_interface( estado, categoria, ctx );
 
    // Feedback limpo no terminal do seu Debian
-   g_print( "Estado alterado com segurança: Widget '%s' (Cat %d) -> %s\n",
+   g_print( "[UI Check] Alterado: Widget '%s' (Cat %d) -> %s\n",
             check_nome, categoria, estado ? "ATIVADO" : "DESATIVADO" );
 }
 
