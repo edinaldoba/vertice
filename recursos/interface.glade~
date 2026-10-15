@@ -918,7 +918,6 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="font">6</attribute>
                                             <attribute name="text">0</attribute>
                                           </attributes>
                                         </child>

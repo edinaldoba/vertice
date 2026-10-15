@@ -500,7 +500,7 @@ void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, g
 
    // Caixa Principal (A "Pílula") ancorada à esquerda (west) para alinhar perfeitamente com os outros temas
    g_string_append_printf( tex,
-      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner sep=2.5pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}};\n",
+      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner xsep=4pt, inner ysep=2pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.5cm}{0.32cm}{\\bf Quest\\~ao %.2d}};\n",
       cor_texto, num_questao
    );
 
@@ -566,9 +566,9 @@ void anexar_cabecalho_questao_linhas( GString *tex, const gchar *cor_texto, gint
 
    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
 
-   // Caixa Principal (A "Pílula") ancorada à esquerda (west)
+   // Caixa Principal (A "Pílula") ancorada à esquerda (west) para alinhar perfeitamente com os outros temas
    g_string_append_printf( tex,
-      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner sep=2.5pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}};\n",
+      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner xsep=4pt, inner ysep=2pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.5cm}{0.32cm}{\\bf Quest\\~ao %.2d}};\n",
       cor_texto, num_questao
    );
 
@@ -681,9 +681,9 @@ void anexar_cabecalho_questao_senoides( GString *tex, const gchar *cor_texto, gi
    }
    g_string_append( tex, "};\n" ); // Fim do comando \draw
 
-   // Nó do texto
+   // Caixa Principal (A "Pílula") ancorada à esquerda (west) para alinhar perfeitamente com os outros temas
    g_string_append_printf( tex,
-      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner sep=2.5pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}};\n",
+      "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner xsep=4pt, inner ysep=2pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.5cm}{0.32cm}{\\bf Quest\\~ao %.2d}};\n",
       cor_texto, num_questao
    );
 
@@ -858,6 +858,13 @@ void anexar_tema_pagina_circulos( GString *tex, gint k ) {
       largura_barra, largura_barra
    );
 
+   // Linhas finas de borda na cor principal para dar acabamento técnico
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
+      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n",
+      largura_barra, largura_barra, largura_barra, largura_barra
+   );
+
    for ( int i = 0; i <= num_elementos; i++ ) {
       double pos_x = 0.14 + (i * espacamento_x);
 
@@ -882,6 +889,12 @@ void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao )
       "  \\node[inner sep=0pt, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
       "  \\fill[CorSerie!20] (2.7, -0.14) rectangle (%.4f, 0.14);\n",
       num_questao, 2.7 + largura_barra
+   );
+
+   // Moldura fina para travar o contorno
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie] (2.7,-0.14) -- (%.4f,-0.14) (2.7,0.14) -- (%.4f,0.14);\n",
+      2.7 + largura_barra, 2.7 + largura_barra
    );
 
    for ( int i = 0; i <= num_elementos; i++ ) {

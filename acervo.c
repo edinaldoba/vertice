@@ -132,6 +132,9 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    g_string_append_printf( tex, "\\setlength{\\columnsep}{%dmm}\n", 12 - 2 * dados->qtd_colunas );
    g_string_append( tex, "\\setlength{\\columnseprule}{0.8pt}\n\n" );
 
+   // A MÁGICA ACONTECE AQUI: Define a cor da linha divisória usando o xcolor e CorSerie
+   g_string_append( tex, "\\def\\columnseprulecolor{\\color{CorSerie}}\n\n" );
+
    g_string_append_printf( tex, "\\begin{multicols}{%d}\n\n", dados->qtd_colunas );
    g_string_append( tex, "\\begin{enumerate}[\\hspace{-1.8mm}]\n\n" );
 
@@ -197,7 +200,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
                // SOLUÇÃO: Abraçando o argumento do \item com { }
                g_string_append( tex, "\\item[{" );
-               anexar_circulo_alternativa_colorida( tex, 20, letra_str );
+               anexar_circulo_alternativa_colorida( tex, 15, letra_str );
                g_string_append_printf( tex, "}] %s\n", linhas[i] );
                i++;
             }

@@ -9,6 +9,8 @@
 #include "basicas.h"
 #include "interface.h"
 #include <stdio.h>
+#include <pango/pango.h>
+
 
 // ======================================================================================
 // 1. FUNÇÕES AUXILIARES DE ESTILIZAÇÃO E ALINHAMENTO
@@ -63,18 +65,89 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
 }
 
 /**
- * @brief Alinha o conteúdo de uma coluna específica de um GtkTreeView.
+ * @brief Alinha o conteúdo de uma coluna de um GtkTreeView com controle independente para cabeçalho e células.
+ *
+ * @param widget Pointer para o GtkTreeView.
+ * @param coluna Índice base zero da coluna.
+ * @param align_celula Alinhamento horizontal das células de dados (0.0 = esquerda, 0.5 = centro, 1.0 = direita).
+ * @param pad_celula_x Espaçamento horizontal interno das células de dados (em pixels).
+ * @param align_cabecalho Alinhamento horizontal do título no cabeçalho (0.0 = esquerda, 0.5 = centro, 1.0 = direita).
  */
-static void treeview_alinhar_coluna_renderizada( GtkWidget *widget, int coluna, float alinhamento ) {
+static void treeview_configurar_alinhamento_coluna( GtkWidget *widget,
+                                                    int coluna,
+                                                    float align_celula,
+                                                    guint pad_celula_x,
+                                                    float align_cabecalho ) {
+   g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
+
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
    if ( !col_ch ) return;
 
-   gtk_tree_view_column_set_alignment( col_ch, alinhamento );
+   // 1. Controle do Cabeçalho (Botão superior)
+   gtk_tree_view_column_set_alignment( col_ch, align_cabecalho );
+
+   // Força o ajuste do GtkLabel interno do cabeçalho para garantir alinhamento perfeito
+   GtkWidget *widget_cabecalho = gtk_tree_view_column_get_widget( col_ch );
+   if ( GTK_IS_LABEL( widget_cabecalho ) ) {
+      gtk_label_set_xalign( GTK_LABEL( widget_cabecalho ), align_cabecalho );
+   }
+
+   // 2. Controle das Células de Dados (Linhas da tabela)
    GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
    if ( renderers ) {
-      g_object_set( G_OBJECT( renderers->data ), "xalign", alinhamento, NULL );
+      g_object_set( G_OBJECT( renderers->data ),
+                    "xalign", align_celula,
+                    "xpad", pad_celula_x,
+                    NULL );
       g_list_free( renderers );
    }
+}
+
+
+
+/**
+ * @brief Configura atributos OpenType (ex: números tabulares/alinhados) no renderer de uma coluna do GtkTreeView.
+ *
+ * @param widget Ponteiro para o GtkTreeView.
+ * @param coluna Índice base zero da coluna a ser modificada.
+ * @param font_features String de features OpenType (ex: "tnum=1, lnum=1, zero=1").
+ */
+static void treeview_configurar_font_features_col( GtkWidget *widget, int coluna, const char *font_features ) {
+   g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
+   g_return_if_fail( font_features != NULL );
+
+   GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
+   if ( !col_ch ) return;
+
+   GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
+
+   // Itera sobre todos os renderers da coluna (previne bugs se houver ícone + texto juntos)
+   for ( GList *l = renderers; l != NULL; l = l->next ) {
+      if ( GTK_IS_CELL_RENDERER_TEXT( l->data ) ) {
+         PangoAttrList *attrs = NULL;
+
+         // 1. Resgata a lista de atributos existente para não destruir formatações prévias (ex: cores, negrito)
+         g_object_get( G_OBJECT( l->data ), "attributes", &attrs, NULL );
+
+         if ( !attrs ) {
+            attrs = pango_attr_list_new();
+         }
+
+         // 2. Cria e insere o atributo de font features
+         // O 'pango_attr_list_insert' assume a propriedade do atributo, não precisamos dar free nele
+         PangoAttribute *attr_features = pango_attr_font_features_new( font_features );
+         pango_attr_list_insert( attrs, attr_features );
+
+         // 3. Aplica a lista atualizada de volta ao GtkCellRendererText
+         g_object_set( G_OBJECT( l->data ), "attributes", attrs, NULL );
+
+         // 4. Libera a nossa referência (g_object_get ou pango_attr_list_new adicionam +1 ref)
+         pango_attr_list_unref( attrs );
+      }
+   }
+
+   // 5. Libera apenas a lista (os renderers internos pertencem à coluna e não devem sofrer unref aqui)
+   g_list_free( renderers );
 }
 
 
@@ -139,13 +212,17 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
 
    ctx->ui_diario.scrolled_window_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
-   treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_conteudo, 1, 0.5 );
+   for ( int i = 0; i < 4; i++ ) {
+      if( i < 2 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_conteudo, i, 0.5, 0, 0.5 );
+      if( i < 2 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_conteudo, i, "tnum=1, lnum=1, zero=1" );
+   }
 
    // --- SUB-ABA: FREQUÊNCIA ---
    ctx->ui_diario.scrolled_window_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_frequencia" ) );
    ctx->ui_diario.treeview_frequencia        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if ( i != 1 ) treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_frequencia, i, 0.5 );
+      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_frequencia, i, 0.5, 0, 0.5 );
+      if ( i == 0 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_frequencia, i, "tnum=1, lnum=1, zero=1" );
    }
 
    ctx->ui_diario.combo_data            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
@@ -162,7 +239,8 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
    ctx->ui_diario.treeview_avaliacoes        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 12; i++ ) {
-      if ( i != 1 ) treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_avaliacoes, i, 0.5 );
+      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_avaliacoes, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_avaliacoes, i, "tnum=1, lnum=1, zero=1" );
    }
 
    ctx->ui_diario.combo_avaliacoes          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
@@ -180,7 +258,9 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.btn_consolidar            = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
    ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
-      if ( i != 1 ) treeview_alinhar_coluna_renderizada( ctx->ui_diario.treeview_relatorio, i, 0.5 );
+      if ( i > 1 && i < 10 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 1.0, 9, 0.5 );
+      if ( i == 0 || i == 10 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1" );
    }
 }
 

@@ -502,7 +502,7 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
             g_string_append( tex, "\\item[{" );
 
             // Renderiza o círculo C/TikZ para as opções coloridas
-            anexar_circulo_alternativa_colorida( tex, 20, letra_str );
+            anexar_circulo_alternativa_colorida( tex, 15, letra_str );
 
             // Fechando as chaves e o bracket }] com o texto da alternativa na frente
             g_string_append_printf( tex, "}] %s\n", alternativas[letra - 65] );
