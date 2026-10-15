@@ -1851,95 +1851,109 @@ void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_
    gtk_tree_view_set_cursor_on_cell( tree_view, path_destino, col_destino, NULL, TRUE );
 }
 //-----------------------------------------------------------------------------------------------------------
-static void _sincronizar_nota_ficha( AppContext *ctx, const gchar *path_string, gint col_model_index, float valor_nota ) {
-   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
 
-   // 1. Obtém o índice do aluno (a linha selecionada corresponde perfeitamente ao índice do GArray)
+
+
+
+
+
+
+
+
+//=============================================================================================================
+/**
+ * @brief Validador universal de notas (0 a 10). Substitui vírgulas e detecta células limpas.
+ */
+static gboolean _validar_nota_digitada( const gchar *texto, float *nota_saida ) {
+   if ( !texto || g_strcmp0( texto, "" ) == 0 || g_strcmp0( texto, "-" ) == 0 ) {
+      *nota_saida = -1.0f; // Representa vazio/"não fez"
+      return TRUE;
+   }
+   char buffer[16];
+   g_strlcpy( buffer, texto, sizeof( buffer ) );
+   g_strdelimit( buffer, ".", ',' );
+
+   char *endptr;
+   double valor = g_ascii_strtod( buffer, &endptr );
+
+   // Rejeita lixo alfabético ou notas fora da escala
+   if ( endptr == buffer || *endptr != '\0' || valor < 0.0 || valor > 10.0 ) return FALSE;
+
+   *nota_saida = (float)valor;
+   return TRUE;
+}
+//-------------------------------------------------------------------------------------------------------------
+/**
+ * @brief Formata a nota injetando o Figure Space (\u2007) para alinhar decimais no GTK3.
+ */
+static void _formatar_nota_com_espaco_tabular( float nota, char *buffer, size_t size ) {
+   if ( nota >= 10.0f ) {
+      snprintf( buffer, size, "%.2f", nota );
+   } else if ( nota >= 0.0f ) {
+      snprintf( buffer, size, "\u2007%.2f", nota );
+   } /*else {
+      snprintf( buffer, size, "" );
+   }*/
+}
+//-------------------------------------------------------------------------------------------------------------
+/**
+ * @brief Salva a nota tanto na Struct Soberana quanto no GtkListStore que disparou o evento.
+ */
+void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRenderer *renderer,
+                              const gchar *path_string, const gchar *new_text ) {
+   float nova_nota;
+   if ( !_validar_nota_digitada( new_text, &nova_nota ) ) return;
+
+   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkTreeIter iter;
+   if ( !gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) return;
+
    int index_aluno = atoi( path_string );
-   g_return_if_fail( index_aluno >= 0 && ( guint )index_aluno < ctx->fichas->len );
-
-   // 2. Aponta para a ficha de trabalho
    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
-   int periodo = ctx->cascata.foco.periodo;
-
-   // Proteção de escopo
-   g_return_if_fail( periodo >= 0 && periodo <= 3 );
-   g_return_if_fail( col_model_index >= 2 && col_model_index <= 11 );
-
-   // 3. Mapeamento O(1) de Colunas para Estrutura:
-   // (2,3)->[0], (4,5)->[1], (6,7)->[2], (8,9)->[3], (10,11)->[4]
-   int av_index = ( col_model_index - 2 ) / 2;
-
-   // Colunas ímpares (3, 5, 7, 9, 11) são sempre Recuperação
-   gboolean is_rec = ( col_model_index % 2 != 0 );
-
-   // 4. Injeção atômica do valor na nova estrutura hierárquica
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
    int foco = ctx->cascata.foco.disciplina;
-   NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
 
-   if ( is_rec ) {
-      nota->rec = valor_nota;
-   } else {
-      nota->av = valor_nota;
+   // ==========================================================
+   // ROTEAMENTO DINÂMICO: Descobre de qual aba veio a nota
+   // ==========================================================
+   if ( tree_view == GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes ) ) {
+      int periodo = ctx->cascata.foco.periodo;
+      int av_index = ( col_idx - 2 ) / 2;
+      gboolean is_rec = ( col_idx % 2 != 0 );
+
+      NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
+      if ( is_rec ) nota->rec = nova_nota;
+      else          nota->av = nova_nota;
+
+   } else if ( tree_view == GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ) ) {
+      RelatorioAnual *rel = &ficha->disciplina[foco].relatorio;
+      if ( col_idx == 8 ) rel->rec_final = nova_nota;
+      else if ( col_idx == 9 ) rel->conselho = nova_nota;
    }
 
    ficha->ficha_modificada = TRUE;
+
+   // Atualização Visual Limpa
+   gchar texto_formatado[16] = ""; // Se for -1.0f, limpa a célula visualmente
+
+   // Na função que formata a nota para o GtkListStore:
+   if ( nova_nota >= 10.0f ) {
+      snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", nova_nota );       // "10,00" (5 chars)
+   } else if ( nova_nota >= 0.0f ) {
+      snprintf( texto_formatado, sizeof( texto_formatado ), "\u2007%.2f", nova_nota ); // " 9,50" (5 chars de mesma largura)
+   } /*else {
+      snprintf( texto_formatado, sizeof( texto_formatado ), "-" );
+   }*/
+
+   g_strdelimit( texto_formatado, ".", ',' ); // Aceita vírgula do teclado numérico
+
+   gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
 }
-//-------------------------------------------------------------------------------------------------------------
-void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *path_string, gchar *new_text ) {
-   // 1. PERMITE APAGAR A NOTA (Caso o professor deixe a célula em branco)
-   if ( !new_text || strlen( g_strstrip( new_text ) ) == 0 ) {
-      // Opcional: Dependendo do Vértice, uma célula vazia pode significar nota 0.0 ou "Ausente"
-      // Aqui, se o professor apagar, limpamos a interface e zeramos a ficha
-      GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
-      GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
-      GtkTreeIter iter;
+//=============================================================================================================
 
-      if ( gtk_tree_model_get_iter_from_string( GTK_TREE_MODEL( store ), &iter, path_string ) ) {
-         gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-         gtk_list_store_set( store, &iter, col_model_index, "", -1 );
-         _sincronizar_nota_ficha( ctx, path_string, col_model_index, -1.0f );
-      }
-      return;
-   }
 
-   // 2. LIMPEZA DE STRING (Troca ',' por '.')
-   g_autofree gchar *texto_limpo = g_strdup( new_text );
-   g_strdelimit( texto_limpo, ",", '.' );
 
-   // 3. CONVERSÃO E VALIDAÇÃO NUMÉRICA
-   gchar *endptr = NULL;
-   double valor_nota = g_ascii_strtod( texto_limpo, &endptr );
 
-   // Se o usuário digitou letras, lixo, ou a nota estiver fora de [0, 10] -> Aborta a edição
-   if ( endptr == texto_limpo || valor_nota < 0.0 || valor_nota > 10.0 ) {
-      return; // A célula volta ao estado numérico anterior automaticamente
-   }
-
-   // 4. FORMATAÇÃO VISUAL (Força exatamente 2 casas decimais)
-   g_autofree gchar *texto_formatado = g_strdup_printf( "%.2f", valor_nota );
-
-   // 5. ATUALIZAÇÃO DA INTERFACE (GtkListStore)
-   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
-   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
-   GtkListStore *store = GTK_LIST_STORE( model );
-
-   GtkTreeIter iter;
-   if ( gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
-
-      gint col_model_index = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-
-      // Salva a nota padronizada na UI (ex: "8.00")
-      gtk_list_store_set( store, &iter, col_model_index, texto_formatado, -1 );
-
-      // 6. SINCRONIZAÇÃO EM MEMÓRIA
-      _sincronizar_nota_ficha( ctx, path_string, col_model_index, ( float )valor_nota );
-
-      // Se necessário, descomente a flag para habilitar o salvamento geral do arquivo depois:
-      _marcar_dados_modificado( ctx );
-   }
-}
-//---------------------------------------------------------------------------------------------------
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Cola múltiplas notas na coluna a partir da célula atual
 //===================================================================================================
@@ -1984,7 +1998,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 
          if ( ficha->ativo ) {
             gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
-            renderizar_nota( ctx, renderer, path_str, nota_str );
+            processar_gravacao_nota( ctx, tree_view, GTK_CELL_RENDERER( renderer ), path_str, nota_str );
          } else {
             // Limpa o entry visual se o aluno colado for inativo (proteção de interface)
             gtk_entry_set_text( GTK_ENTRY( widget ), "" );
@@ -2017,7 +2031,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, indices[0] );
 
          if ( ficha->ativo ) {
-            renderizar_nota( ctx, renderer, path_str, nota_str );
+            processar_gravacao_nota( ctx, tree_view, GTK_CELL_RENDERER( renderer ), path_str, nota_str );
          }
       }
 
@@ -2040,52 +2054,54 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
 //===================================================================================================
-static void on_renderizar_cores_notas( GtkTreeViewColumn *tree_column, GtkCellRenderer *cell,
-                                       GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * )user_data;
-   ( void )tree_column;
-
-   // Verifica a coluna 12 para saber se o aluno está inativo
-   gboolean inativo = FALSE;
-   gtk_tree_model_get( model, iter, 12, &inativo, -1 );
-
-   // REGRA 1: Alunos Inativos (Todas as colunas ficam cinza/desabilitadas)
+static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inativo,
+                                           const gchar *texto_nota, int interface_style ) {
    if ( inativo ) {
-      GdkRGBA cor_inativo;
-      _cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_inativo );
-
-      // O 'foreground-set' como TRUE força o GTK a ignorar a cor padrão do tema
-      g_object_set( cell, "foreground-rgba", &cor_inativo, "foreground-set", TRUE, NULL );
+      GdkRGBA cor;
+      _cor_texto_linha_frequencia( 0, interface_style, &cor );
+      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
       return;
    }
 
-   // Recupera o índice da coluna atual a partir do próprio renderizador
-   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+   // Garante que não é um texto nulo, vazio, nem o traço de "não fez"
+   if ( texto_nota && strlen( texto_nota ) > 0 && g_strcmp0( texto_nota, "-" ) != 0 ) {
+      const gchar *ponteiro_leitura = texto_nota;
 
-   // REGRA 2: Notas Menores que 6.0 (Aplica apenas nas colunas de 2 a 11)
-   if ( col_idx >= 2 && col_idx <= 11 ) {
-      gchar *texto_nota = NULL;
-      g_object_get( cell, "text", &texto_nota, NULL );
-
-      if ( texto_nota && strlen( texto_nota ) > 0 ) {
-         double nota = g_ascii_strtod( texto_nota, NULL );
-
-         if ( nota < 6.0 ) {
-            GdkRGBA cor_vermelha;
-            _cor_texto_linha_frequencia( 2, ctx->dados.interface_style, &cor_vermelha );
-
-            g_object_set( cell, "foreground-rgba", &cor_vermelha, "foreground-set", TRUE, NULL );
-            g_free( texto_nota );
-            return;
-         }
+      // Se a string começar com o Figure Space (\u2007), avança o ponteiro 3 bytes (tamanho do caractere em UTF-8)
+      if ( g_str_has_prefix( ponteiro_leitura, "\u2007" ) ) {
+         ponteiro_leitura += 3;
       }
-      g_free( texto_nota );
+
+      // Agora o g_ascii_strtod converte o número limpo (ex: "9.50")
+      double nota = g_ascii_strtod( ponteiro_leitura, NULL );
+
+      if ( nota >= 0.0 && nota < 6.0 ) {
+         GdkRGBA cor;
+         _cor_texto_linha_frequencia( 2, interface_style, &cor );
+         g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+         return;
+      }
    }
 
-   // REGRA 3: Caso Padrão (Ativo e Nota >= 6.0, ou coluna do Nome do Aluno)
-   // Desliga o forçamento de cor e deixa o GTK usar a cor de texto natural do sistema
    g_object_set( cell, "foreground-set", FALSE, NULL );
 }
+//-------------------------------------------------------------------------------------------------------------
+static void on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
+                                       GtkTreeIter *iter, gpointer data ) {
+   (void)col;
+   AppContext *ctx = ( AppContext * )data;
+   gboolean inativo = FALSE;
+   gtk_tree_model_get( model, iter, 12, &inativo, -1 ); // Coluna 12 para Avaliações
+
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+   gchar *texto = NULL;
+   if ( col_idx >= 2 && col_idx <= 11 ) g_object_get( cell, "text", &texto, NULL );
+
+   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   g_free( texto );
+}
+
+
 //--------------------------------------------------------------------------------------------------
 void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->fichas );
@@ -2113,17 +2129,15 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
       // Constrói as strings para os 5 pares de notas
       for ( int av = 0; av < 5; av++ ) {
          const NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av];
-         float nota_av  = nota->av;
-         float nota_rec = nota->rec;
          int base = av * 2;
 
-         if ( nota_av >= 0.0f ) {
-            snprintf( str_notas[base], sizeof( str_notas[base] ), "%.2f", nota_av );
-         }
+         // Chamadas limpas para a função auxiliar
+         _formatar_nota_com_espaco_tabular( nota->av,  str_notas[base],     sizeof( str_notas[base] ) );
+         _formatar_nota_com_espaco_tabular( nota->rec, str_notas[base + 1], sizeof( str_notas[base + 1] ) );
+      }
 
-         if ( nota_rec >= 0.0f ) {
-            snprintf( str_notas[base + 1], sizeof( str_notas[base + 1] ), "%.2f", nota_rec );
-         }
+      for ( int j = 0; j < 10; j++ ) {
+         g_strdelimit( str_notas[j], ".", ',' ); // Aceita vírgula do teclado numérico
       }
 
       gtk_list_store_append( store, &iter );
@@ -2173,50 +2187,22 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Renderiza as cores e estilos para a grade do Relatório Final
 //===================================================================================================
-static void on_renderizar_cores_relatorio( GtkTreeViewColumn *tree_column, GtkCellRenderer *cell,
-                                           GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * )user_data;
-   ( void )tree_column;
-
-   // Coluna 11 armazena se o aluno está inativo (!ficha->ativo)
+static void on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+                                           GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+   (void)col;
+   AppContext *ctx = ( AppContext * )data;
    gboolean inativo = FALSE;
-   gtk_tree_model_get( model, iter, 11, &inativo, -1 );
-
-   // REGRA 1: Alunos Inativos (Desabilitados/Cinza)
-   if ( inativo ) {
-      GdkRGBA cor_inativo;
-      _cor_texto_linha_frequencia( 0, ctx->dados.interface_style, &cor_inativo );
-      g_object_set( cell, "foreground-rgba", &cor_inativo, "foreground-set", TRUE, NULL );
-      return;
-   }
+   gtk_tree_model_get( model, iter, 11, &inativo, -1 ); // Coluna 11 para Relatório
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+   gchar *texto = NULL;
+   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) g_object_get( cell, "text", &texto, NULL );
 
-   // REGRA 2: Notas Menores que 6.0 ficam em Vermelho
-   // Aplica às colunas: 2 a 5 (Períodos), 7 (Média), 8 (Rec Final) e 9 (Conselho).
-   // Ignoramos a coluna 6 (Soma) pois sua escala é até 40.0 e a coluna 10 (Observação).
-   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
-      gchar *texto_nota = NULL;
-      g_object_get( cell, "text", &texto_nota, NULL );
-
-      if ( texto_nota && strlen( texto_nota ) > 0 ) {
-         double nota = g_ascii_strtod( texto_nota, NULL );
-
-         if ( nota < 6.0 ) {
-            GdkRGBA cor_vermelha;
-            _cor_texto_linha_frequencia( 2, ctx->dados.interface_style, &cor_vermelha );
-
-            g_object_set( cell, "foreground-rgba", &cor_vermelha, "foreground-set", TRUE, NULL );
-            g_free( texto_nota );
-            return;
-         }
-      }
-      g_free( texto_nota );
-   }
-
-   // REGRA 3: Caso Padrão (Restaura a cor natural do tema)
-   g_object_set( cell, "foreground-set", FALSE, NULL );
+   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   g_free( texto );
 }
+
+
 
 //===================================================================================================
 // FUNÇÃO PRINCIPAL: Carrega e calcula os dados no TreeView do Relatório
@@ -2243,31 +2229,34 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       GtkTreeIter iter;
 
-      char str_cols[8][8] = {{0}};
+      // Aumentado de [8][8] para [8][16] para acomodar o caractere UTF-8 (\u2007) com segurança extrema
+      char str_cols[8][16] = {{0}};
       char obs[160] = {0};
       int faltantes = 0;
 
       // --- PASSO A: Formata as notas dos 4 períodos ---
       for ( int j = 0; j < 4; j++ ) {
          if ( rel->notas_periodos[j] >= 0.0f ) {
-            g_snprintf( str_cols[j], sizeof( str_cols[j] ), "%.2f", rel->notas_periodos[j] );
+            // Usa o formatador tabular universal
+            _formatar_nota_com_espaco_tabular( rel->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
          } else {
+            // Mantém a célula em branco se a nota não existir
             faltantes++;
          }
       }
 
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
       if ( rel->soma > 0.0f /*|| faltantes < 4*/ ) {
-         g_snprintf( str_cols[4], sizeof( str_cols[4] ), "%.2f", rel->soma );
-         g_snprintf( str_cols[5], sizeof( str_cols[5] ), "%.2f", rel->media_anual );
+         _formatar_nota_com_espaco_tabular( rel->soma, str_cols[4], sizeof( str_cols[4] ) );
+         _formatar_nota_com_espaco_tabular( rel->media_anual, str_cols[5], sizeof( str_cols[5] ) );
       }
 
       if ( rel->rec_final >= 0.0f ) {
-         g_snprintf( str_cols[6], sizeof( str_cols[6] ), "%.2f", rel->rec_final );
+         _formatar_nota_com_espaco_tabular( rel->rec_final, str_cols[6], sizeof( str_cols[6] ) );
       }
 
       if ( rel->conselho >= 0.0f ) {
-         g_snprintf( str_cols[7], sizeof( str_cols[7] ), "%.2f", rel->conselho );
+         _formatar_nota_com_espaco_tabular( rel->conselho, str_cols[7], sizeof( str_cols[7] ) );
       }
 
       // --- PASSO C: Lógica de Status ---
@@ -2294,6 +2283,10 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          str_cols[6][0] = '\0';
          str_cols[7][0] = '\0';
          obs[0] = '\0';
+      }
+
+      for ( int j = 0; j < 8; j++ ) {
+         g_strdelimit( str_cols[j], ".", ',' ); // Aceita vírgula do teclado numérico
       }
 
       // --- PASSO E: Inserção Limpa no GTK ---
@@ -2343,9 +2336,14 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
 
 
+
+
+
+
 /**
  * @brief Converte texto em nota float. Converte vírgula para ponto e valida limites (0 a 10).
  * @return TRUE se a nota for válida, FALSE se a digitação estiver incorreta.
+ * NÃO USADA, MAS NÃO APAGUE!
  */
 gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida ) {
    // Se o usuário apagou tudo, consideramos -1.0f (sem nota / não fez)
@@ -2372,6 +2370,7 @@ gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida ) {
 
 /**
  * @brief Grava a nota validada na estrutura FichaAluno e levanta a flag de modificação.
+ * NÃO USADA, MAS NÃO APAGUE!
  */
 void persistir_nota_relatorio_memoria( FichaAluno *aluno, int disciplina_idx, int col_idx, float nova_nota ) {
    RelatorioAnual *relatorio = &aluno->disciplina[disciplina_idx].relatorio;
@@ -2384,3 +2383,4 @@ void persistir_nota_relatorio_memoria( FichaAluno *aluno, int disciplina_idx, in
 
    aluno->ficha_modificada = TRUE; // Flag para auto-save em disco ativada!
 }
+

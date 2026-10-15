@@ -1159,7 +1159,6 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">50</property>
                                         <property name="title" translatable="yes">Nº</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -1172,8 +1171,9 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="fixed-width">290</property>
+                                        <property name="fixed-width">280</property>
                                         <property name="title" translatable="yes">NOME DO ALUNO</property>
+                                        <property name="expand">True</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
@@ -1186,7 +1186,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">AV-1</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1203,7 +1203,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">REC-1</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1220,7 +1220,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">AV-2</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1237,7 +1237,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">REC-2</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1254,7 +1254,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">AV-3</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1271,7 +1271,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">REC-3</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1288,7 +1288,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">AV-4</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1305,7 +1305,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">REC-4</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1322,7 +1322,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">AV-5</property>
                                         <property name="expand">True</property>
                                         <child>
@@ -1339,7 +1339,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="visible">False</property>
-                                        <property name="fixed-width">80</property>
+                                        <property name="fixed-width">90</property>
                                         <property name="title" translatable="yes">REC-5</property>
                                         <property name="expand">True</property>
                                         <child>

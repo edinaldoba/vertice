@@ -258,9 +258,9 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.btn_consolidar            = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
    ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
-      if ( i > 1 && i < 10 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 1.0, 9, 0.5 );
-      if ( i == 0 || i == 10 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
       if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1" );
+      // if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1, cv05=1" );
    }
 }
 

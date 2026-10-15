@@ -80,13 +80,17 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
 
 
 /**
- * @brief Configura e conecta os sinais de edição para todas as colunas de avaliações e recuperações (Índices 2 a 11).
+ * @brief Função auxiliar universal para configurar renderizadores de texto editáveis em um intervalo de colunas.
+ *
+ * @param ctx Contexto global da aplicação.
+ * @param treeview Ponteiro para o GtkTreeView alvo.
+ * @param col_inicio Índice numérico da primeira coluna editável.
+ * @param col_fim Índice numérico da última coluna editável.
  */
-static void configurar_sinais_edicao_avaliacoes( AppContext *ctx ) {
-   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+static void _configurar_colunas_editaveis( AppContext *ctx, GtkTreeView *treeview, int col_inicio, int col_fim ) {
+   g_return_if_fail( GTK_IS_TREE_VIEW( treeview ) );
 
-   // Avaliações e Recuperações ocupam de forma contígua as colunas 2 a 11
-   for ( int col_idx = 2; col_idx <= 11; col_idx++ ) {
+   for ( int col_idx = col_inicio; col_idx <= col_fim; col_idx++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( treeview, col_idx );
       if ( !col ) continue;
 
@@ -97,50 +101,19 @@ static void configurar_sinais_edicao_avaliacoes( AppContext *ctx ) {
          // 1. Garante que o renderizador permite edição
          g_object_set( G_OBJECT( r ), "editable", TRUE, NULL );
 
-         // 2. Salva o índice da coluna no próprio GObject para resgate no callback 'edited'
+         // 2. Salva os metadados (índice da coluna e ponteiro do TreeView)
          g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_idx ) );
+         g_object_set_data( G_OBJECT( r ), "ptr_treeview", treeview );
 
-         // 3. Conecta os sinais de preparação e gravação da nota
-         g_signal_connect( r, "editing-started", G_CALLBACK( on_cell_editing_started ),        ctx );
-         g_signal_connect( r, "edited",          G_CALLBACK( on_cell_renderizar_nota_edited ), ctx );
+         // 3. Conecta os callbacks UNIVERSAIS
+         g_signal_connect( r, "editing-started", G_CALLBACK( on_cell_nota_editing_started ), ctx );
+         g_signal_connect( r, "edited",          G_CALLBACK( on_cell_nota_edited ),          ctx );
 
          g_list_free( renderers );
       }
    }
 }
 
-
-
-
-/**
- * @brief Configura e conecta os sinais de edição para as colunas Rec Final (8) e Conselho (9).
- */
-static void configurar_sinais_edicao_relatorio_final( AppContext *ctx ) {
-   GtkTreeView *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
-
-   // Coluna 8: rec_final | Coluna 9: conselho
-   for ( int col_idx = 8; col_idx <= 9; col_idx++ ) {
-      GtkTreeViewColumn *col = gtk_tree_view_get_column( treeview, col_idx );
-      if ( !col ) continue;
-
-      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
-      if ( renderers && GTK_IS_CELL_RENDERER_TEXT( renderers->data ) ) {
-         GtkCellRendererText *r = GTK_CELL_RENDERER_TEXT( renderers->data );
-
-         // Garante que o renderizador permite edição
-         g_object_set( G_OBJECT( r ), "editable", TRUE, NULL );
-
-         // Salva o índice da coluna no próprio GObject para resgate no callback
-         g_object_set_data( G_OBJECT( r ), "col_model_idx", GINT_TO_POINTER( col_idx ) );
-
-         // Conecta os sinais de início e conclusão de edição
-         g_signal_connect( r, "editing-started", G_CALLBACK( on_cell_relatorio_editing_started ), ctx );
-         g_signal_connect( r, "edited",          G_CALLBACK( on_cell_relatorio_nota_edited ),     ctx );
-
-         g_list_free( renderers );
-      }
-   }
-}
 
 
 
@@ -250,7 +223,8 @@ void app_signals_connect( gpointer user_data ) {
    ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
          G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
-   configurar_sinais_edicao_avaliacoes( ctx );
+   // Aba Avaliações (Colunas 2 a 11 contíguas)
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes ), 2, 11 );
 
    g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "cursor-changed",
                      G_CALLBACK( on_treeview_notas_cursor_changed ), ctx );
@@ -259,7 +233,9 @@ void app_signals_connect( gpointer user_data ) {
 
    // RELATÓRIO FINAL
    g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
-   configurar_sinais_edicao_relatorio_final( ctx );
+
+   // Aba Relatório Final (Colunas 8 e 9: Rec Final e Conselho)
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 8, 9 );
 
 
 

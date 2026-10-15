@@ -51,9 +51,11 @@ void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data )
 void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data );
 void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_cell_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable, gchar *path_string, gpointer user_data );
+void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
+                                   gchar *path_string, gpointer user_data );
+void on_cell_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
+
 void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
-void on_cell_renderizar_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
 void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 
 // RELATÓRIO FINAL

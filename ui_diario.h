@@ -46,7 +46,9 @@ gboolean calcular_destino_cursor( guint keyval, GtkTreeModel *model, GtkTreePath
                                   GList *current_col_node, GtkTreeViewColumn **nova_coluna );
 void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_destino, GtkTreeViewColumn *col_destino );
 
-void renderizar_nota( AppContext *ctx, GtkCellRendererText *renderer, gchar *path_string, gchar *new_text );
+void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRenderer *renderer,
+                              const gchar *path_string, const gchar *new_text );
+
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column );
 void carregar_notas_ui_por_periodo( AppContext *ctx );
 
