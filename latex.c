@@ -370,120 +370,28 @@ void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const 
 
 
 
-
-
-// //=======================================================================================================
-// // Função C pura para renderizar o tema da página "Quadrados"
-// void anexar_tema_pagina_quadrados( GString *tex, gint intensidade ) {
-//
-//    // 1. Cálculos matemáticos resolvidos nativamente em C
-//    int n = 86; // Número de quadrados
-//    double s = ( 19.0 / ( n + 1 ) ) - 0.14; // Cálculo de espaçamento da largura
-//
-//    // 2. Linhas horizontais principais na cor forte
-//    g_string_append_printf( tex,
-//       "  \\draw[line width=1pt, color=CorSerie] (0,0) -- (19,0)    (0,-0.28) -- (19,-0.28);\n"
-//       "  \\draw[line width=1pt, color=CorSerie] (0,-1.00) -- (19,-1.00)    (0,-1.28) -- (19,-1.28);\n"
-//    );
-//
-//    // 3. Loop desenrolado no C (Aniquila o gargalo do \foreach no LaTeX)
-//    for ( int i = 0; i <= n; i++ ) {
-//       double x_left = 0.5 * s + ( 0.14 + s ) * i;
-//       double x_right = x_left + 0.14;
-//
-//       // Quadrado superior
-//       g_string_append_printf( tex,
-//          "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!%d] (%.4f, -0.07) rectangle (%.4f, -0.21);\n",
-//          intensidade, x_left, x_right
-//       );
-//
-//       // Quadrado inferior
-//       g_string_append_printf( tex,
-//          "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!%d] (%.4f, -1.07) rectangle (%.4f, -1.21);\n",
-//          intensidade, x_left, x_right
-//       );
-//    }
-// }
-// //-------------------------------------------------------------------------------------------------------
-// // Função C pura para renderizar o cabeçalho "Quadrados" da questão
-// void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
-//
-//    // 1. Cálculos do layout baseados em K
-//    int k_math = 15 * k;
-//    int n = 10 + k_math;
-//
-//    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
-//
-//    // 2. Caixa Principal com cantos arredondados (Node)
-//    g_string_append_printf( tex,
-//       "  \\node[\n"
-//       "    shape=rectangle, rounded corners, draw=CorSerie,\n"
-//       "    fill=CorSerie!10, align=center, inner sep=2pt,\n"
-//       "    line width=1pt, font=\\bf\\small, text=%s\n"
-//       "  ] (char) {\\hspace{1mm}\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\hspace{1mm}};\n",
-//       cor_texto, num_questao
-//    );
-//
-//    // 3. Mini-Quadrados da Esquerda
-//    for ( int i = 0; i <= 2; i++ ) {
-//       double x_left = -2.10 + 0.21 * i;
-//       double x_right = -1.96 + 0.21 * i;
-//
-//       g_string_append_printf( tex,
-//          "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!10] (%.4f, -0.07) rectangle (%.4f, +0.07);\n",
-//          x_left, x_right
-//       );
-//    }
-//
-//    // 4. Mini-Quadrados da Direita
-//    for ( int i = 0; i <= n; i++ ) {
-//       double x_left = 1.54 + 0.21 * i;
-//       double x_right = 1.68 + 0.21 * i;
-//
-//       g_string_append_printf( tex,
-//          "  \\draw[line width=0.8pt, color=CorSerie, fill=CorSerie!10] (%.4f, -0.07) rectangle (%.4f, +0.07);\n",
-//          x_left, x_right
-//       );
-//    }
-//
-//    // 5. Linhas Laterais duplas calculadas
-//    double limite_direito = 3.815 + 0.21 * k_math;
-//
-//    g_string_append_printf( tex,
-//       "  \\draw[line width=0.8pt, color=CorSerie]\n"
-//       "  (-2.135,-0.14) -- (-1.47,-0.14) (1.475,-0.14) -- (%.4f,-0.14)\n"
-//       "  (-2.135,+0.14) -- (-1.47,+0.14) (1.475,+0.14) -- (%.4f,+0.14);\n",
-//       limite_direito, limite_direito
-//    );
-//
-//    // Fechamento da sub-árvore TikZ
-//    g_string_append( tex, "}}\\\\\n" );
-// }
-// //=======================================================================================================
-
-
 //=======================================================================================================
 void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
    double largura_barra = 17.5 + 1.5 * k;
    int num_elementos = 45 + 4 * k;
-   double espacamento_x = ( largura_barra - 0.2 ) / num_elementos;
+   double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
 
    g_string_append_printf( tex,
       "\\begin{tikzpicture}[remember picture, overlay]\n"
       "  \\draw[line width=0.8pt, color=CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-      "  \\draw[line width=0.8pt, color=CorSerie] (0,-1.00) -- (%.4f,-1.00) (0,-1.28) -- (%.4f,-1.28);\n",
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-1) -- (%.4f,-1) (0,-1.28) -- (%.4f,-1.28);\n",
       largura_barra, largura_barra, largura_barra, largura_barra
    );
 
    for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = 0.1 + (i * espacamento_x);
+      double pos_x = 0.12 + (i * espacamento_x);
 
       // Quadrados preenchidos, sem bordas, perfeitamente centralizados entre as linhas
       g_string_append_printf( tex,
-         "  \\fill[CorSerie!50] (%.4f, -0.09) rectangle (%.4f, -0.19);\n"
-         "  \\fill[CorSerie!50] (%.4f, -1.09) rectangle (%.4f, -1.19);\n",
-         pos_x - 0.05, pos_x + 0.05,
-         pos_x - 0.05, pos_x + 0.05
+         "  \\fill[CorSerie!50] (%.4f, -0.08) rectangle (%.4f, -0.20);\n"
+         "  \\fill[CorSerie!50] (%.4f, -1.08) rectangle (%.4f, -1.20);\n",
+         pos_x - 0.06, pos_x + 0.06,
+         pos_x - 0.06, pos_x + 0.06
       );
    }
    g_string_append( tex, "\\end{tikzpicture}\n" );
@@ -493,7 +401,7 @@ void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
 void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
    double largura_barra = 3.2 + 3.25 * k;
    int num_elementos = 8 + 8 * k;
-   double espacamento_x = ( largura_barra - 0.2 ) / num_elementos;
+   double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
    double offset_pilula = 2.8; // Deslocamento padronizado para as linhas começarem após a pílula
 
    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
@@ -513,11 +421,9 @@ void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, g
 
    // Mini-Quadrados da Direita flutuando no centro do trilho
    for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = offset_pilula + 0.1 + (i * espacamento_x);
-      g_string_append_printf( tex,
-         "  \\fill[CorSerie!50] (%.4f, -0.05) rectangle (%.4f, 0.05);\n",
-         pos_x - 0.05, pos_x + 0.05
-      );
+      double pos_x = offset_pilula + 0.12 + (i * espacamento_x);
+      g_string_append_printf( tex, "\\fill[CorSerie!50] (%.4f, -0.06) rectangle (%.4f, 0.06);\n",
+                              pos_x - 0.06, pos_x + 0.06 );
    }
 
    g_string_append( tex, "}}\\\\\n" );
@@ -715,28 +621,52 @@ void anexar_tema_pagina_trapezios( GString *tex, gint k ) {
       largura_barra, largura_barra
    );
 
-   // Linhas finas de borda na cor principal para dar acabamento técnico
+   // Linhas finas superiores RETAS na cor principal (Topo de cada barra)
    g_string_append_printf( tex,
-      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n",
-      largura_barra, largura_barra, largura_barra, largura_barra
+      "  \\draw[CorSerie] (0,0) -- (%.4f,0);\n"
+      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0);\n",
+      largura_barra, largura_barra
    );
 
+   // 1. Aplica as máscaras de recorte (fill white) de todos os trapézios
+   // Foram descidos em 0.04 para tocar exatamente o fundo das barras (-0.28 e -1.28)
    for ( int i = 0; i <= num_elementos; i++ ) {
-      // Posição âncora de cada trapézio recortado
       double x_base = (0.2 - 0.05 * k) + (i * espacamento_x);
 
-      // Recortes superiores (Branco)
+      // Recortes da barra superior
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,-0.24)--(%.4f,-0.14)--(%.4f,-0.04)--(%.4f,-0.24)--cycle;\n",
+         "  \\fill[white] (%.4f,-0.28)--(%.4f,-0.18)--(%.4f,-0.08)--(%.4f,-0.28)--cycle;\n",
          x_base + 0.1, x_base, x_base + 0.1, x_base + 0.3
       );
-      // Recortes inferiores (Branco)
+      // Recortes da barra inferior
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,-1.24)--(%.4f,-1.14)--(%.4f,-1.04)--(%.4f,-1.24)--cycle;\n",
+         "  \\fill[white] (%.4f,-1.28)--(%.4f,-1.18)--(%.4f,-1.08)--(%.4f,-1.28)--cycle;\n",
          x_base + 0.1, x_base, x_base + 0.1, x_base + 0.3
       );
    }
+
+   // 2. Traça a linha de contorno INFERIOR contínua para a barra de CIMA
+   g_string_append( tex, "  \\draw[CorSerie] (0,-0.28)" );
+   for ( int i = 0; i <= num_elementos; i++ ) {
+      double x_base = (0.2 - 0.05 * k) + (i * espacamento_x);
+      g_string_append_printf( tex,
+         " -- (%.4f,-0.28) -- (%.4f,-0.18) -- (%.4f,-0.08) -- (%.4f,-0.28)",
+         x_base + 0.1, x_base, x_base + 0.1, x_base + 0.3
+      );
+   }
+   g_string_append_printf( tex, " -- (%.4f,-0.28);\n", largura_barra );
+
+   // 3. Traça a linha de contorno INFERIOR contínua para a barra de BAIXO
+   g_string_append( tex, "  \\draw[CorSerie] (0,-1.28)" );
+   for ( int i = 0; i <= num_elementos; i++ ) {
+      double x_base = (0.2 - 0.05 * k) + (i * espacamento_x);
+      g_string_append_printf( tex,
+         " -- (%.4f,-1.28) -- (%.4f,-1.18) -- (%.4f,-1.08) -- (%.4f,-1.28)",
+         x_base + 0.1, x_base, x_base + 0.1, x_base + 0.3
+      );
+   }
+   g_string_append_printf( tex, " -- (%.4f,-1.28);\n", largura_barra );
+
    g_string_append( tex, "\\end{tikzpicture}\n" );
 }
 
@@ -758,24 +688,52 @@ void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao 
       num_questao, 2.7 + largura_barra
    );
 
-   // Moldura fina para travar o contorno
+   // Moldura fina superior para travar o contorno
    g_string_append_printf( tex,
-      "  \\draw[CorSerie] (2.7,-0.14) -- (%.4f,-0.14) (2.7,0.14) -- (%.4f,0.14);\n",
-      2.7 + largura_barra, 2.7 + largura_barra
+      "  \\draw[CorSerie] (2.7,0.14) -- (%.4f,0.14);\n",
+      2.7 + largura_barra
    );
 
+   double y_descer = 0.04;
+
+   // 1. Aplica as máscaras de recorte (fill white) de todos os trapézios
    for ( int i = 0; i <= num_elementos; i++ ) {
       double x_base = 2.7 + offset_x + (i * espacamento_x);
 
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,-0.1)--(%.4f,0)--(%.4f,0.1)--(%.4f,-0.1)--cycle;\n",
-         x_base + 0.1, x_base, x_base + 0.1, x_base + 0.3
+         "  \\fill[white] (%.4f,%.4f)--(%.4f,%.4f)--(%.4f,%.4f)--(%.4f,%.4f)--cycle;\n",
+         x_base + 0.1, -0.1 - y_descer,
+         x_base,       -y_descer,
+         x_base + 0.1, 0.1 - y_descer,
+         x_base + 0.3, -0.1 - y_descer
       );
    }
 
+   // 2. Traça a linha de contorno INFERIOR contínua acompanhando os recortes
+   // Inicia a linha no canto inferior esquerdo da barra
+   g_string_append( tex, "  \\draw[CorSerie] (2.7,-0.14)" );
+
+   // Adiciona os vértices dos trapézios ao caminho da linha
+   for ( int i = 0; i <= num_elementos; i++ ) {
+      double x_base = 2.7 + offset_x + (i * espacamento_x);
+
+      g_string_append_printf( tex,
+         " -- (%.4f,%.4f) -- (%.4f,%.4f) -- (%.4f,%.4f) -- (%.4f,%.4f)",
+         x_base + 0.1, -0.1 - y_descer,
+         x_base,       -y_descer,
+         x_base + 0.1, 0.1 - y_descer,
+         x_base + 0.3, -0.1 - y_descer
+      );
+   }
+
+   // Finaliza a linha no canto inferior direito da barra
+   g_string_append_printf( tex, " -- (%.4f,-0.14);\n", 2.7 + largura_barra );
+
+   // 3. Adiciona a linha pontilhada inferior
    for ( int i = 0; i <= num_pontilhados; i++ ) {
       g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
    }
+
    g_string_append( tex, "}}\\\\\n" );
 }
 //=======================================================================================================
@@ -845,39 +803,8 @@ void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao ) {
 
 
 
+
 //=======================================================================================================
-void anexar_tema_pagina_circulos( GString *tex, gint k ) {
-   double largura_barra = 17.5 + 1.5 * k;
-   int num_elementos = 34 + 3 * k;
-   double espacamento_x = ( largura_barra - 0.28 ) / num_elementos;
-
-   g_string_append_printf( tex,
-      "\\begin{tikzpicture}[remember picture, overlay]\n"
-      "  \\fill[color=CorSerie!20] (0,0) rectangle (%.4f, -0.28);\n"
-      "  \\fill[color=CorSerie!20] (0,-1.0) rectangle (%.4f, -1.28);\n",
-      largura_barra, largura_barra
-   );
-
-   // Linhas finas de borda na cor principal para dar acabamento técnico
-   g_string_append_printf( tex,
-      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n",
-      largura_barra, largura_barra, largura_barra, largura_barra
-   );
-
-   for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = 0.14 + (i * espacamento_x);
-
-      g_string_append_printf( tex,
-         "  \\fill[white] (%.4f, -0.14) circle (0.12);\n"
-         "  \\fill[white] (%.4f, -1.14) circle (0.12);\n",
-         pos_x, pos_x
-      );
-   }
-   g_string_append( tex, "\\end{tikzpicture}\n" );
-}
-
-//-------------------------------------------------------------------------------------------------------
 void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao ) {
    double largura_barra = 3.2 + 3.25 * k;
    int num_elementos = 6 + 6 * k;
@@ -887,29 +814,87 @@ void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao )
    g_string_append_printf( tex,
       "\\item{\\noindent\\tikz[baseline=(char.base)]{\n"
       "  \\node[inner sep=0pt, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
-      "  \\fill[CorSerie!20] (2.7, -0.14) rectangle (%.4f, 0.14);\n",
+      "  \\fill[CorSerie!15] (2.7, -0.14) rectangle (%.4f, 0.14);\n",
       num_questao, 2.7 + largura_barra
    );
 
-   // Moldura fina para travar o contorno
+   // 1. O Trilho (Linha conectora suave que corre por trás dos nós)
    g_string_append_printf( tex,
-      "  \\draw[CorSerie] (2.7,-0.14) -- (%.4f,-0.14) (2.7,0.14) -- (%.4f,0.14);\n",
-      2.7 + largura_barra, 2.7 + largura_barra
+      "  \\draw[CorSerie!30, line width=1.2pt] (2.7, 0) -- (%.4f, 0);\n",
+      2.7 + largura_barra
    );
 
+   // 2. Os "Nós Ópticos" (Camadas concêntricas)
    for ( int i = 0; i <= num_elementos; i++ ) {
       double pos_x = 2.7 + 0.14 + (i * espacamento_x);
-      g_string_append_printf( tex, "  \\fill[white] (%.4f, 0) circle (0.12);\n", pos_x );
+
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f, 0) circle (0.12);\n"                  // Máscara de limpeza
+         "  \\draw[CorSerie, line width=0.7pt] (%.4f, 0) circle (0.09);\n" // Anel de precisão nítido
+         "  \\fill[CorSerie!40] (%.4f, 0) circle (0.035);\n",          // Núcleo suave
+         pos_x, pos_x, pos_x
+      );
    }
 
+   // 3. Linha pontilhada inferior padrão
    for ( int i = 0; i <= num_pontilhados; i++ ) {
       g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
    }
+
    g_string_append( tex, "}}\\\\\n" );
 }
+
 //=======================================================================================================
+void anexar_tema_pagina_circulos( GString *tex, gint k ) {
+   double largura_barra = 17.5 + 1.5 * k;
+   int num_elementos = 34 + 3 * k;
+   double espacamento_x = ( largura_barra - 0.28 ) / num_elementos;
 
+   g_string_append_printf( tex,
+      "\\begin{tikzpicture}[remember picture, overlay]\n"
+      "  \\fill[CorSerie!15] (0,0) rectangle (%.4f, -0.28);\n"
+      "  \\fill[CorSerie!15] (0,-1.0) rectangle (%.4f, -1.28);\n",
+      largura_barra, largura_barra
+   );
 
+   // Linhas finas de borda para dar o acabamento técnico e estrutural
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
+      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n",
+      largura_barra, largura_barra, largura_barra, largura_barra
+   );
+
+   // 1. Os Trilhos Suaves
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie!30, line width=1.2pt] (0,-0.14) -- (%.4f,-0.14);\n"
+      "  \\draw[CorSerie!30, line width=1.2pt] (0,-1.14) -- (%.4f,-1.14);\n",
+      largura_barra, largura_barra
+   );
+
+   // 2. Os "Nós Ópticos" aplicados em ambas as barras simultaneamente
+   for ( int i = 0; i <= num_elementos; i++ ) {
+      double pos_x = 0.14 + (i * espacamento_x);
+
+      // Barra Superior
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f, -0.14) circle (0.12);\n"
+         "  \\draw[CorSerie, line width=0.7pt] (%.4f, -0.14) circle (0.09);\n"
+         "  \\fill[CorSerie!40] (%.4f, -0.14) circle (0.035);\n",
+         pos_x, pos_x, pos_x
+      );
+
+      // Barra Inferior
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f, -1.14) circle (0.12);\n"
+         "  \\draw[CorSerie, line width=0.7pt] (%.4f, -1.14) circle (0.09);\n"
+         "  \\fill[CorSerie!40] (%.4f, -1.14) circle (0.035);\n",
+         pos_x, pos_x, pos_x
+      );
+   }
+
+   g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+//=======================================================================================================
 
 
 
