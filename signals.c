@@ -29,49 +29,49 @@ void configurar_nomes_dos_widgets( AppContext *ctx ) {
    gtk_widget_set_name( ctx->check.nao_presencial, "Não Presencial" );
    gtk_widget_set_name( ctx->check.expor_dados, "Expôr Dados" );
 
-   g_object_set_data( G_OBJECT( ctx->check.validar_ciclos ), "categoria", GINT_TO_POINTER( 1 ) );
-   g_object_set_data( G_OBJECT( ctx->check.nao_presencial ), "categoria", GINT_TO_POINTER( 2 ) );
-   g_object_set_data( G_OBJECT( ctx->check.expor_dados ),    "categoria", GINT_TO_POINTER( 3 ) );
+   g_object_set_data( G_OBJECT( ctx->check.validar_ciclos ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NUM_CRUZADOS ) );
+   g_object_set_data( G_OBJECT( ctx->check.nao_presencial ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NAO_PRESENCIAL ) );
+   g_object_set_data( G_OBJECT( ctx->check.expor_dados ),    "categoria", GINT_TO_POINTER( CATEGORIA_UI_EXPOR_DADOS ) );
 
    // 2. Categoria 1: Colunas (Valor 2 ou 3)
    for ( int i = 0; i < 2; i++ ) {
       gtk_widget_set_name( ctx->radio.qtd_colunas[i], "Colunas" );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "categoria", GINT_TO_POINTER( 1 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_COLUNAS ) );
       g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "valor",     GINT_TO_POINTER( i + 2 ) ); // 2 ou 3
    }
 
    // 3. Categoria 2: Separadores (Valor 1 = Pontilhado, Valor 2 = Contínuo)
    for ( int i = 0; i < 2; i++ ) {
       gtk_widget_set_name( ctx->radio.separadores[i], "Separadores" );
-      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "categoria", GINT_TO_POINTER( 2 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_SEPARADORES ) );
       g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 4. Categoria 3: Fonte TeX (Valor 1 = CMB Right, Valor 2 = CMU Serif)
    for ( int i = 0; i < 2; i++ ) {
       gtk_widget_set_name( ctx->radio.fonte_latex[i], "Fonte TeX" );
-      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "categoria", GINT_TO_POINTER( 3 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_FONTE_LATEX ) );
       g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 5. Categoria 4: Quantidade de Páginas (Valor 1 ou 2)
    for ( int i = 0; i < 2; i++ ) {
       gtk_widget_set_name( ctx->radio.qtd_paginas[i], "Qtd Páginas" );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "categoria", GINT_TO_POINTER( 4 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_PAGINAS ) );
       g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 6. Categoria 5: Tipo de Cabeçalho (Valor 1 = Acima, Valor 2 = À esquerda)
    for ( int i = 0; i < 2; i++ ) {
       gtk_widget_set_name( ctx->radio.cabecalho_tipo[i], "Cabeçalho" );
-      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( 5 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_CABECALHO ) );
       g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 7. Categoria 6: Sequência Prova (Valor 1 = 1ª, Valor 2 = 2ª, Valor 3 = 3ª)
    for ( int i = 0; i < 3; i++ ) {
       gtk_widget_set_name( ctx->radio.avaliacao[i], "Seq Prova" );
-      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "categoria", GINT_TO_POINTER( 6 ) );
+      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_PROVA ) );
       g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1, 2 ou 3
    }
 }

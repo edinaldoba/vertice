@@ -370,28 +370,91 @@ void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const 
 
 
 
+// //=======================================================================================================
+// void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
+//    double largura_barra = 17.5 + 1.5 * k;
+//    int num_elementos = 45 + 4 * k;
+//    double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
+//
+//    g_string_append_printf( tex,
+//       "\\begin{tikzpicture}[remember picture, overlay]\n"
+//       "  \\draw[line width=0.8pt, color=CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
+//       "  \\draw[line width=0.8pt, color=CorSerie] (0,-1) -- (%.4f,-1) (0,-1.28) -- (%.4f,-1.28);\n",
+//       largura_barra, largura_barra, largura_barra, largura_barra
+//    );
+//
+//    for ( int i = 0; i <= num_elementos; i++ ) {
+//       double pos_x = 0.12 + (i * espacamento_x);
+//
+//       // Quadrados preenchidos, sem bordas, perfeitamente centralizados entre as linhas
+//       g_string_append_printf( tex,
+//          "  \\fill[CorSerie!30] (%.4f, -0.08) rectangle (%.4f, -0.20);\n"
+//          "  \\fill[CorSerie!30] (%.4f, -1.08) rectangle (%.4f, -1.20);\n",
+//          pos_x - 0.06, pos_x + 0.06,
+//          pos_x - 0.06, pos_x + 0.06
+//       );
+//    }
+//    g_string_append( tex, "\\end{tikzpicture}\n" );
+// }
+//
+// //-------------------------------------------------------------------------------------------------------
+// void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
+//    double largura_barra = 3.2 + 3.25 * k;
+//    int num_elementos = 8 + 8 * k;
+//    double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
+//    double offset_pilula = 2.8; // Deslocamento padronizado para as linhas começarem após a pílula
+//
+//    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
+//
+//    // Caixa Principal (A "Pílula") ancorada à esquerda (west) para alinhar perfeitamente com os outros temas
+//    g_string_append_printf( tex,
+//       "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner xsep=4pt, inner ysep=2pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.5cm}{0.32cm}{\\bf Quest\\~ao %.2d}};\n",
+//       cor_texto, num_questao
+//    );
+//
+//    // Linhas Superior e Inferior do trilho direito
+//    g_string_append_printf( tex,
+//       "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.14) -- (%.4f, -0.14) (%.4f, 0.14) -- (%.4f, 0.14);\n",
+//       offset_pilula, offset_pilula + largura_barra,
+//       offset_pilula, offset_pilula + largura_barra
+//    );
+//
+//    // Mini-Quadrados da Direita flutuando no centro do trilho
+//    for ( int i = 0; i <= num_elementos; i++ ) {
+//       double pos_x = offset_pilula + 0.12 + (i * espacamento_x);
+//       g_string_append_printf( tex, "\\fill[CorSerie!30] (%.4f, -0.06) rectangle (%.4f, 0.06);\n",
+//                               pos_x - 0.06, pos_x + 0.06 );
+//    }
+//
+//    g_string_append( tex, "}}\\\\\n" );
+// }
+// //=======================================================================================================
+
+
+
+
 //=======================================================================================================
 void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
    double largura_barra = 17.5 + 1.5 * k;
    int num_elementos = 45 + 4 * k;
-   double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
+   double espacamento_x = ( largura_barra - 0.2 ) / num_elementos;
 
    g_string_append_printf( tex,
       "\\begin{tikzpicture}[remember picture, overlay]\n"
       "  \\draw[line width=0.8pt, color=CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-      "  \\draw[line width=0.8pt, color=CorSerie] (0,-1) -- (%.4f,-1) (0,-1.28) -- (%.4f,-1.28);\n",
+      "  \\draw[line width=0.8pt, color=CorSerie] (0,-1.00) -- (%.4f,-1.00) (0,-1.28) -- (%.4f,-1.28);\n",
       largura_barra, largura_barra, largura_barra, largura_barra
    );
 
    for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = 0.12 + (i * espacamento_x);
+      double pos_x = 0.1 + (i * espacamento_x);
 
       // Quadrados preenchidos, sem bordas, perfeitamente centralizados entre as linhas
       g_string_append_printf( tex,
-         "  \\fill[CorSerie!50] (%.4f, -0.08) rectangle (%.4f, -0.20);\n"
-         "  \\fill[CorSerie!50] (%.4f, -1.08) rectangle (%.4f, -1.20);\n",
-         pos_x - 0.06, pos_x + 0.06,
-         pos_x - 0.06, pos_x + 0.06
+         "  \\fill[CorSerie!50] (%.4f, -0.09) rectangle (%.4f, -0.19);\n"
+         "  \\fill[CorSerie!50] (%.4f, -1.09) rectangle (%.4f, -1.19);\n",
+         pos_x - 0.05, pos_x + 0.05,
+         pos_x - 0.05, pos_x + 0.05
       );
    }
    g_string_append( tex, "\\end{tikzpicture}\n" );
@@ -401,7 +464,7 @@ void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
 void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
    double largura_barra = 3.2 + 3.25 * k;
    int num_elementos = 8 + 8 * k;
-   double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
+   double espacamento_x = ( largura_barra - 0.2 ) / num_elementos;
    double offset_pilula = 2.8; // Deslocamento padronizado para as linhas começarem após a pílula
 
    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
@@ -421,15 +484,16 @@ void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, g
 
    // Mini-Quadrados da Direita flutuando no centro do trilho
    for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = offset_pilula + 0.12 + (i * espacamento_x);
-      g_string_append_printf( tex, "\\fill[CorSerie!50] (%.4f, -0.06) rectangle (%.4f, 0.06);\n",
-                              pos_x - 0.06, pos_x + 0.06 );
+      double pos_x = offset_pilula + 0.1 + (i * espacamento_x);
+      g_string_append_printf( tex,
+         "  \\fill[CorSerie!50] (%.4f, -0.05) rectangle (%.4f, 0.05);\n",
+         pos_x - 0.05, pos_x + 0.05
+      );
    }
 
    g_string_append( tex, "}}\\\\\n" );
 }
 //=======================================================================================================
-
 
 
 
@@ -729,10 +793,13 @@ void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao 
    // Finaliza a linha no canto inferior direito da barra
    g_string_append_printf( tex, " -- (%.4f,-0.14);\n", 2.7 + largura_barra );
 
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   const char *estilo_ponto = "line width=1.2pt, line cap=round, dash pattern=on 0pt off 0.1cm";
+
    // 3. Adiciona a linha pontilhada inferior
-   for ( int i = 0; i <= num_pontilhados; i++ ) {
-      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
-   }
+   g_string_append_printf( tex, "  \\draw[color=CorSerie!50, %s] (0,-0.35) -- (%.4f,-0.35);\n",
+                           estilo_ponto, 0.1*(num_pontilhados+1.0) );
 
    g_string_append( tex, "}}\\\\\n" );
 }
@@ -793,9 +860,14 @@ void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao ) {
    }
    g_string_append( tex, "};\n" );
 
-   for ( int i = 0; i <= num_pontilhados; i++ ) {
-      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
-   }
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   const char *estilo_ponto = "line width=1.2pt, line cap=round, dash pattern=on 0pt off 0.1cm";
+
+   // 3. Adiciona a linha pontilhada inferior
+   g_string_append_printf( tex, "  \\draw[color=CorSerie!50, %s] (0,-0.35) -- (%.4f,-0.35);\n",
+                           estilo_ponto, 0.1*(num_pontilhados+1.0) );
+
    g_string_append( tex, "}}\\\\\n" );
 }
 //=======================================================================================================
@@ -803,46 +875,6 @@ void anexar_cabecalho_questao_ondas( GString *tex, gint k, gint num_questao ) {
 
 
 
-
-//=======================================================================================================
-void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao ) {
-   double largura_barra = 3.2 + 3.25 * k;
-   int num_elementos = 6 + 6 * k;
-   double espacamento_x = ( largura_barra - 0.28 ) / num_elementos;
-   int num_pontilhados = 59 + 32 * k;
-
-   g_string_append_printf( tex,
-      "\\item{\\noindent\\tikz[baseline=(char.base)]{\n"
-      "  \\node[inner sep=0pt, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
-      "  \\fill[CorSerie!15] (2.7, -0.14) rectangle (%.4f, 0.14);\n",
-      num_questao, 2.7 + largura_barra
-   );
-
-   // 1. O Trilho (Linha conectora suave que corre por trás dos nós)
-   g_string_append_printf( tex,
-      "  \\draw[CorSerie!30, line width=1.2pt] (2.7, 0) -- (%.4f, 0);\n",
-      2.7 + largura_barra
-   );
-
-   // 2. Os "Nós Ópticos" (Camadas concêntricas)
-   for ( int i = 0; i <= num_elementos; i++ ) {
-      double pos_x = 2.7 + 0.14 + (i * espacamento_x);
-
-      g_string_append_printf( tex,
-         "  \\fill[white] (%.4f, 0) circle (0.12);\n"                  // Máscara de limpeza
-         "  \\draw[CorSerie, line width=0.7pt] (%.4f, 0) circle (0.09);\n" // Anel de precisão nítido
-         "  \\fill[CorSerie!40] (%.4f, 0) circle (0.035);\n",          // Núcleo suave
-         pos_x, pos_x, pos_x
-      );
-   }
-
-   // 3. Linha pontilhada inferior padrão
-   for ( int i = 0; i <= num_pontilhados; i++ ) {
-      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
-   }
-
-   g_string_append( tex, "}}\\\\\n" );
-}
 
 //=======================================================================================================
 void anexar_tema_pagina_circulos( GString *tex, gint k ) {
@@ -893,6 +925,48 @@ void anexar_tema_pagina_circulos( GString *tex, gint k ) {
    }
 
    g_string_append( tex, "\\end{tikzpicture}\n" );
+}
+//-------------------------------------------------------------------------------------------------------
+void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao ) {
+   double largura_barra = 3.2 + 3.25 * k;
+   int num_elementos = 6 + 6 * k;
+   double espacamento_x = ( largura_barra - 0.28 ) / num_elementos;
+   int num_pontilhados = 59 + 32 * k;
+
+   g_string_append_printf( tex,
+      "\\item{\\noindent\\tikz[baseline=(char.base)]{\n"
+      "  \\node[inner sep=0pt, anchor=west] (char) at (0,0) {\\resizebox{2.6cm}{0.35cm}{\\bf Quest\\~ao %.2d}\\,};\n"
+      "  \\fill[CorSerie!15] (2.7, -0.14) rectangle (%.4f, 0.14);\n",
+      num_questao, 2.7 + largura_barra
+   );
+
+   // 1. O Trilho (Linha conectora suave que corre por trás dos nós)
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie!30, line width=1.2pt] (2.7, 0) -- (%.4f, 0);\n",
+      2.7 + largura_barra
+   );
+
+   // 2. Os "Nós Ópticos" (Camadas concêntricas)
+   for ( int i = 0; i <= num_elementos; i++ ) {
+      double pos_x = 2.7 + 0.14 + (i * espacamento_x);
+
+      g_string_append_printf( tex,
+         "  \\fill[white] (%.4f, 0) circle (0.12);\n"                  // Máscara de limpeza
+         "  \\draw[CorSerie, line width=0.7pt] (%.4f, 0) circle (0.09);\n" // Anel de precisão nítido
+         "  \\fill[CorSerie!40] (%.4f, 0) circle (0.035);\n",          // Núcleo suave
+         pos_x, pos_x, pos_x
+      );
+   }
+
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   const char *estilo_ponto = "line width=1.2pt, line cap=round, dash pattern=on 0pt off 0.1cm";
+
+   // 3. Adiciona a linha pontilhada inferior
+   g_string_append_printf( tex, "  \\draw[color=CorSerie!50, %s] (0,-0.35) -- (%.4f,-0.35);\n",
+                           estilo_ponto, 0.1*(num_pontilhados+1.0) );
+
+   g_string_append( tex, "}}\\\\\n" );
 }
 //=======================================================================================================
 
@@ -968,10 +1042,13 @@ void anexar_cabecalho_questao_hexagonos( GString *tex, gint k, gint num_questao 
       2.7 + largura_barra, 2.7 + largura_barra
    );
 
-   // Rodapé de pontilhados padronizado
-   for ( int i = 0; i <= num_pontilhados; i++ ) {
-      g_string_append_printf( tex, "  \\fill[CorSerie!50] (%.4f, -0.35) circle (0.7pt);\n", 0.1 * i );
-   }
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   const char *estilo_ponto = "line width=1.2pt, line cap=round, dash pattern=on 0pt off 0.1cm";
+
+   // 3. Adiciona a linha pontilhada inferior
+   g_string_append_printf( tex, "  \\draw[color=CorSerie!50, %s] (0,-0.35) -- (%.4f,-0.35);\n",
+                           estilo_ponto, 0.1*(num_pontilhados+1.0) );
 
    g_string_append( tex, "}}\\\\\n" );
 }

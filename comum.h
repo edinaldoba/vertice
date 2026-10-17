@@ -50,6 +50,20 @@ typedef enum {
 // }
 // // Na hora do fprintf do nome:
 // fprintf( p, "%.2d & %s%.25s & ...", j + 1, cor_latex, ficha[j].aluno );
+
+typedef enum {
+   CATEGORIA_UI_COLUNAS        = 1,
+   CATEGORIA_UI_SEPARADORES    = 2,
+   CATEGORIA_UI_FONTE_LATEX    = 3,
+   CATEGORIA_UI_PAGINAS        = 4,
+   CATEGORIA_UI_CABECALHO      = 5,
+   CATEGORIA_UI_PROVA          = 6,
+
+   // ID contínuo para evitar colisões
+   CATEGORIA_UI_NUM_CRUZADOS   = 7,
+   CATEGORIA_UI_NAO_PRESENCIAL = 8,
+   CATEGORIA_UI_EXPOR_DADOS    = 9
+} CategoriaInterface;
 //=========================================================================================================//
 
 
@@ -108,7 +122,7 @@ typedef struct {
    char tema[64], decoracao_estilo[64], cor_destaque[64], prova_sequencia[64];
 
    // 3. Configurações Numéricas e Estatísticas da Turma
-   int  serie, iprova, qtd_alunos_ativos, qtd_alunos_total;
+   int iprova, qtd_alunos_ativos, qtd_alunos_total;
 
    // 4. Configurações de Layout do LaTeX
    int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex;

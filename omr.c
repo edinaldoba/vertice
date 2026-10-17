@@ -412,8 +412,10 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
    BlobInfo blobs[MAX_CANDIDATOS] = {0};
    int num_blobs = 0;
    if ( resgate ) {
-      int core_size = 28;
-      int margin_size = 7;
+      // Valores otimizados para quadradinhos de 6 milímetros de lado
+      // Precisarei refazer os testes para os novos quadradinhos de 6.5 milímetros de lado
+      int core_size = 28;  // Para quadradinhos 6mm x 6mm
+      int margin_size = 7; // Para quadradinhos 6mm x 6mm
       num_blobs = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
    } else {
       num_blobs = blob_extrair_quadrados_pretos( img_bin, blobs );

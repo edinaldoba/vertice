@@ -10,6 +10,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <omp.h>
+#include <math.h>
 
 #include "glib_gio.h"
 #include "interface.h"
@@ -202,182 +203,158 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 //========================================================================================================//
 static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) {
    g_string_append( tex,
-                    "\\documentclass[11pt,a4paper]{report}\n"
-                    "\\usepackage[utf8]{inputenc}\n"
-                    "\\usepackage[T1]{fontenc}\n"
-                    "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
-                    "\\usepackage[dvipsnames,table]{xcolor}\n"
-                    "\\usepackage{multicol}\n"
-                    "\\usepackage{enumerate}\n"
-                    "\\usepackage[nointegrals]{wasysym}\n"
-                    "\\usepackage{bm}\n"
-                    "\\usepackage{array,multirow,graphicx}\n"
-                    "\\usepackage{amsmath,amssymb}\n"
-                    // Pacote ifthen removido - a lógica foi 100% transferida para o C
-                    "\\usepackage{setspace}\n"
-                    "\\usepackage{ulem}\n"
-                    "\\onehalfspacing\n"
-                    "\\pagestyle{empty}\n"
-                  );
+      "\\documentclass[11pt,a4paper]{report}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n"
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" // Margens fixas de 1cm
+      "\\usepackage[dvipsnames,table]{xcolor}\n"
+      "\\usepackage{multicol}\n"
+      "\\usepackage{enumerate}\n"
+      "\\usepackage[nointegrals]{wasysym}\n"
+      "\\usepackage{bm}\n"
+      "\\usepackage{array,multirow,graphicx}\n"
+      "\\usepackage{amsmath,amssymb}\n"
+      "\\usepackage{setspace}\n"
+      "\\usepackage{ulem}\n"
+      "\\onehalfspacing\n"
+      "\\pagestyle{empty}\n"
+   );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
+   // Definição da cor principal (CorSerie) configurada no GTK
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
 
+   // Macros globais de formatação e trigonometria
    g_string_append( tex,
-                    "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
-                    "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
-                    "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
-                    "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
-                    "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
-                    "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
-                    "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
-                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
-                  );
+      "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
+      "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
+      "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
+      "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
+      "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
+      "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
+      "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
+      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
+   );
 }
 
 //--------------------------------------------------------------------------------------------------------
 static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dados, const FichaAluno *ficha,
-      int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
+                                         int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
 
-   double a = 0.0, k = 0.0;
+   // A injeção do cabeçalho de identificação ocorre exclusivamente na primeira página.
+   // Toda a lógica das margens e linhas separadoras migrou limpa para 'anexar_colunas_separadoras_latex'.
+   if ( !is_page1 ) return;
 
    // =========================================================================
-   // TIPO 1: PVO11 e PVO12 (Cabeçalho Compacto)
+   // 1. INJEÇÃO DO TEMA GRÁFICO DA PÁGINA (Renderizado por baixo)
+   // =========================================================================
+   // O fator passado para a decoração é 1 (Cabeçalho Compacto) ou 0 (Cabeçalho Completo)
+   gint fator_tamanho = ( dados->cabecalho_tipo == 1 ) ? 1 : 0;
+   const char *tema = dados->decoracao_estilo;
+
+   if      ( g_strcmp0( tema, "Trapezios" ) == 0 ) anexar_tema_pagina_trapezios( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Ondas" )     == 0 ) anexar_tema_pagina_ondas( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Quadrados" ) == 0 ) anexar_tema_pagina_quadrados( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Linhas" )    == 0 ) anexar_tema_pagina_linhas( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Senoides" )  == 0 ) anexar_tema_pagina_senoides( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Circulos" )  == 0 ) anexar_tema_pagina_circulos( tex, fator_tamanho );
+   else if ( g_strcmp0( tema, "Hexagonos" ) == 0 ) anexar_tema_pagina_hexagonos( tex, fator_tamanho );
+
+   // =========================================================================
+   // 2. PAINÉIS DE INFORMAÇÃO EDITORIAL
    // =========================================================================
    if ( dados->cabecalho_tipo == 1 ) {
-      a = is_page1 ? 3.56 : 0.01412;
-      k = is_page1 ? 27.65 : 27.58588;
+      // Título da Prova (Contraste máximo)
+      g_string_append_printf( tex, "\\node[inner sep=0pt, color=CorSerie, anchor=center] at (9.5,-0.64) {\\LARGE\\bfseries %s};\n", titulo_prova );
 
-      if ( is_page1 ) {
-         // INJEÇÃO NATIVA DO TEMA DE PÁGINA EM C
-         gint k_tema = 1;
-         if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
-            anexar_tema_pagina_trapezios( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
-            anexar_tema_pagina_ondas( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
-            anexar_tema_pagina_quadrados( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
-            anexar_tema_pagina_linhas( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
-            anexar_tema_pagina_senoides( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
-            anexar_tema_pagina_circulos( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
-            anexar_tema_pagina_hexagonos( tex, k_tema );
-         }
+      // Fundo suave e borda principal da caixa de informações (O 'Painel')
+      g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (0,-1.4) rectangle (17.5,-2.6);\n" );
 
-         g_string_append_printf( tex, "\\node[inner sep=0pt, color=CorSerie] at (9.5,-0.64) {\\LARGE\\bf %s};\n", titulo_prova );
-         g_string_append( tex, "\\draw[line width=1pt, color=CorSerie, rounded corners] (0,-1.4) rectangle (17.5,-2.6);\n" );
-         g_string_append( tex, "\\draw[line width=1pt, color=CorSerie] (7,-1.4)--(7,-2.6) (13,-1.4)--(13,-2.6);\n" );
+      // Divisórias verticais mais delicadas, recuadas visualmente
+      g_string_append( tex, "\\draw[draw=CorSerie!30, line width=0.8pt] (7,-1.5)--(7,-2.5) (13,-1.5)--(13,-2.5);\n" );
 
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (0.1,-2.00) {\\resizebox{6.5cm}{0.75cm}{\\bf %s}};\n", dados->escola );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.3,-1.75) {{\\color{CorSerie}\\bf Gestor(a):} %s};\n", dados->gestor );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.3,-2.25) {{\\color{CorSerie}\\bf Professor:} %s};\n", dados->professor );
+      // Coluna 1: Nome da Escola
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (0.2,-2.00) {\\resizebox{6.5cm}{0.75cm}{\\bfseries %s}};\n", dados->escola );
 
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (13.3,-1.75) {{\\color{CorSerie}\\bf Data:} \\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/\\underline{%d}};\n", data->ano );
-         if ( dados->naopresencial ) g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (13.3,-2.25) {{\\color{CorSerie}\\bf Turma:} %s};\n", dados->turma );
+      // Coluna 2: Equipe (Rótulos sutis e dados em destaque)
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (7.3,-1.75) {{\\color{CorSerie!80}\\small\\bfseries Gestor(a):} {\\color{black!80} %s}};\n", dados->gestor );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (7.3,-2.25) {{\\color{CorSerie!80}\\small\\bfseries Professor:} {\\color{black!80} %s}};\n", dados->professor );
 
-         g_string_append( tex, "\\draw[line width=1pt,rounded corners,color=red] (17.6,-1.40) rectangle (19,-3.36);\n\\node[inner sep=0pt] at (18.3,-1.71) {\\bf\\uuline{NOTA}};\n" );
-
-         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (1.9,-3.16) {\\bf Aluno(a):};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (2.1,-3.12) {%s};\n", ficha->aluno );
-         g_string_append( tex, "\\draw[color=CorSerie] (2,-3.36) -- (15.2,-3.36);\n" );
-
-         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (16.2,-3.16) {\\bf Nº:};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (16.4,-3.12) {%.2d};\n", num_chamada );
-         g_string_append( tex, "\\draw[color=CorSerie] (16.3,-3.36) -- (17.3,-3.36);\n" );
+      // Coluna 3: Data e Turma
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-1.75) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
+      if ( dados->naopresencial ) {
+         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black!80] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
       }
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-2.25) {{\\color{CorSerie!80}\\small\\bfseries Turma:} {\\color{black!80} %s}};\n", dados->turma );
 
-   // =========================================================================
-   // TIPO 2: PVO21 e PVO22 (Cabeçalho Completo com Bolinhas de Turno)
-   // =========================================================================
+      // Caixa de NOTA
+      g_string_append( tex, "\\filldraw[fill=CorSerie!8, draw=CorSerie!90, line width=1pt, rounded corners=3pt] (17.6,-1.40) rectangle (19,-3.36);\n" );
+      g_string_append( tex, "\\node[inner sep=0pt, color=CorSerie] at (18.3,-1.71) {\\small\\bfseries NOTA};\n" );
+      g_string_append( tex, "\\draw[draw=CorSerie!30, line width=0.6pt] (17.75,-1.95) -- (18.85,-1.95);\n" );
+
+      // Aluno e Número
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-3.16) {\\bfseries Aluno(a):};\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (2.1,-3.12) {\\large %s};\n", ficha->aluno );
+      g_string_append( tex, "\\draw[draw=CorSerie!40] (2.0,-3.36) -- (15.2,-3.36);\n" );
+
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (16.2,-3.16) {\\bfseries N\\textsuperscript{\\underline{o}}:};\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (16.4,-3.12) {\\large %.2d};\n", num_chamada );
+      g_string_append( tex, "\\draw[draw=CorSerie!40] (16.3,-3.36) -- (17.3,-3.36);\n" );
+
    } else {
-      a = is_page1 ? 2.06 : 0.04236;
-      k = 27.55764;
+      // =========================================================================
+      // TIPO 2: Cabeçalho Completo (Com Seletor de Turno)
+      // =========================================================================
+      g_string_append_printf( tex, "\\node[inner sep=0pt, color=CorSerie, anchor=center] at (8.75,-0.64) {\\LARGE\\bfseries %s};\n", titulo_prova );
 
-      if ( is_page1 ) {
-         // INJEÇÃO NATIVA DO TEMA DE PÁGINA EM C
-         gint k_tema = 0; // Para o PVO21/PVO22 o fator K era 0
-         if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
-            anexar_tema_pagina_trapezios( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
-            anexar_tema_pagina_ondas( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
-            anexar_tema_pagina_quadrados( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
-            anexar_tema_pagina_linhas( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
-            anexar_tema_pagina_senoides( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
-            anexar_tema_pagina_circulos( tex, k_tema );
-         } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
-            anexar_tema_pagina_hexagonos( tex, k_tema );
-         }
+      g_string_append( tex, "\\filldraw[fill=CorSerie!8, draw=CorSerie!90, line width=1pt, rounded corners=3pt] (17.6,-0.01412) rectangle (19,-1.85);\n" );
+      g_string_append( tex, "\\node[inner sep=0pt, color=CorSerie] at (18.3,-0.3) {\\small\\bfseries NOTA};\n" );
+      g_string_append( tex, "\\draw[draw=CorSerie!30, line width=0.6pt] (17.75,-0.55) -- (18.85,-0.55);\n" );
 
-         g_string_append_printf( tex, "\\node[inner sep=0pt] at (8.75,-0.6) {\\LARGE\\bf %s};\n", titulo_prova );
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-1.65) {\\bfseries Aluno(a):};\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (2.1,-1.61) {\\large %s};\n", ficha->aluno );
+      g_string_append( tex, "\\draw[draw=CorSerie!40] (2,-1.85) -- (15.2,-1.85);\n" );
 
-         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners,color=red] (17.6,-0.01412) rectangle (19,-1.85);\n\\node[inner sep=0pt] at (18.3,-0.3) {\\bf\\uuline{NOTA}};\n" );
-         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (1.9,-1.65) {\\bf Aluno(a):};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (2.1,-1.61) {%s};\n", ficha->aluno );
-         g_string_append( tex, "\\draw[color=CorSerie] (2,-1.85) -- (15.2,-1.85);\n" );
-         g_string_append( tex, "\\node[inner sep=0pt,left,color=CorSerie] at (16.2,-1.65) {\\bf Nº:};\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=black] at (16.4,-1.61) {%.2d};\n", num_chamada );
-         g_string_append( tex, "\\draw[color=CorSerie] (16.3,-1.85) -- (17.3,-1.85);\n" );
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (16.2,-1.65) {\\bfseries N\\textsuperscript{\\underline{o}}:};\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (16.4,-1.61) {\\large %.2d};\n", num_chamada );
+      g_string_append( tex, "\\draw[draw=CorSerie!40] (16.3,-1.85) -- (17.3,-1.85);\n" );
 
-         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (0,-2.06) rectangle (6.0667,-3.78);\n" ); // 91/15 = 6.0667
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (0.09,-2.4) {\\resizebox{5.88cm}{0.35cm}{\\bf %s}};\n", dados->escola );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-2.98) {{\\bf Gestor(a):} %s};\n", dados->gestor );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-3.5) {{\\bf Professor:} %s};\n", dados->professor );
+      g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (0,-2.06) rectangle (6.0667,-3.78);\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (0.09,-2.4) {\\resizebox{5.88cm}{0.35cm}{\\bfseries %s}};\n", dados->escola );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-2.98) {{\\color{CorSerie!80}\\small\\bfseries Gestor(a):} {\\color{black!80} %s}};\n", dados->gestor );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-3.5) {{\\color{CorSerie!80}\\small\\bfseries Professor:} {\\color{black!80} %s}};\n", dados->professor );
 
-         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (0,-3.88) rectangle (3.8,-5.5);\n" );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-4.185) {{\\bf Data:} \\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/\\underline{%d}};\n", data->ano );
-         if ( dados->naopresencial ) g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=blue] at (1.34,-4.145) {\\bf %.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-4.69) {{\\bf Série:} %d};\n", dados->serie );
-         g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (0.09,-5.195) {{\\bf Turma:} %.3s};\n", dados->turma );
+      g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (0,-3.88) rectangle (3.8,-5.5);\n" );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.185) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
 
-         // Identificação Nativa em C do Turno
-         int turno_idx = ( dados->turma[4] == 'm' ) * 0 + ( dados->turma[4] == 'v' ) * 1 + ( dados->turma[4] == 'i' ) * 2 + ( dados->turma[4] == 'n' ) * 3;
-         g_string_append( tex, "\\draw[line width=0.8pt,rounded corners] (3.9,-3.88) rectangle (6.0667,-5.5);\n" );
-
-         double x_circle = 3.9 + 0.7 * (81.0/220.0);
-         double x_text   = 4.15 + 0.7 * (81.0/220.0);
-         const char *turnos_labels[] = {"Matutino", "Vespertino", "Integral", "Noturno"};
-
-         for ( int i = 0; i <= 3; i++ ) {
-            double y_row = -3.88 - (i + 0.7) * (81.0/220.0);
-            g_string_append_printf( tex, "\\draw[line width=0.8pt] (%.4f,%.4f) circle (0.14cm);\n", x_circle, y_row );
-            if ( i == turno_idx ) {
-               g_string_append_printf( tex, "\\fill (%.4f,%.4f) circle (0.08cm);\n", x_circle, y_row );
-            }
-            g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (%.4f,%.4f) {\\footnotesize %s};\n", x_text, y_row, turnos_labels[i] );
-         }
+      if ( dados->naopresencial ) {
+         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (1.34,-4.145) {\\small\\bfseries %.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
       }
-   }
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.69) {{\\color{CorSerie!80}\\small\\bfseries Série:} {\\color{black!80}%c\\textsuperscript{o} Ano}};\n", dados->turma[0] );
 
-   // =========================================================================
-   // 3. CONSTRUÇÃO DAS MARGENS / DOTS ÓTICOS (100% nativa em C)
-   // =========================================================================
-   if ( dados->separadores == 2 && dados->cabecalho_tipo == 2 && !is_page1 ) {
-      g_string_append_printf( tex, "\\draw[line width=0.8pt] (0,%.4f) -- (19,%.4f);\n\\draw[line width=0.8pt] (0,%.4f) -- (19,%.4f);\n", -a, -a, -0.1 - a, -0.1 - a );
-   }
+      const char *turm = g_utf8_strup( dados->turma, -1 );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-5.195) {{\\color{CorSerie!80}\\small\\bfseries Turma:} {\\color{black!80}%.7s}};\n", turm );
 
-   if ( dados->cabecalho_tipo == 1 ) {
-      for ( int i = 0; i <= 190; i++ ) {
-         double x_dot = 0.1 * i;
-         g_string_append_printf( tex, "\\fill (%.4f,%.4f) circle (0.5pt); \\fill (%.4f,%.4f) circle (0.5pt);\n", x_dot, -a, x_dot, -k );
-      }
-   } else {
-      for ( int i = 0; i <= 20; i++ ) {
-         double x_dot = 0.2 + 0.2 * i;
-         g_string_append_printf( tex, "\\fill (%.4f,%.4f) circle (1.2pt);\n", x_dot, -k - 0.1 );
+      int turno_idx = ( dados->turma[8] == 'm' ) * 0 + ( dados->turma[8] == 'v' ) * 1 + ( dados->turma[8] == 'i' ) * 2 + ( dados->turma[8] == 'n' ) * 3;
+      g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (3.9,-3.88) rectangle (6.0667,-5.5);\n" );
+
+      double x_circle = 3.9 + 0.7 * (81.0/220.0);
+      double x_text   = 4.15 + 0.7 * (81.0/220.0);
+      const char *turnos_labels[] = {"Matutino", "Vespertino", "Integral", "Noturno"};
+
+      for ( int i = 0; i <= 3; i++ ) {
+         double y_row = -3.88 - (i + 0.7) * (81.0/220.0);
+         g_string_append_printf( tex, "\\draw[draw=CorSerie!60, line width=0.8pt] (%.4f,%.4f) circle (0.14cm);\n", x_circle, y_row );
+         if ( i == turno_idx ) {
+            g_string_append_printf( tex, "\\fill[color=CorSerie!80] (%.4f,%.4f) circle (0.08cm);\n", x_circle, y_row );
+         }
+         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black!85] at (%.4f,%.4f) {\\footnotesize %s};\n", x_text, y_row, turnos_labels[i] );
       }
    }
 }
@@ -385,54 +362,84 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
 //--------------------------------------------------------------------------------------------------------
 static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados *dados, gboolean is_page2 ) {
 
-   // Como TODAS as 6 decorações agora assumem o padrão unificado colorido (decorado = TRUE),
-   // a quantidade de pontos pode ser fixada diretamente.
-   int dots = is_page2 ? 276 : 240;
+   gboolean is_page1 = !is_page2; // Padronizando a lógica de leitura
 
-   // Reconstrói os offsets de ancoragem para as colunas baseados no tipo do cabecalho e página
-   double a = 0.0, k = 0.0;
+   // 1. Definição Limpa das Margens Y
+   double y_topo = 0.0;
+   double y_base = 0.0;
+
    if ( dados->cabecalho_tipo == 1 ) {
-      a = is_page2 ? 0.01412 : 3.56;
-      k = is_page2 ? 27.58588 : 27.65;
+      y_topo = is_page1 ? 3.56  : 0.01412;
+      y_base = is_page1 ? 27.65 : 27.58588;
    } else {
-      a = is_page2 ? 0.04236 : 2.06;
-      k = 27.55764;
+      y_topo = is_page1 ? 2.06  : 0.04236;
+      y_base = 27.55764; // A base do Tipo 2 é simétrica e fixa
    }
 
-   // A cor (suave) e o tamanho dos pontilhados agora são fixos para o padrão colorido
-   const char *color_str = ( dados->qtd_colunas == 2 ) ? "[CorSerie!40]" : "[CorSerie!30]";
-   const char *size_str = "0.5pt";
+   const char *cor_divisoria = ( dados->qtd_colunas == 2 ) ? "CorSerie!40" : "CorSerie!30";
+
+   // =========================================================================
+   // B. COLUNAS VERTICAIS (Divisórias internas do conteúdo)
+   // =========================================================================
+
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   const char *estilo_ponto = "line width=1pt, line cap=round, dash pattern=on 0pt off 0.1cm";
 
    if ( dados->qtd_colunas == 2 ) {
+      double x_meio = 9.5; // Exatamente no centro dos 19cm da área útil
+
       if ( dados->separadores == 1 ) {
-         for ( int i = 1; i <= dots; i++ ) {
-            double y_dot = -a - (0.1 * i);
-            g_string_append_printf( tex, "  \\fill%s (9.5,%.4f) circle (%s);\n", color_str, y_dot, size_str );
-         }
-      } else {
-         // Linha contínua
-         g_string_append_printf( tex, "  \\draw[line width=0.8pt] (9.5,%.4f) -- (9.5,%.4f);\n", -a, -k );
+         g_string_append_printf( tex, "  \\draw[color=%s, %s] (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 cor_divisoria, estilo_ponto, x_meio, -y_topo, x_meio, -y_base );
+      } else if ( dados->separadores == 2 ) {
+         g_string_append_printf( tex, "  \\draw[color=%s, line width=0.8pt] (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 cor_divisoria, x_meio, -y_topo, x_meio, -y_base );
       }
 
    } else if ( dados->qtd_colunas == 3 ) {
       int exp = 16 - 4 * dados->qtd_colunas; // Para 3 colunas, exp = 4
-      double s = exp / 10.0;                 // s = 0.4
+      double s = exp / 10.0;                 // Fator de escala (0.4)
       double x1 = (38.0 - s) / 6.0;
       double x2 = (76.0 + s) / 6.0;
 
       if ( dados->separadores == 1 ) {
-         for ( int i = 1; i <= dots; i++ ) {
-            double y_dot = -a - (0.1 * i);
-            g_string_append_printf( tex, "  \\fill%s (%.4f,%.4f) circle (%s); \\fill%s (%.4f,%.4f) circle (%s);\n",
-                                    color_str, x1, y_dot, size_str, color_str, x2, y_dot, size_str );
-         }
-      } else {
-         // Linhas contínuas (O y_start antigo que variava com !decorado agora é sempre -a)
-         g_string_append_printf( tex, "  \\draw[line width=0.8pt] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
-                                 x1, -a, x1, -k, x2, -a, x2, -k );
+         // Desenha as duas colunas verticais em um único comando \draw de altíssima performance
+         g_string_append_printf( tex, "  \\draw[color=%s, %s] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 cor_divisoria, estilo_ponto, x1, -y_topo, x1, -y_base, x2, -y_topo, x2, -y_base );
+      } else if ( dados->separadores == 2 ) {
+         g_string_append_printf( tex, "  \\draw[color=%s, line width=0.6pt] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
+                                 cor_divisoria, x1, -y_topo, x1, -y_base, x2, -y_topo, x2, -y_base );
       }
    }
+
+   // =========================================================================
+   // A. MARGENS HORIZONTAIS (Guias ópticas na Base e no Topo)
+   // =========================================================================
+   // Com 1cm de margem real, a largura útil é de 19cm.
+   // Para o Tipo 2 (Página 1), a margem superior começa depois do painel (x = 6.3cm).
+   double x_start = ( dados->cabecalho_tipo == 2 && is_page1 ) ? 6.26 : 0.0;
+
+   // Macro de estilo para os pontos perfeitos de alta performance:
+   // line width = 1.2pt (diâmetro do círculo exato), espaçamento exato = 0.1cm (mesmo do laço antigo)
+   estilo_ponto = "line width=1.2pt, line cap=round, dash pattern=on 0pt off 0.1cm";
+
+   if ( dados->separadores == 1 ) { // Estilo Pontilhado (Alta Performance TikZ)
+      g_string_append_printf( tex, "  \\draw[color=CorSerie!80, %s] (%.4f,%.4f) -- (19.0,%.4f);\n", estilo_ponto, x_start, -y_topo, -y_topo );
+      g_string_append_printf( tex, "  \\draw[color=CorSerie!80, %s] (0.0,%.4f) -- (19.0,%.4f);\n", estilo_ponto, -y_base, -y_base );
+
+   } else if ( dados->separadores == 2 ) { // Estilo Contínuo
+      // Estética de linha dupla superior mantida historicamente para o Tipo 2 (Página 2)
+      if ( dados->cabecalho_tipo == 2 && !is_page1 ) {
+         g_string_append_printf( tex, "  \\draw[color=CorSerie!80, line width=0.8pt] (0.0,%.4f) -- (19.0,%.4f);\n", -y_topo, -y_topo );
+      } else {
+         g_string_append_printf( tex, "  \\draw[color=CorSerie!80, line width=0.8pt] (%.4f,%.4f) -- (19.0,%.4f);\n", x_start, -y_topo, -y_topo );
+      }
+      g_string_append_printf( tex, "  \\draw[color=CorSerie!80, line width=0.8pt] (0.0,%.4f) -- (19.0,%.4f);\n", -y_base, -y_base );
+   }
+
 }
+//---------------------------------------------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------------------------------
 static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, int gabarito_letra, const InterfaceDados *dados ) {

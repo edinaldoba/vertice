@@ -193,55 +193,45 @@ void estilo_interface( AppContext *ctx ) {
 
 
 
+//---------------------------------------------------------------------------------------------------------------
 void atualizar_booleanos_interface( const bool estado, const int categoria, AppContext *ctx ) {
-   g_return_if_fail( ctx );
+   g_return_if_fail( ctx != NULL );
 
-   InterfaceDados          *dados    = &ctx->dados;
-   const InterfaceCheck    *check    = &ctx->check;
-   const InterfaceHandlers *handlers = &ctx->handlers;
+   InterfaceDados       *dados = &ctx->dados;
+   const InterfaceCheck *check = &ctx->check;
 
    switch ( categoria ) {
-   case 1:
+   case CATEGORIA_UI_NUM_CRUZADOS:
       dados->cruz = estado;
-      break; // Números Cruzados
-
-   case 2: // Não Presencial
-      dados->naopresencial = estado;
-
-      if ( dados->naopresencial != dados->expor ) {
-
-         dados->expor = dados->naopresencial;
-
-         g_signal_handler_block( check->expor_dados, handlers->expor_dados );
-
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check->expor_dados ), dados->expor );
-
-         g_signal_handler_unblock( check->expor_dados, handlers->expor_dados );
-      }
-
       break;
 
-   case 3: // Expôr dados
+   case CATEGORIA_UI_NAO_PRESENCIAL:
+      dados->naopresencial = estado;
+
+      // Regra: Se a prova não é presencial (TRUE), os dados PRECISAM ser expostos (TRUE).
+      if ( dados->naopresencial && !dados->expor ) {
+         // Força o botão 'Expor Dados' a ligar. O GTK emitirá um "toggled" para ele.
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check->expor_dados ), TRUE );
+      }
+      break;
+
+   case CATEGORIA_UI_EXPOR_DADOS:
       dados->expor = estado;
 
+      // Regra: Se os dados forem ocultados (FALSE), a prova não pode ser 'não presencial' (FALSE).
       if ( !dados->expor && dados->naopresencial ) {
-
-         dados->naopresencial = dados->expor;
-
-         g_signal_handler_block( check->nao_presencial, handlers->nao_presencial );
-
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check->nao_presencial ), dados->naopresencial );
-
-         g_signal_handler_unblock( check->nao_presencial, handlers->nao_presencial );
+         // Força o botão 'Não Presencial' a desligar. O GTK emitirá um "toggled" para ele.
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check->nao_presencial ), FALSE );
       }
-
       break;
 
    default:
-      g_print( "Categoria desconhecida: %d\n", categoria );
+      g_warning( "Categoria desconhecida no despacho de booleanos da interface: %d", categoria );
       break;
    }
 }
+
+
 
 
 //---------------------------------------------------------------------------------------------------------------
@@ -252,27 +242,46 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
    InterfaceListas *listas = &ctx->listas;
 
    switch ( categoria ) {
-   case 1: // Colunas
+
+   case CATEGORIA_UI_COLUNAS:
       dados->qtd_colunas = valor; // 2 ou 3
-      break;
-   case 2: // Separadores
-      dados->separadores = valor; // 1 (pontilhado) ou 2 (contínuo)
-      break;
-   case 3: // Fonte TeX
-      dados->fonte_latex = valor; // 1 (CMB Right) ou 2 (CMU Serif)
-      break;
-   case 4: // Quantidade de páginas
-      dados->qtd_paginas = valor; // 1 ou 2
-      break;
-   case 5: // Cabeçalho (tipo)
-      dados->cabecalho_tipo = valor; // 1 (acima) ou 2 (à esquerda)
-      break;
-   case 6: // Prova
-      dados->iprova = valor; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira)
-      if ( valor >= 1 && valor <= 3 ) {
-         snprintf( dados->prova_sequencia, sizeof( dados->prova_sequencia ), "%s", listas->provas_sequencia[valor - 1].str );
+      // Restrição de Layout: Se a prova tiver 2 colunas, o cabeçalho não pode ser lateral (tipo 2).
+      // Dispara o rádio tipo 1 (Acima) automaticamente.
+      if ( dados->qtd_colunas == 2 && dados->cabecalho_tipo == 2 ) {
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.cabecalho_tipo[0] ), TRUE );
       }
       break;
+
+   case CATEGORIA_UI_SEPARADORES:
+      dados->separadores = valor; // 1 (pontilhado) ou 2 (contínuo)
+      break;
+
+   case CATEGORIA_UI_FONTE_LATEX:
+      dados->fonte_latex = valor; // 1 (CMB Right) ou 2 (CMU Serif)
+      break;
+
+   case CATEGORIA_UI_PAGINAS:
+      dados->qtd_paginas = valor; // 1 ou 2
+      break;
+
+   case CATEGORIA_UI_CABECALHO:
+      dados->cabecalho_tipo = valor; // 1 (acima) ou 2 (à esquerda)
+      // Restrição de Layout: Se forçarem o cabeçalho lateral (tipo 2), a prova precisa ter 3 colunas.
+      if ( dados->cabecalho_tipo == 2 && dados->qtd_colunas == 2 ) {
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_colunas[1] ), TRUE );
+      }
+      break;
+
+   case CATEGORIA_UI_PROVA:
+      dados->iprova = valor; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira)
+      if ( valor >= 1 && valor <= 3 ) {
+         // g_strlcpy é o padrão GLib para copiar strings com segurança de buffer (mais rápido que snprintf)
+         g_strlcpy( dados->prova_sequencia, listas->provas_sequencia[valor - 1].str, sizeof( dados->prova_sequencia ) );
+      } else {
+         g_warning( "Tentativa de atualizar a Prova com valor fora dos limites (1 a 3): %d", valor );
+      }
+      break;
+
    default:
       g_warning( "Categoria desconhecida no despacho da interface: %d", categoria );
       break;
@@ -417,7 +426,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
 
       // 2. Prepara e AGENDA a mensagem de INFO sem interromper a atual (passando FALSE)
       gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 15 segundos." );
+      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
       gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.",
                                                         ctx->dados.escola, ctx->dados.ano );
 

@@ -203,7 +203,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .cor_destaque     = "",
          .prova_sequencia  = "Primeira",
 
-         .serie             = 1,
          .iprova            = 1,
          .qtd_alunos_ativos = 0,
          .qtd_alunos_total  = 0,
