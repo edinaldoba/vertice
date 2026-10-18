@@ -783,7 +783,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    GPid pid;
 
    g_autofree char *comando_interno = g_strdup_printf(
-            "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
+                                         "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
    char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
 
    if ( !g_spawn_async( async_data->dir_compile, argv, NULL,

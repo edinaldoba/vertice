@@ -62,7 +62,7 @@ static int blob_comparar_solidez( const void *a, const void *b ) {
 // ============================================================================
 // MÓDULO 2: Correlação Cruzada Direta (Otimizada)
 // ============================================================================
-static double calcular_correcao_cruzada_direta(const ImagemCinza *img, int start_i, int start_j, const TemplateParams *tpl) {
+static double calcular_correcao_cruzada_direta( const ImagemCinza *img, int start_i, int start_j, const TemplateParams *tpl ) {
    int soma_margem = 0;
    int soma_core = 0;
 
@@ -71,51 +71,51 @@ static double calcular_correcao_cruzada_direta(const ImagemCinza *img, int start
    const int limit_core = ts - ms;
 
    // 1. Margem Superior (Apenas branco)
-   for (int i = 0; i < ms; i++) {
+   for ( int i = 0; i < ms; i++ ) {
       const uint8_t *linha = img->image[start_i + i];
-      for (int j = 0; j < ts; j++) {
+      for ( int j = 0; j < ts; j++ ) {
          soma_margem += linha[start_j + j];
       }
    }
 
    // 2. Miolo (Margem Esquerda + Core Preto + Margem Direita)
-   for (int i = ms; i < limit_core; i++) {
+   for ( int i = ms; i < limit_core; i++ ) {
       const uint8_t *linha = img->image[start_i + i];
 
-      for (int j = 0; j < ms; j++) soma_margem += linha[start_j + j];
-      for (int j = ms; j < limit_core; j++) soma_core += linha[start_j + j];
-      for (int j = limit_core; j < ts; j++) soma_margem += linha[start_j + j];
+      for ( int j = 0; j < ms; j++ ) soma_margem += linha[start_j + j];
+      for ( int j = ms; j < limit_core; j++ ) soma_core += linha[start_j + j];
+      for ( int j = limit_core; j < ts; j++ ) soma_margem += linha[start_j + j];
    }
 
    // 3. Margem Inferior (Apenas branco)
-   for (int i = limit_core; i < ts; i++) {
+   for ( int i = limit_core; i < ts; i++ ) {
       const uint8_t *linha = img->image[start_i + i];
-      for (int j = 0; j < ts; j++) {
+      for ( int j = 0; j < ts; j++ ) {
          soma_margem += linha[start_j + j];
       }
    }
 
-   double correlacao = (double)soma_margem - (double)soma_core;
+   double correlacao = ( double )soma_margem - ( double )soma_core;
 
-   if (tpl->max_energia <= 0.0) return 0.0;
+   if ( tpl->max_energia <= 0.0 ) return 0.0;
    return correlacao / tpl->max_energia;
 }
 
 // ============================================================================
 // MÓDULO 3: Non-Maximum Suppression (NMS)
 // ============================================================================
-static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candidatos,
-                                    BlobInfo nova_blob, double novo_score, int raio_supressao) {
+static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candidatos,
+                                     BlobInfo nova_blob, double novo_score, int raio_supressao ) {
 
-   double raio_sq = (double)(raio_supressao * raio_supressao);
+   double raio_sq = ( double )( raio_supressao * raio_supressao );
 
-   for (int k = 0; k < *num_candidatos; k++) {
+   for ( int k = 0; k < *num_candidatos; k++ ) {
       double dist_i = candidatos[k].blob.centro_i - nova_blob.centro_i;
       double dist_j = candidatos[k].blob.centro_j - nova_blob.centro_j;
       double dist_sq = dist_i * dist_i + dist_j * dist_j;
 
-      if (dist_sq < raio_sq) {
-         if (novo_score > candidatos[k].score) {
+      if ( dist_sq < raio_sq ) {
+         if ( novo_score > candidatos[k].score ) {
             candidatos[k].blob = nova_blob;
             candidatos[k].score = novo_score;
          }
@@ -124,17 +124,17 @@ static void adicionar_candidato_nms(MatchCandidate *candidatos, int *num_candida
    }
 
    // Adiciona novo candidato se houver espaço no buffer
-   if (*num_candidatos < MAX_CANDIDATOS) {
+   if ( *num_candidatos < MAX_CANDIDATOS ) {
       candidatos[*num_candidatos].blob = nova_blob;
       candidatos[*num_candidatos].score = novo_score;
-      (*num_candidatos)++;
+      ( *num_candidatos )++;
    }
 }
 
 // ============================================================================
 // MÓDULO 4: Função Principal de Extração
 // ============================================================================
-static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size) {
+static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size ) {
    float limiar_correlacao = 0.5;
    int stride_busca = 1;
    int max_blobs_saida = MAX_CANDIDATOS;
@@ -148,22 +148,22 @@ static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, in
    tpl.total_size = core_size + 2 * margin_size;
 
    // Pré-cálculo da energia máxima teórica para O(1) dentro do laço
-   int pixels_margem = (tpl.total_size * tpl.total_size) - (core_size * core_size);
-   tpl.max_energia = (double)pixels_margem * 255.0;
+   int pixels_margem = ( tpl.total_size * tpl.total_size ) - ( core_size * core_size );
+   tpl.max_energia = ( double )pixels_margem * 255.0;
 
-   int raio_nms = (tpl.total_size * 70) / 100;
+   int raio_nms = ( tpl.total_size * 70 ) / 100;
    int limite_i = img->nrow - tpl.total_size;
    int limite_j = img->ncol - tpl.total_size;
 
    // ATENÇÃO (OPENMP): Se for paralelizar este laço (ex: #pragma omp parallel for),
    // a matriz 'candidatos' e 'num_candidatos' sofrerão Race Conditions na chamada de NMS.
    // Recomenda-se buffers locais por thread fundidos ao final em caso de paralelismo aqui.
-   for (int i = 0; i <= limite_i; i += stride_busca) {
-      for (int j = 0; j <= limite_j; j += stride_busca) {
+   for ( int i = 0; i <= limite_i; i += stride_busca ) {
+      for ( int j = 0; j <= limite_j; j += stride_busca ) {
 
-         double score = calcular_correcao_cruzada_direta(img, i, j, &tpl);
+         double score = calcular_correcao_cruzada_direta( img, i, j, &tpl );
 
-         if (score > limiar_correlacao) {
+         if ( score > limiar_correlacao ) {
             BlobInfo blob;
             blob.min_i = i + tpl.margin_size;
             blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
@@ -171,16 +171,16 @@ static int blob_extrair_por_template(const ImagemCinza *img, BlobInfo *blobs, in
             blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
 
             blob.area = tpl.core_size * tpl.core_size;
-            blob.centro_i = (double)(blob.min_i + blob.max_i) / 2.0;
-            blob.centro_j = (double)(blob.min_j + blob.max_j) / 2.0;
+            blob.centro_i = ( double )( blob.min_i + blob.max_i ) / 2.0;
+            blob.centro_j = ( double )( blob.min_j + blob.max_j ) / 2.0;
 
-            adicionar_candidato_nms(candidatos, &num_candidatos, blob, score, raio_nms);
+            adicionar_candidato_nms( candidatos, &num_candidatos, blob, score, raio_nms );
          }
       }
    }
 
    // Transfere o resultado e aplica ordenação e corte se necessário
-   for (int k = 0; k < num_candidatos; k++) {
+   for ( int k = 0; k < num_candidatos; k++ ) {
       blobs[k] = candidatos[k].blob;
    }
 
@@ -291,16 +291,28 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
 
    // 3. Amputa as extremidades (Riscos finos)
    for ( int j = 0; j < w; j++ ) {
-      if ( proj_x[j] >= limiar_x ) { novo_min_j = blob->min_j + j; break; }
+      if ( proj_x[j] >= limiar_x ) {
+         novo_min_j = blob->min_j + j;
+         break;
+      }
    }
    for ( int j = w - 1; j >= 0; j-- ) {
-      if ( proj_x[j] >= limiar_x ) { novo_max_j = blob->min_j + j; break; }
+      if ( proj_x[j] >= limiar_x ) {
+         novo_max_j = blob->min_j + j;
+         break;
+      }
    }
    for ( int i = 0; i < h; i++ ) {
-      if ( proj_y[i] >= limiar_y ) { novo_min_i = blob->min_i + i; break; }
+      if ( proj_y[i] >= limiar_y ) {
+         novo_min_i = blob->min_i + i;
+         break;
+      }
    }
    for ( int i = h - 1; i >= 0; i-- ) {
-      if ( proj_y[i] >= limiar_y ) { novo_max_i = blob->min_i + i; break; }
+      if ( proj_y[i] >= limiar_y ) {
+         novo_max_i = blob->min_i + i;
+         break;
+      }
    }
 
    // 4. Consolida o Bounding Box limpo e recalcula
@@ -353,12 +365,16 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
       for ( int j = 0; j < ncol; j++ ) {
          if ( img_bin->image[i][j] < limiar_binario && !visitado[i * ncol + j] ) {
             int start_idx = 0, end_idx = 0;
-            fila_i[end_idx] = i; fila_j[end_idx] = j; end_idx++; visitado[i * ncol + j] = 1;
+            fila_i[end_idx] = i;
+            fila_j[end_idx] = j;
+            end_idx++;
+            visitado[i * ncol + j] = 1;
 
             BlobInfo blob = { i, i, j, j, 0, 0.0, 0.0 };
 
             while ( start_idx < end_idx ) {
-               int ci = fila_i[start_idx], cj = fila_j[start_idx]; start_idx++;
+               int ci = fila_i[start_idx], cj = fila_j[start_idx];
+               start_idx++;
 
                if ( ci < blob.min_i ) blob.min_i = ci;
                if ( ci > blob.max_i ) blob.max_i = ci;
@@ -370,7 +386,10 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
                      int ni = ci + di, nj = cj + dj;
                      if ( ni >= 0 && ni < nrow && nj >= 0 && nj < ncol ) {
                         if ( img_bin->image[ni][nj] < limiar_binario && !visitado[ni * ncol + nj] ) {
-                           fila_i[end_idx] = ni; fila_j[end_idx] = nj; end_idx++; visitado[ni * ncol + nj] = 1;
+                           fila_i[end_idx] = ni;
+                           fila_j[end_idx] = nj;
+                           end_idx++;
+                           visitado[ni * ncol + nj] = 1;
                         }
                      }
                   }
@@ -382,7 +401,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
             int altura = blob.max_i - blob.min_i + 1;
             int largura = blob.max_j - blob.min_j + 1;
             double aspect_ratio = ( double )largura / ( double )altura;
-            double fill_ratio = ( double )blob.area / ( (double)largura * altura );
+            double fill_ratio = ( double )blob.area / ( ( double )largura * altura );
 
             // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
             if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
@@ -404,7 +423,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
 //------------------------------------------------------------------------------------------------------------
 static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
-                                         char *direcao_inferida, gboolean resgate ) {
+      char *direcao_inferida, gboolean resgate ) {
    // (void)resgate;
    int nrow = img_bin->nrow;
    int ncol = img_bin->ncol;
@@ -480,13 +499,13 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
                double ci_C = ord[2]->centro_i, cj_C = ord[2]->centro_j;
                double ci_D = ord[3]->centro_i, cj_D = ord[3]->centro_j;
 
-               double d_tl = (ci_A * ci_A) + (cj_A * cj_A);
-               double d_tr = (ci_B * ci_B) + ((ncol - cj_B) * (ncol - cj_B));
-               double d_br = ((nrow - ci_C) * (nrow - ci_C)) + ((ncol - cj_C) * (ncol - cj_C));
-               double d_bl = ((nrow - ci_D) * (nrow - ci_D)) + (cj_D * cj_D);
+               double d_tl = ( ci_A * ci_A ) + ( cj_A * cj_A );
+               double d_tr = ( ci_B * ci_B ) + ( ( ncol - cj_B ) * ( ncol - cj_B ) );
+               double d_br = ( ( nrow - ci_C ) * ( nrow - ci_C ) ) + ( ( ncol - cj_C ) * ( ncol - cj_C ) );
+               double d_bl = ( ( nrow - ci_D ) * ( nrow - ci_D ) ) + ( cj_D * cj_D );
 
-               double max_dist_quad = (double)(nrow * nrow) + (double)(ncol * ncol);
-               double erro_extremos = (d_tl + d_tr + d_br + d_bl) / max_dist_quad;
+               double max_dist_quad = ( double )( nrow * nrow ) + ( double )( ncol * ncol );
+               double erro_extremos = ( d_tl + d_tr + d_br + d_bl ) / max_dist_quad;
 
                double erro_total = erro_proporcao + erro_paralelogramo + erro_ortogonal + ( erro_area_ancoras * 0.5 ) + erro_extremos;
 

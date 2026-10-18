@@ -74,10 +74,10 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
  * @param align_cabecalho Alinhamento horizontal do título no cabeçalho (0.0 = esquerda, 0.5 = centro, 1.0 = direita).
  */
 static void treeview_configurar_alinhamento_coluna( GtkWidget *widget,
-                                                    int coluna,
-                                                    float align_celula,
-                                                    guint pad_celula_x,
-                                                    float align_cabecalho ) {
+      int coluna,
+      float align_celula,
+      guint pad_celula_x,
+      float align_cabecalho ) {
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
 
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
@@ -213,8 +213,8 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.scrolled_window_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if( i < 2 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_conteudo, i, 0.5, 0, 0.5 );
-      if( i < 2 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_conteudo, i, "tnum=1, lnum=1, zero=1" );
+      if ( i < 2 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_conteudo, i, 0.5, 0, 0.5 );
+      if ( i < 2 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_conteudo, i, "tnum=1, lnum=1, zero=1" );
    }
 
    // --- SUB-ABA: FREQUÊNCIA ---
@@ -257,6 +257,7 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.scrolled_window_relatorio = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_relatorio" ) );
    ctx->ui_diario.btn_consolidar            = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
    ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
+   ctx->ui_diario.check_pendencias          = GTK_WIDGET( gtk_builder_get_object( builder, "check_pendencias" ) );
    for ( int i = 0; i < 11; i++ ) {
       if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
       if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1" );

@@ -803,9 +803,9 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
          }
 
          // Arredondamento perfeito para inteiro limitando a 255/max para evitar overflow
-         img->image[y][x].r = (uint8_t)fminf( pixel_r + 0.5f, 255.0f );
-         img->image[y][x].g = (uint8_t)fminf( pixel_g + 0.5f, 255.0f );
-         img->image[y][x].b = (uint8_t)fminf( pixel_b + 0.5f, 255.0f );
+         img->image[y][x].r = ( uint8_t )fminf( pixel_r + 0.5f, 255.0f );
+         img->image[y][x].g = ( uint8_t )fminf( pixel_g + 0.5f, 255.0f );
+         img->image[y][x].b = ( uint8_t )fminf( pixel_b + 0.5f, 255.0f );
       }
    }
 }
@@ -1387,9 +1387,9 @@ void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturac
       for ( int j = 0; j < ncol; j++ ) {
          PixelRGB *p = &img->image[i][j];
 
-         float r = (float)p->r;
-         float g = (float)p->g;
-         float b = (float)p->b;
+         float r = ( float )p->r;
+         float g = ( float )p->g;
+         float b = ( float )p->b;
 
          // 1. Aplicação de Contraste (afasta do ponto central 128)
          r = 128.0f + ( r - 128.0f ) * contraste;
@@ -1411,9 +1411,9 @@ void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturac
          b = fmaxf( 0.0f, fminf( b, 255.0f ) );
 
          // 4. Arredondamento e devolução ao pixel
-         p->r = (uint8_t)( r + 0.5f );
-         p->g = (uint8_t)( g + 0.5f );
-         p->b = (uint8_t)( b + 0.5f );
+         p->r = ( uint8_t )( r + 0.5f );
+         p->g = ( uint8_t )( g + 0.5f );
+         p->b = ( uint8_t )( b + 0.5f );
       }
    }
 }

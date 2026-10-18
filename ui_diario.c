@@ -1684,7 +1684,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    if ( !final_save ) {
       g_free( ctx->dir_save_fichas );
       ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
-                                               ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+                             ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
    }
    return salvou_algo;
 }
@@ -1879,7 +1879,7 @@ static gboolean _validar_nota_digitada( const gchar *texto, float *nota_saida ) 
    // Rejeita lixo alfabético ou notas fora da escala
    if ( endptr == buffer || *endptr != '\0' || valor < 0.0 || valor > 10.0 ) return FALSE;
 
-   *nota_saida = (float)valor;
+   *nota_saida = ( float )valor;
    return TRUE;
 }
 //-------------------------------------------------------------------------------------------------------------
@@ -1923,11 +1923,17 @@ void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRe
 
       NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
       if ( is_rec ) nota->rec = nova_nota;
-      else          nota->av = nova_nota;
+      else nota->av = nova_nota;
 
    } else if ( tree_view == GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ) ) {
       RelatorioAnual *rel = &ficha->disciplina[foco].relatorio;
-      if ( col_idx == 8 ) rel->rec_final = nova_nota;
+
+      // Rotas dos Períodos Letivos (Colunas 2 a 4)
+      if ( col_idx >= 2 && col_idx <= 4 ) {
+         int p = col_idx - 2; // Transforma coluna 2->0, 3->1, 4->2, 5->3
+         rel->notas_periodos[p] = nova_nota;
+      }
+      else if ( col_idx == 8 ) rel->rec_final = nova_nota;
       else if ( col_idx == 9 ) rel->conselho = nova_nota;
    }
 
@@ -1936,16 +1942,13 @@ void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRe
    // Atualização Visual Limpa
    gchar texto_formatado[16] = ""; // Se for -1.0f, limpa a célula visualmente
 
-   // Na função que formata a nota para o GtkListStore:
    if ( nova_nota >= 10.0f ) {
-      snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", nova_nota );       // "10,00" (5 chars)
+      snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", nova_nota ); // "10,00"
    } else if ( nova_nota >= 0.0f ) {
-      snprintf( texto_formatado, sizeof( texto_formatado ), "\u2007%.2f", nova_nota ); // " 9,50" (5 chars de mesma largura)
-   } /*else {
-      snprintf( texto_formatado, sizeof( texto_formatado ), "-" );
-   }*/
+      snprintf( texto_formatado, sizeof( texto_formatado ), "\u2007%.2f", nova_nota ); // " 9,50" com \u2007
+   }
 
-   g_strdelimit( texto_formatado, ".", ',' ); // Aceita vírgula do teclado numérico
+   g_strdelimit( texto_formatado, ".", ',' ); // Aceita vírgula nativamente
 
    gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
 }
@@ -2056,39 +2059,78 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 //===================================================================================================
 static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inativo,
                                            const gchar *texto_nota, int interface_style ) {
+   // 1. Tratamento para alunos inativos (Transferidos, etc.)
    if ( inativo ) {
       GdkRGBA cor;
-      _cor_texto_linha_frequencia( 0, interface_style, &cor );
+      _cor_texto_linha_frequencia( 0, interface_style, &cor ); // Cor cinza/opaca
       g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
       return;
    }
 
-   // Garante que não é um texto nulo, vazio, nem o traço de "não fez"
-   if ( texto_nota && strlen( texto_nota ) > 0 && g_strcmp0( texto_nota, "-" ) != 0 ) {
+   // 2. Tratamento da nota digitada (Vermelho para < 6.0, Padrão para >= 6.0)
+   if ( texto_nota && texto_nota[0] != '\0' && g_strcmp0( texto_nota, "-" ) != 0 ) {
       const gchar *ponteiro_leitura = texto_nota;
 
-      // Se a string começar com o Figure Space (\u2007), avança o ponteiro 3 bytes (tamanho do caractere em UTF-8)
+      // Avança o ponteiro caso o caractere de alinhamento tabular (Figure Space) esteja presente
       if ( g_str_has_prefix( ponteiro_leitura, "\u2007" ) ) {
          ponteiro_leitura += 3;
       }
 
-      // Agora o g_ascii_strtod converte o número limpo (ex: "9.50")
-      double nota = g_ascii_strtod( ponteiro_leitura, NULL );
+      // Buffer local limpo para garantir a leitura correta do float, trocando ',' por '.' em RAM O(1)
+      char buffer_float[16];
+      g_strlcpy( buffer_float, ponteiro_leitura, sizeof( buffer_float ) );
+      g_strdelimit( buffer_float, ",", '.' );
+
+      double nota = g_ascii_strtod( buffer_float, NULL );
 
       if ( nota >= 0.0 && nota < 6.0 ) {
          GdkRGBA cor;
-         _cor_texto_linha_frequencia( 2, interface_style, &cor );
+         _cor_texto_linha_frequencia( 2, interface_style, &cor ); // Cor vermelha de reprovação
          g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
          return;
       }
    }
 
+   // 3. Fallback: Desliga a sobreposição de cor, usando a cor padrão do GTK
    g_object_set( cell, "foreground-set", FALSE, NULL );
 }
+
+
+// static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inativo,
+//       const gchar *texto_nota, int interface_style ) {
+//    if ( inativo ) {
+//       GdkRGBA cor;
+//       _cor_texto_linha_frequencia( 0, interface_style, &cor );
+//       g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+//       return;
+//    }
+//
+//    // Garante que não é um texto nulo, vazio, nem o traço de "não fez"
+//    if ( texto_nota && strlen( texto_nota ) > 0 && g_strcmp0( texto_nota, "-" ) != 0 ) {
+//       const gchar *ponteiro_leitura = texto_nota;
+//
+//       // Se a string começar com o Figure Space (\u2007), avança o ponteiro 3 bytes (tamanho do caractere em UTF-8)
+//       if ( g_str_has_prefix( ponteiro_leitura, "\u2007" ) ) {
+//          ponteiro_leitura += 3;
+//       }
+//
+//       // Agora o g_ascii_strtod converte o número limpo (ex: "9.50")
+//       double nota = g_ascii_strtod( ponteiro_leitura, NULL );
+//
+//       if ( nota >= 0.0 && nota < 6.0 ) {
+//          GdkRGBA cor;
+//          _cor_texto_linha_frequencia( 2, interface_style, &cor );
+//          g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+//          return;
+//       }
+//    }
+//
+//    g_object_set( cell, "foreground-set", FALSE, NULL );
+// }
 //-------------------------------------------------------------------------------------------------------------
 static void on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
                                        GtkTreeIter *iter, gpointer data ) {
-   (void)col;
+   ( void )col;
    AppContext *ctx = ( AppContext * )data;
    gboolean inativo = FALSE;
    gtk_tree_model_get( model, iter, 12, &inativo, -1 ); // Coluna 12 para Avaliações
@@ -2185,21 +2227,94 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
 
 //===================================================================================================
-// FUNÇÃO AUXILIAR: Renderiza as cores e estilos para a grade do Relatório Final
+// FUNÇÃO DEDICADA: Cores de fundo suaves para células que requerem ação (ex: Matrícula Tardia)
 //===================================================================================================
+static int _cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   if ( tema_ativo == 1 ) {
+      // Deep Blue (Tema Escuro Azulado)
+      // Fundo: Um azul/roxo escuro levemente destacado do fundo normal, sem ofuscar a visão
+      *cor_out = ( GdkRGBA ) { 0.18, 0.25, 0.38, 1.0 };
+   }
+   else if ( tema_ativo == 2 ) {
+      // Light (Tema Claro)
+      // Fundo: Um amarelo/creme bem pastel (pêssego claro). Destaca sem brigar com a nota vermelha.
+      *cor_out = ( GdkRGBA ) { 1.00, 0.96, 0.82, 1.0 };
+   }
+   else {
+      // Dark Green - Padrão (Tema Escuro Esverdeado)
+      // Fundo: Um tom oliva/âmbar mutado e discreto.
+      *cor_out = ( GdkRGBA ) { 0.20, 0.30, 0.20, 1.0 };
+   }
+
+   return 1;
+}
+//--------------------------------------------------------------------------------------------------------
 static void on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRenderer *cell,
                                            GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
-   (void)col;
+   ( void )col;
    AppContext *ctx = ( AppContext * )data;
+
    gboolean inativo = FALSE;
-   gtk_tree_model_get( model, iter, 11, &inativo, -1 ); // Coluna 11 para Relatório
+   int mascara_pendencias = 0;
+
+   // (Ajuste o índice para ler a coluna 13 onde você guardou a máscara)
+   gtk_tree_model_get( model, iter, 11, &inativo, 13, &mascara_pendencias, -1 );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+
+   // Verifica o estado da "chave mestra" de edição
+   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_pendencias ) );
+
+   gboolean editavel = FALSE;
+   GdkRGBA cor_fundo;
+   gboolean usar_cor_fundo = FALSE;
+
+   // Se for coluna de Período Letivo (bits 0 a 3)
+   if ( modo_pendencias && !inativo && col_idx >= 2 && col_idx <= 4 ) {
+      int p = col_idx - 2;
+      if ( mascara_pendencias & ( 1 << p ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+   // Se for coluna de Recuperação Final (Coluna 8 -> Bit 4)
+   else if ( modo_pendencias && !inativo && col_idx == 8 ) {
+      if ( mascara_pendencias & ( 1 << 4 ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+   // Se for coluna de Conselho (Coluna 9 -> Bit 5)
+   else if ( modo_pendencias && !inativo && col_idx == 9 ) {
+      if ( mascara_pendencias & ( 1 << 5 ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+
+   // Aplica as propriedades
+   if ( editavel ) {
+      g_object_set( cell, "editable", TRUE, NULL );
+      if ( usar_cor_fundo ) {
+         g_object_set( cell, "cell-background-rgba", &cor_fundo, "cell-background-set", TRUE, NULL );
+      }
+   } else {
+      g_object_set( cell, "editable", FALSE, "cell-background-set", FALSE, NULL );
+   }
+
+   // =======================================================================
+   // LÓGICA DO TEXTO E COR DA FONTE
+   // =======================================================================
    gchar *texto = NULL;
-   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) g_object_get( cell, "text", &texto, NULL );
+   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
+      g_object_get( cell, "text", &texto, NULL );
+   }
 
    _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
    g_free( texto );
+
 }
 
 
@@ -2213,40 +2328,96 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
-   // 1. Otimização de Performance GTK: Desanexa o modelo durante a inserção em massa.
+   // 1. Otimização de Performance GTK
    g_object_ref( store );
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store );
 
    int d = ctx->cascata.foco.disciplina;
+   int foco_periodo = ctx->cascata.foco.periodo; // 0 (1ºP) a 3 (4ºP)
 
-   // 2. Percorre o GArray reconstruindo as linhas
+   // =========================================================================
+   // PRE-LOAD 1: Descobre quais períodos já possuem notas lançadas na turma
+   // =========================================================================
+   gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
+
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *f = &g_array_index( ctx->fichas, FichaAluno, i );
+      const RelatorioAnual *r = &f->disciplina[d].relatorio;
+      for ( int j = 0; j < 4; j++ ) {
+         if ( r->notas_periodos[j] >= 0.0f ) {
+            periodo_iniciado[j] = TRUE;
+         }
+      }
+   }
+
+   // Calcula a quantidade de períodos (bimestres) verdadeiramente pendentes globais
+   int faltantes_globais = 0;
+   for ( int j = 0; j < 4; j++ ) {
+      if ( !periodo_iniciado[j] ) faltantes_globais++;
+   }
+
+   // =========================================================================
+   // PRE-LOAD 2: Carregando acesso.bin em Tabelas Hash O(1)
+   // =========================================================================
+   GHashTable *hash_acesso[4] = {NULL, NULL, NULL, NULL};
+
+   for ( int p = 0; p <= foco_periodo; p++ ) {
+      hash_acesso[p] = g_hash_table_new( g_direct_hash, g_direct_equal );
+
+      g_autofree gchar *acesso_bin = g_build_filename( ".", "dados", "informados", ctx->dados.ano,
+                                                       ctx->dados.escola, ctx->dados.turma,
+                                                       ctx->dados.disciplina, ctx->listas.periodos[p].str,
+                                                       "acesso.bin", NULL );
+      gchar *conteudo = NULL;
+      gsize tamanho = 0;
+
+      if ( g_file_get_contents( acesso_bin, &conteudo, &tamanho, NULL ) ) {
+         int qtd_acessos = tamanho / sizeof( AcessoFicha );
+         AcessoFicha *acessos = (AcessoFicha *)conteudo;
+
+         for ( int a = 0; a < qtd_acessos; a++ ) {
+            g_hash_table_add( hash_acesso[p], GINT_TO_POINTER( acessos[a].cod_aluno ) );
+         }
+         g_free( conteudo );
+      }
+   }
+
+   // =========================================================================
+   // LAÇO PRINCIPAL DOS ALUNOS
+   // =========================================================================
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-
-      // Ponteiro de atalho limpo para os dados consolidados da disciplina em foco
       const RelatorioAnual *rel = &ficha->disciplina[d].relatorio;
 
       GtkTreeIter iter;
-
-      // Aumentado de [8][8] para [8][16] para acomodar o caractere UTF-8 (\u2007) com segurança extrema
       char str_cols[8][16] = {{0}};
       char obs[160] = {0};
-      int faltantes = 0;
 
-      // --- PASSO A: Formata as notas dos 4 períodos ---
-      for ( int j = 0; j < 4; j++ ) {
-         if ( rel->notas_periodos[j] >= 0.0f ) {
-            // Usa o formatador tabular universal
-            _formatar_nota_com_espaco_tabular( rel->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
-         } else {
-            // Mantém a célula em branco se a nota não existir
-            faltantes++;
+      // --- PASSO NOVO: Detecção de Matrícula Tardia (Bitmask) ---
+      int mascara_pendencias = 0;
+      gboolean presente_no_foco = g_hash_table_contains( hash_acesso[foco_periodo], GINT_TO_POINTER( ficha->cod_aluno ) );
+
+      if ( presente_no_foco ) {
+         for ( int p = 0; p < foco_periodo; p++ ) {
+            gboolean presente_anterior = g_hash_table_contains( hash_acesso[p], GINT_TO_POINTER( ficha->cod_aluno ) );
+            if ( !presente_anterior ) {
+               mascara_pendencias |= ( 1 << p ); // Bits 0 a 3: Matrícula Tardia
+            }
          }
       }
 
+      // --- PASSO A: Formata as notas dos 4 períodos ---
+      for ( int j = 0; j < 4; j++ ) {
+         // Formata apenas se o aluno específico tiver a nota consolidada
+         if ( rel->notas_periodos[j] >= 0.0f ) {
+            _formatar_nota_com_espaco_tabular( rel->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
+         }
+         // Se for < 0.0f, não imprime nada, mas também NÃO incrementa nenhum faltante local!
+      }
+
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
-      if ( rel->soma > 0.0f /*|| faltantes < 4*/ ) {
+      if ( rel->soma >= 0.0f ) {
          _formatar_nota_com_espaco_tabular( rel->soma, str_cols[4], sizeof( str_cols[4] ) );
          _formatar_nota_com_espaco_tabular( rel->media_anual, str_cols[5], sizeof( str_cols[5] ) );
       }
@@ -2259,19 +2430,33 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          _formatar_nota_com_espaco_tabular( rel->conselho, str_cols[7], sizeof( str_cols[7] ) );
       }
 
-      // --- PASSO C: Lógica de Status ---
+      // --- PASSO C: Lógica de Status & Destravamento de Edição Final ---
       if ( rel->soma >= 0.0f ) {
-         float max_futuro = rel->soma + ( faltantes * 10.0f );
+         // Agora a projeção usa estritamente os bimestres ainda intocados globalmente
+         float max_futuro = rel->soma + ( faltantes_globais * 10.0f );
 
          if ( rel->conselho >= 0.0f ) {
             g_strlcpy( obs, ( rel->conselho >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
-         } else if ( rel->rec_final >= 0.0f ) {
+            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
+            mascara_pendencias |= ( 1 << 5 ); // Bit 5: Permite corrigir Conselho
+         }
+         else if ( rel->rec_final >= 0.0f ) {
             g_strlcpy( obs, ( rel->rec_final >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
-         } else if ( rel->soma > 22.2f ) {
+            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
+
+            if ( rel->rec_final < 6.0f ) {
+               mascara_pendencias |= ( 1 << 5 ); // Bit 5: Destrava Conselho
+            }
+         }
+         else if ( rel->soma > 22.2f ) {
             g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
-         } else if ( max_futuro <= 22.2f && faltantes < 4 ) {
+         }
+         // Aqui validamos se mesmo tirando 10 em todos os bimestres restantes a nota atinge o teto
+         else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
             g_strlcpy( obs, "Rec Final", sizeof( obs ) );
-         } else {
+            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Destrava Rec Final
+         }
+         else {
             g_strlcpy( obs, "Cursando", sizeof( obs ) );
          }
       }
@@ -2286,25 +2471,31 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       }
 
       for ( int j = 0; j < 8; j++ ) {
-         g_strdelimit( str_cols[j], ".", ',' ); // Aceita vírgula do teclado numérico
+         g_strdelimit( str_cols[j], ".", ',' );
       }
 
       // --- PASSO E: Inserção Limpa no GTK ---
       gtk_list_store_append( store, &iter );
       gtk_list_store_set( store, &iter,
-                          0, i + 1,
-                          1, ficha->aluno,
-                          2, str_cols[0],
-                          3, str_cols[1],
-                          4, str_cols[2],
-                          5, str_cols[3],
-                          6, str_cols[4],
-                          7, str_cols[5],
-                          8, str_cols[6],
-                          9, str_cols[7],
-                          10, obs,
-                          11, !ficha->ativo,
-                          -1 );
+         0, i + 1,
+         1, ficha->aluno,
+         2, str_cols[0],
+         3, str_cols[1],
+         4, str_cols[2],
+         5, str_cols[3],
+         6, str_cols[4],
+         7, str_cols[5],
+         8, str_cols[6],
+         9, str_cols[7],
+         10, obs,
+         11, !ficha->ativo,
+         13, mascara_pendencias,
+         -1 );
+   }
+
+   // Limpeza O(1) da Memória das Hash Tables
+   for ( int p = 0; p <= foco_periodo; p++ ) {
+      if ( hash_acesso[p] ) g_hash_table_destroy( hash_acesso[p] );
    }
 
    // 3. Reanexa o modelo atualizado à TreeView
@@ -2364,7 +2555,7 @@ gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida ) {
       return FALSE;
    }
 
-   *nota_saida = (float)valor;
+   *nota_saida = ( float )valor;
    return TRUE;
 }
 

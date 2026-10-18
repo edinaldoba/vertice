@@ -428,7 +428,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
       gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
       gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.",
-                                                        ctx->dados.escola, ctx->dados.ano );
+                                ctx->dados.escola, ctx->dados.ano );
 
       // O FALSE garante que o SUCESSO não seja cortado abruptamente!
       agendar_ou_exibir_mensagem_painel( INFO, painel, format_titulo, format_subtitulo, format_instrucao );

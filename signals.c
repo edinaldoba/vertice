@@ -232,16 +232,18 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
    // RELATÓRIO FINAL
+   g_signal_connect( ctx->ui_diario.check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_relatorio_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
 
-   // Aba Relatório Final (Colunas 8 e 9: Rec Final e Conselho)
+   // Aba Relatório Final (Colunas 2, 3 e 4: 1º, 2º e 3º Períodos) (Colunas 8 e 9: Rec Final e Conselho)
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 2, 4 );
    _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 8, 9 );
 
 
 
-   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK(on_button_frequencia_enter_notify_event), ctx );
-   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK(on_button_conteudos_enter_notify_event), ctx );
-   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK(on_button_avaliacoes_enter_notify_event), ctx );
+   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK( on_button_frequencia_enter_notify_event ), ctx );
+   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
+   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK( on_button_avaliacoes_enter_notify_event ), ctx );
    g_signal_connect( ctx->button.relatorio_final, "enter-notify-event",
                      G_CALLBACK( on_button_relatorio_enter_notify_event ), ctx );
 
@@ -306,7 +308,7 @@ void app_signals_connect( gpointer user_data ) {
 
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "enter-notify-event",
-                  G_CALLBACK( on_painel_feedback_enter_notify_event ), ctx );
+                     G_CALLBACK( on_painel_feedback_enter_notify_event ), ctx );
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "leave-notify-event",
                      G_CALLBACK( on_painel_feedback_leave_notify_event ), ctx );
@@ -315,10 +317,10 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_painel_feedback_button_press_event ), ctx );
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_orelhinha ), "button-press-event",
-                  G_CALLBACK( on_orelhinha_button_press_event ), ctx );
+                     G_CALLBACK( on_orelhinha_button_press_event ), ctx );
 
    g_signal_connect( ctx->painel.revealer_painel, "notify::child-revealed",
-                  G_CALLBACK( on_revealer_child_revealed_notify ), ctx );
+                     G_CALLBACK( on_revealer_child_revealed_notify ), ctx );
 
 
 }

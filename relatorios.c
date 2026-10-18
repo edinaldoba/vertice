@@ -59,7 +59,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    int per = foco->periodo;
 
    // Construção em memória usando GString (Velocidade Extrema de I/O)
-   g_autoptr(GString) siaep = g_string_sized_new( qtd_alunos * 10 * 8 );
+   g_autoptr( GString ) siaep = g_string_sized_new( qtd_alunos * 10 * 8 );
 
    // 3. Exporta exatamente 10 linhas fixas (5 avaliações x 2: AV e REC)
    for ( int j = 0; j < 10; j++ ) {
@@ -80,18 +80,16 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 
          if ( nota_atual < 0.0f ) {
             g_string_append_printf( siaep, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
-         }
-         else if ( j % 2 == 0 && nota_av >= 6.0f && nota_rec > nota_av ) {
+         } else if ( j % 2 == 0 && nota_av >= 6.0f && nota_rec > nota_av ) {
             g_string_append_printf( siaep, "%.2f%s", nota_rec, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
-         }
-         else {
+         } else {
             g_string_append_printf( siaep, "%.2f%s", nota_atual, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
       }
    }
 
    // 4. Descarga única de memória no disco
-   g_autoptr(GError) error = NULL;
+   g_autoptr( GError ) error = NULL;
    if ( !g_file_set_contents( arquivo_saida, siaep->str, siaep->len, &error ) ) {
       g_printerr( "Erro ao salvar arquivo SIAEP em: %s (%s)\n", arquivo_saida, error->message );
    }
@@ -111,32 +109,32 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   g_autoptr(GString) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
 
    // 1. Escrita do Preâmbulo e Configurações Iniciais
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n" );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
 
    g_string_append( tex,
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-      "\\usepackage[table]{xcolor}\n"
-      "\\usepackage{tikz}\n"
-      "\\usepackage{multicol}\n"
-      "\\usepackage{array,multirow,graphicx}\n"
-      "\\usepackage{amssymb}\n"
-      "\\usepackage{setspace}\n"
-      "\\usepackage{ulem}\n"
-      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
-      "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n"
-      "\\begin{document}\n" );
+                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+                    "\\usepackage[table]{xcolor}\n"
+                    "\\usepackage{tikz}\n"
+                    "\\usepackage{multicol}\n"
+                    "\\usepackage{array,multirow,graphicx}\n"
+                    "\\usepackage{amssymb}\n"
+                    "\\usepackage{setspace}\n"
+                    "\\usepackage{ulem}\n"
+                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n"
+                    "\\begin{document}\n" );
 
    // 2. Cálculo dinâmico do espaçamento vertical (spacing)
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
@@ -146,17 +144,17 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    // A mágica acontece em "\multicolumn{1}{c|}{\rule[-1.5mm]{0mm}{5.5mm}\bf Av1}".
    // Isso centraliza o texto na vertical (pela expansão da \rule) e na horizontal (pelo c|).
    g_string_append_printf( tex,
-      "\\noindent\\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\\hline\n"
-      "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{11}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\\\\n"
-      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{11}{c|}{} \\\\\\cline{3-13}\n"
-      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
-      "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf Av1} & \\multicolumn{1}{c|}{Rec} & "
-      "\\multicolumn{1}{c|}{\\bf Av2} & \\multicolumn{1}{c|}{Rec} & "
-      "\\multicolumn{1}{c|}{\\bf Av3} & \\multicolumn{1}{c|}{Rec} & "
-      "\\multicolumn{1}{c|}{\\bf Av4} & \\multicolumn{1}{c|}{Rec} & "
-      "\\multicolumn{1}{c|}{\\bf Av5} & \\multicolumn{1}{c|}{Rec} & "
-      "\\multicolumn{1}{c|}{\\bf Média}\\\\\\hline\n",
-      dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
+                           "\\noindent\\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\\hline\n"
+                           "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{11}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\\\\n"
+                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{11}{c|}{} \\\\\\cline{3-13}\n"
+                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
+                           "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf Av1} & \\multicolumn{1}{c|}{Rec} & "
+                           "\\multicolumn{1}{c|}{\\bf Av2} & \\multicolumn{1}{c|}{Rec} & "
+                           "\\multicolumn{1}{c|}{\\bf Av3} & \\multicolumn{1}{c|}{Rec} & "
+                           "\\multicolumn{1}{c|}{\\bf Av4} & \\multicolumn{1}{c|}{Rec} & "
+                           "\\multicolumn{1}{c|}{\\bf Av5} & \\multicolumn{1}{c|}{Rec} & "
+                           "\\multicolumn{1}{c|}{\\bf Média}\\\\\\hline\n",
+                           dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
    int d   = foco->disciplina;
    int per = foco->periodo;
@@ -167,8 +165,8 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
       // PASSO A: Nome do Aluno
       g_autofree gchar *s_nome = ficha->ativo
-         ? g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno )
-         : g_strdup_printf( "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
+                                 ? g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno )
+                                 : g_strdup_printf( "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
 
       g_string_append_printf( tex, "%.2d & %s", j + 1, s_nome );
 
@@ -220,16 +218,16 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    // 5. Rodapé Seguro e Encerramento
    g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-                                          ctx->data.dia, ctx->data.mes, ctx->data.ano );
+                               ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
    g_string_append_printf( tex,
-      "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
-      "\\end{tabular}\n"
-      "\\end{spacing}\n"
-      "\\end{document}\n",
-      datatex );
+                           "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
+                           "\\end{tabular}\n"
+                           "\\end{spacing}\n"
+                           "\\end{document}\n",
+                           datatex );
 
-   g_autoptr(GError) error = NULL;
+   g_autoptr( GError ) error = NULL;
    if ( !g_file_set_contents( arquivo_tex, tex->str, tex->len, &error ) ) {
       g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
    }
@@ -334,27 +332,27 @@ void calcular_consolidado_anual( FichaAluno *ficha, int disciplina ) {
 }
 
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
-    g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
 
-    const InterfaceDados   *dados   = &ctx->dados;
-    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
-    const CaminhoDiretorio *caminho = &ctx->caminho;
+   const InterfaceDados   *dados   = &ctx->dados;
+   const FocoCoordenadas  *foco    = &ctx->cascata.foco;
+   const CaminhoDiretorio *caminho = &ctx->caminho;
 
-    gerar_arquivo_siaep_notas( ctx );
+   gerar_arquivo_siaep_notas( ctx );
 
-    // 1. Obtém o mapa de configurações da UI
-    gboolean validas[5];
-    int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+   // 1. Obtém o mapa de configurações da UI
+   gboolean validas[5];
+   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
 
-    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
-    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-        FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-        calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
-    }
+   // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
+   }
 
-    // 3. Exporta para LaTeX
-    gerar_tex_avaliacoes( "avaliações", ctx, validas );
-    disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
+   // 3. Exporta para LaTeX
+   gerar_tex_avaliacoes( "avaliações", ctx, validas );
+   disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
 }
 //==================================================================================================
 
@@ -474,33 +472,33 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   g_autoptr(GString) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
 
    // 1. Escrita do Preâmbulo
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n" );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
    g_string_append( tex,
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-      "\\usepackage{xcolor}\n"
-      "\\usepackage{tikz}\n"
-      "\\usepackage{multicol}\n"
-      "\\usepackage{array,multirow,graphicx}\n"
-      "\\usepackage{setspace}\n"
-      "\\usepackage{ulem}\n"
-      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
-      "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n"
-      "\\begin{document}\n" );
+                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+                    "\\usepackage{xcolor}\n"
+                    "\\usepackage{tikz}\n"
+                    "\\usepackage{multicol}\n"
+                    "\\usepackage{array,multirow,graphicx}\n"
+                    "\\usepackage{setspace}\n"
+                    "\\usepackage{ulem}\n"
+                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n"
+                    "\\begin{document}\n" );
 
    // 2. Cálculo dinâmico do espaçamento vertical
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
@@ -509,20 +507,20 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    // 3. Cabeçalho da Tabela
    // A mágica de centralização horizontal (c|) e vertical (\rule expandido) aplicada a cada coluna
    g_string_append_printf( tex,
-      "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
-      "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
-      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
-      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
-      "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf 1º P} & "
-      "\\multicolumn{1}{c|}{\\bf 2º P} & "
-      "\\multicolumn{1}{c|}{\\bf 3º P} & "
-      "\\multicolumn{1}{c|}{\\bf 4º P} & "
-      "\\multicolumn{1}{c|}{\\bf Soma} & "
-      "\\multicolumn{1}{c|}{\\bf Méd.} & "
-      "\\multicolumn{1}{c|}{\\bf Final} & "
-      "\\multicolumn{1}{c|}{\\bf Cons} & "
-      "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
-      dados->escola, dados->turma, dados->disciplina, dados->ano );
+                           "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
+                           "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
+                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
+                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
+                           "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf 1º P} & "
+                           "\\multicolumn{1}{c|}{\\bf 2º P} & "
+                           "\\multicolumn{1}{c|}{\\bf 3º P} & "
+                           "\\multicolumn{1}{c|}{\\bf 4º P} & "
+                           "\\multicolumn{1}{c|}{\\bf Soma} & "
+                           "\\multicolumn{1}{c|}{\\bf Méd.} & "
+                           "\\multicolumn{1}{c|}{\\bf Final} & "
+                           "\\multicolumn{1}{c|}{\\bf Cons} & "
+                           "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
+                           dados->escola, dados->turma, dados->disciplina, dados->ano );
 
    // 4. Loop dos Alunos com delegação para a função auxiliar
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
@@ -541,24 +539,24 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
       g_strdelimit( linha.cons, ".", ',' );
 
       g_string_append_printf( tex, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-               j + 1, linha.nome,
-               linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
-               linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
+                              j + 1, linha.nome,
+                              linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
+                              linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
    }
 
    // 5. Rodapé Seguro e Encerramento
    g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-                                          ctx->data.dia, ctx->data.mes, ctx->data.ano );
+                               ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
    g_string_append_printf( tex,
-      "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
-      "\\end{tabular}\n"
-      "\\end{spacing}\n"
-      "\\end{document}\n",
-      datatex );
+                           "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
+                           "\\end{tabular}\n"
+                           "\\end{spacing}\n"
+                           "\\end{document}\n",
+                           datatex );
 
    // 6. Descarga no Disco O(1)
-   g_autoptr(GError) error = NULL;
+   g_autoptr( GError ) error = NULL;
    if ( !g_file_set_contents( arquivo_tex, tex->str, tex->len, &error ) ) {
       g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
    }
@@ -596,20 +594,20 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 //==================================================================================================
 static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx ) {
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                         "\\usepackage[utf8]{inputenc}\n"
-                         "\\usepackage[T1]{fontenc}\n" );
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( ctx->dados.fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
    g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                         "\\usepackage[dvipsnames]{xcolor}\n"
-                         "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
-                         "\\usetikzlibrary{calc}\n"
-                         "\\pagestyle{empty}\n\n"
-                         "\\begin{document}\n\\begin{landscape}\n\n" );
+                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                    "\\usepackage[dvipsnames]{xcolor}\n"
+                    "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
+                    "\\usetikzlibrary{calc}\n"
+                    "\\pagestyle{empty}\n\n"
+                    "\\begin{document}\n\\begin{landscape}\n\n" );
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -628,26 +626,26 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
    // Estruturas Fixas
    g_string_append_printf( tex,
-      "\\draw (1.6,%.4f) -- (1.6,%.4f)\n"
-      "(7,-1) -- (7,%.4f)\n"
-      "(27.8,%.4f) -- (27.8,%.4f)\n"
-      "(26.9,%.4f) -- (26.9,%.4f);\n"
-      "\\node at (27.35,%.4f) {\\bf\\Large P};\n"
-      "\\node at (28.25,%.4f) {\\bf\\Large F};\n"
-      "\\draw (7,%.4f) -- (28.7,%.4f)\n"
-      "(7,%.4f) -- (28.7,%.4f);\n",
-      -1.2 - 3*p, -1.2 - 30*p,
-      -1.2 - 30*p,
-      -1.2 - 2*p, -1.2 - 30*p,
-      -1.2 - 1*p, -1.2 - 30*p,
-      -1.2 - 2.5*p, -1.2 - 2.5*p,
-      -1.2 - p, -1.2 - p,
-      -1.2 - 2*p, -1.2 - 2*p
-   );
+                           "\\draw (1.6,%.4f) -- (1.6,%.4f)\n"
+                           "(7,-1) -- (7,%.4f)\n"
+                           "(27.8,%.4f) -- (27.8,%.4f)\n"
+                           "(26.9,%.4f) -- (26.9,%.4f);\n"
+                           "\\node at (27.35,%.4f) {\\bf\\Large P};\n"
+                           "\\node at (28.25,%.4f) {\\bf\\Large F};\n"
+                           "\\draw (7,%.4f) -- (28.7,%.4f)\n"
+                           "(7,%.4f) -- (28.7,%.4f);\n",
+                           -1.2 - 3 * p, -1.2 - 30 * p,
+                           -1.2 - 30 * p,
+                           -1.2 - 2 * p, -1.2 - 30 * p,
+                           -1.2 - 1 * p, -1.2 - 30 * p,
+                           -1.2 - 2.5 * p, -1.2 - 2.5 * p,
+                           -1.2 - p, -1.2 - p,
+                           -1.2 - 2 * p, -1.2 - 2 * p
+                         );
 
    // Grid Vertical
    for ( int i = 0; i <= 32; i++ ) {
-      g_string_append_printf( tex, "\\draw (%.4f,%.4f) -- (%.4f,%.4f);\n", 7.0 + i*p, -1.2 - 2*p, 7.0 + i*p, -1.2 - 30*p );
+      g_string_append_printf( tex, "\\draw (%.4f,%.4f) -- (%.4f,%.4f);\n", 7.0 + i * p, -1.2 - 2 * p, 7.0 + i * p, -1.2 - 30 * p );
    }
 
    // Topo (Datas)
@@ -655,7 +653,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
       RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
       int dia = 0;
       sscanf( r->data, "%d", &dia );
-      g_string_append_printf( tex, "\\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n", 7.0 + p*(i + 0.5), -1.2 - 2.5*p, dia );
+      g_string_append_printf( tex, "\\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n", 7.0 + p * ( i + 0.5 ), -1.2 - 2.5 * p, dia );
    }
 
    // Cabeçalhos de Meses (Calculado Dinamicamente)
@@ -669,13 +667,13 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
       if ( colunas_acumuladas_curr > 0 && m_val >= 1 && m_val <= 12 ) {
          // Linha divisória vertical do fim do mês
          g_string_append_printf( tex, "\\draw (%.4f,%.4f) -- (%.4f,%.4f);\n",
-                                 7.0 + colunas_acumuladas_curr*p, -1.2 - p,
-                                 7.0 + colunas_acumuladas_curr*p, -1.2 - 2*p );
+                                 7.0 + colunas_acumuladas_curr * p, -1.2 - p,
+                                 7.0 + colunas_acumuladas_curr * p, -1.2 - 2 * p );
 
          // Centraliza o texto do mês entre a coluna final do mês passado e a atual
-         double centro_x = 7.0 + 0.5 * (colunas_acumuladas_curr + colunas_acumuladas_prev) * p;
+         double centro_x = 7.0 + 0.5 * ( colunas_acumuladas_curr + colunas_acumuladas_prev ) * p;
          g_string_append_printf( tex, "\\node at (%.4f,%.4f) {\\Large %s};\n",
-                                 centro_x, -1.2 - 1.5*p, m_str[m_val] );
+                                 centro_x, -1.2 - 1.5 * p, m_str[m_val] );
       }
       colunas_acumuladas_prev = colunas_acumuladas_curr;
    }
@@ -683,8 +681,8 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
    // Nomes, Totais e processamento dos Alunos Inativos direto no laço C
    for ( int i = start; i <= end; i++ ) {
       int j = i - 1;
-      double y_center = -1.2 - p * (i - offset + 2.5);
-      double y_name   = -1.2 - p * (i - offset + 2.52);
+      double y_center = -1.2 - p * ( i - offset + 2.5 );
+      double y_name   = -1.2 - p * ( i - offset + 2.52 );
 
       if ( i <= nal ) {
          const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
@@ -700,15 +698,15 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
             // Desenha os traços cinzas por cima das linhas do aluno inativo calculando X e Y nativamente
             int r_idx = i - offset;
-            double y1_inativo = -1.2 - p*(2.8 + r_idx);
-            double y2_inativo = -1.2 - p*(2.2 + r_idx);
+            double y1_inativo = -1.2 - p * ( 2.8 + r_idx );
+            double y2_inativo = -1.2 - p * ( 2.2 + r_idx );
 
-            for( int k = 1; k <= 33; k++ ) {
+            for ( int k = 1; k <= 33; k++ ) {
                g_string_append_printf( tex, "\\draw[line width=0.8pt,gray!50] (%.4f,%.4f) -- (%.4f,%.4f);\n",
-                  7.0 + (-0.8 + k)*p, y1_inativo, 7.0 + (-0.2 + k)*p, y2_inativo );
+                                       7.0 + ( -0.8 + k )*p, y1_inativo, 7.0 + ( -0.2 + k )*p, y2_inativo );
             }
             g_string_append_printf( tex, "\\draw[line width=0.8pt,gray!50] (%.4f,%.4f) -- (%.4f,%.4f) (%.4f,%.4f) -- (%.4f,%.4f);\n",
-               27.35 - 0.3*p, y1_inativo, 27.35 + 0.3*p, y2_inativo, 28.25 - 0.3*p, y1_inativo, 28.25 + 0.3*p, y2_inativo );
+                                    27.35 - 0.3 * p, y1_inativo, 27.35 + 0.3 * p, y2_inativo, 28.25 - 0.3 * p, y1_inativo, 28.25 + 0.3 * p, y2_inativo );
          }
       } else {
          g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%d};\n", y_center, i ); // Linhas vazias
@@ -717,18 +715,18 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
    // Identificadores de Turma e Disciplina
    g_string_append_printf( tex,
-      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
-      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
-      "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
-      "\\node[inner sep=0pt] at (17.85,%.4f) {\\bf\\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};\n",
-      -1.0 - 0.6*(3*p+0.2)/3.0,
-      -1.0 - 1.5*(3*p+0.2)/3.0, dados->escola,
-      -1.0 - 2.4*(3*p+0.2)/3.0, dados->turma,
-      -1.05 - (0.2+p)/2.0, dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
+                           "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
+                           "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
+                           "\\node[inner sep=0pt,right] at (1.2,%.4f) {\\large\\bf\\underline{%s}};\n"
+                           "\\node[inner sep=0pt] at (17.85,%.4f) {\\bf\\resizebox{20cm}{0.55cm}{Relatório de Frequência em %s d%c %s / %s}};\n",
+                           -1.0 - 0.6 * ( 3 * p + 0.2 ) / 3.0,
+                           -1.0 - 1.5 * ( 3 * p + 0.2 ) / 3.0, dados->escola,
+                           -1.0 - 2.4 * ( 3 * p + 0.2 ) / 3.0, dados->turma,
+                           -1.05 - ( 0.2 + p ) / 2.0, dados->disciplina, eh_recuperacao ? 'a' : 'o', dados->periodo, dados->ano );
 
    // Grid Horizontal
    for ( int i = 0; i <= 27; i++ ) {
-      g_string_append_printf( tex, "\\draw (1,%.4f) -- (28.7,%.4f);\n", -1.2 - p*(i+3), -1.2 - p*(i+3) );
+      g_string_append_printf( tex, "\\draw (1,%.4f) -- (28.7,%.4f);\n", -1.2 - p * ( i + 3 ), -1.2 - p * ( i + 3 ) );
    }
 
    // Rodapé
@@ -794,18 +792,18 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
       g_autofree gchar *tema_upper = NULL;
       g_autofree gchar *descricao_upper = NULL;
 
-      double x_col = 7.0 + p * (i + 0.5); // Centro do Eixo X para a coluna da aula
+      double x_col = 7.0 + p * ( i + 0.5 ); // Centro do Eixo X para a coluna da aula
 
       switch ( r->tipo_registro ) {
       case TIPO_REGISTRO_FERIADO:
       case TIPO_REGISTRO_PEDAGOGICO:
-         ap -= (r->tipo_registro == TIPO_REGISTRO_FERIADO) ? ch : 0;
+         ap -= ( r->tipo_registro == TIPO_REGISTRO_FERIADO ) ? ch : 0;
          tema_upper = g_utf8_strup( r->tema, -1 );
          descricao_upper = g_utf8_strup( r->descricao, -1 );
          g_string_append_printf( bloco_feriados,
-               "\\node[rotate=90,inner sep=0pt,color=%s] at (%.4f,%.4f) {%s $\\to$ %s};\n",
-               (r->tipo_registro == TIPO_REGISTRO_FERIADO) ? "red" : "blue",
-               x_col, -1.2 - 16.5*p, tema_upper, descricao_upper );
+                                 "\\node[rotate=90,inner sep=0pt,color=%s] at (%.4f,%.4f) {%s $\\to$ %s};\n",
+                                 ( r->tipo_registro == TIPO_REGISTRO_FERIADO ) ? "red" : "blue",
+                                 x_col, -1.2 - 16.5 * p, tema_upper, descricao_upper );
          break;
 
       default: // Aulas Normais e Extras
@@ -817,34 +815,34 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
             int r_idx = ( j < 27 ) ? j : j - 27;
-            double y_row = -1.2 - p * (r_idx + 3.5); // Centro do Eixo Y para a linha do aluno
+            double y_row = -1.2 - p * ( r_idx + 3.5 ); // Centro do Eixo Y para a linha do aluno
 
             switch ( r->chamada[j].status ) {
             case PRESENTE:
                pres[j] += ch;
-               if (ch == 1) {
+               if ( ch == 1 ) {
                   g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt);\n", x_col, y_row );
-               } else if (ch == 2) {
+               } else if ( ch == 2 ) {
                   g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt);\n",
-                     7.0 + p*(i + 1.0/3.0), y_row, 7.0 + p*(i + 2.0/3.0), y_row );
+                                          7.0 + p * ( i + 1.0 / 3.0 ), y_row, 7.0 + p * ( i + 2.0 / 3.0 ), y_row );
                } else {
                   g_string_append_printf( target, "\\fill (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt) (%.4f,%.4f) circle (1.5pt);\n",
-                     x_col, -1.2 - p*(r_idx + 3.65 - sqrt3_6),
-                     7.0 + p*(i + 1.0/3.0), -1.2 - p*(r_idx + 3.65), 7.0 + p*(i + 2.0/3.0), -1.2 - p*(r_idx + 3.65) );
+                                          x_col, -1.2 - p * ( r_idx + 3.65 - sqrt3_6 ),
+                                          7.0 + p * ( i + 1.0 / 3.0 ), -1.2 - p * ( r_idx + 3.65 ), 7.0 + p * ( i + 2.0 / 3.0 ), -1.2 - p * ( r_idx + 3.65 ) );
                }
                break;
 
             case AUSENTE:
                falt[j] += ch;
-               if (ch == 1) {
+               if ( ch == 1 ) {
                   g_string_append_printf( target, "\\node at (%.4f,%.4f) {F};\n", x_col, y_row );
-               } else if (ch == 2) {
+               } else if ( ch == 2 ) {
                   g_string_append_printf( target, "\\node at (%.4f,%.4f) {\\scriptsize\\bf F}; \\node at (%.4f,%.4f) {\\scriptsize\\bf F};\n",
-                     7.0 + p*(i + 1.0/3.0), y_row, 7.0 + p*(i + 2.0/3.0), y_row );
+                                          7.0 + p * ( i + 1.0 / 3.0 ), y_row, 7.0 + p * ( i + 2.0 / 3.0 ), y_row );
                } else {
                   g_string_append_printf( target, "\\node at (%.4f,%.4f) {\\tiny\\bf F}; \\node at (%.4f,%.4f) {\\tiny\\bf F}; \\node at (%.4f,%.4f) {\\tiny\\bf F};\n",
-                     x_col, -1.2 - p*(r_idx + 3.65 - sqrt3_6),
-                     7.0 + p*(i + 1.0/3.0), -1.2 - p*(r_idx + 3.65), 7.0 + p*(i + 2.0/3.0), -1.2 - p*(r_idx + 3.65) );
+                                          x_col, -1.2 - p * ( r_idx + 3.65 - sqrt3_6 ),
+                                          7.0 + p * ( i + 1.0 / 3.0 ), -1.2 - p * ( r_idx + 3.65 ), 7.0 + p * ( i + 2.0 / 3.0 ), -1.2 - p * ( r_idx + 3.65 ) );
                }
                break;
 
@@ -871,7 +869,8 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
             case NOVO_ALUNO:
                g_string_append_printf( target, "\\draw[gray,thick] (%.4f,%.4f) circle (0.23) node {N};\n", x_col, y_row );
                break;
-            default: break;
+            default:
+               break;
             }
          }
          break;
@@ -993,8 +992,8 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       }
 
       if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += d->qtd_aulas; // Aulas Dadas
-      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA  ) ad += d->qtd_aulas; // Aulas Dadas
-      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO     ) ap += d->qtd_aulas; // Aulas Previstas
+      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) ad += d->qtd_aulas;  // Aulas Dadas
+      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO ) ap += d->qtd_aulas;     // Aulas Previstas
    }
 
    // =========================================================================
@@ -1003,42 +1002,42 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    int valor_p = ( nn <= 22 ) ? 480 : 10 * ( somach + 4 );
    int valor_s = ( nn <= 22 ) ? 47  : somach + 3;
 
-   double p = 277.0 / (double)valor_p;
-   double s = (double)valor_s;
+   double p = 277.0 / ( double )valor_p;
+   double s = ( double )valor_s;
 
    // --- CABEÇALHO DO DOCUMENTO LATEX ---
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                         "\\usepackage[utf8]{inputenc}\n"
-                         "\\usepackage[T1]{fontenc}\n" );
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
 
    g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                         "\\usepackage{tikz,ulem,graphicx}\n"
-                         "\\usetikzlibrary{calc}\n"
-                         "\\pagestyle{empty}\n\n"
-                         "\\begin{document}\n"
-                         "  \\noindent\\begin{tikzpicture}\n"
-                         "  \\fill (0,0) circle (0pt);\n"
-                         "  \\draw (1,-1) rectangle (20,-28.7);\n" );
+                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                    "\\usepackage{tikz,ulem,graphicx}\n"
+                    "\\usetikzlibrary{calc}\n"
+                    "\\pagestyle{empty}\n\n"
+                    "\\begin{document}\n"
+                    "  \\noindent\\begin{tikzpicture}\n"
+                    "  \\fill (0,0) circle (0pt);\n"
+                    "  \\draw (1,-1) rectangle (20,-28.7);\n" );
 
    // Renderização das Linhas Estruturais Fixas
    g_string_append_printf( tex,
-                         "  \\draw (2,%.4f) -- (2,%.4f)\n"
-                         "        (%.4f,%.4f) -- (%.4f,%.4f)\n"
-                         "        (7,-1) -- (7,%.4f)\n"
-                         "        (7,%.4f) -- (20,%.4f)\n"
-                         "        (1,%.4f) -- (20,%.4f)\n"
-                         "        (1,%.4f) -- (20,%.4f);\n"
-                         "  \\node[right] at (7,%.4f) {\\LARGE\\it Conteúdos};\n",
-                         -1.0 - 3.0*p, -1.0 - s*p,
-                         2.0 + p, -1.0 - 3.0*p, 2.0 + p, -1.0 - s*p,
-                         -1.0 - 3.0*p,
-                         -1.0 - 1.8*p, -1.0 - 1.8*p,
-                         -1.0 - 3.0*p, -1.0 - 3.0*p,
-                         -1.0 - s*p, -1.0 - s*p,
-                         -1.0 - 2.45*p );
+                           "  \\draw (2,%.4f) -- (2,%.4f)\n"
+                           "        (%.4f,%.4f) -- (%.4f,%.4f)\n"
+                           "        (7,-1) -- (7,%.4f)\n"
+                           "        (7,%.4f) -- (20,%.4f)\n"
+                           "        (1,%.4f) -- (20,%.4f)\n"
+                           "        (1,%.4f) -- (20,%.4f);\n"
+                           "  \\node[right] at (7,%.4f) {\\LARGE\\it Conteúdos};\n",
+                           -1.0 - 3.0 * p, -1.0 - s * p,
+                           2.0 + p, -1.0 - 3.0 * p, 2.0 + p, -1.0 - s * p,
+                           -1.0 - 3.0 * p,
+                           -1.0 - 1.8 * p, -1.0 - 1.8 * p,
+                           -1.0 - 3.0 * p, -1.0 - 3.0 * p,
+                           -1.0 - s * p, -1.0 - s * p,
+                           -1.0 - 2.45 * p );
 
    // =========================================================================
    // PASSO 3: LAÇO DOS CONTEÚDOS
@@ -1071,12 +1070,12 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
          }
 
          g_string_append_printf( tex,
-            "    \\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n"
-            "    \\node[right] at (%.4f,%.4f) {\\parbox{17.15cm}{%s}};\n"
-            "    \\draw (2,%.4f) -- (20,%.4f);\n",
-            2.0 + p/2.0, y_centro, dia,
-            2.0 + p, y_centro, str_conteudo,
-            y_base, y_base );
+                                 "    \\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n"
+                                 "    \\node[right] at (%.4f,%.4f) {\\parbox{17.15cm}{%s}};\n"
+                                 "    \\draw (2,%.4f) -- (20,%.4f);\n",
+                                 2.0 + p / 2.0, y_centro, dia,
+                                 2.0 + p, y_centro, str_conteudo,
+                                 y_base, y_base );
       }
    }
 
@@ -1092,13 +1091,13 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       // Validação extra de segurança para os índices de meses (1 a 12)
       if ( mes_atual >= 1 && mes_atual <= 12 ) {
          double y_linha_mes = -1.0 - p * ( 3.0 + h_mes_curr );
-         double y_centro_mes = -1.0 - 3.0*p - 0.5 * ( h_mes_curr + h_mes_prev ) * p;
+         double y_centro_mes = -1.0 - 3.0 * p - 0.5 * ( h_mes_curr + h_mes_prev ) * p;
 
          g_string_append_printf( tex,
-            "    \\draw (1,%.4f) -- (2,%.4f);\n"
-            "    \\node at (1.5,%.4f) {\\Large %s};\n",
-            y_linha_mes, y_linha_mes,
-            y_centro_mes, Meses[mes_atual] );
+                                 "    \\draw (1,%.4f) -- (2,%.4f);\n"
+                                 "    \\node at (1.5,%.4f) {\\Large %s};\n",
+                                 y_linha_mes, y_linha_mes,
+                                 y_centro_mes, Meses[mes_atual] );
       }
       h_mes_prev = h_mes_curr;
    }
@@ -1107,18 +1106,18 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    // PASSO 5: RODAPÉ E FINALIZAÇÃO ESTRUTURAL
    // =========================================================================
    g_string_append_printf( tex,
-      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
-      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
-      "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
-      "  \\node[inner sep=0pt] at (13.5,%.4f) {\\bf\\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};\n"
-      "  \\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \\underline{\\,%02d\\,}/\\underline{\\,%02d\\,}/\\underline{\\,%d\\,} \\hspace{5mm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{5mm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{5mm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n"
-      "  \\end{tikzpicture}\n"
-      "\\end{document}\n",
-      -1.0 - p/2.0,
-      -1.0 - 3.0*p/2.0, dados->escola,
-      -1.0 - 5.0*p/2.0, dados->turma,
-      -1.0 - p, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
-      ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+                           "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{SEDUC} / \\underline{São Luis$-$MA}};\n"
+                           "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
+                           "  \\node[right] at (1,%.4f) {\\large\\bf\\underline{%s}};\n"
+                           "  \\node[inner sep=0pt] at (13.5,%.4f) {\\bf\\resizebox{12.5cm}{0.55cm}{Conteúdos de %s d%c %s / %s}};\n"
+                           "  \\node[inner sep=0pt,above] at (10.5,-28.65) {Data: \\underline{\\,%02d\\,}/\\underline{\\,%02d\\,}/\\underline{\\,%d\\,} \\hspace{5mm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{5mm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{5mm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n"
+                           "  \\end{tikzpicture}\n"
+                           "\\end{document}\n",
+                           -1.0 - p / 2.0,
+                           -1.0 - 3.0 * p / 2.0, dados->escola,
+                           -1.0 - 5.0 * p / 2.0, dados->turma,
+                           -1.0 - p, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
+                           ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
 
    g_file_set_contents( caminho_saida, tex->str, -1, NULL );
 }

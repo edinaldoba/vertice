@@ -435,12 +435,12 @@ static double gas_erro_cantos_externos( const GasPopulacao *simulacao, int nrow,
    // ATENÇÃO: Assumindo que simulacao[k].x[0] = COLUNA (eixo X)
    // e simulacao[k].x[1] = LINHA (eixo Y).
    // Se no seu motor for o inverso (x[0]=linha, x[1]=coluna), basta inverter os arrays abaixo!
-   double cantos_x[4] = { 0.0, (double)ncol, (double)ncol, 0.0 };
-   double cantos_y[4] = { 0.0, 0.0, (double)nrow, (double)nrow };
+   double cantos_x[4] = { 0.0, ( double )ncol, ( double )ncol, 0.0 };
+   double cantos_y[4] = { 0.0, 0.0, ( double )nrow, ( double )nrow };
 
    double erro_total = 0.0;
    // A distância máxima possível dentro da imagem é a diagonal
-   double diagonal = (double)nrow * nrow + (double)ncol * ncol;
+   double diagonal = ( double )nrow * nrow + ( double )ncol * ncol;
 
    if ( diagonal == 0.0 ) return 1.0; // Barreira de segurança
 

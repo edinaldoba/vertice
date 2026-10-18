@@ -175,7 +175,7 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel ) {
    }
 
    // 4. Injeção dos textos formatados
-   gtk_label_set_markup( GTK_LABEL( painel->titulo )   , painel->format_titulo    );
+   gtk_label_set_markup( GTK_LABEL( painel->titulo ), painel->format_titulo );
    gtk_label_set_markup( GTK_LABEL( painel->subtitulo ), painel->format_subtitulo );
    gtk_label_set_markup( GTK_LABEL( painel->instrucao ), painel->format_instrucao );
 

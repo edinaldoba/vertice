@@ -37,47 +37,47 @@ Para impedir que alguém digite o código de um aluno errado por engano (erro de
 
 // Função matemática para calcular o Dígito Verificador (Módulo 11)
 int calcular_digito_verificador( uint32_t sequencia_base ) {
-    // Pesos da direita para a esquerda: 2, 3, 4, 5, 6, 7, 8
-    int pesos[] = { 2, 3, 4, 5, 6, 7, 8 };
-    int soma = 0;
-    uint32_t temp = sequencia_base;
+   // Pesos da direita para a esquerda: 2, 3, 4, 5, 6, 7, 8
+   int pesos[] = { 2, 3, 4, 5, 6, 7, 8 };
+   int soma = 0;
+   uint32_t temp = sequencia_base;
 
-    // Extrai cada dígito e multiplica pelo respectivo peso
-    for ( int i = 0; i < 7; i++ ) {
-        int digito = temp % 10;
-        soma += ( digito * pesos[i] );
-        temp /= 10;
-    }
+   // Extrai cada dígito e multiplica pelo respectivo peso
+   for ( int i = 0; i < 7; i++ ) {
+      int digito = temp % 10;
+      soma += ( digito * pesos[i] );
+      temp /= 10;
+   }
 
-    // Calcula o resto da divisão por 11
-    int resto = soma % 11;
-    int dv = 11 - resto;
+   // Calcula o resto da divisão por 11
+   int resto = soma % 11;
+   int dv = 11 - resto;
 
-    // Regra matemática do Módulo 11: se o resultado for 10 ou 11, o DV vira 0
-    if ( dv >= 10 ) {
-        dv = 0;
-    }
+   // Regra matemática do Módulo 11: se o resultado for 10 ou 11, o DV vira 0
+   if ( dv >= 10 ) {
+      dv = 0;
+   }
 
-    return dv;
+   return dv;
 }
 
 // Função principal que acopla a base ao DV, retornando os 8 dígitos finais
 uint32_t gerar_codigo_aluno_seguro( uint32_t *ultimo_id_salvo ) {
-    // 1. Garante a unicidade incrementando a base
-    (*ultimo_id_salvo)++;
+   // 1. Garante a unicidade incrementando a base
+   ( *ultimo_id_salvo )++;
 
-    // 2. Trava de segurança (limite de 7 dígitos)
-    if ( *ultimo_id_salvo > 9999999 ) {
-        fprintf( stderr, "ERRO FATAL: Limite de códigos de aluno esgotado!\n" );
-        return 0;
-    }
+   // 2. Trava de segurança (limite de 7 dígitos)
+   if ( *ultimo_id_salvo > 9999999 ) {
+      fprintf( stderr, "ERRO FATAL: Limite de códigos de aluno esgotado!\n" );
+      return 0;
+   }
 
-    // 3. Calcula o 8º dígito (DV)
-    int dv = calcular_digito_verificador( *ultimo_id_salvo );
+   // 3. Calcula o 8º dígito (DV)
+   int dv = calcular_digito_verificador( *ultimo_id_salvo );
 
-    // 4. Monta o número de 8 algarismos (Base * 10 + DV)
-    // Exemplo: se a base for 1234567 e o DV for 4, retorna 12345674
-    return ( *ultimo_id_salvo * 10 ) + dv;
+   // 4. Monta o número de 8 algarismos (Base * 10 + DV)
+   // Exemplo: se a base for 1234567 e o DV for 4, retorna 12345674
+   return ( *ultimo_id_salvo * 10 ) + dv;
 }
 
 

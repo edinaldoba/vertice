@@ -56,38 +56,38 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
    // Cabeçalho Estático
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n" );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
    g_string_append_printf( tex,
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-      "\\usepackage[dvipsnames,table]{xcolor}\n"
-      "\\usepackage[%s]{professor}\n"
-      "\\usepackage{tikz,ifthen,ulem}\n"
-      "\\usetikzlibrary{calc}\n"
-      "\\pagestyle{empty}\n\n"
-      "\\begin{document}\n"
-      "\\noindent\\begin{tikzpicture}\n", dados->cor_destaque );
+                           "\\usepackage[brazil]{babel}\n"
+                           "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                           "\\usepackage[dvipsnames,table]{xcolor}\n"
+                           "\\usepackage[%s]{professor}\n"
+                           "\\usepackage{tikz,ifthen,ulem}\n"
+                           "\\usetikzlibrary{calc}\n"
+                           "\\pagestyle{empty}\n\n"
+                           "\\begin{document}\n"
+                           "\\noindent\\begin{tikzpicture}\n", dados->cor_destaque );
 
    // Variáveis de Cálculo e Moldura
    g_string_append_printf( tex,
-      "%% Configurações dinâmicas\n"
-      "\\pgfmathsetmacro{\\p}{%s}\n"
-      "\\fill (0,0) circle (0pt);\n"
-      "\\draw (1,-1) rectangle (20,-28.7);\n\n", str_p );
+                           "%% Configurações dinâmicas\n"
+                           "\\pgfmathsetmacro{\\p}{%s}\n"
+                           "\\fill (0,0) circle (0pt);\n"
+                           "\\draw (1,-1) rectangle (20,-28.7);\n\n", str_p );
 
    g_string_append( tex,
-      "\\draw (1.6,{-2-\\p}) -- (1.6,{-28.7+\\p})\n"
-      "(7,-1) -- (7,{-28.7+\\p})\n"
-      "(19,-2) -- (19,{-28.7+\\p})\n"
-      "(18,-2) -- (18,{-28.7+\\p})\n"
-      "(7,-2) -- (20,-2);\n\n" );
+                    "\\draw (1.6,{-2-\\p}) -- (1.6,{-28.7+\\p})\n"
+                    "(7,-1) -- (7,{-28.7+\\p})\n"
+                    "(19,-2) -- (19,{-28.7+\\p})\n"
+                    "(18,-2) -- (18,{-28.7+\\p})\n"
+                    "(7,-2) -- (20,-2);\n\n" );
 
    // Cabeçalho do Documento
    g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (1.2,-1.6) {\\bf\\resizebox{5.5cm}{0.44cm}{%s}};\n", dados->escola );
@@ -159,10 +159,10 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 
    // 3. Cabeçalho Estático
    g_string_append( tex,
-      "\\documentclass[11pt,tikz,margin=20mm]{standalone}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n"
-      "\\usepackage[brazil]{babel}\n" );
+                    "\\documentclass[11pt,tikz,margin=20mm]{standalone}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n"
+                    "\\usepackage[brazil]{babel}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
@@ -203,23 +203,23 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 //========================================================================================================//
 static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) {
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n"
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" // Margens fixas de 1cm
-      "\\usepackage[dvipsnames,table]{xcolor}\n"
-      "\\usepackage{multicol}\n"
-      "\\usepackage{enumerate}\n"
-      "\\usepackage[nointegrals]{wasysym}\n"
-      "\\usepackage{bm}\n"
-      "\\usepackage{array,multirow,graphicx}\n"
-      "\\usepackage{amsmath,amssymb}\n"
-      "\\usepackage{setspace}\n"
-      "\\usepackage{ulem}\n"
-      "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n"
-   );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n"
+                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" // Margens fixas de 1cm
+                    "\\usepackage[dvipsnames,table]{xcolor}\n"
+                    "\\usepackage{multicol}\n"
+                    "\\usepackage{enumerate}\n"
+                    "\\usepackage[nointegrals]{wasysym}\n"
+                    "\\usepackage{bm}\n"
+                    "\\usepackage{array,multirow,graphicx}\n"
+                    "\\usepackage{amsmath,amssymb}\n"
+                    "\\usepackage{setspace}\n"
+                    "\\usepackage{ulem}\n"
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n"
+                  );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
@@ -230,22 +230,22 @@ static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) 
 
    // Macros globais de formatação e trigonometria
    g_string_append( tex,
-      "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
-      "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
-      "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
-      "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
-      "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
-      "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
-      "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
-      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
-   );
+                    "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
+                    "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
+                    "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
+                    "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
+                    "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
+                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
+                  );
 }
 
 //--------------------------------------------------------------------------------------------------------
 static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dados, const FichaAluno *ficha,
-                                         int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
+      int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
 
    // A injeção do cabeçalho de identificação ocorre exclusivamente na primeira página.
    // Toda a lógica das margens e linhas separadoras migrou limpa para 'anexar_colunas_separadoras_latex'.
@@ -258,7 +258,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
    gint fator_tamanho = ( dados->cabecalho_tipo == 1 ) ? 1 : 0;
    const char *tema = dados->decoracao_estilo;
 
-   if      ( g_strcmp0( tema, "Trapezios" ) == 0 ) anexar_tema_pagina_trapezios( tex, fator_tamanho );
+   if ( g_strcmp0( tema, "Trapezios" ) == 0 ) anexar_tema_pagina_trapezios( tex, fator_tamanho );
    else if ( g_strcmp0( tema, "Ondas" )     == 0 ) anexar_tema_pagina_ondas( tex, fator_tamanho );
    else if ( g_strcmp0( tema, "Quadrados" ) == 0 ) anexar_tema_pagina_quadrados( tex, fator_tamanho );
    else if ( g_strcmp0( tema, "Linhas" )    == 0 ) anexar_tema_pagina_linhas( tex, fator_tamanho );
@@ -299,9 +299,9 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       g_string_append( tex, "\\draw[draw=CorSerie!30, line width=0.6pt] (17.75,-1.95) -- (18.85,-1.95);\n" );
 
       // Aluno e Número
-      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-3.16) {\\bfseries Aluno(a):};\n" );
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-3.16) {\\bfseries Estudante:};\n" );
       g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (2.1,-3.12) {\\large %s};\n", ficha->aluno );
-      g_string_append( tex, "\\draw[draw=CorSerie!40] (2.0,-3.36) -- (15.2,-3.36);\n" );
+      g_string_append( tex, "\\draw[draw=CorSerie!40] (2,-3.36) -- (15.2,-3.36);\n" );
 
       g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (16.2,-3.16) {\\bfseries N\\textsuperscript{\\underline{o}}:};\n" );
       g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (16.4,-3.12) {\\large %.2d};\n", num_chamada );
@@ -317,7 +317,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       g_string_append( tex, "\\node[inner sep=0pt, color=CorSerie] at (18.3,-0.3) {\\small\\bfseries NOTA};\n" );
       g_string_append( tex, "\\draw[draw=CorSerie!30, line width=0.6pt] (17.75,-0.55) -- (18.85,-0.55);\n" );
 
-      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-1.65) {\\bfseries Aluno(a):};\n" );
+      g_string_append( tex, "\\node[inner sep=0pt, left, color=CorSerie!80] at (1.9,-1.65) {\\bfseries Estudante:};\n" );
       g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black] at (2.1,-1.61) {\\large %s};\n", ficha->aluno );
       g_string_append( tex, "\\draw[draw=CorSerie!40] (2,-1.85) -- (15.2,-1.85);\n" );
 
@@ -344,12 +344,12 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       int turno_idx = ( dados->turma[8] == 'm' ) * 0 + ( dados->turma[8] == 'v' ) * 1 + ( dados->turma[8] == 'i' ) * 2 + ( dados->turma[8] == 'n' ) * 3;
       g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (3.9,-3.88) rectangle (6.0667,-5.5);\n" );
 
-      double x_circle = 3.9 + 0.7 * (81.0/220.0);
-      double x_text   = 4.15 + 0.7 * (81.0/220.0);
+      double x_circle = 3.9 + 0.7 * ( 81.0 / 220.0 );
+      double x_text   = 4.15 + 0.7 * ( 81.0 / 220.0 );
       const char *turnos_labels[] = {"Matutino", "Vespertino", "Integral", "Noturno"};
 
       for ( int i = 0; i <= 3; i++ ) {
-         double y_row = -3.88 - (i + 0.7) * (81.0/220.0);
+         double y_row = -3.88 - ( i + 0.7 ) * ( 81.0 / 220.0 );
          g_string_append_printf( tex, "\\draw[draw=CorSerie!60, line width=0.8pt] (%.4f,%.4f) circle (0.14cm);\n", x_circle, y_row );
          if ( i == turno_idx ) {
             g_string_append_printf( tex, "\\fill[color=CorSerie!80] (%.4f,%.4f) circle (0.08cm);\n", x_circle, y_row );
@@ -400,8 +400,8 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
    } else if ( dados->qtd_colunas == 3 ) {
       int exp = 16 - 4 * dados->qtd_colunas; // Para 3 colunas, exp = 4
       double s = exp / 10.0;                 // Fator de escala (0.4)
-      double x1 = (38.0 - s) / 6.0;
-      double x2 = (76.0 + s) / 6.0;
+      double x1 = ( 38.0 - s ) / 6.0;
+      double x2 = ( 76.0 + s ) / 6.0;
 
       if ( dados->separadores == 1 ) {
          // Desenha as duas colunas verticais em um único comando \draw de altíssima performance
@@ -503,7 +503,7 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
          // INJEÇÃO NATIVA DOS CÍRCULOS DAS ALTERNATIVAS (Com blindagem '}]')
          // =========================================================================
          for ( int letra = 65; letra < 70; letra++ ) {
-            gchar letra_str[2] = { (gchar)letra, '\0' };
+            gchar letra_str[2] = { ( gchar )letra, '\0' };
 
             // A MÁGICA ESTÁ AQUI: Abrindo o bracket e as chaves \item[{
             g_string_append( tex, "\\item[{" );

@@ -29,7 +29,7 @@ static bool executar_gerador_c_nativamente( const char *pasta_tema ) {
 
          // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
          char *argv[] = { ( char * )"sh", ( char * )"-c",
-                        ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
+                          ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
                         };
          GError *erro = NULL;
 
@@ -65,44 +65,44 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    // 1. CABEÇALHO DO DOCUMENTO LATEX
    // =========================================================================
    g_string_append( tex,
-      "\\documentclass[11pt,a4paper]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n" );
+                    "\\documentclass[11pt,a4paper]{report}\n"
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
    g_string_append( tex,
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
-      "\\usepackage[dvipsnames,table]{xcolor}\n"
-      "\\usepackage{multicol}\n"
-      "\\usepackage{enumerate}\n"
-      "\\usepackage[nointegrals]{wasysym}\n"
-      "\\usepackage{bm}\n"
-      "\\usepackage{array,multirow,graphicx}\n"
-      "\\usepackage{amsmath,amssymb}\n"
-      "\\usepackage{ifthen}\n"
-      "\\usepackage{setspace}\n"
-      "\\usepackage{ulem}\n"
-      "\\onehalfspacing\n"
-      "\\pagestyle{empty}\n\n" );
+                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
+                    "\\usepackage[dvipsnames,table]{xcolor}\n"
+                    "\\usepackage{multicol}\n"
+                    "\\usepackage{enumerate}\n"
+                    "\\usepackage[nointegrals]{wasysym}\n"
+                    "\\usepackage{bm}\n"
+                    "\\usepackage{array,multirow,graphicx}\n"
+                    "\\usepackage{amsmath,amssymb}\n"
+                    "\\usepackage{ifthen}\n"
+                    "\\usepackage{setspace}\n"
+                    "\\usepackage{ulem}\n"
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n\n" );
 
    // O pacote de cores do professor recebe o parâmetro (ex: "sexto") e converte para "CorSerie"
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n\n", dados->cor_destaque );
 
    g_string_append( tex,
-      "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n\n"
-      "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
-      "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
-      "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
-      "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n\n"
-      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
-      "\\begin{document}\n"
-      "\\noindent\\tikz{\n" );
+                    "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n\n"
+                    "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
+                    "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
+                    "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n\n"
+                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
+                    "\\begin{document}\n"
+                    "\\noindent\\tikz{\n" );
 
    // =========================================================================
    // INJEÇÃO NATIVA DO TEMA DE PÁGINA (Com g_strcmp0 NULL-safe)
@@ -154,7 +154,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
       if ( !g_file_get_contents( questao, &conteudo_arquivo, NULL, NULL ) ) continue;
 
       // Fatiamento nativo em matriz de strings baseada nas quebras de linha (\n)
-      g_auto(GStrv) linhas = g_strsplit( conteudo_arquivo, "\n", -1 );
+      g_auto( GStrv ) linhas = g_strsplit( conteudo_arquivo, "\n", -1 );
 
       // Usar while e controle manual de índice impede Segmentation Fault!
       int i = 0;
@@ -196,7 +196,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
             for ( int letra = 65; letra < 70; letra++ ) {
                if ( linhas[i] == NULL ) break;
 
-               gchar letra_str[2] = { (gchar)letra, '\0' };
+               gchar letra_str[2] = { ( gchar )letra, '\0' };
 
                // SOLUÇÃO: Abraçando o argumento do \item com { }
                g_string_append( tex, "\\item[{" );
@@ -224,9 +224,9 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    // 3. RODAPÉ E GRAVAÇÃO ATÔMICA DO ARQUIVO .TEX
    // =========================================================================
    g_string_append( tex,
-      "\\end{enumerate}\n\n"
-      "\\end{multicols}\n\n"
-      "\\end{document}\n" );
+                    "\\end{enumerate}\n\n"
+                    "\\end{multicols}\n\n"
+                    "\\end{document}\n" );
 
    GError *error = NULL;
    if ( !g_file_set_contents( tema_pdf, tex->str, tex->len, &error ) ) {

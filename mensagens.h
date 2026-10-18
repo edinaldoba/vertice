@@ -20,9 +20,9 @@ void criar_mensagem_painel( MensagemTipo MENSAGEM, InterfacePainel *painel );
 
 /* Protótipo Otimizado */
 gchar* meu_gerador_variadico( const char *formato, ... )
-    G_GNUC_PRINTF( 1, 2 )
-    G_GNUC_MALLOC
-    G_GNUC_WARN_UNUSED_RESULT;
+G_GNUC_PRINTF( 1, 2 )
+G_GNUC_MALLOC
+G_GNUC_WARN_UNUSED_RESULT;
 
 
 

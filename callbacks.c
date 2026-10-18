@@ -829,7 +829,8 @@ static void _on_entry_paste_clipboard( GtkEditable *editable, gpointer user_data
  */
 void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
                                    gchar *path_string, gpointer user_data ) {
-   (void)renderer; (void)path_string;
+   ( void )renderer;
+   ( void )path_string;
    if ( !GTK_IS_ENTRY( editable ) ) return;
 
    GtkEntry *entry = GTK_ENTRY( editable );
@@ -998,7 +999,9 @@ void on_cell_relatorio_nota_edited( GtkCellRendererText *renderer, const gchar *
  */
 void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
                                         const gchar *path, gpointer user_data ) {
-   (void)renderer; (void)path; (void)user_data;
+   ( void )renderer;
+   ( void )path;
+   ( void )user_data;
    if ( !GTK_IS_ENTRY( editable ) ) return;
 
    GtkEntry *entry = GTK_ENTRY( editable );
@@ -1019,20 +1022,32 @@ void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditab
 
 //===================================================================================================
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data ) {
-    AppContext *ctx = ( AppContext * )user_data;
-    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
-    g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-    int d = ctx->cascata.foco.disciplina;
+   int d = ctx->cascata.foco.disciplina;
 
-    // Varredura e Cálculo limpo
-    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-        FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-        calcular_consolidado_anual( ficha, d );
-    }
+   // Varredura e Cálculo limpo
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      calcular_consolidado_anual( ficha, d );
+   }
 
-    // Atualiza a Interface
-    carregar_relatorio_ui( ctx );
+   // Atualiza a Interface
+   carregar_relatorio_ui( ctx );
+}
+
+
+//===================================================================================================
+void on_check_pendencias_relatorio_toggled( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_CHECK_BUTTON( widget ) );
+
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx || !ctx->ui_diario.treeview_relatorio ) return;
+
+   // Força a repintura e reavaliação de todas as células do Relatório Final
+   gtk_widget_queue_draw( ctx->ui_diario.treeview_relatorio );
 }
 //===================================================================================================
 
@@ -1146,7 +1161,8 @@ gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCros
 // Função auxiliar para gerenciar a classe CSS
 static void _ui_diario_atualizar_css_botoes( AppContext *ctx, GtkWidget *botao_clicado ) {
    GtkWidget *botoes[4] = { ctx->button.conteudos, ctx->button.frequencia,
-                           ctx->button.avaliacoes, ctx->button.relatorio_final };
+                            ctx->button.avaliacoes, ctx->button.relatorio_final
+                          };
 
    for ( int i = 0; i < 4; i++ ) {
       if ( !botoes[i] ) continue;
@@ -1167,13 +1183,15 @@ static void _ui_diario_atualizar_css_botoes( AppContext *ctx, GtkWidget *botao_c
 // ======================================================================================
 static const gchar *_ui_diario_inferir_widgets_de_edicao( const AppContext *ctx, GObject *object ) {
    GtkWidget *botoes[4] = { ctx->button.conteudos, ctx->button.frequencia,
-                            ctx->button.avaliacoes, ctx->button.relatorio_final };
+                            ctx->button.avaliacoes, ctx->button.relatorio_final
+                          };
 
    // Mapeamento correto dos widgets que devem receber foco inicial em cada respectiva aba
    GtkWidget *focos[4] =  { ctx->ui_diario.tipo_registro,
                             ctx->ui_diario.combo_data,
                             ctx->ui_diario.combo_avaliacoes,
-                            ctx->ui_diario.btn_consolidar };
+                            ctx->ui_diario.btn_consolidar
+                          };
 
    const gchar *stack_pages[4] = { "page_conteudo", "page_frequencia", "page_avaliacoes", "page_relatorio" };
    const gchar *page_name = gtk_stack_get_visible_child_name( GTK_STACK( ctx->stack_pages ) );
@@ -1181,7 +1199,7 @@ static const gchar *_ui_diario_inferir_widgets_de_edicao( const AppContext *ctx,
    for ( int i = 0; i < 4; i++ ) {
       if ( g_strcmp0( page_name, stack_pages[i] ) == 0 ) {
          g_object_set_data( object, "widget_button", ( gpointer ) botoes[i] );
-         g_object_set_data( object, "widget_focus",  ( gpointer ) focos[i] );
+         g_object_set_data( object, "widget_focus", ( gpointer ) focos[i] );
          break;
       }
    }
@@ -1283,7 +1301,7 @@ void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
       }
 
-   // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
+      // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
    } else {
       g_print( "Gerando PDF de Conteúdos...\n" );
       relatorio_de_conteudos( &ctx->painel, ctx );
@@ -1486,13 +1504,13 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
 
    // Pop-up de confirmação de segurança e vínculo dos gabaritos
    g_autofree gchar *mensagem = meu_gerador_variadico(
-      "Você está prestes a iniciar a leitura óptica das provas.\n\n"
-      "<b>ESCOLA:</b> %s\n"
-      "<b>ANO LETIVO:</b> %s\n\n"
-      "⚠️ <b>Atenção:</b> Como o cartão-resposta não identifica a escola automaticamente, "
-      "todos os acertos deste lote de imagens serão vinculados ao destino acima.\n\n"
-      "Confirma que as imagens na pasta pertencem a esta escola e ano?",
-      ctx->dados.escola, ctx->dados.ano );
+                                   "Você está prestes a iniciar a leitura óptica das provas.\n\n"
+                                   "<b>ESCOLA:</b> %s\n"
+                                   "<b>ANO LETIVO:</b> %s\n\n"
+                                   "⚠️ <b>Atenção:</b> Como o cartão-resposta não identifica a escola automaticamente, "
+                                   "todos os acertos deste lote de imagens serão vinculados ao destino acima.\n\n"
+                                   "Confirma que as imagens na pasta pertencem a esta escola e ano?",
+                                   ctx->dados.escola, ctx->dados.ano );
 
    gboolean continuar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Vínculo das Provas", mensagem );
 
@@ -1503,7 +1521,7 @@ void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data 
       painel->format_titulo    = meu_gerador_variadico( "⏳ Leitura Óptica em Andamento" );
       painel->format_subtitulo = meu_gerador_variadico( "O processamento das imagens foi iniciado em segundo plano." );
       painel->format_instrucao = meu_gerador_variadico( "As provas de <b>%s</b> (%s) estão sendo decodificadas.",
-                                                        ctx->dados.escola, ctx->dados.ano );
+                                 ctx->dados.escola, ctx->dados.ano );
       criar_mensagem_painel( INFO, painel );
 
       // Dispara a thread em background para liberar o loop da interface GTK3
@@ -1731,7 +1749,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
 G_MODULE_EXPORT
 gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    g_return_val_if_fail( widget && event, FALSE );
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
    InterfacePainel *painel = &ctx->painel;
 
    // 🛡️ Marca o hover como ATIVO
@@ -1750,7 +1768,7 @@ gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCross
 G_MODULE_EXPORT
 gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    g_return_val_if_fail( widget && event, FALSE );
-   AppContext *ctx = (AppContext *)user_data;
+   AppContext *ctx = ( AppContext * )user_data;
    InterfacePainel *painel = &ctx->painel;
 
    // 🛡️ Marca o hover como INATIVO
@@ -1762,7 +1780,7 @@ gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCross
 
          // Previne acúmulo de timers caso o mouse entre e saia muito rápido
          if ( painel->timeout_id > 0 ) {
-             g_source_remove( painel->timeout_id );
+            g_source_remove( painel->timeout_id );
          }
 
          painel->timeout_id = g_timeout_add( 3000, ocultar_painel_feedback_cb, painel );
@@ -1780,7 +1798,7 @@ gboolean on_painel_feedback_button_press_event( GtkWidget *widget, GdkEventButto
 
    // Responde apenas ao clique com o botão esquerdo do mouse
    if ( event->type == GDK_BUTTON_PRESS && event->button == 1 ) {
-      AppContext *ctx = (AppContext *)user_data;
+      AppContext *ctx = ( AppContext * )user_data;
       InterfacePainel *painel = &ctx->painel;
 
       if ( painel ) {
@@ -1829,7 +1847,7 @@ gboolean on_orelhinha_button_press_event( GtkWidget *widget, GdkEventButton *eve
 
 // Callback que dispara quando o Revealer termina a animação (abriu 100% ou fechou 100%)
 void on_revealer_child_revealed_notify( GtkWidget *widget, GParamSpec *pspec, gpointer user_data ) {
-   (void)pspec;
+   ( void )pspec;
    GtkRevealer *revealer = GTK_REVEALER( widget );
    AppContext *ctx = ( AppContext * )user_data;
    InterfacePainel *painel = &ctx->painel;

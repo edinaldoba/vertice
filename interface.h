@@ -98,6 +98,7 @@ typedef struct {
    GtkWidget *scrolled_window_relatorio;
    GtkWidget *treeview_relatorio;
    GtkWidget *btn_consolidar;
+   GtkWidget *check_pendencias;
 
 } InterfaceRegistroDiario;
 

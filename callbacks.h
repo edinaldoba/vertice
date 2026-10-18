@@ -63,6 +63,7 @@ void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditab
                                         const gchar *path, gpointer user_data );
 void on_cell_relatorio_nota_edited( GtkCellRendererText *renderer, const gchar *path_string,
                                     const gchar *new_text, gpointer user_data );
+void on_check_pendencias_relatorio_toggled( GtkWidget *widget, gpointer user_data );
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data );
 
 

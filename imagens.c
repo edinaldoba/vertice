@@ -114,7 +114,7 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
 
       // O processamento interno pesado
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
-         g_remove(path_origem);
+         g_remove( path_origem );
       } else {
          // g_printerr é thread-safe no Linux, não corrompe o terminal
          g_printerr( "Falha no processamento da imagem: %s\n", file_atual );
