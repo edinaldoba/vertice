@@ -376,7 +376,7 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
       y_base = 27.55764; // A base do Tipo 2 é simétrica e fixa
    }
 
-   const char *cor_divisoria = ( dados->qtd_colunas == 2 ) ? "CorSerie!40" : "CorSerie!30";
+   const char *cor_divisoria = ( dados->separadores == 1 ) ? "CorSerie!40" : "CorSerie!30";
 
    // =========================================================================
    // B. COLUNAS VERTICAIS (Divisórias internas do conteúdo)
@@ -393,7 +393,7 @@ static void anexar_colunas_separadoras_latex( GString *tex, const InterfaceDados
          g_string_append_printf( tex, "  \\draw[color=%s, %s] (%.4f,%.4f) -- (%.4f,%.4f);\n",
                                  cor_divisoria, estilo_ponto, x_meio, -y_topo, x_meio, -y_base );
       } else if ( dados->separadores == 2 ) {
-         g_string_append_printf( tex, "  \\draw[color=%s, line width=0.8pt] (%.4f,%.4f) -- (%.4f,%.4f);\n",
+         g_string_append_printf( tex, "  \\draw[color=%s, line width=0.6pt] (%.4f,%.4f) -- (%.4f,%.4f);\n",
                                  cor_divisoria, x_meio, -y_topo, x_meio, -y_base );
       }
 

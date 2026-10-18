@@ -130,10 +130,10 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0,-0.65) {\\LARGE\\bf %s: %s};\n}\n\n", dados->tema, subtema );
 
    g_string_append_printf( tex, "\\setlength{\\columnsep}{%dmm}\n", 12 - 2 * dados->qtd_colunas );
-   g_string_append( tex, "\\setlength{\\columnseprule}{0.8pt}\n\n" );
+   g_string_append( tex, "\\setlength{\\columnseprule}{0.6pt}\n\n" );
 
    // A MÁGICA ACONTECE AQUI: Define a cor da linha divisória usando o xcolor e CorSerie
-   g_string_append( tex, "\\def\\columnseprulecolor{\\color{CorSerie}}\n\n" );
+   g_string_append( tex, "\\def\\columnseprulecolor{\\color{CorSerie!40}}\n\n" );
 
    g_string_append_printf( tex, "\\begin{multicols}{%d}\n\n", dados->qtd_colunas );
    g_string_append( tex, "\\begin{enumerate}[\\hspace{-1.8mm}]\n\n" );

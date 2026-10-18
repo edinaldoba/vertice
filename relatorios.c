@@ -36,7 +36,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
    const FocoCoordenadas *foco    = &( ctx->cascata.foco );
-   const InterfaceDados   *dados   = &( ctx->dados );
+   const InterfaceDados  *dados   = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    int qtd_alunos = dados->qtd_alunos_total;
@@ -45,17 +45,11 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    // 1. Montagem segura do caminho
    g_autofree gchar *arquivo_saida = g_build_filename( caminho->relatorios, "siaep_notas.dat", NULL );
 
-   FILE *p = fopen( arquivo_saida, "w" );
-   if ( !p ) {
-      g_printerr( "Erro ao criar arquivo SIAEP em: %s\n", arquivo_saida );
-      return;
-   }
-
    // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      int idx = ficha->idx_siaep; // Atualizado para idx_siaep
+      int idx = ficha->idx_siaep;
       if ( idx >= 0 && idx < qtd_alunos ) {
          ordem_original[idx] = ficha;
       }
@@ -64,50 +58,45 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    int d = foco->disciplina;
    int per = foco->periodo;
 
+   // Construção em memória usando GString (Velocidade Extrema de I/O)
+   g_autoptr(GString) siaep = g_string_sized_new( qtd_alunos * 10 * 8 );
+
    // 3. Exporta exatamente 10 linhas fixas (5 avaliações x 2: AV e REC)
    for ( int j = 0; j < 10; j++ ) {
-
-      // Mapeia j (0 a 9) para o índice correto do vetor de avaliações (0 a 4)
       int avaliacao_idx = j / 2;
 
       for ( int i = 0; i < qtd_alunos; i++ ) {
          const FichaAluno *aluno = ordem_original[i];
 
          if ( !aluno ) {
-            fprintf( p, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
+            g_string_append_printf( siaep, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
             continue;
          }
 
-         // Acesso semântico através da nova hierarquia NotaAvaliacao
          const NotaAvaliacao *nota = &aluno->disciplina[d].periodo[per].avaliacoes[avaliacao_idx];
          float nota_av  = nota->av;
          float nota_rec = nota->rec;
-
-         // j par = Avaliação (av); j ímpar = Recuperação (rec)
          float nota_atual = ( j % 2 == 0 ) ? nota_av : nota_rec;
 
-         // Tratamento de nota em branco (menor que 0.0)
          if ( nota_atual < 0.0f ) {
-            fprintf( p, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
+            g_string_append_printf( siaep, "%s", ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
-         // Regra especial: se tirou >= 6.0 na AV, mas a REC foi maior, prevalece a REC
          else if ( j % 2 == 0 && nota_av >= 6.0f && nota_rec > nota_av ) {
-            fprintf( p, "%.2f%s", nota_rec, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
+            g_string_append_printf( siaep, "%.2f%s", nota_rec, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
-         // Nota padrão (imprime com 2 casas decimais, ex: 10.00, 6.78, 4.90)
          else {
-            fprintf( p, "%.2f%s", nota_atual, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
+            g_string_append_printf( siaep, "%.2f%s", nota_atual, ( i == qtd_alunos - 1 ) ? "\n" : "|" );
          }
       }
    }
 
-   fclose( p );
+   // 4. Descarga única de memória no disco
+   g_autoptr(GError) error = NULL;
+   if ( !g_file_set_contents( arquivo_saida, siaep->str, siaep->len, &error ) ) {
+      g_printerr( "Erro ao salvar arquivo SIAEP em: %s (%s)\n", arquivo_saida, error->message );
+   }
 }
 //==================================================================================================
-
-
-
-
 
 
 
@@ -122,117 +111,128 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   FILE *p = fopen( arquivo_tex, "w+" );
-   if ( !p ) {
-      g_printerr( "Falha ao criar o arquivo LaTeX: %s\n", arquivo_tex );
-      return;
-   }
+   g_autoptr(GString) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
 
    // 1. Escrita do Preâmbulo e Configurações Iniciais
-   fprintf( p,
-            "\\documentclass[11pt,a4paper]{report}\n"
-            "\\usepackage[utf8]{inputenc}\n"
-            "\\usepackage[T1]{fontenc}\n" );
+   g_string_append( tex,
+      "\\documentclass[11pt,a4paper]{report}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n" );
 
-   if ( dados->fonte_latex == 1 ) fputs( "\\usepackage{cmbright}\n", p );
+   if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
 
-   fprintf( p,
-            "\\usepackage[brazil]{babel}\n"
-            "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-            "\\usepackage[table]{xcolor}\n"
-            "\\usepackage{tikz}\n"
-            "\\usepackage{multicol}\n"
-            "\\usepackage{array,multirow,graphicx}\n"
-            "\\usepackage{amssymb}\n"
-            "\\usepackage{setspace}\n"
-            "\\usepackage{ulem}\n"
-            "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-            "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-            "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
-            "\\onehalfspacing\n"
-            "\\pagestyle{empty}\n"
-            "\\begin{document}\n" );
+   g_string_append( tex,
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+      "\\usepackage[table]{xcolor}\n"
+      "\\usepackage{tikz}\n"
+      "\\usepackage{multicol}\n"
+      "\\usepackage{array,multirow,graphicx}\n"
+      "\\usepackage{amssymb}\n"
+      "\\usepackage{setspace}\n"
+      "\\usepackage{ulem}\n"
+      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
+      "\\onehalfspacing\n"
+      "\\pagestyle{empty}\n"
+      "\\begin{document}\n" );
 
    // 2. Cálculo dinâmico do espaçamento vertical (spacing)
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
-   fprintf( p, "\\begin{spacing}{%.4f}\n", spacing );
+   g_string_append_printf( tex, "\\begin{spacing}{%.4f}\n", spacing );
 
    // 3. Cabeçalho da Tabela
-   fprintf( p,
-            "\\noindent\\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\\hline\n"
-            "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{11}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\\\\n"
-            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{11}{c|}{} \\\\\\cline{3-13}\n"
-            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{7.5mm}{11pt}{\\bf Av1} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av2} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av3} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av4} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{7.5mm}{11pt}{\\bf Av5} & \\resizebox{7.5mm}{11pt}{Rec} & \\resizebox{11mm}{11pt}{\\bf Média}\\\\\\hline\n",
-            dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
+   // A mágica acontece em "\multicolumn{1}{c|}{\rule[-1.5mm]{0mm}{5.5mm}\bf Av1}".
+   // Isso centraliza o texto na vertical (pela expansão da \rule) e na horizontal (pelo c|).
+   g_string_append_printf( tex,
+      "\\noindent\\begin{tabular}{|c|p{50mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{7.5mm}|R{11mm}|}\\hline\n"
+      "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{11}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\resizebox{13cm}{0.44cm}{Avaliações de %s do %s / %s}}} \\\\\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{11}{c|}{} \\\\\\cline{3-13}\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
+      "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf Av1} & \\multicolumn{1}{c|}{Rec} & "
+      "\\multicolumn{1}{c|}{\\bf Av2} & \\multicolumn{1}{c|}{Rec} & "
+      "\\multicolumn{1}{c|}{\\bf Av3} & \\multicolumn{1}{c|}{Rec} & "
+      "\\multicolumn{1}{c|}{\\bf Av4} & \\multicolumn{1}{c|}{Rec} & "
+      "\\multicolumn{1}{c|}{\\bf Av5} & \\multicolumn{1}{c|}{Rec} & "
+      "\\multicolumn{1}{c|}{\\bf Média}\\\\\\hline\n",
+      dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
    int d   = foco->disciplina;
    int per = foco->periodo;
 
-   // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa)
+   // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa e com Autoclean da Memória)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
 
-      // Matrizes zeradas para garantir impressão vazia caso não haja nota
-      char s_notas[10][32] = {{0}};
-      char s_nota_periodo[32] = {0};
-      char s_nome[128] = {0};
+      // PASSO A: Nome do Aluno
+      g_autofree gchar *s_nome = ficha->ativo
+         ? g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno )
+         : g_strdup_printf( "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
 
-      // --- PASSO A: Formatação do Nome e Status ---
-      if ( ficha->ativo ) {
-         snprintf( s_nome, sizeof( s_nome ), "%.*s", ficha->limite_corte, ficha->aluno );
-      } else {
-         snprintf( s_nome, sizeof( s_nome ), "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
-      }
+      g_string_append_printf( tex, "%.2d & %s", j + 1, s_nome );
 
-      // --- PASSO B: Extração e formatação das 5 avaliações (AV e REC) ---
+      // PASSO B: Extração e formatação das 5 avaliações
       for ( int k = 0; k < 5; k++ ) {
-         if ( !validas[k] ) continue;
+         if ( !validas[k] ) {
+            g_string_append( tex, " & &" );
+            continue;
+         }
 
          const NotaAvaliacao *nota = &ficha->disciplina[d].periodo[per].avaliacoes[k];
-         float av  = nota->av;
-         float rec = nota->rec;
 
-         if ( av >= 0.0f ) {
-            const char *cor = ficha->ativo ? ( ( av < 6.0f ) ? "red" : "black" ) : "gray!70";
-            snprintf( s_notas[k * 2], sizeof( s_notas[0] ), "\\textcolor{%s}{%.1f}", cor, av );
+         // Av
+         g_autofree gchar *s_av = NULL;
+         if ( nota->av >= 0.0f ) {
+            const char *cor = ficha->ativo ? ( ( nota->av < 6.0f ) ? "red" : "black" ) : "gray!70";
+            s_av = g_strdup_printf( "\\textcolor{%s}{%.1f}", cor, nota->av );
+            g_strdelimit( s_av, ".", ',' ); // Troca nativa sem laço
+         } else {
+            s_av = g_strdup( "" );
          }
 
-         if ( rec >= 0.0f ) {
-            const char *cor = ficha->ativo ? ( ( rec < 6.0f ) ? "red" : "black" ) : "gray!70";
-            snprintf( s_notas[k * 2 + 1], sizeof( s_notas[0] ), "\\textcolor{%s}{%.1f}", cor, rec );
+         // Rec
+         g_autofree gchar *s_rec = NULL;
+         if ( nota->rec >= 0.0f ) {
+            const char *cor = ficha->ativo ? ( ( nota->rec < 6.0f ) ? "red" : "black" ) : "gray!70";
+            s_rec = g_strdup_printf( "\\textcolor{%s}{%.1f}", cor, nota->rec );
+            g_strdelimit( s_rec, ".", ',' );
+         } else {
+            s_rec = g_strdup( "" );
          }
+
+         g_string_append_printf( tex, " & %s & %s", s_av, s_rec );
       }
 
-      // --- PASSO C: Nota consolidada do período letivo ---
-      if ( ficha->ativo ) {
-         float nota_periodo = ficha->disciplina[d].relatorio.notas_periodos[per];
-         if ( nota_periodo >= 0.0f ) {
-            const char *cor = ( nota_periodo < 6.0f ) ? "red" : "black";
-            // Incorpora o bold \bf diretamente na string
-            snprintf( s_nota_periodo, sizeof( s_nota_periodo ), "\\textcolor{%s}{\\bf %.2f}", cor, nota_periodo );
-         }
+      // PASSO C: Nota Média Consolidada
+      g_autofree gchar *s_nota_periodo = NULL;
+      if ( ficha->ativo && ficha->disciplina[d].relatorio.notas_periodos[per] >= 0.0f ) {
+         float np = ficha->disciplina[d].relatorio.notas_periodos[per];
+         const char *cor = ( np < 6.0f ) ? "red" : "black";
+         s_nota_periodo = g_strdup_printf( "\\textcolor{%s}{\\bf %.2f}", cor, np );
+         g_strdelimit( s_nota_periodo, ".", ',' );
+      } else {
+         s_nota_periodo = g_strdup( "" );
       }
 
-      // --- PASSO D: Impressão Unificada da Linha ---
-      fprintf( p, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-               j + 1, s_nome,
-               s_notas[0], s_notas[1], s_notas[2], s_notas[3], s_notas[4],
-               s_notas[5], s_notas[6], s_notas[7], s_notas[8], s_notas[9], s_nota_periodo );
+      g_string_append_printf( tex, " & %s \\\\\\hline\n", s_nota_periodo );
    }
 
-   // 5. Rodapé
-   char datatex[128];
-   snprintf( datatex, sizeof( datatex ), "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-             ctx->data.dia, ctx->data.mes, ctx->data.ano );
+   // 5. Rodapé Seguro e Encerramento
+   g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
+                                          ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
-   fprintf( p,
-            "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
-            "\\end{tabular}\n"
-            "\\end{spacing}\n"
-            "\\end{document}\n",
-            datatex );
+   g_string_append_printf( tex,
+      "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
+      "\\end{tabular}\n"
+      "\\end{spacing}\n"
+      "\\end{document}\n",
+      datatex );
 
-   fclose( p );
+   g_autoptr(GError) error = NULL;
+   if ( !g_file_set_contents( arquivo_tex, tex->str, tex->len, &error ) ) {
+      g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
+   }
 }
 //---------------------------------------------------------------------------------------------
 static int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
@@ -436,23 +436,23 @@ static void preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, Li
       char temp_obs[128] = {0};
 
       if ( cons >= 0.0f ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
-         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. na Final", sizeof( temp_obs ) );
-         else if ( cons >= 6.0f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{Aprov. no Conselho}", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "Reprovado(a)", sizeof( temp_obs ) );
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
+         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. Final", sizeof( temp_obs ) );
+         else if ( cons >= 6.0f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{Aprov Cons}", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "Reprovado", sizeof( temp_obs ) );
 
       } else if ( rec >= 0.0f ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
-         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. na Final", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Conselho de Classe}", sizeof( temp_obs ) );
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
+         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. Final", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Conselho}", sizeof( temp_obs ) );
 
       } else if ( qtd_periodos == 4 ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Recuperação Final}", sizeof( temp_obs ) );
+         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
+         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Rec. Final}", sizeof( temp_obs ) );
 
       } else if ( qtd_periodos == 3 ) {
-         if ( soma >= 24.0f ) g_strlcpy( temp_obs, "Aprov. na Média", sizeof( temp_obs ) );
-         else if ( soma < 12.2f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Recuperação Final}", sizeof( temp_obs ) );
+         if ( soma >= 24.0f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
+         else if ( soma < 12.2f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Rec. Final}", sizeof( temp_obs ) );
       }
 
       if ( ficha->ativo ) {
@@ -474,49 +474,55 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   FILE *p1 = fopen( arquivo_tex, "w+" );
-   if ( !p1 ) {
-      g_printerr( "Falha ao criar o arquivo LaTeX: %s\n", arquivo_tex );
-      return;
-   }
+   g_autoptr(GString) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
 
    // 1. Escrita do Preâmbulo
-   fprintf( p1,
-            "\\documentclass[11pt,a4paper]{report}\n"
-            "\\usepackage[utf8]{inputenc}\n"
-            "\\usepackage[T1]{fontenc}\n" );
+   g_string_append( tex,
+      "\\documentclass[11pt,a4paper]{report}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) {
-      fprintf( p1, "\\usepackage{cmbright}\n" );
+      g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   fprintf( p1,
-            "\\usepackage[brazil]{babel}\n"
-            "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-            "\\usepackage{xcolor}\n"
-            "\\usepackage{tikz}\n"
-            "\\usepackage{multicol}\n"
-            "\\usepackage{array,multirow,graphicx}\n"
-            "\\usepackage{setspace}\n"
-            "\\usepackage{ulem}\n"
-            "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-            "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-            "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
-            "\\onehalfspacing\n"
-            "\\pagestyle{empty}\n"
-            "\\begin{document}\n" );
+   g_string_append( tex,
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+      "\\usepackage{xcolor}\n"
+      "\\usepackage{tikz}\n"
+      "\\usepackage{multicol}\n"
+      "\\usepackage{array,multirow,graphicx}\n"
+      "\\usepackage{setspace}\n"
+      "\\usepackage{ulem}\n"
+      "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
+      "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n"
+      "\\onehalfspacing\n"
+      "\\pagestyle{empty}\n"
+      "\\begin{document}\n" );
 
    // 2. Cálculo dinâmico do espaçamento vertical
    double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
-   fprintf( p1, "\\begin{spacing}{%.4f}\n", spacing );
+   g_string_append_printf( tex, "\\begin{spacing}{%.4f}\n", spacing );
 
    // 3. Cabeçalho da Tabela
-   fprintf( p1,
-            "\\noindent\\begin{tabular}{|c|p{5cm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{8.5mm}|R{9.8mm}|R{8.5mm}|R{7mm}|R{7mm}|c|}\\hline\n"
-            "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
-            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
-            "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\resizebox{8.5mm}{10pt}{\\bf\\,1º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,2º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,3º\\,p\\,} & \\resizebox{8.5mm}{10pt}{\\bf\\,4º\\,p\\,} & \\resizebox{9.8mm}{11pt}{\\bf Soma} & \\resizebox{8.5mm}{11pt}{\\bf Média} &  \\resizebox{7mm}{11pt}{\\bf Final}& \\resizebox{7.8mm}{11pt}{\\bf Cons.} & \\resizebox{20mm}{11pt}{\\bf Observação}\\\\\\hline\n",
-            dados->escola, dados->turma, dados->disciplina, dados->ano );
+   // A mágica de centralização horizontal (c|) e vertical (\rule expandido) aplicada a cada coluna
+   g_string_append_printf( tex,
+      "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
+      "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
+      "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf 1º P} & "
+      "\\multicolumn{1}{c|}{\\bf 2º P} & "
+      "\\multicolumn{1}{c|}{\\bf 3º P} & "
+      "\\multicolumn{1}{c|}{\\bf 4º P} & "
+      "\\multicolumn{1}{c|}{\\bf Soma} & "
+      "\\multicolumn{1}{c|}{\\bf Méd.} & "
+      "\\multicolumn{1}{c|}{\\bf Final} & "
+      "\\multicolumn{1}{c|}{\\bf Cons} & "
+      "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
+      dados->escola, dados->turma, dados->disciplina, dados->ano );
 
    // 4. Loop dos Alunos com delegação para a função auxiliar
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
@@ -525,26 +531,39 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 
       preencher_linha_relatorio_tex( ficha, disc, &linha );
 
-      fprintf( p1, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
+      // Troca imediata de ponto para vírgula
+      for ( int k = 0; k < 4; k++ ) {
+         g_strdelimit( linha.notas[k], ".", ',' );
+      }
+      g_strdelimit( linha.soma, ".", ',' );
+      g_strdelimit( linha.media, ".", ',' );
+      g_strdelimit( linha.rec, ".", ',' );
+      g_strdelimit( linha.cons, ".", ',' );
+
+      g_string_append_printf( tex, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
                j + 1, linha.nome,
                linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
                linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
    }
 
-   // 5. Rodapé
-   char datatex[128];
-   snprintf( datatex, sizeof( datatex ), "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-             ctx->data.dia, ctx->data.mes, ctx->data.ano );
+   // 5. Rodapé Seguro e Encerramento
+   g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
+                                          ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
-   fprintf( p1,
-            "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
-            "\\end{tabular}\n"
-            "\\end{spacing}\n"
-            "\\end{document}\n",
-            datatex );
+   g_string_append_printf( tex,
+      "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
+      "\\end{tabular}\n"
+      "\\end{spacing}\n"
+      "\\end{document}\n",
+      datatex );
 
-   fclose( p1 );
+   // 6. Descarga no Disco O(1)
+   g_autoptr(GError) error = NULL;
+   if ( !g_file_set_contents( arquivo_tex, tex->str, tex->len, &error ) ) {
+      g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
+   }
 }
+//===================================================================================================
 
 //===================================================================================================
 // FUNÇÃO PRINCIPAL: Relatório Final

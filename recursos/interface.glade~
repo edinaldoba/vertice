@@ -1171,7 +1171,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="min-width">280</property>
+                                        <property name="fixed-width">280</property>
                                         <property name="title" translatable="yes">NOME DO ALUNO</property>
                                         <property name="expand">True</property>
                                         <child>

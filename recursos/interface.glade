@@ -1840,19 +1840,18 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox" id="box_colunas">
+                              <object class="GtkBox" id="box_fontes">
                                 <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
-                                  <object class="GtkLabel" id="label_colunas">
+                                  <object class="GtkLabel" id="label_fonte">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">COLUNAS:</property>
+                                    <property name="label" translatable="yes">FONTE:</property>
                                     <property name="xalign">0</property>
-                                    <property name="yalign">0.5</property>
                                     <style>
                                       <class name="titulo-secao"/>
                                     </style>
@@ -1864,8 +1863,8 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="radio_colunas_1">
-                                    <property name="label" translatable="yes">2 Colunas</property>
+                                  <object class="GtkRadioButton" id="radio_fonte_1">
+                                    <property name="label" translatable="yes">CMB Right</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
@@ -1879,13 +1878,13 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="radio_colunas_2">
-                                    <property name="label" translatable="yes">3 Colunas</property>
+                                  <object class="GtkRadioButton" id="radio_fonte_2">
+                                    <property name="label" translatable="yes">CMU Serif</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
-                                    <property name="group">radio_colunas_1</property>
+                                    <property name="group">radio_fonte_1</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1909,6 +1908,77 @@
                                 <property name="expand">False</property>
                                 <property name="fill">False</property>
                                 <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="box_paginas">
+                                <property name="height-request">45</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="margin-start">100</property>
+                                <property name="spacing">80</property>
+                                <child>
+                                  <object class="GtkLabel" id="label_paginas">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">PÁGINAS:</property>
+                                    <property name="xalign">0</property>
+                                    <style>
+                                      <class name="titulo-secao"/>
+                                    </style>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkRadioButton" id="radio_paginas_1">
+                                    <property name="label" translatable="yes">1 Página</property>
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="receives-default">False</property>
+                                    <property name="active">True</property>
+                                    <property name="draw-indicator">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkRadioButton" id="radio_paginas_2">
+                                    <property name="label" translatable="yes">2 Páginas</property>
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="receives-default">False</property>
+                                    <property name="draw-indicator">True</property>
+                                    <property name="group">radio_paginas_1</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkSeparator">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">4</property>
                               </packing>
                             </child>
                             <child>
@@ -1968,77 +2038,6 @@
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">3</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkSeparator">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">False</property>
-                                <property name="position">4</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkBox" id="box_fontes">
-                                <property name="height-request">45</property>
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="margin-start">100</property>
-                                <property name="spacing">80</property>
-                                <child>
-                                  <object class="GtkLabel" id="label_fonte">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">FONTE:</property>
-                                    <property name="xalign">0</property>
-                                    <style>
-                                      <class name="titulo-secao"/>
-                                    </style>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkRadioButton" id="radio_fonte_1">
-                                    <property name="label" translatable="yes">CMB Right</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">False</property>
-                                    <property name="active">True</property>
-                                    <property name="draw-indicator">True</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkRadioButton" id="radio_fonte_2">
-                                    <property name="label" translatable="yes">CMU Serif</property>
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="receives-default">False</property>
-                                    <property name="draw-indicator">True</property>
-                                    <property name="group">radio_fonte_1</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">2</property>
-                                  </packing>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
                                 <property name="position">5</property>
                               </packing>
                             </child>
@@ -2054,18 +2053,19 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox" id="box_paginas">
+                              <object class="GtkBox" id="box_colunas">
                                 <property name="height-request">45</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-start">100</property>
                                 <property name="spacing">80</property>
                                 <child>
-                                  <object class="GtkLabel" id="label_paginas">
+                                  <object class="GtkLabel" id="label_colunas">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">PÁGINAS:</property>
+                                    <property name="label" translatable="yes">COLUNAS:</property>
                                     <property name="xalign">0</property>
+                                    <property name="yalign">0.5</property>
                                     <style>
                                       <class name="titulo-secao"/>
                                     </style>
@@ -2077,8 +2077,8 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="radio_paginas_1">
-                                    <property name="label" translatable="yes">1 Página</property>
+                                  <object class="GtkRadioButton" id="radio_colunas_1">
+                                    <property name="label" translatable="yes">2 Colunas</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
@@ -2092,13 +2092,13 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="radio_paginas_2">
-                                    <property name="label" translatable="yes">2 Páginas</property>
+                                  <object class="GtkRadioButton" id="radio_colunas_2">
+                                    <property name="label" translatable="yes">3 Colunas</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="receives-default">False</property>
                                     <property name="draw-indicator">True</property>
-                                    <property name="group">radio_paginas_1</property>
+                                    <property name="group">radio_colunas_1</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>

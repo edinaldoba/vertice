@@ -754,7 +754,7 @@ void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao 
 
    // Moldura fina superior para travar o contorno
    g_string_append_printf( tex,
-      "  \\draw[CorSerie] (2.7,0.14) -- (%.4f,0.14);\n",
+      "  \\draw[CorSerie!50] (2.7,0.14) -- (%.4f,0.14);\n",
       2.7 + largura_barra
    );
 
@@ -775,7 +775,7 @@ void anexar_cabecalho_questao_trapezios( GString *tex, gint k, gint num_questao 
 
    // 2. Traça a linha de contorno INFERIOR contínua acompanhando os recortes
    // Inicia a linha no canto inferior esquerdo da barra
-   g_string_append( tex, "  \\draw[CorSerie] (2.7,-0.14)" );
+   g_string_append( tex, "  \\draw[CorSerie!50] (2.7,-0.14)" );
 
    // Adiciona os vértices dos trapézios ao caminho da linha
    for ( int i = 0; i <= num_elementos; i++ ) {
@@ -835,6 +835,14 @@ void anexar_tema_pagina_ondas( GString *tex, gint k ) {
       g_string_append_printf( tex, "(%.3f,%.3f) ", pos_x, pos_y );
    }
    g_string_append( tex, "};\n" );
+
+   // Linhas finas de borda para dar o acabamento técnico e estrutural
+   g_string_append_printf( tex,
+      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
+      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n",
+      largura_barra, largura_barra, largura_barra, largura_barra
+   );
+
    g_string_append( tex, "\\end{tikzpicture}\n" );
 }
 
@@ -991,21 +999,21 @@ void anexar_tema_pagina_hexagonos( GString *tex, gint k ) {
 
       // Hexágonos superiores recortados em branco (efeito estêncil)
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,-0.14) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
+         "  \\filldraw[fill=white,draw=CorSerie!50] (%.4f,-0.14) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
          pos_x
       );
 
       // Hexágonos inferiores recortados em branco
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,-1.14) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
+         "  \\filldraw[fill=white,draw=CorSerie!50] (%.4f,-1.14) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
          pos_x
       );
    }
 
    // Linhas finas de borda na cor principal para dar acabamento técnico
    g_string_append_printf( tex,
-      "  \\draw[CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-      "  \\draw[CorSerie] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n"
+      "  \\draw[CorSerie,line width=0.5pt] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
+      "  \\draw[CorSerie,line width=0.5pt] (0,-1.0) -- (%.4f,-1.0) (0,-1.28) -- (%.4f,-1.28);\n"
       "\\end{tikzpicture}\n",
       largura_barra, largura_barra, largura_barra, largura_barra
    );
@@ -1031,7 +1039,7 @@ void anexar_cabecalho_questao_hexagonos( GString *tex, gint k, gint num_questao 
       double pos_x = 2.7 + 0.14 + (i * espacamento_x);
 
       g_string_append_printf( tex,
-         "  \\fill[white] (%.4f,0) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
+         "  \\filldraw[fill=white,draw=CorSerie!30] (%.4f,0) + (30:0.11) -- + (90:0.11) -- + (150:0.11) -- + (210:0.11) -- + (270:0.11) -- + (330:0.11) -- cycle;\n",
          pos_x
       );
    }

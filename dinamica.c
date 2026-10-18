@@ -646,13 +646,35 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    gtk_combo_box_set_active( GTK_COMBO_BOX( entry->cor_destaque ), foco_cache->cor_destaque );
    gtk_combo_box_set_active( GTK_COMBO_BOX( entry->decoracao_estilo ), foco_cache->decoracao_estilo );
 
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.nao_presencial ), rascunho->naopresencial );
+   // -------------------------------------------------------------------------
+   // AUTO-CURA (Self-Healing) + Proteção Segfault:
+   // Como as callbacks 'toggled' já garantem a exclusão mútua (State-First),
+   // a ordem de ativação define quem "ganha" em caso de um rascunho corrompido.
+   // Setamos os atributos dependentes primeiro, e os dominantes por último.
+   // A macro CLAMP(x, min, max) impede estouro de array se o dado salvo for lixo.
+   // -------------------------------------------------------------------------
+
+   // 3.1 Booleanos: 'Não Presencial' domina sobre 'Expor Dados'
    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.expor_dados ),    rascunho->expor );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_colunas[      rascunho->qtd_colunas - 2 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.separadores[      rascunho->separadores - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.fonte_latex[      rascunho->fonte_latex - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_paginas[      rascunho->qtd_paginas - 1 ] ), TRUE );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.cabecalho_tipo[   rascunho->cabecalho_tipo - 1 ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.nao_presencial ), rascunho->naopresencial );
+
+   // 3.2 Radios Independentes
+   int idx_valido = CLAMP( rascunho->separadores - 1, 0, 1 );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.separadores[ idx_valido ] ), TRUE );
+
+   idx_valido = CLAMP( rascunho->fonte_latex - 1, 0, 1 );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.fonte_latex[ idx_valido ] ), TRUE );
+
+   idx_valido = CLAMP( rascunho->qtd_paginas - 1, 0, 1 );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_paginas[ idx_valido ] ), TRUE );
+
+   // 3.3 Radios Conflitantes: 'Cabeçalho À Esquerda' (Tipo 2) exige 3 colunas.
+   // Ativamos Colunas primeiro, e o Cabeçalho depois. Se houver conflito, o Cabeçalho corrige a Coluna.
+   idx_valido = CLAMP( rascunho->qtd_colunas - 2, 0, 1 );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_colunas[ idx_valido ] ), TRUE );
+
+   idx_valido = CLAMP( rascunho->cabecalho_tipo - 1, 0, 1 );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.cabecalho_tipo[ idx_valido ] ), TRUE );
 
    g_timeout_add( 30, bloquear_sinal_com_atraso, ctx );
 }
