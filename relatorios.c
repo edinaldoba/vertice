@@ -153,7 +153,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
                            "\\multicolumn{1}{c|}{\\bf Av3} & \\multicolumn{1}{c|}{Rec} & "
                            "\\multicolumn{1}{c|}{\\bf Av4} & \\multicolumn{1}{c|}{Rec} & "
                            "\\multicolumn{1}{c|}{\\bf Av5} & \\multicolumn{1}{c|}{Rec} & "
-                           "\\multicolumn{1}{c|}{\\bf Média}\\\\\\hline\n",
+                           "\\multicolumn{1}{c|}{\\bf Nota}\\\\\\hline\n",
                            dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
    int d   = foco->disciplina;
@@ -299,6 +299,21 @@ static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int pe
    } else {
       rel->notas_periodos[periodo] = soma_notas / divisor;
       ficha->ficha_modificada = TRUE;
+   }
+}
+
+// Embrulhada de ctx->ui_diario.btn_salvar_avaliacoes
+void calcular_nota_periodo( const AppContext *ctx ) {
+   const FocoCoordenadas  *foco = &ctx->cascata.foco;
+
+   // 1. Obtém o mapa de configurações da UI
+   gboolean validas[5];
+   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+
+   // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
+   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
    }
 }
 

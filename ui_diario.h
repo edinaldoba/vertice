@@ -7,7 +7,7 @@ void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos );
 
 gchar *validar_data( const gchar *texto );
 
-void remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
+gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
 void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );

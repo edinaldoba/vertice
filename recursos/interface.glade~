@@ -33,6 +33,8 @@
       <column type="gchararray"/>
       <!-- column-name rec5 -->
       <column type="gchararray"/>
+      <!-- column-name nota -->
+      <column type="gchararray"/>
       <!-- column-name riscar -->
       <column type="gboolean"/>
     </columns>
@@ -380,7 +382,7 @@
                                     <child>
                                       <object class="GtkButton" id="button_stepper_menos">
                                         <property name="label" translatable="yes">－</property>
-                                        <property name="width-request">34</property>
+                                        <property name="width-request">35</property>
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
@@ -411,7 +413,7 @@
                                     <child>
                                       <object class="GtkButton" id="button_stepper_mais">
                                         <property name="label" translatable="yes">＋</property>
-                                        <property name="width-request">34</property>
+                                        <property name="width-request">35</property>
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
@@ -626,19 +628,6 @@
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">3</attribute>
-                                          </attributes>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkTreeViewColumn">
-                                        <property name="visible">False</property>
-                                        <property name="resizable">True</property>
-                                        <property name="title" translatable="yes">TIPO  DE  REGISTRO</property>
-                                        <child>
-                                          <object class="GtkCellRendererText"/>
-                                          <attributes>
-                                            <attribute name="text">4</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -1157,7 +1146,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="strikethrough">12</attribute>
+                                            <attribute name="strikethrough">13</attribute>
                                             <attribute name="text">1</attribute>
                                           </attributes>
                                         </child>
@@ -1319,6 +1308,19 @@
                                           </object>
                                           <attributes>
                                             <attribute name="text">11</attribute>
+                                          </attributes>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkTreeViewColumn">
+                                        <property name="fixed-width">90</property>
+                                        <property name="title" translatable="yes">NOTA</property>
+                                        <property name="expand">True</property>
+                                        <child>
+                                          <object class="GtkCellRendererText"/>
+                                          <attributes>
+                                            <attribute name="text">12</attribute>
                                           </attributes>
                                         </child>
                                       </object>

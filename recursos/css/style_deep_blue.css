@@ -478,6 +478,15 @@ treeview header button {
     box-shadow: inset 0 0 6px rgba(40, 40, 160, 1.0);
 }
 
+/* Destaque para o cabeçalho da coluna NOTA */
+.cabecalho-destaque-nota {
+    background-color: rgba( 46, 64, 97, 1.0 );
+    border: 2px solid #00ffff;
+    padding: 4px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 4px #00ffff;
+}
+
 /* ==========================================================================
    7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)
    ========================================================================== */
@@ -500,7 +509,7 @@ treeview header button {
 
 /* --- Stepper (Seletor Numérico) --- */
 .stepper-container {
-    background-color: rgba(30, 62, 98, 0.4);
+    background-color: rgba(30, 62, 98, 0.5);
     padding: 0px 5px;
     border-radius: 12px;
 }
@@ -515,7 +524,7 @@ treeview header button {
 .btn-stepper {
     background-color: #0f233b;
     padding: 0px 0px;
-    box-shadow: inset 0 0 6px #1E3E62;
+    box-shadow: inset 0 0 3px #1E3E62;
 }
 
 .btn-stepper label {

@@ -205,22 +205,65 @@ gchar* validar_data( const gchar *texto ) {
 
 
 
-void remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
-   g_return_if_fail( ctx && ctx->diarios && model && iter );
+/**
+ * @brief Remove o registro de aula selecionado com trava de segurança para chamadas já realizadas.
+ *
+ * @return gboolean TRUE se a remoção foi confirmada e executada; FALSE se foi cancelada ou falhou.
+ */
+gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
+   g_return_val_if_fail( ctx && ctx->diarios && model && iter, FALSE );
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
    // 1. Proteção de limites da memória
-   if ( indice_remocao < 0 || ( guint )indice_remocao >= ctx->diarios->len ) return;
+   if ( indice_remocao < 0 || ( guint )indice_remocao >= ctx->diarios->len ) return FALSE;
 
-   // 2. Cancela o modo de edição se o professor estiver apagando a aula que está editando
+   RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, indice_remocao );
+
+   // =========================================================================
+   // 2. TRAVA DE SEGURANÇA: Verifica se já existe chamada lançada nesta aula
+   // =========================================================================
+   gboolean possui_chamada = FALSE;
+   for ( int i = 0; i < ctx->dados.qtd_alunos_total && i < 64; i++ ) {
+      if ( d->chamada[i].status != SEM_STATUS ) {
+         possui_chamada = TRUE;
+         break;
+      }
+   }
+
+   // Se houver presença/ausência gravada, exige confirmação explícita do professor
+   if ( possui_chamada ) {
+      GtkWidget *treeview = GTK_WIDGET( ui_diario->treeview_conteudo );
+      GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( treeview ) );
+
+      const char *str_detalhe = ( d->tema[0] != '\0' ) ? d->tema :
+                               ( ( d->descricao[0] != '\0' ) ? d->descricao : "Registro sem Tema" );
+
+      g_autofree gchar *mensagem = meu_gerador_variadico(
+         "Você está prestes a remover um registro de aula com frequência já lançada.\n\n"
+         "<b>DATA:</b> %s\n"
+         "<b>CONTEÚDO/REGISTRO:</b> %s\n\n"
+         "⚠️ <b>Atenção:</b> Este registro já possui dados de presença/ausência gravados para a turma. "
+         "Ao removê-lo, todo o histórico de assiduidade desta aula será permanentemente excluído.\n\n"
+         "Deseja realmente confirmar a exclusão deste registro?",
+         d->data, str_detalhe
+      );
+
+      gboolean confirmar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Exclusão de Aula", mensagem );
+
+      // Se o professor cancelar, aborta a remoção mantendo a RAM e a UI intactas
+      if ( !confirmar ) return FALSE;
+   }
+
+   // =========================================================================
+   // 3. CANCELAMENTO DO MODO DE EDIÇÃO (Caso esteja editando a linha a apagar)
+   // =========================================================================
    if ( ui_diario->editando ) {
       g_autoptr( GtkTreePath ) path_remocao = gtk_tree_path_new_from_indices( indice_remocao, -1 );
       g_autoptr( GtkTreePath ) path_edicao  = gtk_tree_model_get_path( model, &ui_diario->iter_em_edicao );
 
       if ( path_edicao && gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
          ui_diario->editando = FALSE;
-         RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, indice_remocao );
          gboolean tipo_feriado    = ( d->tipo_registro == TIPO_REGISTRO_FERIADO );
          gboolean tipo_pedagogico = ( d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
 
@@ -231,14 +274,20 @@ void remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, G
       }
    }
 
-   // 3. REMOÇÃO ATÔMICA: RAM
+   // =========================================================================
+   // 4. REMOÇÃO ATÔMICA: RAM E AUTOSAVE
+   // =========================================================================
    g_array_remove_index( ctx->diarios, indice_remocao );
+   _marcar_dados_modificado( ctx );
 
-   // 4. ATUALIZAÇÃO VISUAL: Remove da lista e limpa a seleção
+   // =========================================================================
+   // 5. ATUALIZAÇÃO VISUAL NO GTK
+   // =========================================================================
    gtk_list_store_remove( GTK_LIST_STORE( model ), iter );
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ui_diario->treeview_conteudo ) );
    gtk_tree_selection_unselect_all( selection );
 
+   return TRUE;
 }
 
 
@@ -1820,8 +1869,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
-   int periodo = ctx->cascata.foco.periodo;
-   g_return_if_fail( periodo >= 0 && periodo <= 3 );
+   int foco_per = ctx->cascata.foco.periodo;
+   g_return_if_fail( foco_per >= 0 && foco_per <= 3 );
 
    // 1. Limpa o modelo inteiro para receber os dados do novo período
    gtk_list_store_clear( store );
@@ -1835,11 +1884,11 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
       // Buffer estático na Stack: 10 strings de até 8 caracteres (Ex: "10.00\0")
       // Zera todo o bloco de memória automaticamente (todas strings vazias por padrão)
-      char str_notas[10][8] = {{0}};
+      char str_notas[11][8] = {{0}};
 
       // Constrói as strings para os 5 pares de notas
       for ( int av = 0; av < 5; av++ ) {
-         const NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av];
+         const NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[foco_per].avaliacoes[av];
          int base = av * 2;
 
          // Chamadas limpas para a função auxiliar
@@ -1847,7 +1896,10 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
          _formatar_nota_com_espaco_tabular( nota->rec, str_notas[base + 1], sizeof( str_notas[base + 1] ) );
       }
 
-      for ( int j = 0; j < 10; j++ ) {
+      const RelatorioAnual *relatorio = &ficha->disciplina[foco].relatorio;
+      _formatar_nota_com_espaco_tabular( relatorio->notas_periodos[foco_per], str_notas[10], sizeof( str_notas[10] ) );
+
+      for ( int j = 0; j < 11; j++ ) {
          g_strdelimit( str_notas[j], ".", ',' ); // Aceita vírgula do teclado numérico
       }
 
@@ -1862,7 +1914,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
                           6, str_notas[4],   7, str_notas[5],
                           8, str_notas[6],   9, str_notas[7],
                           10, str_notas[8],  11, str_notas[9],
-                          12, !ficha->ativo,
+                          12, str_notas[10], // Nota do período
+                          13, !ficha->ativo,
                           -1 );
    }
 

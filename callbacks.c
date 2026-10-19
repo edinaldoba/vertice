@@ -339,40 +339,38 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
    GtkTreeModel *model;
    GtkTreeIter iter;
 
-   // Se houver uma linha selecionada, o GTK preenche 'model' e 'iter' aqui mesmo
    if ( gtk_tree_selection_get_selected( selection, &model, &iter ) ) {
       g_autoptr( GtkTreePath ) path_remocao = gtk_tree_model_get_path( model, &iter );
 
       if ( path_remocao ) {
          int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
 
-         // Delega a execução atômica para a função embrulhada
-         remover_registro_diario_selecionado( ctx, indice_remocao, model, &iter );
+         // Executa a remoção e só sincroniza o restante da UI se for confirmado
+         if ( remover_registro_diario_selecionado( ctx, indice_remocao, model, &iter ) ) {
 
-         // SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
-         popular_datas( ctx );
+            // SINCRONIZAÇÃO: Repopula o combo da frequência
+            popular_datas( ctx );
+            renderizar_frequencia_modo_normal( ctx );
 
-         renderizar_frequencia_modo_normal( ctx );
-
-         // Retorna TRUE para indicar que o evento foi tratado/consumido
-         return TRUE;
+            return TRUE;
+         }
       }
    }
    return FALSE;
 }
 
 void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx && ctx->diarios );
+   if ( !ctx || !ctx->diarios ) return;
 
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
 
-   // Chamada limpa e direta
    _treeview_remover_registro_diario_selecionado( ctx, selection );
 }
 
 gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
-      gpointer user_data ) {
+                                                                          gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( ctx && ctx->diarios, FALSE );
 
@@ -380,11 +378,10 @@ gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWid
    if ( event->keyval == GDK_KEY_Delete ) {
       GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) );
 
-      // O retorno TRUE ou FALSE agora flui naturalmente
+      // O retorno do evento flui de acordo com a ação (TRUE se removeu, FALSE se cancelou)
       return _treeview_remover_registro_diario_selecionado( ctx, selection );
    }
 
-   // Retorna FALSE para permitir que outras teclas (como setas para cima/baixo) funcionem normalmente
    return FALSE;
 }
 
@@ -915,25 +912,9 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-   // EDINALDO! POR ENQUANTO, NÃO PRECISAMOS DESTA FUNÇÃO, MAS A MANTENHA AQUI, NÃO A APAGUE!
+   calcular_nota_periodo( ctx );
 
-   // for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-   //    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-   //
-   //    for ( int k = 0; k < QTD_DISC; k++ ) {
-   //       for ( int ii = 0; ii < 4; ii++ ) {
-   //          // for ( int jj = 0; jj < 5; jj++ ) {
-   //          //    ficha->nota[k][ii][jj].av = -1.0f;
-   //          //    ficha->nota[k][ii][jj].rec = -1.0f;
-   //          // }
-   //          ficha->relatorio[k].nota[ii] = -1.0f;
-   //       }
-   //       ficha->relatorio[k].soma = -1.0f;
-   //       ficha->relatorio[k].med = -1.0f;
-   //    }
-   // }
-
-   // Nada por aqui, não é necessário, por enquanto
+   carregar_notas_ui_por_periodo( ctx );
 }
 
 

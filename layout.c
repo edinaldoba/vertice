@@ -151,6 +151,34 @@ static void treeview_configurar_font_features_col( GtkWidget *widget, int coluna
 }
 
 
+
+
+
+//===================================================================================================
+// FUNÇÃO VISUAL: Aplica a classe CSS no botão de cabeçalho da coluna NOTA
+// Chamar apenas UMA VEZ durante a inicialização (ex: layout.c)
+//===================================================================================================
+static void destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
+   g_return_if_fail( treeview_avaliacoes && GTK_IS_TREE_VIEW(treeview_avaliacoes) );
+
+   // 1. Obtém a coluna 12 (Nota do Período) da TreeView de Avaliações
+   GtkTreeViewColumn *col_nota = gtk_tree_view_get_column( GTK_TREE_VIEW( treeview_avaliacoes ), 12 );
+   if ( !col_nota ) return;
+
+   // 2. Captura o widget real do botão do cabeçalho
+   GtkWidget *button = gtk_tree_view_column_get_button( col_nota );
+   if ( !button ) return;
+
+   // 3. Adiciona a classe CSS nativamente
+   GtkStyleContext *context = gtk_widget_get_style_context( button );
+   gtk_style_context_add_class( context, "cabecalho-destaque-nota" );
+}
+
+
+
+
+
+
 // ======================================================================================
 // 2. FUNÇÕES DE MAPEAMENTO DE WIDGETS POR DOMÍNIO
 // ======================================================================================
@@ -238,10 +266,11 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    // --- SUB-ABA: AVALIAÇÕES ---
    ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
    ctx->ui_diario.treeview_avaliacoes        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
-   for ( int i = 0; i < 12; i++ ) {
+   for ( int i = 0; i < 13; i++ ) {
       if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_avaliacoes, i, 0.5, 0, 0.5 );
       if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_avaliacoes, i, "tnum=1, lnum=1, zero=1" );
    }
+   destacar_cabecalho_nota( ctx->ui_diario.treeview_avaliacoes );
 
    ctx->ui_diario.combo_avaliacoes          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
    ctx->ui_diario.btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );

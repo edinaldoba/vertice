@@ -13,6 +13,7 @@ typedef struct {
    char descricao[40]; // Opcional, para ajudar no debug
 } GrupoHorario;
 
+void calcular_nota_periodo( const AppContext *ctx );
 void calcular_consolidado_anual( FichaAluno *ficha, int disciplina );
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx );
