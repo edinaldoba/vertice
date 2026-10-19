@@ -12,12 +12,11 @@ void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );
 
-void ui_restaurar_registros_de_aula( const char *caminho_arquivo, InterfaceRegistroDiario *ui_diario,
-                                     const int foco_estilo, gboolean rolagem );
+void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );
-void renderizar_frequencia_modo_normal( AppContext *ctx, gboolean style_changed );
-void renderizar_frequencia_modo_por_aluno( AppContext *ctx, gboolean style_changed );
+void renderizar_frequencia_modo_normal( AppContext *ctx );
+void renderizar_frequencia_modo_por_aluno( AppContext *ctx );
 
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha );
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha );
@@ -53,7 +52,6 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 void carregar_notas_ui_por_periodo( AppContext *ctx );
 
 void carregar_relatorio_ui( AppContext *ctx );
-gboolean validar_conversao_nota_final( const gchar *texto, float *nota_saida );
-void persistir_nota_relatorio_memoria( FichaAluno *aluno, int disciplina_idx, int col_idx, float nova_nota );
+
 
 #endif

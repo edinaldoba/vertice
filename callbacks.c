@@ -197,8 +197,9 @@ void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) 
    ctx->cascata.foco.estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->entry.estilo ) );
    if ( ctx->cascata.foco.estilo < 0 ) return;
 
-   estilo_interface( ctx );
+   ctx->dados.interface_style = ctx->cascata.foco.estilo;
 
+   interface_style( ctx );
 }
 
 
@@ -351,7 +352,7 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
          // SINCRONIZAÇÃO: Repopula o combo da frequência (agora com um item a menos)
          popular_datas( ctx );
 
-         renderizar_frequencia_modo_normal( ctx, FALSE );
+         renderizar_frequencia_modo_normal( ctx );
 
          // Retorna TRUE para indicar que o evento foi tratado/consumido
          return TRUE;
@@ -419,7 +420,9 @@ static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) 
    }
    popular_datas( ctx );
 
-   renderizar_frequencia_modo_normal( ctx, FALSE );
+   renderizar_frequencia_modo_normal( ctx );
+
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ), FALSE );
 }
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -428,7 +431,7 @@ void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
 
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ), FALSE );
+   gtk_widget_grab_focus( ctx->ui_diario.descricao );
 }
 
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
@@ -436,8 +439,6 @@ void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
-
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ), FALSE );
 }
 
 
@@ -486,7 +487,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
       gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
       if ( via_codigo ) return;
 
-      renderizar_frequencia_modo_normal( ctx, FALSE );
+      renderizar_frequencia_modo_normal( ctx );
 
       rolagem_automatica_treeview_frequencia( ctx );
 
@@ -589,10 +590,10 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
 
    if ( modo_por_aluno ) {
       gtk_tree_view_column_set_title( coluna, "DATA  AULA" );
-      renderizar_frequencia_modo_por_aluno( ctx, FALSE );
+      renderizar_frequencia_modo_por_aluno( ctx );
    } else {
       gtk_tree_view_column_set_title( coluna, "NASCIMENTO" );
-      renderizar_frequencia_modo_normal( ctx, FALSE );
+      renderizar_frequencia_modo_normal( ctx );
    }
 }
 
@@ -938,58 +939,6 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
 
 
 
-
-
-/**
- * @brief Disparado quando o usuário finaliza a digitação da nota (pressiona Enter ou clica fora).
- * NÃO USADA, MAS NÃO APAGUE!
- */
-void on_cell_relatorio_nota_edited( GtkCellRendererText *renderer, const gchar *path_string,
-                                    const gchar *new_text, gpointer user_data ) {
-   AppContext *ctx = ( AppContext * ) user_data;
-
-   // Resgata o índice da coluna que embutimos no configurar_sinais...
-   int col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-
-   // 1. Validação Sintática da String
-   float nova_nota;
-   if ( !validar_conversao_nota_final( new_text, &nova_nota ) ) {
-      g_print( "[UI Relatório] Digitação inválida ignorada: '%s'\n", new_text );
-      return;
-   }
-
-   // 2. Preparação do Model
-   GtkTreeView  *treeview = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
-   GtkTreeModel *model    = gtk_tree_view_get_model( treeview );
-   GtkTreeIter   iter;
-
-   if ( gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
-
-      int index_aluno = atoi( path_string );
-      g_return_if_fail( index_aluno >= 0 && ( guint )index_aluno < ctx->fichas->len );
-
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
-
-      if ( ficha ) {
-         // 4. Atualiza a memória estrutural e ativa a flag de persistência
-         persistir_nota_relatorio_memoria( ficha, ctx->cascata.foco.disciplina, col_idx, nova_nota );
-
-         // 5. Atualiza o visual no GtkListStore
-         gchar texto_formatado[16] = ""; // Default para -1.0f
-         if ( nova_nota >= 0.0f ) {
-            snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", nova_nota );
-         }
-
-         gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
-
-         // 6. Recalcular Status do Aluno (Aprovado, Reprovado)
-         // Como Rec e Conselho afetam o resultado final, você pode chamar sua rotina de recálculo aqui.
-         // recalcular_e_atualizar_status_final( model, &iter, ficha );
-
-         g_print( "[UI Relatório] Nota %.2f salva na coluna %d do ficha %s\n", nova_nota, col_idx, ficha->aluno );
-      }
-   }
-}
 
 
 
@@ -1735,7 +1684,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    // MODO 2: POR ALUNO (Auditoria Livre)
    // =================================================================
    if ( modo_por_aluno ) {
-      renderizar_frequencia_modo_por_aluno( ctx, FALSE );
+      renderizar_frequencia_modo_por_aluno( ctx );
    } else {
       rolagem_automatica_treeview_frequencia( ctx );
    }

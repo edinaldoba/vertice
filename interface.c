@@ -156,42 +156,6 @@ void interface_style( AppContext *ctx ) {
 
 
 
-//---------------------------------------------------------------------------------------------------------------
-static void recarregar_estilo_frequencia( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
-
-   if ( modo_por_aluno ) {
-      // Repopula o ListStore usando as novas cores para o modo Por Aluno
-      renderizar_frequencia_modo_por_aluno( ctx, TRUE );
-   } else {
-      // Repopula o ListStore usando as novas cores para o modo Chamada Normal
-      renderizar_frequencia_modo_normal( ctx, TRUE );
-   }
-
-   // Garante que a seleção e o alinhamento de tela continuem perfeitos
-   rolagem_automatica_treeview_frequencia( ctx );
-}
-
-void estilo_interface( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-   ctx->dados.interface_style = ctx->cascata.foco.estilo;
-
-   interface_style( ctx );
-
-   char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
-   ui_restaurar_registros_de_aula( caminho_arquivo, &ctx->ui_diario, ctx->dados.interface_style, TRUE );
-   g_free( caminho_arquivo );
-
-   recarregar_estilo_frequencia( ctx );
-}
-
-
-
-
-
-
 
 //---------------------------------------------------------------------------------------------------------------
 void atualizar_booleanos_interface( const bool estado, const int categoria, AppContext *ctx ) {
@@ -948,13 +912,11 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
    InterfaceDados    *dados    = &ctx->dados;
-   CaminhoDiretorio  *caminho  = &ctx->caminho;
    InterfacePainel   *painel   = &ctx->painel;
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
-   g_autofree char *caminho_arquivo = g_build_filename( caminho->dados, "diario.bin", NULL );
-   ui_restaurar_registros_de_aula( caminho_arquivo, ui_diario, dados->interface_style, TRUE );
+   ui_restaurar_registros_de_aula( ctx, TRUE );
    ui_diario->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
    salvar_fichas( ctx, FALSE );
@@ -988,9 +950,9 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
 
    if ( modo_por_aluno ) {
-      renderizar_frequencia_modo_por_aluno( ctx, FALSE );
+      renderizar_frequencia_modo_por_aluno( ctx );
    } else {
-      renderizar_frequencia_modo_normal( ctx, FALSE );
+      renderizar_frequencia_modo_normal( ctx );
    }
 
    if ( ctx->ui_diario.handler_combo_data == 0 || ctx->ui_diario.handler_combo_alunos == 0 ) {

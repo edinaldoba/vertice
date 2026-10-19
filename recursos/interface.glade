@@ -35,8 +35,6 @@
       <column type="gchararray"/>
       <!-- column-name riscar -->
       <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_combo_aluno">
@@ -91,10 +89,6 @@
       <column type="gchararray"/>
       <!-- column-name tipo_registro -->
       <column type="guint"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
-      <!-- column-name fonte_num -->
-      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_frequencia">
@@ -109,8 +103,8 @@
       <column type="gchararray"/>
       <!-- column-name riscar -->
       <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
+      <!-- column-name status_num -->
+      <column type="gint"/>
       <!-- column-name fonte_num -->
       <column type="gchararray"/>
     </columns>
@@ -141,8 +135,6 @@
       <column type="gchararray"/>
       <!-- column-name riscar -->
       <column type="gboolean"/>
-      <!-- column-name cor -->
-      <column type="GdkRGBA"/>
       <!-- column-name mask_pendencia -->
       <column type="gint"/>
     </columns>
@@ -598,9 +590,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="font">6</attribute>
                                             <attribute name="text">0</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -611,9 +601,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="font">6</attribute>
                                             <attribute name="text">1</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -626,7 +614,6 @@
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">2</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -639,7 +626,6 @@
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">3</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -649,12 +635,6 @@
                                         <property name="visible">False</property>
                                         <property name="resizable">True</property>
                                         <property name="title" translatable="yes">TIPO  DE  REGISTRO</property>
-                                        <child>
-                                          <object class="GtkCellRendererText"/>
-                                          <attributes>
-                                            <attribute name="text">4</attribute>
-                                          </attributes>
-                                        </child>
                                       </object>
                                     </child>
                                   </object>
@@ -930,7 +910,6 @@
                                           <attributes>
                                             <attribute name="strikethrough">4</attribute>
                                             <attribute name="text">1</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -944,7 +923,6 @@
                                           <attributes>
                                             <attribute name="font">6</attribute>
                                             <attribute name="text">2</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -957,7 +935,6 @@
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">3</attribute>
-                                            <attribute name="foreground-rgba">5</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -1608,7 +1585,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="text">13</attribute>
+                                            <attribute name="text">12</attribute>
                                           </attributes>
                                         </child>
                                       </object>

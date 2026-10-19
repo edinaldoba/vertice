@@ -20,7 +20,7 @@
 /**
  * @brief Atribui metadados GObject (categoria e valor) aos radio buttons e nomeia widgets para o CSS.
  */
-void configurar_nomes_dos_widgets( AppContext *ctx ) {
+static void _configurar_nomes_dos_widgets( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    // 1. Nomes específicos para seletores do CSS
@@ -117,6 +117,536 @@ static void _configurar_colunas_editaveis( AppContext *ctx, GtkTreeView *treevie
 
 
 
+
+
+
+
+
+
+
+static int _cor_texto_tipo_registro( int tipo_registro, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   // =====================================================================
+   // 1. TIPO: Atividade Pedagógica
+   // =====================================================================
+   if ( tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) { 0.50, 0.88, 1.00, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) { 0.00, 0.00, 1.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) { 0.39, 0.71, 0.96, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 2. TIPO: Feriado
+   // =====================================================================
+   if ( tipo_registro == TIPO_REGISTRO_FERIADO ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) { 0.96, 0.40, 0.50, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) { 0.85, 0.00, 0.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) { 0.90, 0.45, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 3. TIPO: Aula Extra
+   // =====================================================================
+   if ( tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) { 1.00, 0.79, 0.16, 1.0 }; // #FFCA28
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) { 0.62, 0.49, 0.10, 1.0 }; // ##9d7c19
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) { 1.00, 0.84, 0.31, 1.0 }; // #FFD54F
+      }
+      return 1;
+   }
+
+   return 0; // Fallback de segurança
+}
+
+//===================================================================================================
+// FUNÇÃO DE APLICAÇÃO VISUAL DA COR
+//===================================================================================================
+static void _aplicar_cor_condicional_conteudo( GtkCellRenderer *cell, int tipo_registro, int interface_style ) {
+   GdkRGBA cor;
+
+   // Se for Feriado ou Pedagógico, a função preenche a cor correta do tema e retorna 1
+   if ( _cor_texto_tipo_registro( tipo_registro, interface_style, &cor ) ) {
+      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+   } else {
+      // Fallback: Aulas normais usam a cor padrão do GTK para o tema
+      g_object_set( cell, "foreground-set", FALSE, NULL );
+   }
+}
+
+//===================================================================================================
+// CALLBACK DO GTK (Cell Data Func)
+//===================================================================================================
+static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+                                          GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+   ( void )col;
+   AppContext *ctx = ( AppContext * )data;
+
+   int tipo_registro = 0;
+
+   // Captura o tipo de registro da coluna 4 silenciosamente
+   gtk_tree_model_get( model, iter, 4, &tipo_registro, -1 );
+
+   // Aplica a cor na célula atual
+   _aplicar_cor_condicional_conteudo( cell, tipo_registro, ctx->dados.interface_style );
+}
+
+static void _inicializar_renderizadores_conteudo( AppContext *ctx ) {
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo );
+
+   // Aplica para as colunas visíveis que precisam da cor (ex: Data, Tema, Descrição...)
+   // Supondo que sejam as colunas 0, 1, 2 e 3 do TreeView
+   for ( int i = 0; i <= 3; i++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
+      if ( !col ) continue;
+
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers ) {
+         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+         gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_conteudo, ctx, NULL );
+         g_list_free( renderers );
+      }
+   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+static int _cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   // =====================================================================
+   // 1. STATUS COM COR PADRÃO (Retorna 0 para usar a cor nativa do tema)
+   // =====================================================================
+   if ( status == PRESENTE ) {
+      return 0;
+   }
+
+   // =====================================================================
+   // 2. SEM STATUS: Alunos inativos
+   // =====================================================================
+   if ( status == SEM_STATUS ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Cinza azulado escuro)
+         *cor_out = ( GdkRGBA ) {
+            0.40, 0.45, 0.55, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light (Cinza padrão)
+         *cor_out = ( GdkRGBA ) {
+            0.60, 0.60, 0.60, 1.0
+         };
+      } else { // Dark Green - Padrão (Cinza esverdeado escuro)
+         *cor_out = ( GdkRGBA ) {
+            0.45, 0.50, 0.45, 1.0
+         };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 3. ALERTAS AVERMELHADOS: Ausente e Suspenso
+   // =====================================================================
+   if ( status == AUSENTE || status == SUSPENSO || status == FOI_EMBORA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) {
+            0.96, 0.40, 0.50, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) {
+            0.85, 0.00, 0.00, 1.0
+         };
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) {
+            0.90, 0.45, 0.45, 1.0
+         };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 4. AVISOS AMARELADOS: Fora de sala e Foi embora
+   // =====================================================================
+   if ( status == FORA_DE_SALA || status == DISPENSADO ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.79, 0.16, 1.0
+         }; // #FFCA28
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) {
+            0.62, 0.49, 0.10, 1.0
+         }; // #9D7C19
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) {
+            1.00, 0.84, 0.31, 1.0
+         }; // #FFD54F
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 5. DESTAQUE (ROXO/PÚRPURA): Atividade Domiciliar (Requer ação extra)
+   // =====================================================================
+   if ( status == ATIVIDADE_DOMICILIAR ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Lilás vibrante)
+         *cor_out = ( GdkRGBA ) {
+            0.80, 0.60, 0.95, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light (Roxo escuro)
+         *cor_out = ( GdkRGBA ) {
+            0.45, 0.15, 0.60, 1.0
+         };
+      } else { // Dark Green - Padrão (Púrpura suave)
+         *cor_out = ( GdkRGBA ) {
+            0.75, 0.55, 0.85, 1.0
+         };
+      }
+      return 1;
+   }
+
+   // =====================================================================
+   // 5. DESTAQUE (ROXO/PÚRPURA): Atividade Domiciliar (Requer ação extra)
+   // =====================================================================
+   if ( status == FALTA_JUSTIFICADA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Verde-azulado / Turquesa vibrante)
+         *cor_out = ( GdkRGBA ) {
+            0.25, 0.85, 0.75, 1.0
+         };
+      } else if ( tema_ativo == 2 ) { // Light (Verde escuro / Floresta - alto contraste em fundo claro)
+         *cor_out = ( GdkRGBA ) {
+            0.15, 0.55, 0.25, 1.0
+         };
+      } else { // Dark Green - Padrão (Verde suave / Menta claro - legível em fundo escuro)
+         *cor_out = ( GdkRGBA ) {
+            0.50, 0.85, 0.55, 1.0
+         };
+      }
+      return 1;
+   }
+
+   return 0; // Fallback de segurança
+}
+
+
+
+//===================================================================================================
+// FUNÇÃO DE APLICAÇÃO VISUAL DA COR (FREQUÊNCIA)
+//===================================================================================================
+static void _aplicar_cor_condicional_frequencia( GtkCellRenderer *cell, int status, int interface_style ) {
+   GdkRGBA cor;
+
+   // A sua função original que calcula as cores de frequência já retorna 1 se houver cor!
+   if ( _cor_texto_linha_frequencia( status, interface_style, &cor ) ) {
+      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+   } else {
+      g_object_set( cell, "foreground-set", FALSE, NULL );
+   }
+}
+
+//===================================================================================================
+// CALLBACK DO GTK (Cell Data Func)
+//===================================================================================================
+static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+                                            GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+   ( void )col;
+   AppContext *ctx = ( AppContext * )data;
+
+   int status = 0;
+
+   // Captura o status puro da coluna 5
+   gtk_tree_model_get( model, iter, 5, &status, -1 );
+
+   // Delega a pintura
+   _aplicar_cor_condicional_frequencia( cell, status, ctx->dados.interface_style );
+}
+
+//===================================================================================================
+// INICIALIZADOR (Chame UMA VEZ no seu signals.c ou na inicialização da interface)
+//===================================================================================================
+static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
+   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
+
+   // Aplica nas colunas: Nome (1), Data/Nascimento (2) e Status Textual (3)
+   for ( int i = 1; i <= 3; i++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
+      if ( !col ) continue;
+
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers ) {
+         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+         gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_frequencia, ctx, NULL );
+         g_list_free( renderers );
+      }
+   }
+}
+
+
+
+
+
+
+
+typedef enum {
+   TOM_CINZA = 0,
+   TOM_VERMELHO = 1
+} TomCor;
+
+static int _cor_cinza_inativo_e_nota_vermelha( TomCor tom, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   if ( tom == TOM_CINZA ) {
+      if ( tema_ativo == 1 ) { // Deep Blue (Cinza azulado escuro)
+         *cor_out = ( GdkRGBA ) { 0.40, 0.45, 0.55, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light (Cinza padrão)
+         *cor_out = ( GdkRGBA ) { 0.60, 0.60, 0.60, 1.0 };
+      } else { // Dark Green - Padrão (Cinza esverdeado escuro)
+         *cor_out = ( GdkRGBA ) { 0.45, 0.50, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   if ( tom == TOM_VERMELHO ) {
+      if ( tema_ativo == 1 ) { // Deep Blue
+         *cor_out = ( GdkRGBA ) { 0.96, 0.40, 0.50, 1.0 };
+      } else if ( tema_ativo == 2 ) { // Light
+         *cor_out = ( GdkRGBA ) { 0.85, 0.00, 0.00, 1.0 };
+      } else { // Dark Green (Padrão)
+         *cor_out = ( GdkRGBA ) { 0.90, 0.45, 0.45, 1.0 };
+      }
+      return 1;
+   }
+
+   return 0; // Fallback de segurança
+}
+
+
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
+//===================================================================================================
+static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inativo,
+                                           const gchar *texto_nota, int interface_style ) {
+   // 1. Tratamento para alunos inativos (Transferidos, etc.)
+   if ( inativo ) {
+      GdkRGBA cor;
+      _cor_cinza_inativo_e_nota_vermelha( TOM_CINZA, interface_style, &cor ); // Cor cinza/opaca
+      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+      return;
+   }
+
+   // 2. Tratamento da nota digitada (Vermelho para < 6.0, Padrão para >= 6.0)
+   if ( texto_nota && texto_nota[0] != '\0' && g_strcmp0( texto_nota, "-" ) != 0 ) {
+      const gchar *ponteiro_leitura = texto_nota;
+
+      // Avança o ponteiro caso o caractere de alinhamento tabular (Figure Space) esteja presente
+      if ( g_str_has_prefix( ponteiro_leitura, "\u2007" ) ) {
+         ponteiro_leitura += 3;
+      }
+
+      // Buffer local limpo para garantir a leitura correta do float, trocando ',' por '.' em RAM O(1)
+      char buffer_float[16];
+      g_strlcpy( buffer_float, ponteiro_leitura, sizeof( buffer_float ) );
+      g_strdelimit( buffer_float, ",", '.' );
+
+      double nota = g_ascii_strtod( buffer_float, NULL );
+
+      if ( nota >= 0.0 && nota < 6.0 ) {
+         GdkRGBA cor;
+         _cor_cinza_inativo_e_nota_vermelha( TOM_VERMELHO, interface_style, &cor ); // Cor vermelha de reprovação
+         g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+         return;
+      }
+   }
+
+   // 3. Fallback: Desliga a sobreposição de cor, usando a cor padrão do GTK
+   g_object_set( cell, "foreground-set", FALSE, NULL );
+}
+//============================================================================================================
+
+
+
+
+
+//============================================================================================================
+static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
+                                       GtkTreeIter *iter, gpointer data ) {
+   ( void )col;
+   AppContext *ctx = ( AppContext * )data;
+   gboolean inativo = FALSE;
+   gtk_tree_model_get( model, iter, 12, &inativo, -1 ); // Coluna 12 para Avaliações
+
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+   gchar *texto = NULL;
+   if ( col_idx >= 2 && col_idx <= 11 ) g_object_get( cell, "text", &texto, NULL );
+
+   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   g_free( texto );
+}
+//----------------------------------------------------------------------------------------------------------------
+static void _inicializar_renderizadores_avaliacoes( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   // =====================================================================
+   // 1. CONECTA RENDERIZADOR DA ABA DE AVALIAÇÕES (Colunas 1 a 11)
+   // =====================================================================
+   GtkTreeView *tree_avaliacoes = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   if ( tree_avaliacoes ) {
+      for ( int i = 1; i <= 11; i++ ) {
+         GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_avaliacoes, i );
+         if ( !col ) continue;
+
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+         if ( renderers ) {
+            GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+            g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
+            gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_notas, ctx, NULL );
+            g_list_free( renderers );
+         }
+      }
+   }
+}
+//============================================================================================================
+
+
+
+
+//============================================================================================================
+//===================================================================================================
+// FUNÇÃO DEDICADA: Cores de fundo suaves para células que requerem ação (ex: Matrícula Tardia)
+//===================================================================================================
+static int _cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out ) {
+   if ( !cor_out ) return 0;
+
+   if ( tema_ativo == 1 ) {
+      // Deep Blue (Tema Escuro Azulado)
+      // Fundo: Um azul/roxo escuro levemente destacado do fundo normal, sem ofuscar a visão
+      *cor_out = ( GdkRGBA ) { 0.18, 0.25, 0.38, 1.0 };
+   }
+   else if ( tema_ativo == 2 ) {
+      // Light (Tema Claro)
+      // Fundo: Um amarelo/creme bem pastel (pêssego claro). Destaca sem brigar com a nota vermelha.
+      *cor_out = ( GdkRGBA ) { 1.00, 0.96, 0.82, 1.0 };
+   }
+   else {
+      // Dark Green - Padrão (Tema Escuro Esverdeado)
+      // Fundo: Um tom oliva/âmbar mutado e discreto.
+      *cor_out = ( GdkRGBA ) { 0.20, 0.30, 0.20, 1.0 };
+   }
+
+   return 1;
+}
+//--------------------------------------------------------------------------------------------------------
+static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+                                           GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+   ( void )col;
+   AppContext *ctx = ( AppContext * )data;
+
+   gboolean inativo = FALSE;
+   int mascara_pendencias = 0;
+
+   // (Ajuste o índice para ler a coluna 13 onde você guardou a máscara)
+   gtk_tree_model_get( model, iter, 11, &inativo, 12, &mascara_pendencias, -1 );
+
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
+
+   // Verifica o estado da "chave mestra" de edição
+   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_pendencias ) );
+
+   gboolean editavel = FALSE;
+   GdkRGBA cor_fundo;
+   gboolean usar_cor_fundo = FALSE;
+
+   // Se for coluna de Período Letivo (bits 0 a 3)
+   if ( modo_pendencias && !inativo && col_idx >= 2 && col_idx <= 4 ) {
+      int p = col_idx - 2;
+      if ( mascara_pendencias & ( 1 << p ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+   // Se for coluna de Recuperação Final (Coluna 8 -> Bit 4)
+   else if ( modo_pendencias && !inativo && col_idx == 8 ) {
+      if ( mascara_pendencias & ( 1 << 4 ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+   // Se for coluna de Conselho (Coluna 9 -> Bit 5)
+   else if ( modo_pendencias && !inativo && col_idx == 9 ) {
+      if ( mascara_pendencias & ( 1 << 5 ) ) {
+         editavel = TRUE;
+         if ( _cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+      }
+   }
+
+   // Aplica as propriedades
+   if ( editavel ) {
+      g_object_set( cell, "editable", TRUE, NULL );
+      if ( usar_cor_fundo ) {
+         g_object_set( cell, "cell-background-rgba", &cor_fundo, "cell-background-set", TRUE, NULL );
+      }
+   } else {
+      g_object_set( cell, "editable", FALSE, "cell-background-set", FALSE, NULL );
+   }
+
+   // =======================================================================
+   // LÓGICA DO TEXTO E COR DA FONTE
+   // =======================================================================
+   gchar *texto = NULL;
+   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
+      g_object_get( cell, "text", &texto, NULL );
+   }
+
+   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   g_free( texto );
+}
+//------------------------------------------------------------------------------------------------------------
+ static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   GtkTreeView *tree_relatorio = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
+   if ( tree_relatorio ) {
+      for ( int i = 1; i <= 10; i++ ) {
+         GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_relatorio, i );
+         if ( !col ) continue;
+
+         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+         if ( renderers ) {
+            GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+            g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
+            gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_relatorio, ctx, NULL );
+            g_list_free( renderers );
+         }
+      }
+   }
+}
+//============================================================================================================
+
+
+
+
+
+
+
+
 /**
  * @brief Conecta todos os sinais de eventos (cliques e alternâncias)do aplicativo.
  * @param bot      Ponteiro para a estrutura persistente de botões de controle.
@@ -129,7 +659,7 @@ void app_signals_connect( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   configurar_nomes_dos_widgets( ctx );
+   _configurar_nomes_dos_widgets( ctx );
 
    int i;
 
@@ -196,6 +726,7 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.btn_salvar_conteudo, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",
                      G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
+   _inicializar_renderizadores_conteudo( ctx );
 
 
    ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
@@ -209,6 +740,7 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.btn_salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
    g_signal_connect( ctx->ui_diario.treeview_frequencia, "cursor-changed",
                      G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
+   _inicializar_renderizadores_frequencia( ctx );
 
 
    // AVALIAÇÕES
@@ -231,6 +763,9 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( ctx->ui_diario.btn_salvar_avaliacoes, "clicked",
                      G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
+   _inicializar_renderizadores_avaliacoes( ctx );
+
+
    // RELATÓRIO FINAL
    g_signal_connect( ctx->ui_diario.check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_relatorio_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
@@ -238,6 +773,8 @@ void app_signals_connect( gpointer user_data ) {
    // Aba Relatório Final (Colunas 2, 3 e 4: 1º, 2º e 3º Períodos) (Colunas 8 e 9: Rec Final e Conselho)
    _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 2, 4 );
    _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 8, 9 );
+
+   _inicializar_renderizadores_relatorio( ctx );
 
 
 

@@ -379,8 +379,6 @@ void interface_style( AppContext *ctx );
 // Funções de carregamento e salvamento
 void atualizar_booleanos_interface( const bool estado, const int categoria, AppContext *ctx );
 
-void estilo_interface( AppContext *ctx );
-
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor );
 
 bool detectar_ubuntu( void );
