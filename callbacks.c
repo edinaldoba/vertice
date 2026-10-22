@@ -200,6 +200,12 @@ void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) 
    ctx->dados.interface_style = ctx->cascata.foco.estilo;
 
    interface_style( ctx );
+
+   gtk_widget_queue_draw( ctx->ui_diario.treeview_conteudo );
+   gtk_widget_queue_draw( ctx->ui_diario.treeview_frequencia );
+   gtk_widget_queue_draw( ctx->ui_diario.treeview_avaliacoes );
+   gtk_widget_queue_draw( ctx->ui_diario.treeview_relatorio );
+
 }
 
 
@@ -471,12 +477,13 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
    if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
       GtkTreeModel *model = gtk_combo_box_get_model( combo );
       guint qtd_aulas = 0;
+      gboolean eh_extra = FALSE;
 
       // Lê o valor da coluna 1 (Configurada como guint no Glade)
-      gtk_tree_model_get( model, &iter, 1, &qtd_aulas, -1 );
+      gtk_tree_model_get( model, &iter, 1, &qtd_aulas, 2, &eh_extra, -1 );
 
       // Formata a string conforme o design e insere no Label
-      g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>", qtd_aulas );
+      g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>%s", qtd_aulas, eh_extra ? " - extra" : "" );
       gtk_label_set_markup( GTK_LABEL( ctx->ui_diario.label_ch ), str_qtd_aulas );
 
       selecionar_combo_status( ctx );
@@ -533,7 +540,7 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
       return TRUE;
 
    case GDK_KEY_n:
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 9 );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_diario.combo_status ), 10 );
       gtk_button_clicked( GTK_BUTTON( ui_diario->btn_salvar_frequencia ) );
       return TRUE;
 
@@ -970,13 +977,14 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
 
 
 //===================================================================================================
-void on_check_pendencias_relatorio_toggled( GtkWidget *widget, gpointer user_data ) {
+void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_CHECK_BUTTON( widget ) );
 
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !ctx->ui_diario.treeview_relatorio ) return;
 
    // Força a repintura e reavaliação de todas as células do Relatório Final
+   // Não é necessário redesenhar a interface, mas não apague linha seguinte.
    gtk_widget_queue_draw( ctx->ui_diario.treeview_relatorio );
 }
 //===================================================================================================
@@ -1401,6 +1409,20 @@ void on_button_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer u
 
 
 
+
+void on_combo_sequencia_prova_changed( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx || !widget ) return;
+
+   int idx = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+
+   // TRAVA DE SEGURANÇA: Ignora se nenhum item estiver selecionado (-1)
+   if ( idx < 0 ) return;
+
+   ctx->dados.iprova = idx + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
+   g_strlcpy( ctx->dados.prova_sequencia, ctx->listas.provas_sequencia[idx].str, sizeof( ctx->dados.prova_sequencia ) );
+}
 
 
 void on_button_gerar_prova_clicked( GtkWidget *widget, gpointer user_data ) {

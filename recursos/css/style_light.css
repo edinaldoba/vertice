@@ -18,6 +18,21 @@ label {
     color: #333333;
 }
 
+/* Dica de Ferramenta (Tooltip) - Light */
+tooltip {
+    background-color: rgba(245,245,245,1.0); /* Cinza-claro suave (Light Slate) */
+    border: 1px solid #b2babd;   /* Borda fina de contorno discreta */
+    color: #1E293B;            /* Texto cinza-escuro/grafite */
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+tooltip label {
+    color: rgba(0,0,0,1.0);
+    font-weight: 200;
+    font-size: 18px;
+}
+
 /* ==========================================================================
    2. ESTRUTURA PRINCIPAL (JANELA E BARRAS)
    ========================================================================== */
@@ -457,7 +472,7 @@ treeview {
 }
 
 treeview:selected {
-    background-color: #cfdcff;
+    background-color: #d7dadc;
 }
 
 treeview header label {
@@ -480,12 +495,16 @@ treeview header button {
 
 /* Destaque para o cabeçalho da coluna NOTA */
 .cabecalho-destaque-nota {
-    background-color: rgba( 255, 244, 235, 1.0 );
-    border: 2px solid #1b2580;
-    padding: 4px;
+    background-color: #d2dcff;
+    border: 1px solid #949cb4;
+    padding: 5px;
     border-radius: 6px;
-    box-shadow: inset 0 0 4px #1b2580;
+    box-shadow: inset 0 0 6px #949cb4;
 }
+
+/*.cabecalho-destaque-nota label {
+    color: #ffffff;
+}*/
 
 /* ==========================================================================
    7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)

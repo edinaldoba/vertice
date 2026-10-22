@@ -49,7 +49,7 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
 
       case COR_ALERTA: // Amarelos / Marrons para o Tema Light
          if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.95, 0.79, 0.16, 1.0 }; // Deep Blue
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.75, 0.35, 0.05, 1.0 }; // Light (Marrom acobreado vibrante / Terracota)
+         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.70, 0.40, 0.05, 1.0 }; // Light (Marrom acobreado vibrante / Terracota)
          else                        *cor_out = ( GdkRGBA ) { 1.00, 0.84, 0.31, 1.0 }; // Dark Green (Padrão)
          break;
 
@@ -73,7 +73,7 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
 
       case COR_FUNDO_PENDENTE: // Fundos pastéis/mutados (Backgrounds)
          if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.18, 0.25, 0.38, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 1.00, 0.96, 0.82, 1.0 };
+         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.95, 0.91, 0.78, 1.0 };
          else                        *cor_out = ( GdkRGBA ) { 0.20, 0.30, 0.20, 1.0 };
          break;
 
@@ -91,8 +91,30 @@ int cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out ) {
    return obter_cor_semantica( COR_FUNDO_PENDENTE, tema_ativo, cor_out );
 }
 
-int cor_texto_inativo_ou_nota( int eh_inativo, double nota, int tema_ativo, GdkRGBA *cor_out ) {
+int cor_texto_observacao( gboolean eh_inativo, int tema_ativo, gchar *texto, GdkRGBA *cor_out ) {
+   gboolean tem_cor = FALSE;
+
+   if ( eh_inativo ) {
+      tem_cor = obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
+   } else if ( texto ) {
+      // g_str_has_prefix pega magicamente: "Aprov Dir", "Aprov Cons" e "Aprov Final"
+      if ( g_str_has_prefix( texto, "Aprov" ) ) {
+         tem_cor = obter_cor_semantica( COR_SUCESSO, tema_ativo, cor_out ); // Verde
+      } else if ( g_strcmp0( texto, "Reprovado" ) == 0 ) {
+         tem_cor = obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out ); // Vermelho
+      } else if ( g_strcmp0( texto, "Rec Final" ) == 0 || g_strcmp0( texto, "Conselho" ) == 0 ) {
+         tem_cor = obter_cor_semantica( COR_ALERTA, tema_ativo, cor_out ); // Amarelo/Marrom
+      }
+   }
+   return tem_cor;
+}
+
+int cor_texto_aluno_inativo( int eh_inativo, int tema_ativo, GdkRGBA *cor_out ) {
    if ( eh_inativo ) return obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
+   return 0; // Nota normal, usa cor nativa
+}
+
+int cor_texto_nota_vermelha( double nota, int tema_ativo, GdkRGBA *cor_out ) {
    if ( nota >= 0.0 && nota < 6.0 ) return obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out );
    return 0; // Nota normal, usa cor nativa
 }
@@ -113,11 +135,12 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
 
       case AUSENTE:
       case SUSPENSO:
-      case FOI_EMBORA:
+      case CABULOU_AULA:
          return obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out );
 
       case FORA_DE_SALA:
       case DISPENSADO:
+      case DORMINDO:
          return obter_cor_semantica( COR_ALERTA, tema_ativo, cor_out );
 
       case ATIVIDADE_DOMICILIAR:

@@ -18,6 +18,24 @@ label {
     color: #E0E0E0;
 }
 
+/* Dica de Ferramenta (Tooltip) - Dark Green */
+tooltip {
+    background-color: #121E16; /* Fundo verde-escuro profundo */
+    color: #E0E0E0;            /* Texto claro legível */
+    border: 1px solid #33553e; /* Borda discreta no tom do tema */
+    border-radius: 6px;        /* Cantos suaves arredondados */
+    padding: 6px 10px;
+}
+
+tooltip label {
+    color: #E0E0E0;
+    font-size: 18px;
+}
+
+/*tooltip, tooltip.background {
+    background-color: #121E16;
+}*/
+
 /* ==========================================================================
    2. ESTRUTURA PRINCIPAL (JANELA E BARRAS)
    ========================================================================== */
@@ -455,7 +473,7 @@ treeview {
 
 
 treeview:selected {
-    background-color: #005500;
+    background-color: #334654;
 }
 
 treeview header label {
@@ -479,11 +497,14 @@ treeview header button {
 
 /* Destaque para o cabeçalho da coluna NOTA */
 .cabecalho-destaque-nota {
-    background-color: rgba( 51, 77, 51, 1.0 );
-    border: 2px solid #00ff00;
-    padding: 4px;
+    background-color: #325500;
+    border: 1px solid #4d8000;
+    padding: 5px;
     border-radius: 6px;
-    box-shadow: inset 0 0 4px #00ff00;
+    box-shadow: inset 0 0 6px #4d8000;
+}
+.cabecalho-destaque-nota label {
+    color: #ffffff;
 }
 
 

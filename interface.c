@@ -203,7 +203,6 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados  *dados  = &ctx->dados;
-   InterfaceListas *listas = &ctx->listas;
 
    switch ( categoria ) {
 
@@ -233,16 +232,6 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       // Restrição de Layout: Se forçarem o cabeçalho lateral (tipo 2), a prova precisa ter 3 colunas.
       if ( dados->cabecalho_tipo == 2 && dados->qtd_colunas == 2 ) {
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->radio.qtd_colunas[1] ), TRUE );
-      }
-      break;
-
-   case CATEGORIA_UI_PROVA:
-      dados->iprova = valor; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira)
-      if ( valor >= 1 && valor <= 3 ) {
-         // g_strlcpy é o padrão GLib para copiar strings com segurança de buffer (mais rápido que snprintf)
-         g_strlcpy( dados->prova_sequencia, listas->provas_sequencia[valor - 1].str, sizeof( dados->prova_sequencia ) );
-      } else {
-         g_warning( "Tentativa de atualizar a Prova com valor fora dos limites (1 a 3): %d", valor );
       }
       break;
 
@@ -727,7 +716,7 @@ void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco,
 
    int qtd_caracteres;
    if ( g_strcmp0( gtk_widget_get_name( combo ), "momento" ) == 0 ) {
-      qtd_caracteres = 12;
+      qtd_caracteres = 10;
    } else {
       qtd_caracteres = 22;
    }
@@ -912,7 +901,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
    InterfaceDados    *dados    = &ctx->dados;
-   InterfacePainel   *painel   = &ctx->painel;
+   // InterfacePainel   *painel   = &ctx->painel;
 
    InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
 
@@ -962,12 +951,12 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    iniciar_autosave_diario( ctx, 5 );
 
-   painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
-                              dados->escola, dados->turma, dados->disciplina, dados->ano, dados->periodo[0],
-                              ( dados->qtd_alunos_ativos == -1 ) ? 0 : dados->qtd_alunos_ativos );
-
-   gtk_label_set_markup( GTK_LABEL( painel->cabecalho ), painel->format_cabecalho );
-   g_free( painel->format_cabecalho );
+   // painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
+   //                            dados->escola, dados->turma, dados->disciplina, dados->ano, dados->periodo[0],
+   //                            ( dados->qtd_alunos_ativos == -1 ) ? 0 : dados->qtd_alunos_ativos );
+   //
+   // gtk_label_set_markup( GTK_LABEL( painel->cabecalho ), painel->format_cabecalho );
+   // g_free( painel->format_cabecalho );
 
 }
 //==================================================================================================
@@ -993,7 +982,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    gtk_widget_set_name( ctx->entry.turma, "turma" );
 
-   popular_combo_box_text( ctx->ui_diario.combo_status, listas->status_assiduidade, 0, 10, 0 );
+   popular_combo_box_text( ctx->ui_diario.combo_status, listas->status_assiduidade, 0, 11, 0 );
 
    *data = data_de_hoje();
    long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );

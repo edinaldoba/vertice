@@ -870,17 +870,21 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
             case FORA_DE_SALA:
                g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FS};\n", x_col, y_row );
                break;
-            case FOI_EMBORA:
+            case CABULOU_AULA:
                falt[j] += ch;
-               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FE};\n", x_col, y_row );
+               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf C};\n", x_col, y_row );
                break;
             case ATIVIDADE_DOMICILIAR:
                g_string_append_printf( target, "\\draw[Orchid,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf AD};\n", x_col, y_row );
                break;
             case SUSPENSO:
-               falt[j] += ch;
-               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {S};\n", x_col, y_row );
-               break;
+              falt[j] += ch;
+              g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {S};\n", x_col, y_row );
+              break;
+            case DORMINDO:
+              falt[j] += ch;
+              g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {Z};\n", x_col, y_row );
+              break;
             case NOVO_ALUNO:
                g_string_append_printf( target, "\\draw[gray,thick] (%.4f,%.4f) circle (0.23) node {N};\n", x_col, y_row );
                break;

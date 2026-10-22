@@ -242,7 +242,7 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
    // Defesa contra ponteiros nulos ou tamanhos inválidos
    g_return_val_if_fail( chave && vetor && comparador && n > 0 && tamanho_elemento > 0, -1 );
 
-   void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
+   const void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
 
    if ( encontrado != NULL ) {
       // 1. Converte os ponteiros void para char* (para trabalhar a nível de byte)

@@ -68,13 +68,6 @@ static void _configurar_nomes_dos_widgets( AppContext *ctx ) {
       g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_CABECALHO ) );
       g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
-
-   // 7. Categoria 6: Sequência Prova (Valor 1 = 1ª, Valor 2 = 2ª, Valor 3 = 3ª)
-   for ( int i = 0; i < 3; i++ ) {
-      gtk_widget_set_name( ctx->radio.avaliacao[i], "Seq Prova" );
-      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_PROVA ) );
-      g_object_set_data( G_OBJECT( ctx->radio.avaliacao[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1, 2 ou 3
-   }
 }
 
 
@@ -237,13 +230,13 @@ static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
 //===================================================================================================
-static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inativo,
+static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean eh_inativo,
                                            const gchar *texto_nota, int interface_style ) {
 
    double nota_val = 10.0; // Valor seguro por padrão (evita acionar a cor de perigo)
 
    // 1. EXTRAÇÃO DO DADO PÚRO (Apenas se o aluno estiver ativo e houver texto válido)
-   if ( !inativo && texto_nota && texto_nota[0] != '\0' && g_strcmp0( texto_nota, "-" ) != 0 ) {
+   if ( !eh_inativo && texto_nota && texto_nota[0] != '\0' && g_strcmp0( texto_nota, "-" ) != 0 ) {
       const gchar *ponteiro_leitura = texto_nota;
 
       // Avança o ponteiro caso o caractere de alinhamento tabular (Figure Space) esteja presente
@@ -262,9 +255,13 @@ static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean inati
    // 2. APLICAÇÃO VISUAL MVC PURA
    GdkRGBA cor;
 
+   int aluno_inativo = cor_texto_aluno_inativo( eh_inativo, interface_style, &cor );
+   int nota_vermelha = cor_texto_nota_vermelha( nota_val, interface_style, &cor );
+
    // O nosso wrapper central toma a decisão de negócio (Inativo vs Perigo vs Normal)
-   if ( cor_texto_inativo_ou_nota( inativo, nota_val, interface_style, &cor ) ) {
+   if ( aluno_inativo || nota_vermelha ) {
       g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+
    } else {
       // Fallback: Desliga a sobreposição de cor, usando a cor nativa do tema do GTK
       g_object_set( cell, "foreground-set", FALSE, NULL );
@@ -282,9 +279,9 @@ static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer 
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
 
-   gboolean inativo = FALSE;
-   // ATENÇÃO: A flag inativo agora está na coluna 13!
-   gtk_tree_model_get( model, iter, 13, &inativo, -1 );
+   gboolean eh_inativo = FALSE;
+   // ATENÇÃO: A flag eh_inativo agora está na coluna 13!
+   gtk_tree_model_get( model, iter, 13, &eh_inativo, -1 );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
    gchar *texto = NULL;
@@ -292,7 +289,7 @@ static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer 
    // Agora lemos o texto até a coluna 12
    if ( col_idx >= 2 && col_idx <= 12 ) g_object_get( cell, "text", &texto, NULL );
 
-   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.interface_style );
 
    // =======================================================================
    // LÓGICA DE FONTE (NEGRITO PARA A NOTA DO PERÍODO)
@@ -342,11 +339,11 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
 
-   gboolean inativo = FALSE;
+   gboolean eh_inativo = FALSE;
    int mascara_pendencias = 0;
 
    // (Ajuste o índice para ler a coluna 13 onde você guardou a máscara)
-   gtk_tree_model_get( model, iter, 11, &inativo, 12, &mascara_pendencias, -1 );
+   gtk_tree_model_get( model, iter, 11, &eh_inativo, 12, &mascara_pendencias, -1 );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
@@ -358,7 +355,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    gboolean usar_cor_fundo = FALSE;
 
    // Se for coluna de Período Letivo (bits 0 a 3)
-   if ( modo_pendencias && !inativo && col_idx >= 2 && col_idx <= 4 ) {
+   if ( modo_pendencias && !eh_inativo && col_idx >= 2 && col_idx <= 4 ) {
       int p = col_idx - 2;
       if ( mascara_pendencias & ( 1 << p ) ) {
          editavel = TRUE;
@@ -366,14 +363,14 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       }
    }
    // Se for coluna de Recuperação Final (Coluna 8 -> Bit 4)
-   else if ( modo_pendencias && !inativo && col_idx == 8 ) {
+   else if ( modo_pendencias && !eh_inativo && col_idx == 8 ) {
       if ( mascara_pendencias & ( 1 << 4 ) ) {
          editavel = TRUE;
          if ( cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
       }
    }
    // Se for coluna de Conselho (Coluna 9 -> Bit 5)
-   else if ( modo_pendencias && !inativo && col_idx == 9 ) {
+   else if ( modo_pendencias && !eh_inativo && col_idx == 9 ) {
       if ( mascara_pendencias & ( 1 << 5 ) ) {
          editavel = TRUE;
          if ( cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
@@ -394,11 +391,34 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    // LÓGICA DO TEXTO E COR DA FONTE
    // =======================================================================
    gchar *texto = NULL;
-   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
+
+   // Ampliamos o range de leitura para incluir a coluna 10 (Observação)
+   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 10 ) ) {
       g_object_get( cell, "text", &texto, NULL );
    }
 
-   _aplicar_cor_condicional_nota( cell, inativo, texto, ctx->dados.interface_style );
+   // 1. TRATAMENTO ESPECÍFICO PARA A COLUNA DE OBSERVAÇÃO (ÍNDICE 10)
+   if ( col_idx == 10 ) {
+      GdkRGBA cor_texto;
+
+      int tem_cor = cor_texto_observacao( eh_inativo, ctx->dados.interface_style, texto, &cor_texto );
+
+      if ( tem_cor ) {
+         // Aplica a cor e já aproveitamos para colocar a situação em NEGRITO! Fica premium.
+         g_object_set( cell, "foreground-rgba", &cor_texto, "foreground-set", TRUE,
+                             "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
+      } else {
+         // "Cursando" ou fallback usa a cor nativa
+         g_object_set( cell, "foreground-set", FALSE, "weight-set", FALSE, NULL );
+      }
+   }
+   // 2. TRATAMENTO PARA AS COLUNAS DE NOTAS (Índices 2 a 9)
+   else {
+      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.interface_style );
+      // Desliga o negrito para não vazar a formatação da coluna 10 para as outras células
+      g_object_set( cell, "weight-set", FALSE, NULL );
+   }
+
    g_free( texto );
 }
 //------------------------------------------------------------------------------------------------------------
@@ -470,10 +490,6 @@ void app_signals_connect( gpointer user_data ) {
       g_signal_connect( ctx->radio.qtd_paginas[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
       g_signal_connect( ctx->radio.cabecalho_tipo[i], "toggled",
-                        G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-   }
-   for ( i = 0; i < 3; i++ ) {
-      g_signal_connect( ctx->radio.avaliacao[i],       "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
 
@@ -550,7 +566,7 @@ void app_signals_connect( gpointer user_data ) {
 
 
    // RELATÓRIO FINAL
-   g_signal_connect( ctx->ui_diario.check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_relatorio_toggled ), ctx );
+   g_signal_connect( ctx->ui_diario.check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_excecoes_relatorio_toggled ), ctx );
    g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
 
    // Aba Relatório Final (Colunas 2, 3 e 4: 1º, 2º e 3º Períodos) (Colunas 8 e 9: Rec Final e Conselho)
@@ -572,11 +588,13 @@ void app_signals_connect( gpointer user_data ) {
 
 
 
-   // Operação Crítica: Passa o ponteiro 'opt' para leitura e aplicação estável do cache físico (.dat)
-   g_signal_connect( ctx->button.importar_dados, "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
-   g_signal_connect( ctx->button.gerar_prova,       "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
+
+
+   g_signal_connect( ctx->entry.seq_prova, "changed", G_CALLBACK( on_combo_sequencia_prova_changed ), ctx );
+   g_signal_connect( ctx->button.gerar_prova, "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
    g_signal_connect( ctx->button.processar_imagens, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
-   g_signal_connect( ctx->button.corrigir_prova,    "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
+   g_signal_connect( ctx->button.corrigir_prova, "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
+   g_signal_connect( ctx->button.importar_dados, "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
 
    g_signal_connect( ctx->button.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
    g_signal_connect( ctx->button.compilar_latex_acervo, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );

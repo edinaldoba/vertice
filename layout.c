@@ -73,7 +73,7 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
  * @param pad_celula_x Espaçamento horizontal interno das células de dados (em pixels).
  * @param align_cabecalho Alinhamento horizontal do título no cabeçalho (0.0 = esquerda, 0.5 = centro, 1.0 = direita).
  */
-static void treeview_configurar_alinhamento_coluna( GtkWidget *widget,
+static void _treeview_configurar_alinhamento_coluna( GtkWidget *widget,
       int coluna,
       float align_celula,
       guint pad_celula_x,
@@ -112,7 +112,7 @@ static void treeview_configurar_alinhamento_coluna( GtkWidget *widget,
  * @param coluna Índice base zero da coluna a ser modificada.
  * @param font_features String de features OpenType (ex: "tnum=1, lnum=1, zero=1").
  */
-static void treeview_configurar_font_features_col( GtkWidget *widget, int coluna, const char *font_features ) {
+static void _treeview_configurar_font_features_col( GtkWidget *widget, int coluna, const char *font_features ) {
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
    g_return_if_fail( font_features != NULL );
 
@@ -158,7 +158,7 @@ static void treeview_configurar_font_features_col( GtkWidget *widget, int coluna
 // FUNÇÃO VISUAL: Aplica a classe CSS no botão de cabeçalho da coluna NOTA
 // Chamar apenas UMA VEZ durante a inicialização (ex: layout.c)
 //===================================================================================================
-static void destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
+static void _destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
    g_return_if_fail( treeview_avaliacoes && GTK_IS_TREE_VIEW(treeview_avaliacoes) );
 
    // 1. Obtém a coluna 12 (Nota do Período) da TreeView de Avaliações
@@ -203,17 +203,19 @@ static void _mapear_janela_e_cabecalho( AppContext *ctx, GtkBuilder *builder, Gt
 }
 
 static void _mapear_filtros_e_configuracoes( AppContext *ctx, GtkBuilder *builder ) {
-   ctx->entry.ano            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_ano" ) );
-   ctx->entry.escola         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_escola" ) );
-   ctx->entry.turma          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
-   ctx->entry.disciplina     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
-   ctx->entry.periodo        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_momento" ) );
-   ctx->entry.estilo         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_estilo" ) );
-   ctx->entry.cor_destaque   = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
+   ctx->entry.ano              = GTK_WIDGET( gtk_builder_get_object( builder, "combo_ano" ) );
+   ctx->entry.escola           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_escola" ) );
+   ctx->entry.turma            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
+   ctx->entry.disciplina       = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
+   ctx->entry.periodo          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_momento" ) );
+   ctx->entry.estilo           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_estilo" ) );
+   ctx->entry.cor_destaque     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    ctx->entry.decoracao_estilo = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
 
-   ctx->cabecalho.gestor     = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
-   ctx->cabecalho.professor  = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
+   ctx->entry.seq_prova = GTK_WIDGET( gtk_builder_get_object( builder, "combo_sequencia_prova" ) );
+
+   ctx->cabecalho.gestor    = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
+   ctx->cabecalho.professor = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
    ctx->check.validar_ciclos = GTK_WIDGET( gtk_builder_get_object( builder, "check_cruz" ) );
    ctx->check.nao_presencial = GTK_WIDGET( gtk_builder_get_object( builder, "check_naopresencial" ) );
@@ -241,16 +243,16 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.scrolled_window_conteudo = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_conteudo" ) );
    ctx->ui_diario.treeview_conteudo  = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if ( i < 2 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_conteudo, i, 0.5, 0, 0.5 );
-      if ( i < 2 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_conteudo, i, "tnum=1, lnum=1, zero=1" );
+      if ( i < 2 ) _treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_conteudo, i, 0.5, 0, 0.5 );
+      if ( i < 2 ) _treeview_configurar_font_features_col( ctx->ui_diario.treeview_conteudo, i, "tnum=1, lnum=1, zero=1" );
    }
 
    // --- SUB-ABA: FREQUÊNCIA ---
    ctx->ui_diario.scrolled_window_frequencia = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_frequencia" ) );
    ctx->ui_diario.treeview_frequencia        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_frequencia, i, 0.5, 0, 0.5 );
-      if ( i == 0 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_frequencia, i, "tnum=1, lnum=1, zero=1" );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_frequencia, i, 0.5, 0, 0.5 );
+      if ( i == 0 ) _treeview_configurar_font_features_col( ctx->ui_diario.treeview_frequencia, i, "tnum=1, lnum=1, zero=1" );
    }
 
    ctx->ui_diario.combo_data            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
@@ -267,10 +269,10 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.scrolled_window_avaliacoes = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_window_avaliacoes" ) );
    ctx->ui_diario.treeview_avaliacoes        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 13; i++ ) {
-      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_avaliacoes, i, 0.5, 0, 0.5 );
-      if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_avaliacoes, i, "tnum=1, lnum=1, zero=1" );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_avaliacoes, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) _treeview_configurar_font_features_col( ctx->ui_diario.treeview_avaliacoes, i, "tnum=1, lnum=1, zero=1" );
    }
-   destacar_cabecalho_nota( ctx->ui_diario.treeview_avaliacoes );
+   _destacar_cabecalho_nota( ctx->ui_diario.treeview_avaliacoes );
 
    ctx->ui_diario.combo_avaliacoes          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
    ctx->ui_diario.btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );
@@ -288,9 +290,8 @@ static void _mapear_aba_diario( AppContext *ctx, GtkBuilder *builder ) {
    ctx->ui_diario.treeview_relatorio        = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    ctx->ui_diario.check_pendencias          = GTK_WIDGET( gtk_builder_get_object( builder, "check_pendencias" ) );
    for ( int i = 0; i < 11; i++ ) {
-      if ( i != 1 ) treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
-      if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1" );
-      // if ( i != 1 ) treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1, cv05=1" );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( ctx->ui_diario.treeview_relatorio, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) _treeview_configurar_font_features_col( ctx->ui_diario.treeview_relatorio, i, "tnum=1, lnum=1, zero=1" );
    }
 }
 
@@ -319,11 +320,6 @@ static void _mapear_aba_provas_e_acervo( AppContext *ctx, GtkBuilder *builder ) 
 
       snprintf( id_string, sizeof( id_string ), "radio_cabecalho_%d", i + 1 );
       ctx->radio.cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
-   }
-
-   for ( int i = 0; i < 3; i++ ) {
-      snprintf( id_string, sizeof( id_string ), "radio_prova_%d", i + 1 );
-      ctx->radio.avaliacao[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 }
 

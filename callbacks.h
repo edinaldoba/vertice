@@ -62,7 +62,7 @@ void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data 
 // RELATÓRIO FINAL
 void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
                                         const gchar *path, gpointer user_data );
-void on_check_pendencias_relatorio_toggled( GtkWidget *widget, gpointer user_data );
+void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer user_data );
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data );
 
 
@@ -100,6 +100,7 @@ void on_button_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data
 // Ações finais pesadas que acionam o compilador TeX, processam imagens e geram PDFs
 void on_button_carregar_estado_aplicativo_clicked( GtkWidget *widget, gpointer user_data );
 
+void on_combo_sequencia_prova_changed( GtkWidget *widget, gpointer user_data );
 void on_button_gerar_prova_clicked( GtkWidget *widget, gpointer user_data );
 
 void on_button_processar_imagens_clicked( GtkWidget *widget, gpointer user_data );

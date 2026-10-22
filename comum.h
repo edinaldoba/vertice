@@ -57,12 +57,10 @@ typedef enum {
    CATEGORIA_UI_FONTE_LATEX    = 3,
    CATEGORIA_UI_PAGINAS        = 4,
    CATEGORIA_UI_CABECALHO      = 5,
-   CATEGORIA_UI_PROVA          = 6,
-
    // ID contínuo para evitar colisões
-   CATEGORIA_UI_NUM_CRUZADOS   = 7,
-   CATEGORIA_UI_NAO_PRESENCIAL = 8,
-   CATEGORIA_UI_EXPOR_DADOS    = 9
+   CATEGORIA_UI_NUM_CRUZADOS   = 6,
+   CATEGORIA_UI_NAO_PRESENCIAL = 7,
+   CATEGORIA_UI_EXPOR_DADOS    = 8
 } CategoriaInterface;
 //=========================================================================================================//
 
@@ -279,10 +277,11 @@ typedef enum {
    FALTA_JUSTIFICADA    = 3, // Ausência abonada por critério pedagógico ou atestado
    DISPENSADO           = 4, // Ausente da sala (atividade externa, reunião ou trânsito pelo prédio)
    FORA_DE_SALA         = 5, // Afastamento temporário por medida disciplinar da direção
-   FOI_EMBORA           = 6, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
+   CABULOU_AULA         = 6, // Saída antecipada autorizada (saúde ou busca pelos responsáveis)
    ATIVIDADE_DOMICILIAR = 7, // Evasão não autorizada do recinto escolar durante o período letivo
    SUSPENSO             = 8, // Evasão não autorizada do recinto escolar durante o período letivo
-   NOVO_ALUNO           = 9  // Novo aluno matriculados na turma
+   DORMINDO             = 9,
+   NOVO_ALUNO           = 10  // Novo aluno matriculados na turma
 } __attribute__( ( packed ) ) StatusAssiduidade;
 
 typedef struct {

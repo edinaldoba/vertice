@@ -98,14 +98,17 @@ static void _mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, co
    // Ponteiro de trabalho local (exatamente como combinamos)
    const RegistroDiario *diario = &g_array_index( diarios, RegistroDiario, i );
 
-   gboolean tem_chamada = ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
-                            diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA );
+   gboolean eh_aula_normal = ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL );
+   gboolean eh_aula_extra  = ( diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA );
+
+   gboolean tem_chamada = eh_aula_normal || eh_aula_extra;
 
    gtk_list_store_set( store, iter,
                        0, diario->data,
                        1, ( guint )diario->qtd_aulas,
-                       2, tem_chamada,   // FALSE (risca nome/desativa) se for Feriado/Pedagógico
-                       3, !tem_chamada,  // TRUE (trava seleção visual) se for Feriado/Pedagógico
+                       2, eh_aula_extra,
+                       3, !tem_chamada,   // FALSE (risca nome/desativa) se for Feriado/Pedagógico
+                       4, tem_chamada,  // TRUE (trava seleção visual) se for Feriado/Pedagógico
                        -1 );
 }
 
@@ -612,8 +615,9 @@ void popular_datas( AppContext *ctx ) {
    int foco = -1; // -1 indica que nenhuma data válida foi encontrada ainda
 
    // Busca retroativa (do último para o primeiro) usando um laço 'for' limpo e seguro
+   RegistroDiario *diario = NULL;
    for ( int i = qtd_itens - 1; i >= 0; i-- ) {
-      RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+      diario = &g_array_index( ctx->diarios, RegistroDiario, i );
 
       if ( diario->tipo_registro != TIPO_REGISTRO_FERIADO &&
             diario->tipo_registro != TIPO_REGISTRO_PEDAGOGICO ) {
@@ -632,9 +636,10 @@ void popular_datas( AppContext *ctx ) {
       if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
          GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
          guint qtd_aulas = 0;
-         gtk_tree_model_get( model_view, &iter, 1, &qtd_aulas, -1 );
+         gboolean eh_extra = FALSE;
+         gtk_tree_model_get( model_view, &iter, 1, &qtd_aulas, 2, &eh_extra, -1 );
 
-         g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>", qtd_aulas );
+         g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>%s", qtd_aulas, eh_extra ? " - extra" : "" );
          gtk_label_set_markup( GTK_LABEL( ui_diario->label_ch ), str_qtd_aulas );
       }
 

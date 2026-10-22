@@ -116,13 +116,13 @@ typedef struct {
    GtkWidget *decoracao_estilo;
 
    GtkWidget *estilo;
+   GtkWidget *seq_prova;
 } InterfaceEntry;
 
 
 
 
 typedef struct {
-   GtkWidget *avaliacao[3];               // Índice 0: 1ª Prova, 1: 2ª Prova, 2: 3ª Prova
    GtkWidget *qtd_paginas[2];             // Antes: npaginas[2]
    GtkWidget *qtd_colunas[2];             // Antes: colunas[2]
    GtkWidget *separadores[2];             // Mantido (Excelente nome)
