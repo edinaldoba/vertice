@@ -365,12 +365,12 @@ static void _mapear_painel_feedback( AppContext *ctx, GtkBuilder *builder ) {
 
 static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builder ) {
    // Espaçamento nos Labels Soltos
-   const gchar *labels[7] = {
+   const gchar *labels[8] = {
       "label_conteudo", "label_frequencia", "label_avaliacoes", "label_relatorio",
-      "label_tema_acervo", "label_tema_prova", "label_montagem_da_prova"
+      "label_tema_acervo", "label_diagramacao_latex", "label_tema_prova", "label_montagem_da_prova"
    };
 
-   for ( int i = 0; i < 7; i++ ) {
+   for ( int i = 0; i < 8; i++ ) {
       GtkWidget *label = GTK_WIDGET( gtk_builder_get_object( builder, labels[i] ) );
       if ( label ) {
          _ui_label_aplicar_espacamento_manual( label, 2 );

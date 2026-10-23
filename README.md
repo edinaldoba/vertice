@@ -15,7 +15,7 @@ Diferente de sistemas acadêmicos convencionais, o Vértice é construído em C 
   * **Sincronização SIAEP:** Estrutura preparada para automação e conciliação de dados pedagógicos com o sistema escolar estadual.
 
 * **Interface Ergonômica e Proporção Áurea ($\phi \approx 1{,}618$):**
-  * **Geometria Áurea:** Janela principal dimensionada em exatos $1252 \times 774\text{ pixels}$, proporcionando harmonia estética, equilíbrio visual e baixo cansaço mental em longas jornadas de uso.
+  * **Geometria Áurea:** Janela principal dimensionada em exatos $1275 \times 788\text{ pixels}$, proporcionando harmonia estética, equilíbrio visual e baixo cansaço mental em longas jornadas de uso.
   * **Painel de Feedback Flutuante (Overlay Toast):** Sistema de notificações assíncronas com efeito *glassmorphism*, barra lateral viva por status (Dark Green, Deep Blue e Light) e controle de congelamento inteligente por *hover* do mouse.
   * **Resgate Sutil (Orelhinha Edge Handle):** Aba retrátil minimalista estilo *Samsung Edge* no rodapé, permitindo reexibir a última notificação a qualquer momento com um único clique sem poluir a área de trabalho.
 

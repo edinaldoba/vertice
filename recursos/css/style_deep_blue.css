@@ -29,7 +29,12 @@ tooltip {
 
 tooltip label {
     color: #E2E8F0;
-    font-size: 18px;
+    font-size: 20px;
+}
+
+/* Controle do contorno de foco do sistema */
+*:focus {
+    outline-style: none;
 }
 
 /* ==========================================================================
@@ -234,7 +239,7 @@ separator {
 
     border: 1px solid #2b41cf;
     border-radius: 12px;
-    padding: 0px 12px 0px 12px;
+    padding: 5px 12px 5px 12px;
 }
 
 .titulo-secao,
