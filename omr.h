@@ -6,7 +6,7 @@
 
 gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida, gboolean resgate );
 
-gboolean decodificar_payload_matriz( MapeamentoGabarito *info, const LimitesFiltro *limite );
+gboolean decodificar_payload_matriz( MapeamentoGabarito *info, const InterfaceCabecalho *cabecalho );
 
 gboolean verificar_paridade_matriz( uint32_t payload_lido );
 

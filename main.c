@@ -152,6 +152,18 @@ void inicializacao_app_context( AppContext *ctx ) {
    if ( !ctx ) return;
 
    *ctx = ( AppContext ) {
+      .cabecalho = {
+         .anos             = NULL,
+         .escolas          = NULL,
+         .turmas           = NULL,
+         .disciplinas      = NULL,
+
+         .handler_ano              = 0,
+         .handler_escola           = 0,
+         .handler_turma            = 0,
+         .handler_disciplina       = 0
+      },
+
       .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
          .recursos_prefix = NULL
       },
@@ -186,20 +198,9 @@ void inicializacao_app_context( AppContext *ctx ) {
             {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}
          },
 
-         .expor            = false,
-         .cruz             = false,
-         .naopresencial    = false
-      },
-
-      // 3. Inicialização das Listas Dinâmicas e Constantes (InterfaceListas)
-      .listas = {
-         .qtd_subtemas     = NULL,
-         .subtemas         = NULL,
-         .temas            = NULL,
-         .anos             = NULL,
-         .escolas          = NULL,
-         .turmas           = NULL,
-         .disciplinas      = NULL,
+         .expor            = FALSE,
+         .cruz             = FALSE,
+         .naopresencial    = FALSE
       },
 
       .painel = {
@@ -207,25 +208,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .format_subtitulo = NULL,
          .format_instrucao = NULL,
          .tem_proxima_mensagem = FALSE
-      },
-
-      .handlers = {
-         .ano              = 0,
-         .escola           = 0,
-         .turma            = 0,
-         .disciplina       = 0,
-         .periodo          = 0,
-         .tema   = 0
-      },
-
-      .provas = {
-         .listbox_subtemas     = NULL,
-         .flowbox_selecionados = NULL,
-         .scrolled_window      = NULL,
-         .btn_menos            = NULL,
-         .btn_mais             = NULL,
-         .handler              = NULL,
-         .handler_scrolled     = 0
       },
 
       .ui_diario = {
@@ -243,12 +225,33 @@ void inicializacao_app_context( AppContext *ctx ) {
          .botoes_travados = FALSE
       },
 
+      .ui_latex = {
+         .handler_combo_tema_espelho = 0
+      },
+
+      .ui_prova = {
+         .subtemas         = NULL,
+         .temas            = NULL,
+         .handler_combo_tema = 0,
+
+         .listbox_subtemas     = NULL,
+         .flowbox_selecionados = NULL,
+         .scrolled_window      = NULL,
+
+         .montagem = {
+            .btn_menos            = NULL,
+            .btn_mais             = NULL,
+            .handlers_check       = NULL,
+            .handler_scrolled     = 0
+         }
+      },
+
       .diarios   = NULL,
       .avaliacoes = NULL,
       .fichas = NULL,
       .path_save_avaliacao = NULL,
       .path_save_diario = NULL,
-      .dir_save_fichas = NULL
+      .path_save_fichas = NULL
    };
 }
 
@@ -296,30 +299,29 @@ void limpeza_final( AppContext *ctx ) {
    }
 
    // DESASSOCIAR PONTEIRO DE TRABALHO
-   if ( ctx->dir_save_fichas != NULL ) {
-      g_free( ctx->dir_save_fichas );
-      ctx->dir_save_fichas = NULL;
+   if ( ctx->path_save_fichas != NULL ) {
+      g_free( ctx->path_save_fichas );
+      ctx->path_save_fichas = NULL;
    }
 
    // B. Libera a matriz bidimensional de ponteiros do Acervo (Heap)
-   if ( ctx->provas.handler != NULL ) {
-      for ( int i = 0; i < ctx->cascata.limite.temas; i++ ) {
-         if ( ctx->provas.handler[i] != NULL ) {
-            free( ctx->provas.handler[i] );
+   if ( ctx->ui_prova.montagem.handlers_check != NULL ) {
+      for ( int i = 0; i < ctx->ui_prova.limite_temas; i++ ) {
+         if ( ctx->ui_prova.montagem.handlers_check[i] != NULL ) {
+            free( ctx->ui_prova.montagem.handlers_check[i] );
          }
       }
-      free( ctx->provas.handler );
-      ctx->provas.handler = NULL;
+      free( ctx->ui_prova.montagem.handlers_check );
+      ctx->ui_prova.montagem.handlers_check = NULL;
    }
 
    // C. Libera as listas de strings dinâmicas (InterfaceListas)
-   free( ctx->listas.subtemas );
-   free( ctx->listas.temas );
-   free( ctx->listas.qtd_subtemas );
-   free( ctx->listas.anos );
-   free( ctx->listas.escolas );
-   free( ctx->listas.turmas );
-   free( ctx->listas.disciplinas );
+   free( ctx->ui_prova.subtemas );
+   free( ctx->ui_prova.temas );
+   free( ctx->cabecalho.anos );
+   free( ctx->cabecalho.escolas );
+   free( ctx->cabecalho.turmas );
+   free( ctx->cabecalho.disciplinas );
 
    // D. Libera as máscaras de formatação de texto gchar* (Painel)
    if ( ctx->painel.format_titulo != NULL )    g_free( ctx->painel.format_titulo );

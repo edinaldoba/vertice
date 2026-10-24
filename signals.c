@@ -25,48 +25,48 @@ static void _configurar_nomes_dos_widgets( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    // 1. Nomes específicos para seletores do CSS
-   gtk_widget_set_name( ctx->entry.tema, "tema" );
-   gtk_widget_set_name( ctx->check.validar_ciclos, "Números Cruzados" );
-   gtk_widget_set_name( ctx->check.nao_presencial, "Não Presencial" );
+   gtk_widget_set_name( ctx->ui_prova.combo_tema, "tema" );
+   gtk_widget_set_name( ctx->ui_prova.check_validar_ciclos, "Números Cruzados" );
+   gtk_widget_set_name( ctx->ui_prova.check_nao_presencial, "Não Presencial" );
    gtk_widget_set_name( ctx->ui_diario.check_expor_dados, "Expôr Dados" );
 
-   g_object_set_data( G_OBJECT( ctx->check.validar_ciclos ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NUM_CRUZADOS ) );
-   g_object_set_data( G_OBJECT( ctx->check.nao_presencial ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NAO_PRESENCIAL ) );
+   g_object_set_data( G_OBJECT( ctx->ui_prova.check_validar_ciclos ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NUM_CRUZADOS ) );
+   g_object_set_data( G_OBJECT( ctx->ui_prova.check_nao_presencial ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NAO_PRESENCIAL ) );
    g_object_set_data( G_OBJECT( ctx->ui_diario.check_expor_dados ),    "categoria", GINT_TO_POINTER( CATEGORIA_UI_EXPOR_DADOS ) );
 
    // 2. Categoria 1: Colunas (Valor 2 ou 3)
    for ( int i = 0; i < 2; i++ ) {
-      gtk_widget_set_name( ctx->radio.qtd_colunas[i], "Colunas" );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_COLUNAS ) );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_colunas[i] ), "valor",     GINT_TO_POINTER( i + 2 ) ); // 2 ou 3
+      gtk_widget_set_name( ctx->ui_latex.radio_qtd_colunas[i], "Colunas" );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_qtd_colunas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_COLUNAS ) );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_qtd_colunas[i] ), "valor",     GINT_TO_POINTER( i + 2 ) ); // 2 ou 3
    }
 
    // 3. Categoria 2: Separadores (Valor 1 = Pontilhado, Valor 2 = Contínuo)
    for ( int i = 0; i < 2; i++ ) {
-      gtk_widget_set_name( ctx->radio.separadores[i], "Separadores" );
-      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_SEPARADORES ) );
-      g_object_set_data( G_OBJECT( ctx->radio.separadores[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+      gtk_widget_set_name( ctx->ui_latex.radio_separadores[i], "Separadores" );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_separadores[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_SEPARADORES ) );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_separadores[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 4. Categoria 3: Fonte TeX (Valor 1 = CMB Right, Valor 2 = CMU Serif)
    for ( int i = 0; i < 2; i++ ) {
-      gtk_widget_set_name( ctx->radio.fonte_latex[i], "Fonte TeX" );
-      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_FONTE_LATEX ) );
-      g_object_set_data( G_OBJECT( ctx->radio.fonte_latex[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+      gtk_widget_set_name( ctx->ui_latex.radio_fonte_latex[i], "Fonte TeX" );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_fonte_latex[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_FONTE_LATEX ) );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_fonte_latex[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 5. Categoria 4: Quantidade de Páginas (Valor 1 ou 2)
    for ( int i = 0; i < 2; i++ ) {
-      gtk_widget_set_name( ctx->radio.qtd_paginas[i], "Qtd Páginas" );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_PAGINAS ) );
-      g_object_set_data( G_OBJECT( ctx->radio.qtd_paginas[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+      gtk_widget_set_name( ctx->ui_latex.radio_qtd_paginas[i], "Qtd Páginas" );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_qtd_paginas[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_PAGINAS ) );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_qtd_paginas[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 
    // 6. Categoria 5: Tipo de Cabeçalho (Valor 1 = Acima, Valor 2 = À esquerda)
    for ( int i = 0; i < 2; i++ ) {
-      gtk_widget_set_name( ctx->radio.cabecalho_tipo[i], "Cabeçalho" );
-      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_CABECALHO ) );
-      g_object_set_data( G_OBJECT( ctx->radio.cabecalho_tipo[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
+      gtk_widget_set_name( ctx->ui_latex.radio_cabecalho_tipo[i], "Cabeçalho" );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_cabecalho_tipo[i] ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_CABECALHO ) );
+      g_object_set_data( G_OBJECT( ctx->ui_latex.radio_cabecalho_tipo[i] ), "valor",     GINT_TO_POINTER( i + 1 ) ); // 1 ou 2
    }
 }
 
@@ -133,7 +133,7 @@ static void _aplicar_cor_condicional_conteudo( GtkCellRenderer *cell, int tipo_r
 // CALLBACK DO GTK (Cell Data Func)
 //===================================================================================================
 static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRenderer *cell,
-                                          GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+      GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
 
@@ -191,7 +191,7 @@ static void _aplicar_cor_condicional_frequencia( GtkCellRenderer *cell, int stat
 // CALLBACK DO GTK (Cell Data Func)
 //===================================================================================================
 static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRenderer *cell,
-                                            GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+      GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
 
@@ -235,7 +235,7 @@ static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
 // FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
 //===================================================================================================
 static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean eh_inativo,
-                                           const gchar *texto_nota, int interface_style ) {
+      const gchar *texto_nota, int interface_style ) {
 
    double nota_val = 10.0; // Valor seguro por padrão (evita acionar a cor de perigo)
 
@@ -279,7 +279,7 @@ static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean eh_in
 
 //============================================================================================================
 static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
-                                       GtkTreeIter *iter, gpointer data ) {
+                                        GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
 
@@ -340,7 +340,7 @@ static void _inicializar_renderizadores_avaliacoes( AppContext *ctx ) {
 
 //--------------------------------------------------------------------------------------------------------
 static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRenderer *cell,
-                                           GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
+      GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
@@ -412,7 +412,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       if ( tem_cor ) {
          // Aplica a cor e já aproveitamos para colocar a situação em NEGRITO! Fica premium.
          g_object_set( cell, "foreground-rgba", &cor_texto, "foreground-set", TRUE,
-                             "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
+                       "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
       } else {
          // "Cursando" ou fallback usa a cor nativa
          g_object_set( cell, "foreground-set", FALSE, "weight-set", FALSE, NULL );
@@ -428,7 +428,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    g_free( texto );
 }
 //------------------------------------------------------------------------------------------------------------
- static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
+static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
    g_return_if_fail( ctx );
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
@@ -461,7 +461,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
  * @brief Conecta todos os sinais de eventos (cliques e alternâncias)do aplicativo.
  * @param bot      Ponteiro para a estrutura persistente de botões de controle.
  * @param opt      Ponteiro para a estrutura persistente de configurações LaTeX da prova.
- * @param alt      Ponteiro para a estrutura persistente de seletores booleanos (toggles).
+ * @param alt      Ponteiro para a estrutura persistente de seletores gbooleaneanos (toggles).
  * @param provider Ponteiro para o gerenciador de estilo CSS do GTK.
  */
 void app_signals_connect( gpointer user_data ) {
@@ -477,36 +477,36 @@ void app_signals_connect( gpointer user_data ) {
    int i;
 
    // =========================================================================
-   // 2. VERIFICADORES DE ESTADO DA INTERFACE (BOOLEANOS)
+   // 2. VERIFICADORES DE ESTADO DA INTERFACE (gbooleanEANOS)
    // =========================================================================
-   // Conecta os seletores booleanos do diário/sistema de forma clara e explícita
-   g_signal_connect( ctx->check.validar_ciclos, "toggled",
-                     G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
-   ctx->handlers.nao_presencial = g_signal_connect( ctx->check.nao_presencial, "toggled",
-                                  G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
-   ctx->handlers.expor_dados = g_signal_connect( ctx->ui_diario.check_expor_dados,    "toggled",
-                               G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
+   // Conecta os seletores gbooleaneanos do diário/sistema de forma clara e explícita
+   g_signal_connect( ctx->ui_prova.check_validar_ciclos, "toggled",
+                     G_CALLBACK( on_check_atualizar_gbooleaneanos_interface_toggled ), ctx );
+   g_signal_connect( ctx->ui_prova.check_nao_presencial, "toggled",
+                     G_CALLBACK( on_check_atualizar_gbooleaneanos_interface_toggled ), ctx );
+   g_signal_connect( ctx->ui_diario.check_expor_dados,    "toggled",
+                     G_CALLBACK( on_check_atualizar_gbooleaneanos_interface_toggled ), ctx );
 
    // =========================================================================
    // 3. SELETORES DE CONFIGURAÇÃO DO DOCUMENTO LATEX (OPÇÕES COMPILADAS)
    // =========================================================================
    for ( i = 0; i < 2 ; i++ ) {
-      g_signal_connect( ctx->radio.qtd_colunas[i],    "toggled",
+      g_signal_connect( ctx->ui_latex.radio_qtd_colunas[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->radio.separadores[i],    "toggled",
+      g_signal_connect( ctx->ui_latex.radio_separadores[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->radio.fonte_latex[i],    "toggled",
+      g_signal_connect( ctx->ui_latex.radio_fonte_latex[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->radio.qtd_paginas[i],    "toggled",
+      g_signal_connect( ctx->ui_latex.radio_qtd_paginas[i],    "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
-      g_signal_connect( ctx->radio.cabecalho_tipo[i], "toggled",
+      g_signal_connect( ctx->ui_latex.radio_cabecalho_tipo[i], "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
 
    // =========================================================================
    // 4. CONEXÃO DE SINAIS: CICLO PEDAGÓGICO E PRODUÇÃO DE DOCUMENTOS
    // =========================================================================
-   g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
+   g_signal_connect( ctx->cabecalho.btn_atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
    g_signal_connect( conteudo->calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
    g_signal_connect( conteudo->calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
@@ -535,7 +535,7 @@ void app_signals_connect( gpointer user_data ) {
 
 
    frequencia->handler_combo_data = g_signal_connect( frequencia->combo_data, "changed",
-                                       G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
+                                    G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
    g_signal_connect( frequencia->check_por_aluno, "toggled", G_CALLBACK( on_check_por_aluno_toggled ), ctx );
    g_signal_connect( frequencia->btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
    g_signal_connect( frequencia->btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
@@ -550,7 +550,7 @@ void app_signals_connect( gpointer user_data ) {
 
    // AVALIAÇÕES
    avaliacao->handler_combo_avaliacao = g_signal_connect( avaliacao->combo_avaliacao, "changed",
-         G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
+                                        G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
    g_signal_connect( avaliacao->btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
    g_signal_connect( avaliacao->btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
    g_signal_connect( avaliacao->btn_popover_nomear, "clicked",
@@ -558,7 +558,7 @@ void app_signals_connect( gpointer user_data ) {
    g_signal_connect( avaliacao->entry_popover_nomear, "activate",
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
    avaliacao->handler_check_desativar = g_signal_connect( avaliacao->check_desativar_avaliacao, "toggled",
-         G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
+                                        G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
    // Aba Avaliações (Colunas 2 a 11 contíguas)
    _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( avaliacao->treeview ), 2, 11 );
@@ -605,56 +605,55 @@ void app_signals_connect( gpointer user_data ) {
 
 
 
-   g_signal_connect( ctx->entry.seq_prova, "changed", G_CALLBACK( on_combo_sequencia_prova_changed ), ctx );
-   g_signal_connect( ctx->button.gerar_prova, "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
-   g_signal_connect( ctx->button.processar_imagens, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
-   g_signal_connect( ctx->button.corrigir_prova, "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
-   g_signal_connect( ctx->button.importar_dados, "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
+   g_signal_connect( ctx->ui_prova.combo_seq_prova, "changed", G_CALLBACK( on_combo_sequencia_prova_changed ), ctx );
+   g_signal_connect( ctx->ui_prova.btn_gerar_prova, "clicked", G_CALLBACK( on_button_gerar_prova_clicked ), ctx );
+   g_signal_connect( ctx->ui_prova.btn_processar, "clicked", G_CALLBACK( on_button_processar_imagens_clicked ), ctx );
+   g_signal_connect( ctx->ui_prova.btn_corrigir, "clicked", G_CALLBACK( on_button_corrigir_prova_clicked ), ctx );
+   g_signal_connect( ctx->ui_prova.btn_importar, "clicked", G_CALLBACK( on_button_carregar_estado_aplicativo_clicked ), ctx );
 
-   g_signal_connect( ctx->button.abrir_pdf_acervo,      "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
-   g_signal_connect( ctx->button.compilar_latex_acervo, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );
-   g_signal_connect( ctx->button.executar_gcc_acervo,   "clicked", G_CALLBACK( on_button_atualizar_questoes_clicked ), ctx );
+   g_signal_connect( ctx->ui_latex.btn_pdflatex,      "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
+   g_signal_connect( ctx->ui_latex.btn_compilar, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );
+   g_signal_connect( ctx->ui_latex.btn_diversificar,   "clicked", G_CALLBACK( on_button_atualizar_questoes_clicked ), ctx );
 
 
-   ctx->handlers.ano = g_signal_connect( ctx->entry.ano, "changed",
+   ctx->cabecalho.handler_ano = g_signal_connect( ctx->cabecalho.combo_ano, "changed",
                                          G_CALLBACK( on_entry_atualizar_ano_interface_changed ), ctx );
 
-   ctx->handlers.escola = g_signal_connect( ctx->entry.escola, "changed",
+   ctx->cabecalho.handler_escola = g_signal_connect( ctx->cabecalho.combo_escola, "changed",
                           G_CALLBACK( on_entry_atualizar_escola_interface_changed ), ctx );
 
-   ctx->handlers.turma = g_signal_connect( ctx->entry.turma, "changed",
+   ctx->cabecalho.handler_turma = g_signal_connect( ctx->cabecalho.combo_turma, "changed",
                                            G_CALLBACK( on_entry_atualizar_turma_interface_changed ), ctx );
 
-   ctx->handlers.disciplina = g_signal_connect( ctx->entry.disciplina, "changed",
+   ctx->cabecalho.handler_disciplina = g_signal_connect( ctx->cabecalho.combo_disciplina, "changed",
                               G_CALLBACK( on_entry_atualizar_disciplina_interface_changed ), ctx );
 
-   ctx->handlers.periodo = g_signal_connect( ctx->entry.periodo, "changed",
-                           G_CALLBACK( on_entry_periodo_interface_changed ), ctx );
+   g_signal_connect( ctx->cabecalho.combo_periodo, "changed", G_CALLBACK( on_entry_periodo_interface_changed ), ctx );
 
-   g_signal_connect( ctx->entry.cor_destaque, "changed", G_CALLBACK( on_entry_cor_destaque_interface_changed ), ctx );
-   g_signal_connect( ctx->entry.decoracao_estilo, "changed", G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
+   g_signal_connect( ctx->ui_latex.combo_cor_serie, "changed", G_CALLBACK( on_entry_cor_destaque_interface_changed ), ctx );
+   g_signal_connect( ctx->ui_latex.combo_decoracao, "changed", G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
 
-   g_signal_connect( ctx->entry.estilo, "changed", G_CALLBACK( on_entry_estilo_interface_changed ), ctx );
+   g_signal_connect( ctx->cabecalho.combo_estilo, "changed", G_CALLBACK( on_entry_estilo_interface_changed ), ctx );
 
    // =========================================================================
    // 6. RASTREAMENTO AUTOMÁTICO DINÂMICO (INPUTS DE TEMAS E QUESTÕES)
    // =========================================================================
-   ctx->handlers.tema = g_signal_connect( ctx->entry.tema, "changed",
+   ctx->ui_prova.handler_combo_tema = g_signal_connect( ctx->ui_prova.combo_tema, "changed",
                                           G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
 
-   ctx->handlers.tema_espelho = g_signal_connect( ctx->entry.tema_espelho, "changed",
+   ctx->ui_latex.handler_combo_tema_espelho = g_signal_connect( ctx->ui_latex.combo_tema_espelho, "changed",
                                 G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
 
 
 
-   ctx->provas.handler_scrolled = g_signal_connect( ctx->provas.scrolled_window, "size-allocate",
-                                  G_CALLBACK( on_scrolled_rolar_para_o_fim_sizeallocate ), ctx );
-   g_signal_handler_block( ctx->provas.scrolled_window, ctx->provas.handler_scrolled );
-   ctx->provas.importar = false;
+   ctx->ui_prova.montagem.handler_scrolled = g_signal_connect( ctx->ui_prova.scrolled_window, "size-allocate",
+         G_CALLBACK( on_scrolled_rolar_para_o_fim_sizeallocate ), ctx );
+   g_signal_handler_block( ctx->ui_prova.scrolled_window, ctx->ui_prova.montagem.handler_scrolled );
+   ctx->ui_prova.montagem.importar = FALSE;
 
 
    frequencia->handler_combo_alunos = g_signal_connect( G_OBJECT( frequencia->combo_alunos ), "changed",
-                                         G_CALLBACK( on_combo_alunos_changed ), ctx );
+                                      G_CALLBACK( on_combo_alunos_changed ), ctx );
 
 
    g_signal_connect( G_OBJECT( ctx->painel.eventbox_painel ), "enter-notify-event",

@@ -178,7 +178,7 @@ void g_pdflatex_parallel( const char *dir_compile ) {
       g_printerr( "[ERRO FATAL] Falha ao iniciar a compilação paralela: %s\n", erro->message );
       g_clear_error( &erro );
    } else if ( status_saida != 0 ) {
-      // Isso substitui o seu antigo "|| true". Se o pdflatex retornar um aviso,
+      // Isso substitui o seu antigo "|| TRUE". Se o pdflatex retornar um aviso,
       // nós apenas logamos, mas o programa continua rodando normalmente.
       g_printerr( "[AVISO] Compilação paralela em '%s' concluída com status %d.\n", dir_compile, status_saida );
    }

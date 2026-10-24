@@ -27,7 +27,7 @@ void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer u
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data );
 gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
-                                                                          gpointer user_data );
+      gpointer user_data );
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data );
@@ -114,8 +114,8 @@ void on_radio_atualizar_generic_interface_toggled( GtkWidget *widget, gpointer u
 // =========================================================================
 // 6. CAIXAS DE SELEÇÃO E CONTROLE DE ESTADO (CHECK BUTTONS)
 // =========================================================================
-// Chaves booleanas independentes de configuração da interface e do sistema
-void on_check_atualizar_booleanos_interface_toggled( GtkWidget *widget, gpointer user_data );
+// Chaves gbooleaneanas independentes de configuração da interface e do sistema
+void on_check_atualizar_gbooleaneanos_interface_toggled( GtkWidget *widget, gpointer user_data );
 //==========================================================================
 
 // =========================================================================

@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <stdbool.h>
 #include <glib.h>
 
 
@@ -134,7 +133,7 @@ typedef struct {
 
 typedef struct {
    char aluno[64];
-   bool ativo;
+   gboolean ativo;
 } FichaAuxiliar;
 //=========================================================================================================//
 
@@ -167,7 +166,7 @@ typedef struct {
    } temas_prova_sequencia[NTI];
 
    // 6. Flags de Controle
-   bool expor, cruz, naopresencial;
+   gboolean expor, cruz, naopresencial;
 
    // 7. Estilo visual da interface
    int ui_foco_estilo;
@@ -185,7 +184,7 @@ typedef struct {
    } temas_prova_sequencia[NTI];
 
    // 4. Flags de Controle Estéticas
-   bool expor, naopresencial;
+   gboolean expor, naopresencial;
 } DadosRascunho;
 //=========================================================================================================//
 

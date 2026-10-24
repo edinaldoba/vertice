@@ -583,10 +583,10 @@ gboolean verificar_paridade_matriz( uint32_t payload_lido ) {
 * Retorna TRUE se a imagem estava íntegra e os dados foram extraídos com sucesso,
 * ou FALSE se a verificação de paridade falhar.
 */
-gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const LimitesFiltro *limite ) {
+gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const InterfaceCabecalho *cabecalho ) {
    // 1. Validação defensiva dos ponteiros de saída usando macros da GLib
    g_return_val_if_fail( map != NULL, FALSE );
-   g_return_val_if_fail( limite != NULL, FALSE );
+   g_return_val_if_fail( cabecalho != NULL, FALSE );
 
    // 2. Executa o teste de integridade via checksum/paridade
    if ( !verificar_paridade_matriz( map->payload ) ) {
@@ -604,7 +604,7 @@ gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const LimitesFiltr
    // A sequência da prova é o único valor que não pode ser zero (valores 1, 2 e 3)
    // Pois a leitura do binário numa área branca retornava um payload válido onde todos os bits são zero
    // Mudando a sequência da prova de 0, 1, 2 para 1, 2, 3 elimina essa vulnerabilidade.
-   if ( map->turma >= limite->turmas || map->per + 1 >= 5 || map->seq == 0 ) {
+   if ( map->turma >= cabecalho->limite_turmas || map->per + 1 >= 5 || map->seq == 0 ) {
       return FALSE;
    }
 

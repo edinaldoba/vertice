@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
+
 #include <sys/stat.h>
 #include <inttypes.h>
 
@@ -240,17 +240,17 @@ gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remoca
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( treeview ) );
 
       const char *str_detalhe = ( d->tema[0] != '\0' ) ? d->tema :
-                               ( ( d->descricao[0] != '\0' ) ? d->descricao : "Registro sem Tema" );
+                                ( ( d->descricao[0] != '\0' ) ? d->descricao : "Registro sem Tema" );
 
       g_autofree gchar *mensagem = meu_gerador_variadico(
-         "Você está prestes a remover um registro de aula com frequência já lançada.\n\n"
-         "<b>DATA:</b> %s\n"
-         "<b>CONTEÚDO/REGISTRO:</b> %s\n\n"
-         "⚠️ <b>Atenção:</b> Este registro já possui dados de presença/ausência gravados para a turma. "
-         "Ao removê-lo, todo o histórico de assiduidade desta aula será permanentemente excluído.\n\n"
-         "Deseja realmente confirmar a exclusão deste registro?",
-         d->data, str_detalhe
-      );
+                                      "Você está prestes a remover um registro de aula com frequência já lançada.\n\n"
+                                      "<b>DATA:</b> %s\n"
+                                      "<b>CONTEÚDO/REGISTRO:</b> %s\n\n"
+                                      "⚠️ <b>Atenção:</b> Este registro já possui dados de presença/ausência gravados para a turma. "
+                                      "Ao removê-lo, todo o histórico de assiduidade desta aula será permanentemente excluído.\n\n"
+                                      "Deseja realmente confirmar a exclusão deste registro?",
+                                      d->data, str_detalhe
+                                   );
 
       gboolean confirmar = mostrar_popup_confirmacao( janela_principal, "Confirmação de Exclusão de Aula", mensagem );
 
@@ -302,7 +302,7 @@ gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remoca
 // CONSTRUTOR: Centraliza a inserção no GtkListStore de Conteúdos
 //===================================================================================================
 static void _inserir_linha_conteudo_ui( GtkListStore *store, GtkTreeIter *iter, int indice,
-                                       const RegistroDiario *reg ) {
+                                        const RegistroDiario *reg ) {
    if ( indice < 0 ) gtk_list_store_append( store, iter );
    else gtk_list_store_insert( store, iter, indice );
 
@@ -327,9 +327,18 @@ static void _extrair_linha_liststore_para_ram( GtkListStore *store, GtkTreeIter 
                        0, &data, 1, &qtd, 2, &tema, 3, &desc, 4, &tipo, -1 );
 
    // Transfere para a struct e auto-libera a memória do GTK
-   if ( data ) { g_strlcpy( reg->data, data, sizeof( reg->data ) ); g_free( data ); }
-   if ( tema ) { g_strlcpy( reg->tema, tema, sizeof( reg->tema ) ); g_free( tema ); }
-   if ( desc ) { g_strlcpy( reg->descricao, desc, sizeof( reg->descricao ) ); g_free( desc ); }
+   if ( data ) {
+      g_strlcpy( reg->data, data, sizeof( reg->data ) );
+      g_free( data );
+   }
+   if ( tema ) {
+      g_strlcpy( reg->tema, tema, sizeof( reg->tema ) );
+      g_free( tema );
+   }
+   if ( desc ) {
+      g_strlcpy( reg->descricao, desc, sizeof( reg->descricao ) );
+      g_free( desc );
+   }
 
    reg->qtd_aulas = qtd;
    reg->tipo_registro = tipo;
@@ -711,7 +720,7 @@ static int _indexar_liststore_modo_por_aluno( const GArray *diarios, int idx_aul
    for ( int i = 0; i < idx_aula; i++ ) {
       const RegistroDiario *d = &g_array_index( diarios, RegistroDiario, i );
       if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
-           d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
+            d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
          idx_linha_liststore++;
       }
    }
@@ -740,7 +749,7 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
    for ( idx_aula = idx_aula + 1; ( guint )idx_aula < ctx->diarios->len; idx_aula++ ) {
       const RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
       if ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
-           diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
+            diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
          break;
       }
    }
@@ -1394,7 +1403,7 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    GtkTreeIter iter;
 
    if ( gtk_tree_model_iter_nth_child( model, &iter, NULL, ativo ) ) {
-      // Seta a Coluna 1 (strikethrough) com o valor booleano do checkbox
+      // Seta a Coluna 1 (strikethrough) com o valor gbooleaneano do checkbox
       gtk_list_store_set( store, &iter, 1, estado, -1 );
    }
 
@@ -1539,7 +1548,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          }
 
          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
-         g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
+         g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
 
          // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
          salvou_algo = _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
@@ -1550,9 +1559,9 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 
    // Atualização do diretório de salvamento
    if ( !final_save ) {
-      g_free( ctx->dir_save_fichas );
-      ctx->dir_save_fichas = g_build_filename( ".", "dados", "informados",
-                             ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+      g_free( ctx->path_save_fichas );
+      ctx->path_save_fichas = g_build_filename( ".", "dados", "informados",
+                              ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
    }
    return salvou_algo;
 }
@@ -1623,7 +1632,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //          // 3. GRAVAÇÃO DO NOVO BLOCO (Estrutura Nova)
 //          // =====================================================================
 //          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
-//          g_autofree char *path_ficha_bin = g_build_filename( ctx->dir_save_fichas, ficha_bin, NULL );
+//          g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
 //
 //          // Salva a estrutura convertida FichaAlunoAux no arquivo .bin
 //          _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
@@ -1633,8 +1642,8 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    // Atualização do diretório de salvamento após a conclusão
 //    if ( !final_save ) {
-//       g_free( ctx->dir_save_fichas );
-//       ctx->dir_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
+//       g_free( ctx->path_save_fichas );
+//       ctx->path_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
 //    }
 //
 //    return salvou_algo;
@@ -1781,13 +1790,13 @@ void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRe
    int index_aluno = atoi( path_string );
    FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-   int foco = ctx->cascata.foco.disciplina;
+   int foco = ctx->cabecalho.foco_disciplina;
 
    // ==========================================================
    // ROTEAMENTO DINÂMICO: Descobre de qual aba veio a nota
    // ==========================================================
    if ( tree_view == GTK_TREE_VIEW( avaliacao->treeview ) ) {
-      int periodo = ctx->cascata.foco.periodo;
+      int periodo = ctx->cabecalho.foco_periodo;
       int av_index = ( col_idx - 2 ) / 2;
       gboolean is_rec = ( col_idx % 2 != 0 );
 
@@ -1802,8 +1811,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRe
       if ( col_idx >= 2 && col_idx <= 4 ) {
          int p = col_idx - 2; // Transforma coluna 2->0, 3->1, 4->2, 5->3
          rel->notas_periodos[p] = nova_nota;
-      }
-      else if ( col_idx == 8 ) rel->rec_final = nova_nota;
+      } else if ( col_idx == 8 ) rel->rec_final = nova_nota;
       else if ( col_idx == 9 ) rel->conselho = nova_nota;
    }
 
@@ -1937,13 +1945,13 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    GtkTreeView *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
-   int foco_per = ctx->cascata.foco.periodo;
+   int foco_per = ctx->cabecalho.foco_periodo;
    g_return_if_fail( foco_per >= 0 && foco_per <= 3 );
 
    // 1. Limpa o modelo inteiro para receber os dados do novo período
    gtk_list_store_clear( store );
 
-   int foco = ctx->cascata.foco.disciplina;
+   int foco = ctx->cabecalho.foco_disciplina;
 
    // 2. Percorre o GArray reconstruindo as linhas do zero
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
@@ -2012,8 +2020,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store );
 
-   int d = ctx->cascata.foco.disciplina;
-   int foco_periodo = ctx->cascata.foco.periodo; // 0 (1ºP) a 3 (4ºP)
+   int d = ctx->cabecalho.foco_disciplina;
+   int foco_periodo = ctx->cabecalho.foco_periodo; // 0 (1ºP) a 3 (4ºP)
 
    // =========================================================================
    // PRE-LOAD 1: Descobre quais períodos já possuem notas lançadas na turma
@@ -2044,19 +2052,19 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    for ( int p = 0; p <= foco_periodo; p++ ) {
       hash_acesso[p] = g_hash_table_new( g_direct_hash, g_direct_equal );
 
-      GtkComboBoxText *combo_periodo = GTK_COMBO_BOX_TEXT(ctx->entry.periodo);
+      GtkComboBoxText *combo_periodo = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_periodo );
       g_autofree gchar *texto_periodo = _combo_box_text_get_text_at( combo_periodo, p );
 
       g_autofree gchar *acesso_bin = g_build_filename( ".", "dados", "informados", ctx->dados.ano,
-                                                       ctx->dados.escola, ctx->dados.turma,
-                                                       ctx->dados.disciplina, texto_periodo,
-                                                       "acesso.bin", NULL );
+                                     ctx->dados.escola, ctx->dados.turma,
+                                     ctx->dados.disciplina, texto_periodo,
+                                     "acesso.bin", NULL );
       gchar *conteudo = NULL;
       gsize tamanho = 0;
 
       if ( g_file_get_contents( acesso_bin, &conteudo, &tamanho, NULL ) ) {
          int qtd_acessos = tamanho / sizeof( AcessoFicha );
-         AcessoFicha *acessos = (AcessoFicha *)conteudo;
+         AcessoFicha *acessos = ( AcessoFicha * )conteudo;
 
          for ( int a = 0; a < qtd_acessos; a++ ) {
             g_hash_table_add( hash_acesso[p], GINT_TO_POINTER( acessos[a].cod_aluno ) );
@@ -2121,24 +2129,21 @@ void carregar_relatorio_ui( AppContext *ctx ) {
             g_strlcpy( obs, ( rel->conselho >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
             mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
             mascara_pendencias |= ( 1 << 5 ); // Bit 5: Permite corrigir Conselho
-         }
-         else if ( rel->rec_final >= 0.0f ) {
+         } else if ( rel->rec_final >= 0.0f ) {
             g_strlcpy( obs, ( rel->rec_final >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
             mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
 
             if ( rel->rec_final < 6.0f ) {
                mascara_pendencias |= ( 1 << 5 ); // Bit 5: Destrava Conselho
             }
-         }
-         else if ( rel->soma > 22.2f ) {
+         } else if ( rel->soma > 22.2f ) {
             g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
          }
          // Aqui validamos se mesmo tirando 10 em todos os bimestres restantes a nota atinge o teto
          else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
             g_strlcpy( obs, "Rec Final", sizeof( obs ) );
             mascara_pendencias |= ( 1 << 4 ); // Bit 4: Destrava Rec Final
-         }
-         else {
+         } else {
             g_strlcpy( obs, "Cursando", sizeof( obs ) );
          }
       }
@@ -2159,20 +2164,20 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       // --- PASSO E: Inserção Limpa no GTK ---
       gtk_list_store_append( store, &iter );
       gtk_list_store_set( store, &iter,
-         0, i + 1,
-         1, ficha->aluno,
-         2, str_cols[0],
-         3, str_cols[1],
-         4, str_cols[2],
-         5, str_cols[3],
-         6, str_cols[4],
-         7, str_cols[5],
-         8, str_cols[6],
-         9, str_cols[7],
-         10, obs,
-         11, !ficha->ativo,
-         12, mascara_pendencias,
-         -1 );
+                          0, i + 1,
+                          1, ficha->aluno,
+                          2, str_cols[0],
+                          3, str_cols[1],
+                          4, str_cols[2],
+                          5, str_cols[3],
+                          6, str_cols[4],
+                          7, str_cols[5],
+                          8, str_cols[6],
+                          9, str_cols[7],
+                          10, obs,
+                          11, !ficha->ativo,
+                          12, mascara_pendencias,
+                          -1 );
    }
 
    // Limpeza O(1) da Memória das Hash Tables

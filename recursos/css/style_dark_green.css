@@ -477,7 +477,6 @@ treeview {
     padding-right: 6px;
 }
 
-
 treeview:selected {
     background-color: #334654;
 }

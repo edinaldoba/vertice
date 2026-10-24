@@ -169,8 +169,8 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
  * Função principal de processamento em lote.
  * Executa a visão computacional multithread, cortes e leitura do payload/respostas.
  */
-int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
-   if ( !dados || !limite ) return -1;
+int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
+   if ( !dados || !cabecalho ) return -1;
 
    // =========================================================================
    // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
@@ -223,7 +223,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
    for ( int i = 0; i < qtd_img; i++ ) {
 
-      gboolean sucesso = FALSE; // Inicializamos false e só confirmamos no payload
+      gboolean sucesso = FALSE; // Inicializamos FALSE e só confirmamos no payload
       int tentativas = 0;
 
       MapeamentoGabarito map = {0};
@@ -262,7 +262,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
 
          // A prova de fogo: O Payload bateu perfeitamente?
-         sucesso = decodificar_payload_matriz( &map, limite );
+         sucesso = decodificar_payload_matriz( &map, cabecalho );
          tentativas++;
 
       } while ( !sucesso && tentativas < 2 );
@@ -361,8 +361,8 @@ int gas_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
 
 
-int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
-   if ( !dados || !limite ) return -1;
+int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
+   if ( !dados || !cabecalho ) return -1;
 
    // =========================================================================
    // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
@@ -460,7 +460,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
          // 3.6 - Leitura e Decodificação do Payload
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
-         sucesso = decodificar_payload_matriz( &map, limite );
+         sucesso = decodificar_payload_matriz( &map, cabecalho );
       }
 
       // ======================================================================
@@ -486,7 +486,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
             // 3.6 - Leitura e Decodificação do Payload do Resgate
             map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
-            sucesso = decodificar_payload_matriz( &map, limite );
+            sucesso = decodificar_payload_matriz( &map, cabecalho );
          }
       }
 
@@ -580,8 +580,8 @@ int omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *lim
 
 
 
-int cs_omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *limite ) {
-   if ( !dados || !limite ) return -1;
+int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
+   if ( !dados || !cabecalho ) return -1;
 
    // =========================================================================
    // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
@@ -670,7 +670,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *
 
          // 3.6 - Leitura e Decodificação do Payload
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
-         sucesso = decodificar_payload_matriz( &map, limite );
+         sucesso = decodificar_payload_matriz( &map, cabecalho );
       }
 
       // ======================================================================
@@ -691,7 +691,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const LimitesFiltro *
          if ( sucesso ) {
             transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
             map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
-            sucesso = decodificar_payload_matriz( &map, limite );
+            sucesso = decodificar_payload_matriz( &map, cabecalho );
          }
       }
 
@@ -815,11 +815,11 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    if ( !painel || !ctx ) return;
 
    const InterfaceDados   *dados   = &ctx->dados;
-   const FocoCoordenadas  *foco    = &ctx->cascata.foco;
+   const InterfaceCabecalho  *cabecalho    = &ctx->cabecalho;
    // const CaminhoDiretorio *caminho = &ctx->caminho;
 
    char nome_bin[64];
-   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), foco->turma, foco->disciplina, foco->periodo, dados->foco_seq_prova );
+   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->foco_seq_prova );
 
    g_autofree char *path_resp = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
                                 "respostas", nome_bin, NULL );
@@ -959,7 +959,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
             int foco_seq_prova = map->seq;
 
             if ( periodo >= 0 && periodo <= 4 ) {
-               ficha->disciplina[foco->disciplina].periodo[periodo].avaliacoes[2 * foco_seq_prova - 2].av  = ( float )nota;
+               ficha->disciplina[cabecalho->foco_disciplina].periodo[periodo].avaliacoes[2 * foco_seq_prova - 2].av  = ( float )nota;
                ficha->ficha_modificada = TRUE;
             }
          }
@@ -988,8 +988,8 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
    // -------------------------------------------------------------------------
    // BLOQUEIO DA INTERFACE: (Descomente a linha abaixo e insira o widget do seu botão)
-   gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
-   gtk_widget_set_sensitive( ctx->button.processar_imagens, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_processar, FALSE );
    // -------------------------------------------------------------------------
 
    painel->format_titulo    = meu_gerador_variadico( "⏳ Processando Provas..." );

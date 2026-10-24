@@ -9,7 +9,7 @@
 
 void atualizar_boas_vindas( InterfacePainel *painel, const InterfaceDados *dados );
 
-bool verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados );
+gboolean verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados );
 
 gboolean ocultar_painel_feedback_cb( gpointer user_data );
 void reexibir_ultima_mensagem( InterfacePainel *painel );

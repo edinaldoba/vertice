@@ -4,7 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdbool.h>
+
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -21,13 +21,13 @@
 /* =================================================================================================================
    2. VERIFICAR ESTADO DE ARQUIVO - Redução de Linhas
    ================================================================================================================= */
-bool verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados ) {
-   if ( !dados ) return false;
+gboolean verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados ) {
+   if ( !dados ) return FALSE;
    const char *nome_arquivo = strrchr( path, '/' );
    nome_arquivo = ( nome_arquivo == NULL ) ? path : nome_arquivo + 1;
 
    char artigo = ( dados->periodo[0] == 'R' ) ? 'a' : 'o';
-   bool retorno = false;
+   gboolean retorno = FALSE;
 
    switch ( verificar_arquivo( path ) ) {
    case ARQUIVO_INEXISTENTE:
@@ -49,7 +49,7 @@ bool verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, con
       painel->format_subtitulo = meu_gerador_variadico( "Arquivo validado. Iniciando leitura..." );
       painel->format_instrucao = meu_gerador_variadico( "Processando dados d%c %s", artigo, dados->periodo );
       criar_mensagem_painel( SUCESSO, painel );
-      retorno = true;
+      retorno = TRUE;
       break;
    }
 

@@ -5,7 +5,7 @@
  */
 
 #include <math.h>
-#include <stdbool.h>
+
 #include <stdio.h>
 
 #include "comum.h"
@@ -35,9 +35,9 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   const FocoCoordenadas *foco    = &( ctx->cascata.foco );
-   const InterfaceDados  *dados   = &( ctx->dados );
-   const CaminhoDiretorio *caminho = &( ctx->caminho );
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
+   const InterfaceDados  *dados   = &ctx->dados;
+   const CaminhoDiretorio *caminho = &ctx->caminho;
 
    int qtd_alunos = dados->qtd_alunos_total;
    if ( qtd_alunos <= 0 ) return;
@@ -55,8 +55,8 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
       }
    }
 
-   int d = foco->disciplina;
-   int per = foco->periodo;
+   int d = cabecalho->foco_disciplina;
+   int per = cabecalho->foco_periodo;
 
    // Construção em memória usando GString (Velocidade Extrema de I/O)
    g_autoptr( GString ) siaep = g_string_sized_new( qtd_alunos * 10 * 8 );
@@ -104,7 +104,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, const gboolean validas[5] ) {
    g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados  *dados = &( ctx->dados );
-   const FocoCoordenadas *foco  = &( ctx->cascata.foco );
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
@@ -156,8 +156,8 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
                            "\\multicolumn{1}{c|}{\\bf Nota}\\\\\\hline\n",
                            dados->escola, dados->turma, dados->disciplina, dados->periodo, dados->ano );
 
-   int d   = foco->disciplina;
-   int per = foco->periodo;
+   int d   = cabecalho->foco_disciplina;
+   int per = cabecalho->foco_periodo;
 
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa e com Autoclean da Memória)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
@@ -304,7 +304,7 @@ static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int pe
 
 // Embrulhada de ctx->ui_diario.btn_salvar_avaliacoes
 void calcular_nota_periodo( const AppContext *ctx ) {
-   const FocoCoordenadas  *foco = &ctx->cascata.foco;
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    // 1. Obtém o mapa de configurações da UI
@@ -314,7 +314,7 @@ void calcular_nota_periodo( const AppContext *ctx ) {
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
+      calcular_media_do_periodo( ficha, cabecalho->foco_disciplina, cabecalho->foco_periodo, validas, qtd_validas );
    }
 }
 
@@ -351,7 +351,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
 
    const InterfaceDados   *dados   = &ctx->dados;
-   const FocoCoordenadas  *foco    = &ctx->cascata.foco;
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const CaminhoDiretorio *caminho = &ctx->caminho;
    const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
@@ -364,7 +364,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_media_do_periodo( ficha, foco->disciplina, foco->periodo, validas, qtd_validas );
+      calcular_media_do_periodo( ficha, cabecalho->foco_disciplina, cabecalho->foco_periodo, validas, qtd_validas );
    }
 
    // 3. Exporta para LaTeX
@@ -484,7 +484,7 @@ static void preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, Li
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados *dados = &( ctx->dados );
-   int disc = ctx->cascata.foco.disciplina;
+   int disc = ctx->cabecalho.foco_disciplina;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
@@ -588,7 +588,7 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
-   int d = ctx->cascata.foco.disciplina;
+   int d = ctx->cabecalho.foco_disciplina;
 
    // 1. GARANTIA DE DADOS: Processa os cálculos de soma e média de todos os alunos
    // antes de gerar o PDF, blindando o sistema contra inconsistências.
@@ -880,13 +880,13 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
                g_string_append_printf( target, "\\draw[Orchid,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf AD};\n", x_col, y_row );
                break;
             case SUSPENSO:
-              falt[j] += ch;
-              g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {S};\n", x_col, y_row );
-              break;
+               falt[j] += ch;
+               g_string_append_printf( target, "\\draw[red,text=black,thick] (%.4f,%.4f) circle (0.23) node {S};\n", x_col, y_row );
+               break;
             case DORMINDO:
-              falt[j] += ch;
-              g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {Z};\n", x_col, y_row );
-              break;
+               falt[j] += ch;
+               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {Z};\n", x_col, y_row );
+               break;
             case NOVO_ALUNO:
                g_string_append_printf( target, "\\draw[gray,thick] (%.4f,%.4f) circle (0.23) node {N};\n", x_col, y_row );
                break;
@@ -927,14 +927,14 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
 static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
    g_autoptr( GString ) conteudo_siaep = g_string_new( "" );
-   const CascataControle *cascata = &( ctx->cascata );
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    int offsets[] = { 0, 1, 4 };
-   int index = offsets[ cascata->foco.disciplina % cascata->limite.disciplinas ] +
-               cascata->foco.turma % cascata->limite.turmas;
+   int index = offsets[ cabecalho->foco_disciplina % ctx->cabecalho.limite_disciplinas ] +
+               cabecalho->foco_turma % ctx->cabecalho.limite_turmas;
 
    // Gambiarra por eu ter modificado a lógica do combo da disciplina (GtkComboBox com liststore)
-   if ( cascata->foco.turma >= 4 && cascata->foco.turma <= 6 ) index--;
+   if ( cabecalho->foco_turma >= 4 && cabecalho->foco_turma <= 6 ) index--;
 
    long int ( *id_h )[4] = id_horarios[index].ids;
 
@@ -964,7 +964,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
             g_string_append_printf( conteudo_siaep, "%02d/%02d/%d;%ld;%d;%s;%s\n",
                                     dia, mes, ano,
                                     id_h[k - 2][j + num_aux],
-                                    cascata->foco.periodo + 1,
+                                    cabecalho->foco_periodo + 1,
                                     d->tema, d->descricao );
          }
       }
@@ -977,7 +977,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
 static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
    g_autoptr( GString ) tex = g_string_new( "" );
    const InterfaceDados *dados = &( ctx->dados );
-   bool eh_recuperacao = ( dados->periodo[0] == 'R' );
+   gboolean eh_recuperacao = ( dados->periodo[0] == 'R' );
 
    int nn = registros->len;
    int somach = 0, ad = 0, ap = 0;

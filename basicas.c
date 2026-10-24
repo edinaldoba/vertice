@@ -4,7 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdbool.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -601,7 +601,7 @@ static int copiar_recurso_para_disco( const char *caminho_recurso, const char *d
    GError *error = NULL;
 
    // 1. Puxa os dados da memória (GResource). Usamos g_autoptr para liberação automática.
-   g_autoptr(GBytes) bytes = g_resources_lookup_data( caminho_recurso, G_RESOURCE_LOOKUP_FLAGS_NONE, &error );
+   g_autoptr( GBytes ) bytes = g_resources_lookup_data( caminho_recurso, G_RESOURCE_LOOKUP_FLAGS_NONE, &error );
    if ( bytes == NULL ) {
       g_printerr( "🚨 Erro interno no GResource: %s\n", error->message );
       g_clear_error( &error );
@@ -688,7 +688,7 @@ void preparar_ambiente_latex( const char *recursos_prefix ) {
 
             // 5. Atualiza o banco do TeX (Substitui o system() para evitar travamentos de shell)
             g_autofree gchar *pasta_texmf = g_build_filename( home, "texmf", NULL );
-            gchar *argv[] = { (gchar*)"texhash", pasta_texmf, NULL }; // Comando em array
+            gchar *argv[] = { ( gchar* )"texhash", pasta_texmf, NULL }; // Comando em array
             GError *spawn_err = NULL;
 
             if ( !g_spawn_sync( NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &spawn_err ) ) {
@@ -830,22 +830,22 @@ void apagar_arquivos_temporarios_latex_nativamente( const char *diretorio, const
 
 
 //=========================================================================================================//
-bool detectar_ubuntu( void ) {
+gboolean detectar_ubuntu( void ) {
    FILE *fp = fopen( "/etc/os-release", "r" );
    if ( fp == NULL ) {
       // Se o arquivo não existir, provavelmente não é um Linux moderno
-      return false;
+      return FALSE;
    }
 
    char linha[256];
-   bool eh_ubuntu = false;
+   gboolean eh_ubuntu = FALSE;
 
    // Lê o arquivo linha por linha buscando o ID da distribuição
    while ( fgets( linha, sizeof( linha ), fp ) ) {
       // O arquivo costuma ter uma linha como: ID=ubuntu
       if ( strncmp( linha, "ID=", 3 ) == 0 ) {
          if ( strstr( linha, "ubuntu" ) != NULL ) {
-            eh_ubuntu = true;
+            eh_ubuntu = TRUE;
             break;
          }
       }

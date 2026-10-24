@@ -464,26 +464,26 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
 
 static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    g_return_if_fail( ctx );
-   const InterfaceListas  *listas  = &ctx->listas;
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceDados   *dados   = &ctx->dados;
 
-   int limite_turmas = ctx->cascata.limite.turmas;
+   int limite_turmas = ctx->cabecalho.limite_turmas;
 
    // 1. Atualização dos arquivos de acesso
    for ( int i = 0; i < limite_turmas; i++ ) {
-      g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", listas->turmas[i].str );
+      g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", cabecalho->turmas[i].str );
       g_autofree char *acesso_bin_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
                                          "acessos", acesso_bin, NULL );
 
       // Monta o diretório base da turma, onde as disciplinas devem estar alocadas
       g_autofree char *dir_turma_base = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                        listas->turmas[i].str, NULL );
+                                        cabecalho->turmas[i].str, NULL );
 
       g_autoptr( GError ) erro = NULL;
       g_autoptr( GDir ) dir_turma = g_dir_open( dir_turma_base, 0, &erro );
 
       if ( !dir_turma ) {
-         g_printerr( "[Aviso] Nenhuma disciplina encontrada para a turma %s: %s\n", listas->turmas[i].str, erro->message );
+         g_printerr( "[Aviso] Nenhuma disciplina encontrada para a turma %s: %s\n", cabecalho->turmas[i].str, erro->message );
          continue; // Se a pasta da turma ainda não existir, pula para a próxima
       }
 

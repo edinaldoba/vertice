@@ -24,8 +24,7 @@
 typedef struct {
    InterfacePainel  *painel;         // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
    InterfaceDados   dados;           // ◄ Por valor (Cópia estática blindada)
-   InterfaceListas  listas;          // ◄ Por valor
-   FocoCoordenadas  foco;            // ◄ Por valor
+   InterfaceCabecalho  cabecalho;          // ◄ Por valor
    CaminhoDiretorio caminho;         // ◄ Por valor
    CalendarioData   data;            // ◄ Por valor
    GArray           *fichas;         // ◄ Ponteiro (Clone seguro na Heap para a Thread)
@@ -33,7 +32,7 @@ typedef struct {
    GtkWidget        *botao_corrigir; // ◄ Ponteiro (Widget vivo)
    GtkWidget        *botao_importar; // ◄ Ponteiro (Widget vivo)
    GtkWidget        *aba_latex;      // ◄ Ponteiro (Widget vivo)
-   bool             sucesso;
+   gboolean         sucesso;
 } ProvaThreadArgs;
 
 /**
@@ -61,17 +60,16 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
 
    // Snapshots por valor (Segurança Thread-Safe)
    args->dados   = ctx->dados;
-   args->foco    = ctx->cascata.foco;
+   args->cabecalho    = ctx->cabecalho;
    args->caminho = ctx->caminho;
    args->data    = ctx->data;
-   args->listas  = ctx->listas;
 
    // Snapshots por referência (Acesso UI Viva e Clone Heap)
    args->painel      = &ctx->painel; // Ponteiro para o painel atual do AppContext
    args->fichas      = clonar_diario_alunos( ctx->fichas );
    args->botao_gerar = widget;
-   args->botao_corrigir = ctx->button.corrigir_prova;
-   args->botao_importar = ctx->button.importar_dados;
+   args->botao_corrigir = ctx->ui_prova.btn_corrigir;
+   args->botao_importar = ctx->ui_prova.btn_importar;
 
    GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 ); // ABA LATEX
    args->aba_latex = aba_latex;
@@ -82,15 +80,15 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
 
    gtk_widget_set_sensitive( widget, FALSE );
-   gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
-   gtk_widget_set_sensitive( ctx->button.importar_dados, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, FALSE );
    gtk_widget_set_sensitive( aba_latex, FALSE );
 
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
 
       gtk_widget_set_sensitive( widget, TRUE );
-      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
-      gtk_widget_set_sensitive( ctx->button.importar_dados, TRUE );
+      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
+      gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
       gtk_widget_set_sensitive( aba_latex, TRUE );
 
       g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
@@ -190,7 +188,7 @@ void* thread_gerar_prova_background( void *data ) {
    if ( !data ) return NULL;
    ProvaThreadArgs *args = ( ProvaThreadArgs * )data;
 
-   args->sucesso = true;
+   args->sucesso = TRUE;
 
    g_print( "[Thread] Iniciando compilação com contexto clonado...\n" );
 
@@ -198,8 +196,8 @@ void* thread_gerar_prova_background( void *data ) {
    char *destino = g_build_filename( ".", "dados", "gabaritos", args->dados.ano, args->dados.escola, "gabaritos", NULL );
 
    char nome[32] = {0};
-   nome_base_gabaritos_bin( nome, sizeof( nome ), args->foco.turma, args->foco.disciplina,
-                            args->foco.periodo, args->dados.foco_seq_prova );
+   nome_base_gabaritos_bin( nome, sizeof( nome ), args->cabecalho.foco_turma, args->cabecalho.foco_disciplina,
+                            args->cabecalho.foco_periodo, args->dados.foco_seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
@@ -223,9 +221,9 @@ void* thread_gerar_prova_background( void *data ) {
 
    if ( args->sucesso ) {
 
-      prova( &args->dados, &args->foco, args->fichas, &args->caminho, &args->data, G );
+      prova( &args->dados, &args->cabecalho, args->fichas, &args->caminho, &args->data, G );
 
-      salvar_estado_aplicativo( &args->dados, &args->foco, &args->caminho );
+      salvar_estado_aplicativo( &args->dados, &args->caminho );
    }
 
    g_free( G );
@@ -257,7 +255,7 @@ void* thread_gerar_prova_background( void *data ) {
 typedef struct {
    InterfacePainel  *painel;          // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
    InterfaceDados   dados;            // ◄ Por valor (Cópia estática blindada)
-   LimitesFiltro    limite;           // ◄ Por valor (Cópia estática blindada)
+   InterfaceCabecalho cabecalho;
    GtkWidget        *botao_processar; // Para reativar o clique ao final
    GtkWidget        *botao_corrigir; // Para reativar o clique ao final
    int              n_rejeitadas;     // Número de imagens rejeitadas e movidas para a quarentena
@@ -273,16 +271,16 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
 
    // Deep Copy: Isolando os dados da Thread Principal GTK
    args->dados  = ctx->dados;
-   args->limite = ctx->cascata.limite;
 
    // Referências Vivas
    args->painel          = &ctx->painel; // Passagem por referência para acesso em tempo real
    args->botao_processar = widget;
-   args->botao_corrigir = ctx->button.corrigir_prova;
+   args->botao_corrigir = ctx->ui_prova.btn_corrigir;
    args->n_rejeitadas    = -1;
+   args->cabecalho = ctx->cabecalho;
 
    gtk_widget_set_sensitive( widget, FALSE );
-   gtk_widget_set_sensitive( ctx->button.corrigir_prova, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
 
    pthread_t thread_id;
    pthread_attr_t attr;
@@ -292,8 +290,8 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       g_printerr( "ERRO: Falha ao criar a thread de processamento de imagens.\n" );
       gtk_widget_set_sensitive( widget, TRUE );
-      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
-      gtk_widget_set_sensitive( ctx->button.importar_dados, TRUE );
+      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
+      gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
       free( args );
    }
 
@@ -396,9 +394,9 @@ void* thread_processar_imagens_background( void *data ) {
 
    g_print( "[Thread CV] Iniciando o processamento assíncrono das imagens...\n" );
 
-   // args->n_rejeitadas = gas_processar_imagens( &args->dados, &args->limite );
-   // args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->limite );
-   args->n_rejeitadas = cs_omr_processar_imagens( &args->dados, &args->limite );
+   // args->n_rejeitadas = gas_processar_imagens( &args->dados, &args->cabecalho );
+   // args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->cabecalho );
+   args->n_rejeitadas = cs_omr_processar_imagens( &args->dados, &args->cabecalho );
 
    g_print( "[Thread CV] Processamento concluído. Retornando o controle para a UI.\n" );
 
@@ -422,17 +420,17 @@ void* thread_processar_imagens_background( void *data ) {
 // Estrutura para empacotar o contexto e as cópias seguras
 typedef struct {
    char *tema;                  // ctx->dados.tema
-   int qtd_subtemas;            // ctx->cascata.limite.subtemas
-   GtkWidget *botao_compilar;   // ctx->button.compilar_latex_acervo
-   GtkWidget *botao_abrir;      // ctx->button.abrir_pdf_acervo
+   int qtd_subtemas;            // ctx->cabecalho.limite_subtemas
+   GtkWidget *btn_compilar;   // ctx->ui_latex.btn_compilar
+   GtkWidget *btn_pdflatex;      // ctx->ui_latex.btn_pdflatex
    GtkWidget *widget;
-   ItemCombo *subtemas;         // ctx->listas.subtemas (typedef struct {char str[64];} ItemCombo;)
+   ItemCombo *subtemas;         // ctx->cabecalho.subtemas (typedef struct {char str[64];} ItemCombo;)
    InterfacePainel *painel;     // ctx->painel
    char *dir_compile;           // dir_compile
    char *caminho_banco_questoes;// ctx->caminho.banco_questoes
 } DadosCompilacaoAsync;
 
-static bool verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const char *tema, int qtd_subtemas, int falhas ) {
+static gboolean verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const char *tema, int qtd_subtemas, int falhas ) {
 
    if ( falhas == 0 ) {
       // --- ESTADO 1: SUCESSO TOTAL ---
@@ -440,7 +438,7 @@ static bool verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const
       painel->format_subtitulo = meu_gerador_variadico( "Todos os %d PDFs foram gerados corretamente.", qtd_subtemas );
       painel->format_instrucao = meu_gerador_variadico( "Iniciando concatenação dos PDFs para %s.pdf...", tema );
       criar_mensagem_painel( SUCESSO, painel );
-      return true;
+      return TRUE;
 
    } else if ( falhas < qtd_subtemas ) {
       // --- ESTADO 2: ALERTA (SUCESSO PARCIAL) ---
@@ -449,7 +447,7 @@ static bool verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const
       painel->format_subtitulo = meu_gerador_variadico( "Processados %d de %d arquivos com sucesso.", sucessos, qtd_subtemas );
       painel->format_instrucao = meu_gerador_variadico( "Houve falha em %d item(ns). Unindo os PDFs disponíveis...", falhas );
       criar_mensagem_painel( AVISO, painel );
-      return true; // Sua sacada implementada!
+      return TRUE; // Sua sacada implementada!
 
    } else {
       // --- ESTADO 3: ERRO CRÍTICO (NADA FOI GERADO) ---
@@ -457,7 +455,7 @@ static bool verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const
       painel->format_subtitulo = meu_gerador_variadico( "Nenhum arquivo PDF foi gerado pelo LaTeX." );
       painel->format_instrucao = meu_gerador_variadico( "Verifique a pasta %s.", tema );
       criar_mensagem_painel( ERRO, painel );
-      return false;
+      return FALSE;
    }
 }
 
@@ -503,7 +501,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
             apagar_arquivos_temporarios_latex_nativamente( async_data->dir_compile, async_data->subtemas[i].str, 5 );
          }
 
-         if ( async_data->widget == async_data->botao_abrir ) {
+         if ( async_data->widget == async_data->btn_pdflatex ) {
             g_xdg_open( arquivo_saida );
          }
       }
@@ -513,8 +511,8 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
    }
 
    // Desbloqueia os botões diretamente pelo ponteiro salvo na struct
-   gtk_widget_set_sensitive( async_data->botao_abrir, TRUE );
-   gtk_widget_set_sensitive( async_data->botao_compilar, TRUE );
+   gtk_widget_set_sensitive( async_data->btn_pdflatex, TRUE );
+   gtk_widget_set_sensitive( async_data->btn_compilar, TRUE );
 
    // Libera as cópias de memória enxutas
    g_free( async_data->tema );
@@ -531,16 +529,16 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
    g_return_if_fail( dir_compile != NULL );
    g_return_if_fail( ctx != NULL );
 
-   gtk_widget_set_sensitive( ctx->button.abrir_pdf_acervo, FALSE );
-   gtk_widget_set_sensitive( ctx->button.compilar_latex_acervo, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_latex.btn_pdflatex, FALSE );
+   gtk_widget_set_sensitive( ctx->ui_latex.btn_compilar, FALSE );
 
    DadosCompilacaoAsync *async_data = g_new( DadosCompilacaoAsync, 1 );
 
    // Mapeamento direto das variáveis essenciais
    async_data->tema                   = g_strdup( ctx->dados.tema );
-   async_data->qtd_subtemas           = ctx->cascata.limite.subtemas;
-   async_data->botao_compilar         = ctx->button.compilar_latex_acervo;
-   async_data->botao_abrir            = ctx->button.abrir_pdf_acervo;
+   async_data->qtd_subtemas           = ctx->ui_prova.limite_subtemas;
+   async_data->btn_compilar         = ctx->ui_latex.btn_compilar;
+   async_data->btn_pdflatex            = ctx->ui_latex.btn_pdflatex;
    async_data->widget                 = widget;
    async_data->painel                 = painel;
    async_data->dir_compile            = g_strdup( dir_compile );
@@ -548,7 +546,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
 
    // Cópia absoluta do array (Blindagem contra alterações na interface durante a compilação)
    async_data->subtemas = g_new( ItemCombo, async_data->qtd_subtemas );
-   memcpy( async_data->subtemas, ctx->listas.subtemas, sizeof( ItemCombo ) * async_data->qtd_subtemas );
+   memcpy( async_data->subtemas, ctx->ui_prova.subtemas, sizeof( ItemCombo ) * async_data->qtd_subtemas );
 
    int num_cores = ( int ) g_get_num_processors();
    GError *erro = NULL;
@@ -565,8 +563,8 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
       g_printerr( "[ERRO FATAL] Falha ao compilar assíncrono: %s\n", erro->message );
       g_clear_error( &erro );
 
-      gtk_widget_set_sensitive( async_data->botao_abrir, TRUE );
-      gtk_widget_set_sensitive( async_data->botao_compilar, TRUE );
+      gtk_widget_set_sensitive( async_data->btn_pdflatex, TRUE );
+      gtk_widget_set_sensitive( async_data->btn_compilar, TRUE );
 
       g_free( async_data->tema );
       g_free( async_data->dir_compile );
@@ -749,8 +747,8 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
    // DESBLOQUEIO DE INTERFACE:
    // Se você bloqueia o botão de "Corrigir" lá na função principal,
    // desbloqueie-o aqui. Exemplo:
-   gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
-   gtk_widget_set_sensitive( ctx->button.processar_imagens, TRUE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
+   gtk_widget_set_sensitive( ctx->ui_prova.btn_processar, TRUE );
    // -------------------------------------------------------------------------
 
    if ( async->cronometro ) {
@@ -798,7 +796,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
       g_free( async_data->dir_compile );
       g_free( async_data );
 
-      gtk_widget_set_sensitive( ctx->button.corrigir_prova, TRUE );
+      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
 
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento" );
       painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o GNU Parallel." );

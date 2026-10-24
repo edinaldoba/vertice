@@ -150,7 +150,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
 //========================================================================================================//
 void imagens_para_prova( const int i, int numero, const GArray *fichas,
-                         const InterfaceDados *dados, const FocoCoordenadas *foco ) {
+                         const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
 
    // 1. Caminho seguro com g_strdup_printf (substitui sprintf e o buffer fixo de 256)
    // O g_autofree cuida de liberar a memória automaticamente no fim da função
@@ -183,7 +183,7 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
    // Para que isto funcione perfeitamente, a assinatura de quadro_de_respostas
    // deverá ser alterada de (FILE *p, ...) para (GString *tex, ...)
    // e lá dentro você substituirá fprintf(p, ...) por g_string_append_printf(tex, ...)
-   quadro_de_respostas( tex, ficha->aluno, numero, i, direcao, true, dados, foco );
+   quadro_de_respostas( tex, ficha->aluno, numero, i, direcao, TRUE, dados, cabecalho );
 
    g_string_append( tex, "\\end{document}\n" );
 
@@ -262,13 +262,27 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
    gint fator_tamanho = ( dados->cabecalho_tipo == 1 ) ? 1 : 0;
 
    switch ( dados->foco_decoracao ) {
-      case DECORACAO_TRAPEZIOS: anexar_tema_pagina_trapezios( tex, fator_tamanho ); break;
-      case DECORACAO_ONDAS:     anexar_tema_pagina_ondas(     tex, fator_tamanho ); break;
-      case DECORACAO_CIRCULOS:  anexar_tema_pagina_circulos(  tex, fator_tamanho ); break;
-      case DECORACAO_HEXAGONOS: anexar_tema_pagina_hexagonos( tex, fator_tamanho ); break;
-      case DECORACAO_QUADRADOS: anexar_tema_pagina_quadrados( tex, fator_tamanho ); break;
-      case DECORACAO_LINHAS:    anexar_tema_pagina_linhas(    tex, fator_tamanho ); break;
-      case DECORACAO_SENOIDES:  anexar_tema_pagina_senoides(  tex, fator_tamanho ); break;
+   case DECORACAO_TRAPEZIOS:
+      anexar_tema_pagina_trapezios( tex, fator_tamanho );
+      break;
+   case DECORACAO_ONDAS:
+      anexar_tema_pagina_ondas( tex, fator_tamanho );
+      break;
+   case DECORACAO_CIRCULOS:
+      anexar_tema_pagina_circulos( tex, fator_tamanho );
+      break;
+   case DECORACAO_HEXAGONOS:
+      anexar_tema_pagina_hexagonos( tex, fator_tamanho );
+      break;
+   case DECORACAO_QUADRADOS:
+      anexar_tema_pagina_quadrados( tex, fator_tamanho );
+      break;
+   case DECORACAO_LINHAS:
+      anexar_tema_pagina_linhas( tex, fator_tamanho );
+      break;
+   case DECORACAO_SENOIDES:
+      anexar_tema_pagina_senoides( tex, fator_tamanho );
+      break;
    }
 
    // =========================================================================
@@ -459,14 +473,28 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
          // INJEÇÃO NATIVA DO CABEÇALHO DA QUESTÃO (As 6 opções suportadas)
          // =========================================================================
          switch ( dados->foco_decoracao ) {
-            case DECORACAO_TRAPEZIOS: anexar_cabecalho_questao_trapezios( tex, col_factor, q_idx + 1 ); break;
-            case DECORACAO_ONDAS:     anexar_cabecalho_questao_ondas(     tex, col_factor, q_idx + 1 ); break;
-            case DECORACAO_CIRCULOS:  anexar_cabecalho_questao_circulos(  tex, col_factor, q_idx + 1 ); break;
-            case DECORACAO_HEXAGONOS: anexar_cabecalho_questao_hexagonos( tex, col_factor, q_idx + 1 ); break;
+         case DECORACAO_TRAPEZIOS:
+            anexar_cabecalho_questao_trapezios( tex, col_factor, q_idx + 1 );
+            break;
+         case DECORACAO_ONDAS:
+            anexar_cabecalho_questao_ondas( tex, col_factor, q_idx + 1 );
+            break;
+         case DECORACAO_CIRCULOS:
+            anexar_cabecalho_questao_circulos( tex, col_factor, q_idx + 1 );
+            break;
+         case DECORACAO_HEXAGONOS:
+            anexar_cabecalho_questao_hexagonos( tex, col_factor, q_idx + 1 );
+            break;
 
-            case DECORACAO_QUADRADOS: anexar_cabecalho_questao_quadrados( tex, "black", col_factor, q_idx + 1 ); break;
-            case DECORACAO_LINHAS:    anexar_cabecalho_questao_linhas(    tex, "black", col_factor, q_idx + 1 ); break;
-            case DECORACAO_SENOIDES:  anexar_cabecalho_questao_senoides(  tex, "black", col_factor, q_idx + 1 ); break;
+         case DECORACAO_QUADRADOS:
+            anexar_cabecalho_questao_quadrados( tex, "black", col_factor, q_idx + 1 );
+            break;
+         case DECORACAO_LINHAS:
+            anexar_cabecalho_questao_linhas( tex, "black", col_factor, q_idx + 1 );
+            break;
+         case DECORACAO_SENOIDES:
+            anexar_cabecalho_questao_senoides( tex, "black", col_factor, q_idx + 1 );
+            break;
          }
 
          // Captura o enunciado da questão
@@ -541,7 +569,7 @@ static void executar_gerador_c_de_questoes_nativamente( const char *pasta_tema )
    }
 }
 //--------------------------------------------------------------------------------------------------------
-void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArray *fichas,
+void prova( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho, const GArray *fichas,
             const CaminhoDiretorio *caminho, const CalendarioData *data, const ItemTextoCurto *G ) {
 
    char titulo_prova[512];
@@ -583,7 +611,7 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArr
       file_permute( pb, dados->total_questoes );
 
       if ( dados->naopresencial ) {
-         imagens_para_prova( num_ativo, jj + 1, fichas, dados, foco );
+         imagens_para_prova( num_ativo, jj + 1, fichas, dados, cabecalho );
       }
 
       // 3. Montagem Atômica do Arquivo .tex via GLib (Puramente em RAM)
@@ -623,11 +651,11 @@ void prova( const InterfaceDados *dados, const FocoCoordenadas *foco, const GArr
 
       if ( dados->qtd_paginas == 1 ) {
          g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, cabecalho );
          g_string_append( tex_corpo, "\\end{center}\n" );
       } else {
          g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, foco );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, cabecalho );
          g_string_append( tex_corpo, "\\end{center}\n" );
       }
 

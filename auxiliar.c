@@ -133,7 +133,7 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
    for ( int i = 0; i < qtd_disciplinas; i++ ) {
 
       g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                                  ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+                                  ctx->dados.turma, ctx->cabecalho.disciplinas[i].str, NULL );
 
       // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
       if ( !diretorio_esta_vazio( caminho ) ) {
@@ -152,12 +152,12 @@ void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dad
 
    // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
    g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                               ctx->dados.turma, ctx->listas.disciplinas[i].str, NULL );
+                               ctx->dados.turma, ctx->cabecalho.disciplinas[i].str, NULL );
 
    gboolean riscar = diretorio_esta_vazio( caminho );
 
    gtk_list_store_set( store, iter,
-                       0,  ctx->listas.disciplinas[i].str,
+                       0,  ctx->cabecalho.disciplinas[i].str,
                        1, !riscar,         // Sensibilidade (TRUE = habilitado)
                        2,  riscar, -1 );   // Riscar nome
 }
@@ -208,7 +208,7 @@ int quantidade_diretorios( const char *diretorio ) {
 
 
 
-bool diretorio_existe( const char *caminhodir ) {
+gboolean diretorio_existe( const char *caminhodir ) {
    struct stat sb;
    // stat retorna 0 se o caminho existir
    // S_ISDIR verifica se o caminho é de fato uma pasta

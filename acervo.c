@@ -14,14 +14,14 @@
 #include "latex.h"
 #include "./acervo/estatistica.h"
 
-#include <stdbool.h> // Caso ainda não tenha no seu header
+// Caso ainda não tenha no seu header
 #include <stdio.h>
 
 
 
 
-static bool executar_gerador_c_nativamente( const char *pasta_tema ) {
-   g_return_val_if_fail( pasta_tema != NULL, false );
+static gboolean executar_gerador_c_nativamente( const char *pasta_tema ) {
+   g_return_val_if_fail( pasta_tema != NULL, FALSE );
 
    if ( quantidade_arquivos_por_extensao( pasta_tema, ".c" ) == 1 ) {
 
@@ -36,17 +36,17 @@ static bool executar_gerador_c_nativamente( const char *pasta_tema ) {
          if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
             g_printerr( "[ERRO FATAL] Falha ao compilar gerador C em '%s': %s\n", pasta_tema, erro->message );
             g_clear_error( &erro );
-            return false;
+            return FALSE;
          }
 
-         return true; // Compilou e executou o gerador com sucesso
+         return TRUE; // Compilou e executou o gerador com sucesso
 
       } else {
          ac_estatistica();
       }
    }
 
-   return true; // Não encontrou o arquivo .c neste subtema
+   return TRUE; // Não encontrou o arquivo .c neste subtema
 }
 
 
@@ -112,13 +112,27 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
    // O uso nativo de "CorSerie" fará o elo direto com o professor.sty
    switch ( dados->foco_decoracao ) {
-      case DECORACAO_TRAPEZIOS: anexar_tema_pagina_trapezios( tex, k_tema ); break;
-      case DECORACAO_ONDAS:     anexar_tema_pagina_ondas(     tex, k_tema ); break;
-      case DECORACAO_CIRCULOS:  anexar_tema_pagina_circulos(  tex, k_tema ); break;
-      case DECORACAO_HEXAGONOS: anexar_tema_pagina_hexagonos( tex, k_tema ); break;
-      case DECORACAO_QUADRADOS: anexar_tema_pagina_quadrados( tex, k_tema ); break;
-      case DECORACAO_LINHAS:    anexar_tema_pagina_linhas(    tex, k_tema ); break;
-      case DECORACAO_SENOIDES:  anexar_tema_pagina_senoides(  tex, k_tema ); break;
+   case DECORACAO_TRAPEZIOS:
+      anexar_tema_pagina_trapezios( tex, k_tema );
+      break;
+   case DECORACAO_ONDAS:
+      anexar_tema_pagina_ondas( tex, k_tema );
+      break;
+   case DECORACAO_CIRCULOS:
+      anexar_tema_pagina_circulos( tex, k_tema );
+      break;
+   case DECORACAO_HEXAGONOS:
+      anexar_tema_pagina_hexagonos( tex, k_tema );
+      break;
+   case DECORACAO_QUADRADOS:
+      anexar_tema_pagina_quadrados( tex, k_tema );
+      break;
+   case DECORACAO_LINHAS:
+      anexar_tema_pagina_linhas( tex, k_tema );
+      break;
+   case DECORACAO_SENOIDES:
+      anexar_tema_pagina_senoides( tex, k_tema );
+      break;
    }
 
    // Título da Página injetado logo abaixo do tema vetorial
@@ -161,14 +175,28 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
             // Injeção do Cabeçalho
             switch ( dados->foco_decoracao ) {
-               case DECORACAO_TRAPEZIOS: anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 ); break;
-               case DECORACAO_ONDAS:     anexar_cabecalho_questao_ondas(     tex, k_questao, q + 1 ); break;
-               case DECORACAO_CIRCULOS:  anexar_cabecalho_questao_circulos(  tex, k_questao, q + 1 ); break;
-               case DECORACAO_HEXAGONOS: anexar_cabecalho_questao_hexagonos( tex, k_questao, q + 1 ); break;
+            case DECORACAO_TRAPEZIOS:
+               anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 );
+               break;
+            case DECORACAO_ONDAS:
+               anexar_cabecalho_questao_ondas( tex, k_questao, q + 1 );
+               break;
+            case DECORACAO_CIRCULOS:
+               anexar_cabecalho_questao_circulos( tex, k_questao, q + 1 );
+               break;
+            case DECORACAO_HEXAGONOS:
+               anexar_cabecalho_questao_hexagonos( tex, k_questao, q + 1 );
+               break;
 
-               case DECORACAO_QUADRADOS: anexar_cabecalho_questao_quadrados( tex, "black", k_questao, q + 1 ); break;
-               case DECORACAO_LINHAS:    anexar_cabecalho_questao_linhas(    tex, "black", k_questao, q + 1 ); break;
-               case DECORACAO_SENOIDES:  anexar_cabecalho_questao_senoides(  tex, "black", k_questao, q + 1 ); break;
+            case DECORACAO_QUADRADOS:
+               anexar_cabecalho_questao_quadrados( tex, "black", k_questao, q + 1 );
+               break;
+            case DECORACAO_LINHAS:
+               anexar_cabecalho_questao_linhas( tex, "black", k_questao, q + 1 );
+               break;
+            case DECORACAO_SENOIDES:
+               anexar_cabecalho_questao_senoides( tex, "black", k_questao, q + 1 );
+               break;
             }
 
             // Coleta o bloco da questão até a próxima linha em branco
@@ -231,23 +259,22 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    g_return_if_fail( ctx != NULL );
 
    const InterfaceDados *dados = &( ctx->dados );
-   const LimitesFiltro *limite = &( ctx->cascata.limite );
-   const InterfaceListas *listas = &( ctx->listas );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
+   const InterfaceProva *ui_prova = &ctx->ui_prova;
 
-   if ( listas->subtemas == NULL ) return;
+   if ( ui_prova->subtemas == NULL ) return;
 
    // 1. Delega a construção dos arquivos .tex para o Motor LaTeX
-   for ( int i = 0; i < limite->subtemas; i++ ) {
+   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    listas->subtemas[i].str,
+                                    ui_prova->subtemas[i].str,
                                     NULL );
 
-      motor_gerador_latex( pasta_tema, listas->subtemas[i].str, dados );
+      motor_gerador_latex( pasta_tema, ui_prova->subtemas[i].str, dados );
    }
 
-   if ( widget == ctx->button.compilar_latex_acervo ) {
+   if ( widget == ctx->ui_latex.btn_compilar ) {
       painel->format_titulo    = meu_gerador_variadico( "⏳ Compilação em Andamento" );
       painel->format_subtitulo = meu_gerador_variadico( "O documento PDF deste acervo ainda não foi gerado." );
       painel->format_instrucao = meu_gerador_variadico( "Processando as questões de %s. Aguarde a conclusão para visualizar o material.", dados->tema );
@@ -271,26 +298,25 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    const InterfaceDados *dados = &( ctx->dados );
-   const LimitesFiltro *limite = &ctx->cascata.limite;
-   const InterfaceListas *listas = &( ctx->listas );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
+   const InterfaceProva *ui_prova = &ctx->ui_prova;
 
-   if ( listas->subtemas == NULL ) return;
+   if ( ui_prova->subtemas == NULL ) return;
 
-   bool mecanismo_executado = false;
+   gboolean mecanismo_executado = FALSE;
 
    // Declaração do iterador dentro do for (padrão moderno C99+)
-   for ( int i = 0; i < limite->subtemas; i++ ) {
+   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
 
       // Criação dinâmica e 100% segura do caminho do subtema, unindo as pastas com '/'
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    listas->subtemas[i].str,
+                                    ui_prova->subtemas[i].str,
                                     NULL );
 
-      // A função retorna true se o arquivo Q.c existia e foi processado
+      // A função retorna TRUE se o arquivo Q.c existia e foi processado
       if ( executar_gerador_c_nativamente( pasta_tema ) ) {
-         mecanismo_executado = true;
+         mecanismo_executado = TRUE;
       }
    }
 
