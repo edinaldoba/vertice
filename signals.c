@@ -28,11 +28,11 @@ static void _configurar_nomes_dos_widgets( AppContext *ctx ) {
    gtk_widget_set_name( ctx->entry.tema, "tema" );
    gtk_widget_set_name( ctx->check.validar_ciclos, "Números Cruzados" );
    gtk_widget_set_name( ctx->check.nao_presencial, "Não Presencial" );
-   gtk_widget_set_name( ctx->check.expor_dados, "Expôr Dados" );
+   gtk_widget_set_name( ctx->ui_diario.check_expor_dados, "Expôr Dados" );
 
    g_object_set_data( G_OBJECT( ctx->check.validar_ciclos ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NUM_CRUZADOS ) );
    g_object_set_data( G_OBJECT( ctx->check.nao_presencial ), "categoria", GINT_TO_POINTER( CATEGORIA_UI_NAO_PRESENCIAL ) );
-   g_object_set_data( G_OBJECT( ctx->check.expor_dados ),    "categoria", GINT_TO_POINTER( CATEGORIA_UI_EXPOR_DADOS ) );
+   g_object_set_data( G_OBJECT( ctx->ui_diario.check_expor_dados ),    "categoria", GINT_TO_POINTER( CATEGORIA_UI_EXPOR_DADOS ) );
 
    // 2. Categoria 1: Colunas (Valor 2 ou 3)
    for ( int i = 0; i < 2; i++ ) {
@@ -143,11 +143,13 @@ static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRender
    gtk_tree_model_get( model, iter, 4, &tipo_registro, -1 );
 
    // Aplica a cor na célula atual
-   _aplicar_cor_condicional_conteudo( cell, tipo_registro, ctx->dados.interface_style );
+   _aplicar_cor_condicional_conteudo( cell, tipo_registro, ctx->dados.ui_foco_estilo );
 }
 
 static void _inicializar_renderizadores_conteudo( AppContext *ctx ) {
-   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo );
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
 
    // Aplica para as colunas visíveis que precisam da cor (ex: Data, Tema, Descrição...)
    // Supondo que sejam as colunas 0, 1, 2 e 3 do TreeView
@@ -199,14 +201,16 @@ static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRend
    gtk_tree_model_get( model, iter, 5, &status, -1 );
 
    // Delega a pintura
-   _aplicar_cor_condicional_frequencia( cell, status, ctx->dados.interface_style );
+   _aplicar_cor_condicional_frequencia( cell, status, ctx->dados.ui_foco_estilo );
 }
 
 //===================================================================================================
 // INICIALIZADOR (Chame UMA VEZ no seu signals.c ou na inicialização da interface)
 //===================================================================================================
 static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
-   GtkTreeView *tree_view = GTK_TREE_VIEW( ctx->ui_diario.treeview_frequencia );
+   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
+
+   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
 
    // Aplica nas colunas: Nome (1), Data/Nascimento (2) e Status Textual (3)
    for ( int i = 1; i <= 3; i++ ) {
@@ -289,7 +293,7 @@ static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer 
    // Agora lemos o texto até a coluna 12
    if ( col_idx >= 2 && col_idx <= 12 ) g_object_get( cell, "text", &texto, NULL );
 
-   _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.interface_style );
+   _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.ui_foco_estilo );
 
    // =======================================================================
    // LÓGICA DE FONTE (NEGRITO PARA A NOTA DO PERÍODO)
@@ -307,11 +311,12 @@ static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer 
 //----------------------------------------------------------------------------------------------------------------
 static void _inicializar_renderizadores_avaliacoes( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    // =====================================================================
    // 1. CONECTA RENDERIZADOR DA ABA DE AVALIAÇÕES (Colunas 1 a 11)
    // =====================================================================
-   GtkTreeView *tree_avaliacoes = GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes );
+   GtkTreeView *tree_avaliacoes = GTK_TREE_VIEW( avaliacao->treeview );
    if ( tree_avaliacoes ) {
       // O laço agora vai até 12 para cobrir a "Nota do Período"
       for ( int i = 1; i <= 12; i++ ) {
@@ -338,6 +343,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
                                            GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
+   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    gboolean eh_inativo = FALSE;
    int mascara_pendencias = 0;
@@ -348,7 +354,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
    // Verifica o estado da "chave mestra" de edição
-   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_pendencias ) );
+   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( relatorio->check_pendencias ) );
 
    gboolean editavel = FALSE;
    GdkRGBA cor_fundo;
@@ -359,21 +365,21 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       int p = col_idx - 2;
       if ( mascara_pendencias & ( 1 << p ) ) {
          editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+         if ( cor_fundo_celula_pendente( ctx->dados.ui_foco_estilo, &cor_fundo ) ) usar_cor_fundo = TRUE;
       }
    }
    // Se for coluna de Recuperação Final (Coluna 8 -> Bit 4)
    else if ( modo_pendencias && !eh_inativo && col_idx == 8 ) {
       if ( mascara_pendencias & ( 1 << 4 ) ) {
          editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+         if ( cor_fundo_celula_pendente( ctx->dados.ui_foco_estilo, &cor_fundo ) ) usar_cor_fundo = TRUE;
       }
    }
    // Se for coluna de Conselho (Coluna 9 -> Bit 5)
    else if ( modo_pendencias && !eh_inativo && col_idx == 9 ) {
       if ( mascara_pendencias & ( 1 << 5 ) ) {
          editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->dados.interface_style, &cor_fundo ) ) usar_cor_fundo = TRUE;
+         if ( cor_fundo_celula_pendente( ctx->dados.ui_foco_estilo, &cor_fundo ) ) usar_cor_fundo = TRUE;
       }
    }
 
@@ -401,7 +407,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    if ( col_idx == 10 ) {
       GdkRGBA cor_texto;
 
-      int tem_cor = cor_texto_observacao( eh_inativo, ctx->dados.interface_style, texto, &cor_texto );
+      int tem_cor = cor_texto_observacao( eh_inativo, ctx->dados.ui_foco_estilo, texto, &cor_texto );
 
       if ( tem_cor ) {
          // Aplica a cor e já aproveitamos para colocar a situação em NEGRITO! Fica premium.
@@ -414,7 +420,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    }
    // 2. TRATAMENTO PARA AS COLUNAS DE NOTAS (Índices 2 a 9)
    else {
-      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.interface_style );
+      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->dados.ui_foco_estilo );
       // Desliga o negrito para não vazar a formatação da coluna 10 para as outras células
       g_object_set( cell, "weight-set", FALSE, NULL );
    }
@@ -424,8 +430,9 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
 //------------------------------------------------------------------------------------------------------------
  static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
-   GtkTreeView *tree_relatorio = GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio );
+   GtkTreeView *tree_relatorio = GTK_TREE_VIEW( relatorio->treeview );
    if ( tree_relatorio ) {
       for ( int i = 1; i <= 10; i++ ) {
          GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_relatorio, i );
@@ -458,9 +465,12 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
  * @param provider Ponteiro para o gerenciador de estilo CSS do GTK.
  */
 void app_signals_connect( gpointer user_data ) {
-
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
+   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
+   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
+   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    _configurar_nomes_dos_widgets( ctx );
 
@@ -474,7 +484,7 @@ void app_signals_connect( gpointer user_data ) {
                      G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
    ctx->handlers.nao_presencial = g_signal_connect( ctx->check.nao_presencial, "toggled",
                                   G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
-   ctx->handlers.expor_dados = g_signal_connect( ctx->check.expor_dados,    "toggled",
+   ctx->handlers.expor_dados = g_signal_connect( ctx->ui_diario.check_expor_dados,    "toggled",
                                G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );
 
    // =========================================================================
@@ -496,92 +506,97 @@ void app_signals_connect( gpointer user_data ) {
    // =========================================================================
    // 4. CONEXÃO DE SINAIS: CICLO PEDAGÓGICO E PRODUÇÃO DE DOCUMENTOS
    // =========================================================================
-   g_signal_connect( ctx->button.frequencia,        "clicked", G_CALLBACK( on_button_relatorio_de_frequencia_clicked ), ctx );
-   g_signal_connect( ctx->button.conteudos,         "clicked", G_CALLBACK( on_button_relatorio_de_conteudos_clicked ), ctx );
-   g_signal_connect( ctx->button.avaliacoes,        "clicked", G_CALLBACK( on_button_relatorio_de_avaliacoes_clicked ), ctx );
-   g_signal_connect( ctx->button.relatorio_final,   "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
    g_signal_connect( ctx->button.atualizar_alunos,  "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 
-   g_signal_connect( ctx->ui_diario.calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->ui_diario.calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->ui_diario.calendario_data, "next-year", G_CALLBACK( on_calendar_navigation ), ctx );
-   g_signal_connect( ctx->ui_diario.calendario_data, "prev-year", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( conteudo->calendario_data, "next-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( conteudo->calendario_data, "prev-month", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( conteudo->calendario_data, "next-year", G_CALLBACK( on_calendar_navigation ), ctx );
+   g_signal_connect( conteudo->calendario_data, "prev-year", G_CALLBACK( on_calendar_navigation ), ctx );
 
-   g_signal_connect( ctx->ui_diario.calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
-   g_signal_connect( ctx->ui_diario.entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
-   g_signal_connect( ctx->ui_diario.entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
+   g_signal_connect( conteudo->calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
+   g_signal_connect( conteudo->entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
+   g_signal_connect( conteudo->entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
 
-   g_signal_connect( ctx->ui_diario.stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.remover_registro, "clicked",
+   g_signal_connect( conteudo->stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
+   g_signal_connect( conteudo->stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
+   g_signal_connect( conteudo->remover_registro, "clicked",
                      G_CALLBACK( on_button_remover_registro_diario_selecionado_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.treeview_conteudo, "key-press-event",
+   g_signal_connect( conteudo->treeview, "key-press-event",
                      G_CALLBACK( on_treeview_remover_registro_diario_selecionado_key_press_event ), ctx );
    // Obtém o controle de seleção do TreeView
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( ctx->ui_diario.treeview_conteudo ) );
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( conteudo->treeview ) );
    g_signal_connect( selection, "changed", G_CALLBACK( on_diario_selection_changed ), ctx );
 
-   g_signal_connect( ctx->ui_diario.descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_salvar_conteudo, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.treeview_conteudo, "row-activated",
+   g_signal_connect( conteudo->descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
+   g_signal_connect( conteudo->btn_salvar, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
+   g_signal_connect( conteudo->treeview, "row-activated",
                      G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
    _inicializar_renderizadores_conteudo( ctx );
 
 
-   ctx->ui_diario.handler_combo_data = g_signal_connect( ctx->ui_diario.combo_data, "changed",
+   frequencia->handler_combo_data = g_signal_connect( frequencia->combo_data, "changed",
                                        G_CALLBACK( on_combo_data_frequencia_changed ), ctx );
-   g_signal_connect( ctx->ui_diario.check_por_aluno, "toggled", G_CALLBACK( on_check_por_aluno_toggled ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_justificada, "clicked", G_CALLBACK( on_button_justificada_clicked ), ctx );
+   g_signal_connect( frequencia->check_por_aluno, "toggled", G_CALLBACK( on_check_por_aluno_toggled ), ctx );
+   g_signal_connect( frequencia->btn_presente, "clicked", G_CALLBACK( on_button_presente_clicked ), ctx );
+   g_signal_connect( frequencia->btn_ausente, "clicked", G_CALLBACK( on_button_ausente_clicked ), ctx );
+   g_signal_connect( frequencia->btn_justificada, "clicked", G_CALLBACK( on_button_justificada_clicked ), ctx );
    g_signal_connect( ctx->window, "key-press-event",
                      G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_salvar_frequencia, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.treeview_frequencia, "cursor-changed",
+   g_signal_connect( frequencia->btn_salvar, "clicked", G_CALLBACK( on_button_salvar_frequencia_clicked ), ctx );
+   g_signal_connect( frequencia->treeview, "cursor-changed",
                      G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
    _inicializar_renderizadores_frequencia( ctx );
 
 
    // AVALIAÇÕES
-   ctx->ui_diario.handler_combo_avaliacoes = g_signal_connect( ctx->ui_diario.combo_avaliacoes, "changed",
+   avaliacao->handler_combo_avaliacao = g_signal_connect( avaliacao->combo_avaliacao, "changed",
          G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_popover_nomear, "clicked",
+   g_signal_connect( avaliacao->btn_nova_avaliacao, "clicked", G_CALLBACK( on_button_nova_avaliacao_clicked ), ctx );
+   g_signal_connect( avaliacao->btn_editar_avaliacao, "clicked", G_CALLBACK( on_button_editar_avaliacao_clicked ), ctx );
+   g_signal_connect( avaliacao->btn_popover_nomear, "clicked",
                      G_CALLBACK( on_button_popover_nomear_avaliacao_clicked ), ctx );
-   g_signal_connect( ctx->ui_diario.entry_popover_nomear, "activate",
+   g_signal_connect( avaliacao->entry_popover_nomear, "activate",
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
-   ctx->ui_diario.handler_check_desativar = g_signal_connect( ctx->ui_diario.check_desativar_avaliacao, "toggled",
+   avaliacao->handler_check_desativar = g_signal_connect( avaliacao->check_desativar_avaliacao, "toggled",
          G_CALLBACK( on_check_desativar_avaliacao_toggled ), ctx );
 
    // Aba Avaliações (Colunas 2 a 11 contíguas)
-   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_avaliacoes ), 2, 11 );
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( avaliacao->treeview ), 2, 11 );
 
-   g_signal_connect( ctx->ui_diario.treeview_avaliacoes, "cursor-changed",
-                     G_CALLBACK( on_treeview_notas_cursor_changed ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_salvar_avaliacoes, "clicked",
+   g_signal_connect( avaliacao->treeview, "cursor-changed",
+                     G_CALLBACK( on_treeview_avaliacao_notas_cursor_changed ), ctx );
+   g_signal_connect( avaliacao->btn_salvar, "clicked",
                      G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
    _inicializar_renderizadores_avaliacoes( ctx );
 
 
    // RELATÓRIO FINAL
-   g_signal_connect( ctx->ui_diario.check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_excecoes_relatorio_toggled ), ctx );
-   g_signal_connect( ctx->ui_diario.btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
+   g_signal_connect( relatorio->check_pendencias, "toggled", G_CALLBACK( on_check_pendencias_excecoes_relatorio_toggled ), ctx );
+   g_signal_connect( relatorio->btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
 
    // Aba Relatório Final (Colunas 2, 3 e 4: 1º, 2º e 3º Períodos) (Colunas 8 e 9: Rec Final e Conselho)
-   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 2, 4 );
-   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( ctx->ui_diario.treeview_relatorio ), 8, 9 );
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( relatorio->treeview ), 2, 4 );
+   _configurar_colunas_editaveis( ctx, GTK_TREE_VIEW( relatorio->treeview ), 8, 9 );
 
    _inicializar_renderizadores_relatorio( ctx );
 
 
 
-   g_signal_connect( ctx->button.frequencia, "enter-notify-event", G_CALLBACK( on_button_frequencia_enter_notify_event ), ctx );
-   g_signal_connect( ctx->button.conteudos,  "enter-notify-event", G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
-   g_signal_connect( ctx->button.avaliacoes, "enter-notify-event", G_CALLBACK( on_button_avaliacoes_enter_notify_event ), ctx );
-   g_signal_connect( ctx->button.relatorio_final, "enter-notify-event",
+   g_signal_connect( ctx->ui_diario.btn_frequencia, "enter-notify-event",
+                     G_CALLBACK( on_button_frequencia_enter_notify_event ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_conteudo,  "enter-notify-event",
+                     G_CALLBACK( on_button_conteudos_enter_notify_event ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_avaliacao, "enter-notify-event",
+                     G_CALLBACK( on_button_avaliacoes_enter_notify_event ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_relatorio, "enter-notify-event",
                      G_CALLBACK( on_button_relatorio_enter_notify_event ), ctx );
+
+   g_signal_connect( ctx->ui_diario.btn_frequencia, "clicked", G_CALLBACK( on_button_relatorio_de_frequencia_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_conteudo,   "clicked", G_CALLBACK( on_button_relatorio_de_conteudos_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_avaliacao,  "clicked", G_CALLBACK( on_button_relatorio_de_avaliacoes_clicked ), ctx );
+   g_signal_connect( ctx->ui_diario.btn_relatorio,  "clicked", G_CALLBACK( on_button_relatorio_final_clicked ), ctx );
+
 
    g_signal_connect( ctx->ui_diario.check_modo_edicao, "toggled", G_CALLBACK( on_check_modo_edicao_toggled ), ctx );
    g_signal_connect( ctx->notebook, "switch-page", G_CALLBACK( on_notebook_principal_switch_page ), ctx );
@@ -616,11 +631,8 @@ void app_signals_connect( gpointer user_data ) {
    ctx->handlers.periodo = g_signal_connect( ctx->entry.periodo, "changed",
                            G_CALLBACK( on_entry_periodo_interface_changed ), ctx );
 
-   ctx->handlers.cor_destaque = g_signal_connect( ctx->entry.cor_destaque, "changed",
-                                G_CALLBACK( on_entry_cor_destaque_interface_changed ), ctx );
-
-   ctx->handlers.decoracao_estilo = g_signal_connect( ctx->entry.decoracao_estilo, "changed",
-                                    G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
+   g_signal_connect( ctx->entry.cor_destaque, "changed", G_CALLBACK( on_entry_cor_destaque_interface_changed ), ctx );
+   g_signal_connect( ctx->entry.decoracao_estilo, "changed", G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
 
    g_signal_connect( ctx->entry.estilo, "changed", G_CALLBACK( on_entry_estilo_interface_changed ), ctx );
 
@@ -641,7 +653,7 @@ void app_signals_connect( gpointer user_data ) {
    ctx->provas.importar = false;
 
 
-   ctx->ui_diario.handler_combo_alunos = g_signal_connect( G_OBJECT( ctx->ui_diario.combo_alunos ), "changed",
+   frequencia->handler_combo_alunos = g_signal_connect( G_OBJECT( frequencia->combo_alunos ), "changed",
                                          G_CALLBACK( on_combo_alunos_changed ), ctx );
 
 

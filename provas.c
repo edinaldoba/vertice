@@ -28,7 +28,7 @@ void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados )
       sprintf( titulo_prova, "%s de %s / %s",
                dados->periodo, dados->disciplina, dados->ano );
    } else {
-      sprintf( titulo_prova, "%s Prova de %s do %s / %s",
+      sprintf( titulo_prova, "%s de %s do %s / %s",
                dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
    }
 }
@@ -64,6 +64,8 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
+   const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
+
    g_string_append_printf( tex,
                            "\\usepackage[brazil]{babel}\n"
                            "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
@@ -73,7 +75,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
                            "\\usetikzlibrary{calc}\n"
                            "\\pagestyle{empty}\n\n"
                            "\\begin{document}\n"
-                           "\\noindent\\begin{tikzpicture}\n", dados->cor_destaque );
+                           "\\noindent\\begin{tikzpicture}\n", cor_serie_nome[dados->foco_cor_serie] );
 
    // Variáveis de Cálculo e Moldura
    g_string_append_printf( tex,
@@ -168,7 +170,8 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
+   const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foco_cor_serie] );
 
    char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
 
@@ -226,7 +229,8 @@ static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) 
    }
 
    // Definição da cor principal (CorSerie) configurada no GTK
-   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", dados->cor_destaque );
+   const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foco_cor_serie] );
 
    // Macros globais de formatação e trigonometria
    g_string_append( tex,
@@ -256,15 +260,16 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
    // =========================================================================
    // O fator passado para a decoração é 1 (Cabeçalho Compacto) ou 0 (Cabeçalho Completo)
    gint fator_tamanho = ( dados->cabecalho_tipo == 1 ) ? 1 : 0;
-   const char *tema = dados->decoracao_estilo;
 
-   if ( g_strcmp0( tema, "Trapezios" ) == 0 ) anexar_tema_pagina_trapezios( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Ondas" )     == 0 ) anexar_tema_pagina_ondas( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Quadrados" ) == 0 ) anexar_tema_pagina_quadrados( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Linhas" )    == 0 ) anexar_tema_pagina_linhas( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Senoides" )  == 0 ) anexar_tema_pagina_senoides( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Circulos" )  == 0 ) anexar_tema_pagina_circulos( tex, fator_tamanho );
-   else if ( g_strcmp0( tema, "Hexagonos" ) == 0 ) anexar_tema_pagina_hexagonos( tex, fator_tamanho );
+   switch ( dados->foco_decoracao ) {
+      case DECORACAO_TRAPEZIOS: anexar_tema_pagina_trapezios( tex, fator_tamanho ); break;
+      case DECORACAO_ONDAS:     anexar_tema_pagina_ondas(     tex, fator_tamanho ); break;
+      case DECORACAO_CIRCULOS:  anexar_tema_pagina_circulos(  tex, fator_tamanho ); break;
+      case DECORACAO_HEXAGONOS: anexar_tema_pagina_hexagonos( tex, fator_tamanho ); break;
+      case DECORACAO_QUADRADOS: anexar_tema_pagina_quadrados( tex, fator_tamanho ); break;
+      case DECORACAO_LINHAS:    anexar_tema_pagina_linhas(    tex, fator_tamanho ); break;
+      case DECORACAO_SENOIDES:  anexar_tema_pagina_senoides(  tex, fator_tamanho ); break;
+   }
 
    // =========================================================================
    // 2. PAINÉIS DE INFORMAÇÃO EDITORIAL
@@ -453,20 +458,15 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
          // =========================================================================
          // INJEÇÃO NATIVA DO CABEÇALHO DA QUESTÃO (As 6 opções suportadas)
          // =========================================================================
-         if ( strcmp( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
-            anexar_cabecalho_questao_trapezios( tex, col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Ondas" ) == 0 ) {
-            anexar_cabecalho_questao_ondas( tex, col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
-            anexar_cabecalho_questao_quadrados( tex, "black", col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Linhas" ) == 0 ) {
-            anexar_cabecalho_questao_linhas( tex, "black", col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Senoides" ) == 0 ) {
-            anexar_cabecalho_questao_senoides( tex, "black", col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Circulos" ) == 0 ) {
-            anexar_cabecalho_questao_circulos( tex, col_factor, q_idx + 1 );
-         } else if ( strcmp( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
-            anexar_cabecalho_questao_hexagonos( tex, col_factor, q_idx + 1 );
+         switch ( dados->foco_decoracao ) {
+            case DECORACAO_TRAPEZIOS: anexar_cabecalho_questao_trapezios( tex, col_factor, q_idx + 1 ); break;
+            case DECORACAO_ONDAS:     anexar_cabecalho_questao_ondas(     tex, col_factor, q_idx + 1 ); break;
+            case DECORACAO_CIRCULOS:  anexar_cabecalho_questao_circulos(  tex, col_factor, q_idx + 1 ); break;
+            case DECORACAO_HEXAGONOS: anexar_cabecalho_questao_hexagonos( tex, col_factor, q_idx + 1 ); break;
+
+            case DECORACAO_QUADRADOS: anexar_cabecalho_questao_quadrados( tex, "black", col_factor, q_idx + 1 ); break;
+            case DECORACAO_LINHAS:    anexar_cabecalho_questao_linhas(    tex, "black", col_factor, q_idx + 1 ); break;
+            case DECORACAO_SENOIDES:  anexar_cabecalho_questao_senoides(  tex, "black", col_factor, q_idx + 1 ); break;
          }
 
          // Captura o enunciado da questão

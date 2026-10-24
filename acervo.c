@@ -90,7 +90,8 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
                     "\\pagestyle{empty}\n\n" );
 
    // O pacote de cores do professor recebe o parâmetro (ex: "sexto") e converte para "CorSerie"
-   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n\n", dados->cor_destaque );
+   const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foco_cor_serie] );
 
    g_string_append( tex,
                     "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n\n"
@@ -110,20 +111,14 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    gint k_tema = 1;
 
    // O uso nativo de "CorSerie" fará o elo direto com o professor.sty
-   if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
-      anexar_tema_pagina_trapezios( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
-      anexar_tema_pagina_ondas( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
-      anexar_tema_pagina_quadrados( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
-      anexar_tema_pagina_linhas( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
-      anexar_tema_pagina_senoides( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
-      anexar_tema_pagina_circulos( tex, k_tema );
-   } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
-      anexar_tema_pagina_hexagonos( tex, k_tema );
+   switch ( dados->foco_decoracao ) {
+      case DECORACAO_TRAPEZIOS: anexar_tema_pagina_trapezios( tex, k_tema ); break;
+      case DECORACAO_ONDAS:     anexar_tema_pagina_ondas(     tex, k_tema ); break;
+      case DECORACAO_CIRCULOS:  anexar_tema_pagina_circulos(  tex, k_tema ); break;
+      case DECORACAO_HEXAGONOS: anexar_tema_pagina_hexagonos( tex, k_tema ); break;
+      case DECORACAO_QUADRADOS: anexar_tema_pagina_quadrados( tex, k_tema ); break;
+      case DECORACAO_LINHAS:    anexar_tema_pagina_linhas(    tex, k_tema ); break;
+      case DECORACAO_SENOIDES:  anexar_tema_pagina_senoides(  tex, k_tema ); break;
    }
 
    // Título da Página injetado logo abaixo do tema vetorial
@@ -165,20 +160,15 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
             g_string_append_printf( tex, "%s\n", linha );
 
             // Injeção do Cabeçalho
-            if ( g_strcmp0( dados->decoracao_estilo, "Trapezios" ) == 0 ) {
-               anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Ondas" ) == 0 ) {
-               anexar_cabecalho_questao_ondas( tex, k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Quadrados" ) == 0 ) {
-               anexar_cabecalho_questao_quadrados( tex, "black", k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Linhas" ) == 0 ) {
-               anexar_cabecalho_questao_linhas( tex, "black", k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Senoides" ) == 0 ) {
-               anexar_cabecalho_questao_senoides( tex, "black", k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Circulos" ) == 0 ) {
-               anexar_cabecalho_questao_circulos( tex, k_questao, q + 1 );
-            } else if ( g_strcmp0( dados->decoracao_estilo, "Hexagonos" ) == 0 ) {
-               anexar_cabecalho_questao_hexagonos( tex, k_questao, q + 1 );
+            switch ( dados->foco_decoracao ) {
+               case DECORACAO_TRAPEZIOS: anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 ); break;
+               case DECORACAO_ONDAS:     anexar_cabecalho_questao_ondas(     tex, k_questao, q + 1 ); break;
+               case DECORACAO_CIRCULOS:  anexar_cabecalho_questao_circulos(  tex, k_questao, q + 1 ); break;
+               case DECORACAO_HEXAGONOS: anexar_cabecalho_questao_hexagonos( tex, k_questao, q + 1 ); break;
+
+               case DECORACAO_QUADRADOS: anexar_cabecalho_questao_quadrados( tex, "black", k_questao, q + 1 ); break;
+               case DECORACAO_LINHAS:    anexar_cabecalho_questao_linhas(    tex, "black", k_questao, q + 1 ); break;
+               case DECORACAO_SENOIDES:  anexar_cabecalho_questao_senoides(  tex, "black", k_questao, q + 1 ); break;
             }
 
             // Coleta o bloco da questão até a próxima linha em branco

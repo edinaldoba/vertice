@@ -305,10 +305,11 @@ static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int pe
 // Embrulhada de ctx->ui_diario.btn_salvar_avaliacoes
 void calcular_nota_periodo( const AppContext *ctx ) {
    const FocoCoordenadas  *foco = &ctx->cascata.foco;
+   const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    // 1. Obtém o mapa de configurações da UI
    gboolean validas[5];
-   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( avaliacao->combo_avaliacao ), validas );
 
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
@@ -352,12 +353,13 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    const InterfaceDados   *dados   = &ctx->dados;
    const FocoCoordenadas  *foco    = &ctx->cascata.foco;
    const CaminhoDiretorio *caminho = &ctx->caminho;
+   const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    gerar_arquivo_siaep_notas( ctx );
 
    // 1. Obtém o mapa de configurações da UI
    gboolean validas[5];
-   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( ctx->ui_diario.combo_avaliacoes ), validas );
+   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( avaliacao->combo_avaliacao ), validas );
 
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {

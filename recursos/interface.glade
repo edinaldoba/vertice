@@ -159,12 +159,18 @@
                 <child>
                   <object class="GtkComboBoxText" id="combo_ano">
                     <property name="visible">1</property>
+                    <style>
+                      <class name="combo-box-text-cabecalho-global"/>
+                    </style>
                   </object>
                 </child>
                 <child>
                   <object class="GtkComboBoxText" id="combo_escola">
                     <property name="width-request">300</property>
                     <property name="visible">1</property>
+                    <style>
+                      <class name="combo-box-text-cabecalho-global"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="position">1</property>
@@ -174,6 +180,9 @@
                   <object class="GtkComboBoxText" id="combo_turma">
                     <property name="width-request">215</property>
                     <property name="visible">1</property>
+                    <style>
+                      <class name="combo-box-text-cabecalho-global"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="position">2</property>
@@ -191,6 +200,9 @@
                         <attribute name="text">0</attribute>
                       </attributes>
                     </child>
+                    <style>
+                      <class name="combo-box-text-cabecalho-global"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="expand">1</property>
@@ -198,8 +210,18 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBoxText" id="combo_momento">
+                  <object class="GtkComboBoxText" id="combo_periodos">
                     <property name="visible">1</property>
+                    <items>
+                      <item translatable="yes">1º Período</item>
+                      <item translatable="yes">2º Período</item>
+                      <item translatable="yes">3º Período</item>
+                      <item translatable="yes">4º Período</item>
+                      <item translatable="yes">Recuperação Final</item>
+                    </items>
+                    <style>
+                      <class name="combo-box-text-cabecalho-global"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="position">4</property>
@@ -236,9 +258,6 @@
                       <item translatable="yes">Blue</item>
                       <item translatable="yes">Light</item>
                     </items>
-                    <style>
-                      <class name="combo-box-text-normal"/>
-                    </style>
                   </object>
                   <packing>
                     <property name="position">6</property>
@@ -441,9 +460,6 @@
                                           <item translatable="yes">Feriado/Fac</item>
                                           <item translatable="yes">Aula Extra</item>
                                         </items>
-                                        <style>
-                                          <class name="combo-box-text-normal"/>
-                                        </style>
                                       </object>
                                       <packing>
                                         <property name="position">1</property>
@@ -634,9 +650,6 @@
                                             <attribute name="text">0</attribute>
                                           </attributes>
                                         </child>
-                                        <style>
-                                          <class name="combo-box-text-normal"/>
-                                        </style>
                                       </object>
                                     </child>
                                     <child>
@@ -753,9 +766,6 @@
                                         <attribute name="text">0</attribute>
                                       </attributes>
                                     </child>
-                                    <style>
-                                      <class name="combo-box-text-normal"/>
-                                    </style>
                                   </object>
                                 </child>
                                 <child>
@@ -798,9 +808,19 @@
                                   <object class="GtkComboBoxText" id="combo_status">
                                     <property name="visible">1</property>
                                     <property name="active">0</property>
-                                    <style>
-                                      <class name="combo-box-text-normal"/>
-                                    </style>
+                                    <items>
+                                      <item translatable="yes">Sem Status</item>
+                                      <item translatable="yes">Presente</item>
+                                      <item translatable="yes">Ausente</item>
+                                      <item translatable="yes">Falta Justificada</item>
+                                      <item translatable="yes">Dispensado</item>
+                                      <item translatable="yes">Fora de Sala</item>
+                                      <item translatable="yes">Cabulou Aula</item>
+                                      <item translatable="yes">Atividade Domiciliar</item>
+                                      <item translatable="yes">Suspenso</item>
+                                      <item translatable="yes">Dormindo</item>
+                                      <item translatable="yes">Novo Aluno</item>
+                                    </items>
                                   </object>
                                   <packing>
                                     <property name="position">4</property>
@@ -923,9 +943,6 @@
                                                 <attribute name="text">0</attribute>
                                               </attributes>
                                             </child>
-                                            <style>
-                                              <class name="combo-box-text-normal"/>
-                                            </style>
                                           </object>
                                         </child>
                                         <child>
@@ -1007,11 +1024,19 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkCheckButton" id="check_desativar_avaliacao">
-                                        <property name="label" translatable="yes">Desativar</property>
+                                      <object class="GtkBox" id="box_desativar_avaliacao">
                                         <property name="visible">1</property>
-                                        <property name="can-focus">1</property>
-                                        <property name="draw-indicator">1</property>
+                                        <child>
+                                          <object class="GtkCheckButton" id="check_desativar_avaliacao">
+                                            <property name="label" translatable="yes">Desativar</property>
+                                            <property name="visible">1</property>
+                                            <property name="can-focus">1</property>
+                                            <property name="draw-indicator">1</property>
+                                          </object>
+                                        </child>
+                                        <style>
+                                          <class name="mini-card"/>
+                                        </style>
                                       </object>
                                       <packing>
                                         <property name="position">1</property>
@@ -1279,12 +1304,20 @@
                                   <object class="GtkBox">
                                     <property name="visible">1</property>
                                     <child>
-                                      <object class="GtkCheckButton" id="check_pendencias">
-                                        <property name="label" translatable="yes">Pendências / Exceções</property>
+                                      <object class="GtkBox" id="box_pendencias_excecoes">
                                         <property name="visible">1</property>
-                                        <property name="can-focus">1</property>
-                                        <property name="tooltip-text" translatable="yes">Habilita a edição manual para matrículas tardias (pendências de períodos anteriores), Recuperação Final e Conselho de Classe.</property>
-                                        <property name="draw-indicator">1</property>
+                                        <child>
+                                          <object class="GtkCheckButton" id="check_pendencias">
+                                            <property name="label" translatable="yes">Pendências / Exceções</property>
+                                            <property name="visible">1</property>
+                                            <property name="can-focus">1</property>
+                                            <property name="tooltip-text" translatable="yes">Habilita a edição manual para matrículas tardias (pendências de períodos anteriores), Recuperação Final e Conselho de Classe.</property>
+                                            <property name="draw-indicator">1</property>
+                                          </object>
+                                        </child>
+                                        <style>
+                                          <class name="mini-card"/>
+                                        </style>
                                       </object>
                                     </child>
                                   </object>
@@ -1640,9 +1673,6 @@
                             <child>
                               <object class="GtkComboBoxText" id="combo_tema_acervo">
                                 <property name="visible">1</property>
-                                <style>
-                                  <class name="combo-box-text-normal"/>
-                                </style>
                               </object>
                               <packing>
                                 <property name="position">1</property>
@@ -1999,9 +2029,16 @@
                                 <child>
                                   <object class="GtkComboBoxText" id="combo_decoracao">
                                     <property name="visible">1</property>
-                                    <style>
-                                      <class name="combo-box-text-normal"/>
-                                    </style>
+                                    <property name="active">0</property>
+                                    <items>
+                                      <item translatable="yes">Trapézios</item>
+                                      <item translatable="yes">Ondas</item>
+                                      <item translatable="yes">Círculos</item>
+                                      <item translatable="yes">Hexágonos</item>
+                                      <item translatable="yes">Quadrados</item>
+                                      <item translatable="yes">Linhas</item>
+                                      <item translatable="yes">Senóides</item>
+                                    </items>
                                   </object>
                                   <packing>
                                     <property name="expand">1</property>
@@ -2042,9 +2079,16 @@
                                 <child>
                                   <object class="GtkComboBoxText" id="combo_cor_serie">
                                     <property name="visible">1</property>
-                                    <style>
-                                      <class name="combo-box-text-normal"/>
-                                    </style>
+                                    <property name="active">0</property>
+                                    <items>
+                                      <item translatable="yes">Primeiro Ano</item>
+                                      <item translatable="yes">Segundo Ano</item>
+                                      <item translatable="yes">Terceiro Ano</item>
+                                      <item translatable="yes">Sexto Ano</item>
+                                      <item translatable="yes">Sétimo Ano</item>
+                                      <item translatable="yes">Oitavo Ano</item>
+                                      <item translatable="yes">Nono Ano</item>
+                                    </items>
                                   </object>
                                   <packing>
                                     <property name="expand">1</property>
@@ -2182,9 +2226,6 @@
                             <child>
                               <object class="GtkComboBoxText" id="combo_tema">
                                 <property name="visible">1</property>
-                                <style>
-                                  <class name="combo-box-text-normal"/>
-                                </style>
                               </object>
                               <packing>
                                 <property name="position">1</property>
@@ -2260,9 +2301,6 @@
                                       <item translatable="yes">Segunda Prova</item>
                                       <item translatable="yes">Terceira Prova</item>
                                     </items>
-                                    <style>
-                                      <class name="combo-box-text-normal"/>
-                                    </style>
                                   </object>
                                 </child>
                                 <child>
@@ -2285,10 +2323,10 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkBox" id="box_num_cruzados">
+                                  <object class="GtkBox" id="box_validar_ciclos">
                                     <property name="visible">1</property>
                                     <child>
-                                      <object class="GtkCheckButton" id="check_cruz">
+                                      <object class="GtkCheckButton" id="check_validar_ciclos">
                                         <property name="label" translatable="yes">Números Cruzados</property>
                                         <property name="visible">1</property>
                                         <property name="can-focus">1</property>

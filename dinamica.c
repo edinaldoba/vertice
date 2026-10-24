@@ -559,8 +559,8 @@ static gboolean bloquear_sinal_com_atraso( gpointer user_data ) {
    return G_SOURCE_REMOVE;
 }
 //==================================================================================================
-void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho, const FocoCoordenadas *foco_cache ) {
-   if ( !ctx || !rascunho || !foco_cache ) return;
+void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho ) {
+   if ( !ctx || !rascunho ) return;
 
    InterfaceListas   *listas = &ctx->listas;
    InterfaceEntry    *entry  = &ctx->entry;
@@ -643,8 +643,8 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    // =========================================================================
    // 3. RESTAURAÇÃO DOS DEMAIS PARÂMETROS ESTÁTICOS DO LAYOUT
    // =========================================================================
-   gtk_combo_box_set_active( GTK_COMBO_BOX( entry->cor_destaque ), foco_cache->cor_destaque );
-   gtk_combo_box_set_active( GTK_COMBO_BOX( entry->decoracao_estilo ), foco_cache->decoracao_estilo );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( entry->cor_destaque ), rascunho->foco_cor_serie );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( entry->decoracao_estilo ), rascunho->foco_decoracao );
 
    // -------------------------------------------------------------------------
    // AUTO-CURA (Self-Healing) + Proteção Segfault:
@@ -655,7 +655,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    // -------------------------------------------------------------------------
 
    // 3.1 Booleanos: 'Não Presencial' domina sobre 'Expor Dados'
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.expor_dados ),    rascunho->expor );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_expor_dados ), rascunho->expor );
    gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->check.nao_presencial ), rascunho->naopresencial );
 
    // 3.2 Radios Independentes

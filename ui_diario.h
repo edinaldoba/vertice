@@ -20,7 +20,6 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx );
 
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha );
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha );
-
 void rolagem_automatica_treeview_frequencia( const AppContext *ctx );
 void selecionar_combo_status( const AppContext *ctx );
 

@@ -5,6 +5,7 @@
  */
 
 #include "rgba.h"
+#include "comum.h"
 
 //===================================================================================================
 // MOTOR CENTRAL DE CORES DO VÉRTICE
@@ -36,45 +37,45 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
    switch ( cor ) {
 
       case COR_INATIVO: // Cinzas
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.40, 0.45, 0.55, 1.0 }; // Deep Blue
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.60, 0.60, 0.60, 1.0 }; // Light
-         else                        *cor_out = ( GdkRGBA ) { 0.45, 0.50, 0.45, 1.0 }; // Dark Green (Padrão)
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.40, 0.45, 0.55, 1.0 }; // Deep Blue
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.60, 0.60, 0.60, 1.0 }; // Light
+         else                                  *cor_out = ( GdkRGBA ) { 0.45, 0.50, 0.45, 1.0 }; // Dark Green (Padrão)
          break;
 
       case COR_PERIGO: // Vermelhos
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 1.00, 0.36, 0.45, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.90, 0.00, 0.00, 1.0 };
-         else                        *cor_out = ( GdkRGBA ) { 0.95, 0.40, 0.40, 1.0 };
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 1.00, 0.36, 0.45, 1.0 };
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.90, 0.00, 0.00, 1.0 };
+         else                                  *cor_out = ( GdkRGBA ) { 0.95, 0.40, 0.40, 1.0 };
          break;
 
       case COR_ALERTA: // Amarelos / Marrons para o Tema Light
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.95, 0.79, 0.16, 1.0 }; // Deep Blue
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.70, 0.40, 0.05, 1.0 }; // Light (Marrom acobreado vibrante / Terracota)
-         else                        *cor_out = ( GdkRGBA ) { 1.00, 0.84, 0.31, 1.0 }; // Dark Green (Padrão)
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.95, 0.79, 0.16, 1.0 }; // Deep Blue
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.70, 0.40, 0.05, 1.0 }; // Light
+         else                                  *cor_out = ( GdkRGBA ) { 1.00, 0.84, 0.31, 1.0 }; // Dark Green (Padrão)
          break;
 
       case COR_INFORMACAO: // Azuis / Cianos
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.50, 0.88, 1.00, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.00, 0.00, 0.85, 1.0 };
-         else                        *cor_out = ( GdkRGBA ) { 0.39, 0.71, 0.96, 1.0 };
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.50, 0.88, 1.00, 1.0 };
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.00, 0.00, 0.85, 1.0 };
+         else                                  *cor_out = ( GdkRGBA ) { 0.39, 0.71, 0.96, 1.0 };
          break;
 
       case COR_DESTAQUE: // Roxos / Púrpuras
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.80, 0.60, 0.95, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.45, 0.15, 0.60, 1.0 };
-         else                        *cor_out = ( GdkRGBA ) { 0.75, 0.55, 0.85, 1.0 };
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.80, 0.60, 0.95, 1.0 };
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.45, 0.15, 0.60, 1.0 };
+         else                                  *cor_out = ( GdkRGBA ) { 0.75, 0.55, 0.85, 1.0 };
          break;
 
       case COR_SUCESSO: // Verdes Menta / Floresta
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.25, 0.85, 0.75, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.15, 0.55, 0.25, 1.0 };
-         else                        *cor_out = ( GdkRGBA ) { 0.50, 0.85, 0.55, 1.0 };
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.25, 0.85, 0.75, 1.0 };
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.15, 0.55, 0.25, 1.0 };
+         else                                  *cor_out = ( GdkRGBA ) { 0.50, 0.85, 0.55, 1.0 };
          break;
 
       case COR_FUNDO_PENDENTE: // Fundos pastéis/mutados (Backgrounds)
-         if ( tema_ativo == 1 )      *cor_out = ( GdkRGBA ) { 0.18, 0.25, 0.38, 1.0 };
-         else if ( tema_ativo == 2 ) *cor_out = ( GdkRGBA ) { 0.95, 0.91, 0.78, 1.0 };
-         else                        *cor_out = ( GdkRGBA ) { 0.20, 0.30, 0.20, 1.0 };
+         if ( tema_ativo == STYLE_DEEP_BLUE )  *cor_out = ( GdkRGBA ) { 0.18, 0.25, 0.38, 1.0 };
+         else if ( tema_ativo == STYLE_LIGHT ) *cor_out = ( GdkRGBA ) { 0.95, 0.91, 0.78, 1.0 };
+         else                                  *cor_out = ( GdkRGBA ) { 0.20, 0.30, 0.20, 1.0 };
          break;
 
       default:

@@ -62,6 +62,40 @@ typedef enum {
    CATEGORIA_UI_NAO_PRESENCIAL = 7,
    CATEGORIA_UI_EXPOR_DADOS    = 8
 } CategoriaInterface;
+
+typedef enum {
+   STYLE_DARK_GREEN = 0,
+   STYLE_DEEP_BLUE  = 1,
+   STYLE_LIGHT      = 2
+} EstiloInterface;
+
+typedef enum {
+   DECORACAO_TRAPEZIOS = 0,
+   DECORACAO_ONDAS     = 1,
+   DECORACAO_CIRCULOS  = 2,
+   DECORACAO_HEXAGONOS = 3,
+   DECORACAO_QUADRADOS = 4,
+   DECORACAO_LINHAS    = 5,
+   DECORACAO_SENOIDES  = 6
+} DecoracaoEstilo;
+
+typedef enum {
+   COR_SERIE_PRIMEIRO_ANO = 0,
+   COR_SERIE_SEGUNDO_ANO  = 1,
+   COR_SERIE_TERCEIRO_ANO = 2,
+   COR_SERIE_SEXTO_ANO    = 3,
+   COR_SERIE_SETIMO_ANO   = 4,
+   COR_SERIE_OITAVO_ANO   = 5,
+   COR_SERIE_NONO_ANO     = 6
+} CorSerie;
+
+typedef enum {
+   PRIMEIRO_PERIODO  = 0,
+   SEGUNDO_PERIODO   = 1,
+   TERCEIRO_PERIODO  = 2,
+   QUARTO_PERIODO    = 3,
+   RECUPERACAO_FINAL = 4
+} PeriodoCorrente;
 //=========================================================================================================//
 
 
@@ -117,13 +151,13 @@ typedef struct {
    char ano[64], disciplina[64], escola[64], turma[64], periodo[64], gestor[64], professor[64];
 
    // 2. Textos do Estilo Visual da Prova
-   char tema[64], decoracao_estilo[64], cor_destaque[64], prova_sequencia[64];
+   char tema[64], prova_sequencia[64];
 
    // 3. Configurações Numéricas e Estatísticas da Turma
-   int iprova, qtd_alunos_ativos, qtd_alunos_total;
+   int foco_seq_prova, qtd_alunos_ativos, qtd_alunos_total;
 
    // 4. Configurações de Layout do LaTeX
-   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex;
+   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
 
    // 5. Matriz do Acervo
    int  qtd_questoes[NTI];
@@ -136,16 +170,13 @@ typedef struct {
    bool expor, cruz, naopresencial;
 
    // 7. Estilo visual da interface
-   int interface_style;
+   int ui_foco_estilo;
 
 } InterfaceDados;
 //=========================================================================================================//
 typedef struct {
-   // 1. Estética e Identidade Visual (O que pode mudar por prova)
-   char cor_destaque[64], decoracao_estilo[64];
-
    // 2. Configurações de Layout do LaTeX
-   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex;
+   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
 
    // 3. O Miolo da Avaliação: Matriz do Acervo
    int  qtd_questoes[NTI];

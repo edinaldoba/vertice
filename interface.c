@@ -25,63 +25,6 @@
 
 
 
-
-
-// void interface_style( AppContext *ctx ) {
-//    if ( !ctx ) return;
-//
-//    // Capturamos a screen global uma única vez no topo do escopo da função
-//    GdkScreen *screen = gdk_screen_get_default();
-//
-//    /* ==========================================================================
-//       🚀 1. BLINDAGEM DA MEMÓRIA E EXPURGO DO CSS ANTIGO
-//       ========================================================================== */
-//    if ( ctx->provider != NULL ) {
-//       // Remove o vínculo do provedor de estilo da tela activa
-//       gtk_style_context_remove_provider_for_screen( screen, GTK_STYLE_PROVIDER( ctx->provider ) );
-//
-//       // Decrementa o contador de referências do objeto GLib e zera o ponteiro
-//       g_object_unref( ctx->provider );
-//       ctx->provider = NULL;
-//    }
-//
-//    /* ==========================================================================
-//       🏛️ 2. CRIAÇÃO DO PROVEDOR E MAPEAMENTO DO ARQUIVO ALVO
-//       ========================================================================== */
-//    ctx->provider = gtk_css_provider_new();
-//
-//    char arquivo_css[256];
-//    switch ( ctx->dados.interface_style ) {
-//    case 0 :
-//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
-//       break;
-//    case 1 :
-//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_deep_blue.css", ctx->caminho.recursos_prefix );
-//       break;
-//    case 2 :
-//    default:
-//       snprintf( arquivo_css, sizeof( arquivo_css ), "%s/css/style_light.css", ctx->caminho.recursos_prefix );
-//       break;
-//    }
-//
-//    /* ==========================================================================
-//       📥 3. CARREGAMENTO E INJEÇÃO NA MÁQUINA DE RENDERIZAÇÃO DO GTK
-//       ========================================================================== */
-//
-//    // Como você está usando a função _load_from_resource, agora o caminho purista vai casar perfeitamente!
-//    gtk_css_provider_load_from_resource( ctx->provider, arquivo_css );
-//
-//    // Aplica as novas diretrizes visuais na tela global
-//    gtk_style_context_add_provider_for_screen(
-//       screen,
-//       GTK_STYLE_PROVIDER( ctx->provider ),
-//       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
-//    );
-// }
-
-
-
-
 void interface_style( AppContext *ctx ) {
    if ( !ctx ) return;
 
@@ -90,10 +33,6 @@ void interface_style( AppContext *ctx ) {
 
    /* ==========================================================================
       🚀 1. BLINDAGEM DA MEMÓRIA E EXPURGO DO CSS ANTIGO
-      --------------------------------------------------------------------------
-      Antes de alocar novos estilos, removemos o provedor anterior da tela e
-      liberamos sua referência no Heap. Isso evita sobreposição de regras de
-      estilo e vazamento de memória (Memory Leaks) nas trocas dinâmicas.
       ========================================================================== */
    if ( ctx->provider != NULL ) {
       // Remove o vínculo do provedor de estilo da tela ativa
@@ -106,41 +45,31 @@ void interface_style( AppContext *ctx ) {
 
    /* ==========================================================================
       🏛️ 2. CRIAÇÃO DO PROVEDOR E MAPEAMENTO DO ARQUIVO ALVO
-      --------------------------------------------------------------------------
-      Os arquivos CSS controlam 100% da identidade visual do sistema (incluindo
-      as janelas, caixas de diálogo e as barras superiores). Dispensamos
-      qualquer alteração manual em GtkSettings para garantir a soberania do CSS.
       ========================================================================== */
    ctx->provider = gtk_css_provider_new();
 
-   const char *arquivo_css;
-   switch ( ctx->dados.interface_style ) {
-   case 0 :
-      arquivo_css = "./recursos/css/style_dark_green.css";
+   // Alocação segura via GLib com liberação automática (sem limite fixo de 256 bytes)
+   g_autofree gchar *arquivo_css = NULL;
+
+   switch ( ctx->dados.ui_foco_estilo ) {
+   case STYLE_DARK_GREEN:
+      arquivo_css = g_strdup_printf( "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
       break;
-   case 1 :
-      arquivo_css = "./recursos/css/style_deep_blue.css" ;
+   case STYLE_DEEP_BLUE:
+      arquivo_css = g_strdup_printf( "%s/css/style_deep_blue.css", ctx->caminho.recursos_prefix );
       break;
-   case 2 :
+   case STYLE_LIGHT:
+      arquivo_css = g_strdup_printf( "%s/css/style_light.css", ctx->caminho.recursos_prefix );
+      break;
    default:
-      arquivo_css = "./recursos/css/style_light.css"     ;
+      arquivo_css = g_strdup_printf( "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
       break;
    }
 
    /* ==========================================================================
       📥 3. CARREGAMENTO E INJEÇÃO NA MÁQUINA DE RENDERIZAÇÃO DO GTK
-      --------------------------------------------------------------------------
-      Injetamos as regras com prioridade APPLICATION, o que força o motor do GTK
-      a ignorar os temas padrões do sistema operacional (Debian/Ubuntu) e adotar
-      as especificidades declaradas nas nossas folhas de estilo.
       ========================================================================== */
-   GError *error = NULL;
-   gtk_css_provider_load_from_path( ctx->provider, arquivo_css, &error );
-
-   if ( error != NULL ) {
-      g_printerr( "🚨 Erro ao carregar o arquivo CSS (%s): %s\n", arquivo_css, error->message );
-      g_clear_error( &error );
-   }
+   gtk_css_provider_load_from_resource( ctx->provider, arquivo_css );
 
    // Aplica as novas diretrizes visuais na tela global
    gtk_style_context_add_provider_for_screen(
@@ -148,8 +77,9 @@ void interface_style( AppContext *ctx ) {
       GTK_STYLE_PROVIDER( ctx->provider ),
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
    );
-
 }
+
+
 
 
 
@@ -162,7 +92,8 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados       *dados = &ctx->dados;
-   const InterfaceCheck *check = &ctx->check;
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
+   InterfaceCheck *check = &ctx->check;
 
    switch ( categoria ) {
    case CATEGORIA_UI_NUM_CRUZADOS:
@@ -175,7 +106,7 @@ void atualizar_booleanos_interface( const bool estado, const int categoria, AppC
       // Regra: Se a prova não é presencial (TRUE), os dados PRECISAM ser expostos (TRUE).
       if ( dados->naopresencial && !dados->expor ) {
          // Força o botão 'Expor Dados' a ligar. O GTK emitirá um "toggled" para ele.
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check->expor_dados ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ui_diario->check_expor_dados ), TRUE );
       }
       break;
 
@@ -312,7 +243,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
 
    // Zera o buffer inicialmente para segurança
    char nome[32];
-   nome_base_gabaritos_bin( nome, sizeof( nome ), foco->turma, foco->disciplina, foco->periodo, dados->iprova );
+   nome_base_gabaritos_bin( nome, sizeof( nome ), foco->turma, foco->disciplina, foco->periodo, dados->foco_seq_prova );
 
    // 3. g_autofree no arquivo resolve definitivamente o Memory Leak
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
@@ -441,38 +372,32 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const FocoCoordenada
    if ( !dados || !foco ) return;
 
    char caminho_arquivo[1024];
-   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, dados->iprova );
+   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, dados->foco_seq_prova );
 
    FILE *arquivo = fopen( caminho_arquivo, "wb" );
    if ( !arquivo ) return;
 
-   PacotePersistencia pacote;
+   DadosRascunho rascunho;
 
-   // 1. Copia apenas o "recheio" estético e pedagógico
-   snprintf( pacote.rascunho.cor_destaque, sizeof( pacote.rascunho.cor_destaque ), "%s", dados->cor_destaque );
-   snprintf( pacote.rascunho.decoracao_estilo, sizeof( pacote.rascunho.decoracao_estilo ), "%s", dados->decoracao_estilo );
-
-   pacote.rascunho.qtd_paginas    = dados->qtd_paginas;
-   pacote.rascunho.qtd_colunas    = dados->qtd_colunas;
-   pacote.rascunho.separadores    = dados->separadores;
-   pacote.rascunho.cabecalho_tipo = dados->cabecalho_tipo;
-   pacote.rascunho.fonte_latex    = dados->fonte_latex;
-   pacote.rascunho.expor          = dados->expor;
-   pacote.rascunho.naopresencial  = dados->naopresencial;
+   rascunho.foco_cor_serie = dados->foco_cor_serie;
+   rascunho.foco_decoracao = dados->foco_decoracao;
+   rascunho.qtd_paginas    = dados->qtd_paginas;
+   rascunho.qtd_colunas    = dados->qtd_colunas;
+   rascunho.separadores    = dados->separadores;
+   rascunho.cabecalho_tipo = dados->cabecalho_tipo;
+   rascunho.fonte_latex    = dados->fonte_latex;
+   rascunho.expor          = dados->expor;
+   rascunho.naopresencial  = dados->naopresencial;
 
    // Copia as matrizes de questões (0 a nti)
    for ( int i = 0; i < NTI; i++ ) {
-      pacote.rascunho.qtd_questoes[i] = dados->qtd_questoes[i];
-      size_t tam = sizeof( pacote.rascunho.temas_prova_sequencia[i].str );
-      snprintf( pacote.rascunho.temas_prova_sequencia[i].str, tam, "%s", dados->temas_prova_sequencia[i].str );
+      rascunho.qtd_questoes[i] = dados->qtd_questoes[i];
+      size_t tam = sizeof( rascunho.temas_prova_sequencia[i].str );
+      snprintf( rascunho.temas_prova_sequencia[i].str, tam, "%s", dados->temas_prova_sequencia[i].str );
    }
 
-   // 2. Copia apenas os focos que importam (os estéticos)
-   pacote.foco.cor_destaque     = foco->cor_destaque;
-   pacote.foco.decoracao_estilo = foco->decoracao_estilo;
-
    // 3. Despeja no disco o pacote compacto
-   fwrite( &pacote, sizeof( PacotePersistencia ), 1, arquivo );
+   fwrite( &rascunho, sizeof( DadosRascunho ), 1, arquivo );
    fclose( arquivo );
 }
 
@@ -581,7 +506,7 @@ bool carregar_estado_aplicativo( AppContext *ctx ) {
 
    // 1. Montagem do caminho baseado no índice da prova
    char caminho_arquivo[1024];
-   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, ctx->dados.iprova );
+   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, ctx->dados.foco_seq_prova );
 
    // 2. Tenta abrir o arquivo em modo de leitura binária ("rb")
    FILE *arquivo = fopen( caminho_arquivo, "rb" );
@@ -599,10 +524,10 @@ bool carregar_estado_aplicativo( AppContext *ctx ) {
    }
 
    // 3. Aloca o pacote receptor temporário na pilha
-   PacotePersistencia pacote_temp;
+   DadosRascunho rascunho;
 
    // 4. Suga o bloco binário do disco
-   size_t lidos = fread( &pacote_temp, sizeof( PacotePersistencia ), 1, arquivo );
+   size_t lidos = fread( &rascunho, sizeof( DadosRascunho ), 1, arquivo );
    fclose( arquivo );
 
    if ( lidos != 1 ) {
@@ -631,7 +556,7 @@ bool carregar_estado_aplicativo( AppContext *ctx ) {
    criar_mensagem_painel( SUCESSO, painel );
 
    // 6. SOLUÇÃO MESTRE: Alimenta a interface usando os dados temporários
-   alimentar_interface_temporaria( ctx, &pacote_temp.rascunho, &pacote_temp.foco );
+   alimentar_interface_temporaria( ctx, &rascunho );
 
    return true;
 }
@@ -900,13 +825,12 @@ static void _sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   InterfaceDados    *dados    = &ctx->dados;
-   // InterfacePainel   *painel   = &ctx->painel;
-
-   InterfaceRegistroDiario *ui_diario = &ctx->ui_diario;
+   InterfaceDados      *dados      = &ctx->dados;
+   InterfaceConteudo   *conteudo   = &ctx->ui_diario.conteudo;
+   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    ui_restaurar_registros_de_aula( ctx, TRUE );
-   ui_diario->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
+   conteudo->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
    salvar_fichas( ctx, FALSE );
 
@@ -920,8 +844,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    int foco = obter_foco_inicial( limite, ctx );
 
-   popular_combo_box_generico( ui_diario->combo_alunos, ctx->fichas, limite, foco,
-                               ui_diario->handler_combo_alunos, mapear_alunos );
+   popular_combo_box_generico( frequencia->combo_alunos, ctx->fichas, limite, foco,
+                               frequencia->handler_combo_alunos, mapear_alunos );
 
    // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
@@ -936,7 +860,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
       _sincronizar_registro_diario_com_turma_siaep( ctx );
    }
 
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_por_aluno ) );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
 
    if ( modo_por_aluno ) {
       renderizar_frequencia_modo_por_aluno( ctx );
@@ -944,7 +868,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
       renderizar_frequencia_modo_normal( ctx );
    }
 
-   if ( ctx->ui_diario.handler_combo_data == 0 || ctx->ui_diario.handler_combo_alunos == 0 ) {
+   if ( frequencia->handler_combo_data == 0 || frequencia->handler_combo_alunos == 0 ) {
       rolagem_automatica_treeview_frequencia( ctx );
       selecionar_combo_status( ctx );
    }
@@ -970,44 +894,41 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   LimitesFiltro     *limite   = &ctx->cascata.limite;
-   FocoCoordenadas   *foco     = &ctx->cascata.foco;
-   InterfaceEntry    *entry    = &ctx->entry;
-   InterfaceListas   *listas   = &ctx->listas;
-   InterfaceDados    *dados    = &ctx->dados;
-   InterfaceHandlers *handlers = &ctx->handlers;
-   CalendarioData          *data     = &ctx->data;
-
+   LimitesFiltro       *limite   = &ctx->cascata.limite;
+   FocoCoordenadas     *foco     = &ctx->cascata.foco;
+   InterfaceEntry      *entry    = &ctx->entry;
+   InterfaceListas     *listas   = &ctx->listas;
+   InterfaceDados      *dados    = &ctx->dados;
+   InterfaceHandlers   *handlers = &ctx->handlers;
+   CalendarioData      *data     = &ctx->data;
+   InterfaceConteudo   *conteudo = &ctx->ui_diario.conteudo;
 
 
    gtk_widget_set_name( ctx->entry.turma, "turma" );
-
-   popular_combo_box_text( ctx->ui_diario.combo_status, listas->status_assiduidade, 0, 11, 0 );
 
    *data = data_de_hoje();
    long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
-   gtk_entry_set_text( GTK_ENTRY( ctx->ui_diario.entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
 
    g_autofree char *str_qtd_aulas = g_strdup_printf( "%d h", 1 );
-   gtk_label_set_text( GTK_LABEL( ctx->ui_diario.qtd_aulas ), str_qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), str_qtd_aulas );
 
-   gtk_widget_set_name( ctx->entry.periodo, "momento" );
+   int qtd_caracteres = 10;
+   renderizar_combo_box_ellipsize( entry->periodo, qtd_caracteres );
    foco->periodo = foco_periodo_corrente( escalar_hoje );
-   popular_combo_box_text( entry->periodo, listas->periodos, foco->periodo, limite->periodos, handlers->periodo );
-   snprintf( dados->periodo, sizeof( dados->periodo ), "%s", listas->periodos[ foco->periodo ].str );
+   gtk_combo_box_set_active( GTK_COMBO_BOX(entry->periodo), foco->periodo );
+   const gchar *texto_periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT(entry->periodo) );
+   if ( texto_periodo ) {
+      snprintf( dados->periodo, sizeof( dados->periodo ), "%s", texto_periodo );
+   }
 
-   foco->cor_destaque = 0;
-   popular_combo_box_text( entry->cor_destaque, listas->cores_destaque, foco->cor_destaque,
-                           limite->cores_destaque, handlers->cor_destaque );
-   snprintf( dados->cor_destaque, sizeof( dados->cor_destaque ), "%s", listas->cores_destaque[ foco->cor_destaque ].str );
+   dados->foco_cor_serie = COR_SERIE_PRIMEIRO_ANO;
+   gtk_combo_box_set_active( GTK_COMBO_BOX(entry->cor_destaque), dados->foco_cor_serie );
 
-   foco->decoracao_estilo = 0;
-   popular_combo_box_text( entry->decoracao_estilo, listas->decoracoes_estilo, foco->decoracao_estilo,
-                           limite->decoracoes_estilo, handlers->decoracao_estilo );
-   snprintf( dados->decoracao_estilo, sizeof( dados->decoracao_estilo ), "%s",
-             listas->decoracoes_estilo[ foco->decoracao_estilo ].str );
+   dados->foco_decoracao = DECORACAO_TRAPEZIOS;
+   gtk_combo_box_set_active( GTK_COMBO_BOX(entry->decoracao_estilo), dados->foco_decoracao );
 
 
    // Varre os diretórios de anos letivos
@@ -1073,7 +994,7 @@ gboolean atualizar_escola_interface( AppContext *ctx, const char *nova_escola, g
    InterfaceListas    *listas    = &ctx->listas;
    CascataControle    *cascata   = &ctx->cascata;
    InterfaceDados     *dados     = &ctx->dados;
-   InterfaceCabecalho *cabecalho = &ctx->cabecalho;
+   InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
 
    gboolean escola_mudou = ( strcmp( nova_escola, dados->escola ) != 0 );
 
@@ -1097,7 +1018,7 @@ gboolean atualizar_escola_interface( AppContext *ctx, const char *nova_escola, g
       listas->turmas = carregar_diretorios_temas( cascata->limite.turmas, diretorio, ordenar_turmas_novo_em );
    }
 
-   gestor_da_escola( diretorio, cabecalho->gestor, dados->gestor );
+   gestor_da_escola( diretorio, responsavel->gestor, dados->gestor );
 
    return TRUE;
 }
@@ -1159,7 +1080,7 @@ void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplin
 
    InterfaceDados     *dados     = &ctx->dados;
    CaminhoDiretorio   *caminho   = &ctx->caminho;
-   InterfaceCabecalho *cabecalho = &ctx->cabecalho;
+   InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
 
    // Agora SIM! TRUE significa que mudou, FALSE significa que é igual.
    gboolean disciplina_mudou = ( strcmp( nova_disciplina, dados->disciplina ) != 0 );
@@ -1184,7 +1105,7 @@ void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplin
       snprintf( diretorio, sizeof( diretorio ), "./dados/informados/%s/%s/%s/%s",
                 dados->ano, dados->escola, dados->turma, dados->disciplina );
 
-      professor_da_disciplina( diretorio, cabecalho->professor, dados->professor );
+      professor_da_disciplina( diretorio, responsavel->professor, dados->professor );
 
       _atualizar_acervo_questoes_e_temas( ctx );
 

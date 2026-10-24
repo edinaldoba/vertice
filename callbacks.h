@@ -56,7 +56,7 @@ void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *e
                                    gchar *path_string, gpointer user_data );
 void on_cell_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
 
-void on_treeview_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
+void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
 void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 
 // RELATÓRIO FINAL

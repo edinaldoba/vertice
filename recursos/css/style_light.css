@@ -344,7 +344,7 @@ button cellview {
     color: #000000;
     font-family: 'Ubuntu Mono', monospace;
     font-size: 20px;
-    font-weight: bold;
+    font-weight: normal;
     border: 1px solid #B0BEC5;
     border-radius: 7px;
     box-shadow: none;
@@ -397,12 +397,17 @@ combobox cellview:disabled,
     font-style: italic;
 }
 
-.combo-box-text-normal,
-.combo-box-text-normal button,
-.combo-box-text-normal cellview,
-.combo-box-text-normal label {
+.combo-box-text-cabecalho-global,
+.combo-box-text-cabecalho-global combobox button,
+.combo-box-text-cabecalho-global button cellview {
+    font-weight: bold;
+}
+
+.combo-box-text-cabecalho-global,
+.combo-box-text-cabecalho-global window.popup menu menuitem:selected cellview {
     font-weight: normal;
 }
+
 
 popover,
 popover arrow {

@@ -60,7 +60,6 @@ static void activate( GtkApplication *app, gpointer user_data ) {
 
    //--- Verifica se professor.sty está instalado --------------
    preparar_ambiente_latex( ctx->caminho.recursos_prefix );
-   // preparar_ambiente_latex_no_disco();
 
    //--- Inicializa o estado inicial do aplicativo --------
    inicializar_estado_do_aplicativo( ctx );
@@ -145,37 +144,6 @@ int main( int argc, char *argv[] ) {
 
 
 
-//=====================================================================================================//
-// DADOS PRIVADOS DO ARQUIVO (Invisíveis para o resto do sistema)                                      //
-//=====================================================================================================//
-const ItemCombo periodos[] = {
-   {"1º Período"}, {"2º Período"}, {"3º Período"}, {"4º Período"}, {"Recuperação Final"}, {"Conselho de Classe"}
-};
-
-const ItemCombo cores_destaque[] = {
-   {"primeiro"}, {"segundo"}, {"terceiro"}, {"sexto"}, {"setimo"}, {"oitavo"}, {"nono"}
-};
-
-const ItemCombo decoracoes_estilo[] = {
-   {"Trapezios"}, {"Ondas"}, {"Quadrados"}, {"Linhas"}, {"Senoides"}, {"Circulos"}, {"Hexagonos"}
-};
-
-const ItemCombo provas_sequencia[] = {
-   {"Primeira"}, {"Segunda"}, {"Terceira"}
-};
-
-const ItemCombo status_assiduidade[] = {
-   {"Sem Status"}, {"Presente"}, {"Ausente"}, {"Falta Justificada"}, {"Dispensado"},
-   {"Fora de Sala"}, {"Cabulou Aula"}, {"Atividade Domiciliar"}, {"Suspenso"}, {"Dormindo"}, {"Novo Aluno"}
-};
-
-// Macros locais (só funcionam aqui dentro para alimentar a inicialização)
-#define LOCAL_4   (sizeof(periodos) / sizeof(periodos[0]))
-#define LOCAL_QTD_CORES      (sizeof(cores_destaque) / sizeof(cores_destaque[0]))
-#define LOCAL_QTD_DECORACOES (sizeof(decoracoes_estilo) / sizeof(decoracoes_estilo[0]))
-
-
-
 
 //=====================================================================================================//
 // FUNÇÃO DE INICIALIZAÇÃO                                                                              //
@@ -199,11 +167,9 @@ void inicializacao_app_context( AppContext *ctx ) {
          .gestor            = "",
          .professor         = "",
          .tema              = "",
-         .decoracao_estilo = "",
-         .cor_destaque     = "",
-         .prova_sequencia  = "Primeira",
+         .prova_sequencia  = "Primeira Prova",
 
-         .iprova            = 1,
+         .foco_seq_prova            = 1,
          .qtd_alunos_ativos = 0,
          .qtd_alunos_total  = 0,
 
@@ -212,7 +178,7 @@ void inicializacao_app_context( AppContext *ctx ) {
          .separadores       = 1,
          .cabecalho_tipo    = 1,
          .fonte_latex       = 1,
-         .interface_style   = 0,
+         .ui_foco_estilo    = 0,
 
          .qtd_questoes      = {0},
          .total_questoes    = 10,
@@ -225,14 +191,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .naopresencial    = false
       },
 
-      .cascata = {
-         .limite = {
-            .periodos          = LOCAL_4,
-            .cores_destaque    = LOCAL_QTD_CORES,
-            .decoracoes_estilo = LOCAL_QTD_DECORACOES
-         }
-      },
-
       // 3. Inicialização das Listas Dinâmicas e Constantes (InterfaceListas)
       .listas = {
          .qtd_subtemas     = NULL,
@@ -242,12 +200,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .escolas          = NULL,
          .turmas           = NULL,
          .disciplinas      = NULL,
-
-         .periodos           = periodos,
-         .cores_destaque     = cores_destaque,
-         .decoracoes_estilo  = decoracoes_estilo,
-         .provas_sequencia   = provas_sequencia,
-         .status_assiduidade = status_assiduidade
       },
 
       .painel = {
@@ -263,8 +215,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .turma            = 0,
          .disciplina       = 0,
          .periodo          = 0,
-         .decoracao_estilo = 0,
-         .cor_destaque     = 0,
          .tema   = 0
       },
 
@@ -278,15 +228,18 @@ void inicializacao_app_context( AppContext *ctx ) {
          .handler_scrolled     = 0
       },
 
-      .cabecalho = {
-         .gestor    = NULL,
-         .professor = NULL
-      },
-
       .ui_diario = {
-         .handler_combo_data = 0,
-         .handler_combo_alunos = 0,
-         .handler_check_desativar = 0,
+         .responsavel = {
+            .gestor    = NULL,
+            .professor = NULL
+         },
+         .frequencia = {
+            .handler_combo_data = 0,
+            .handler_combo_alunos = 0
+         },
+         .avaliacao = {
+            .handler_check_desativar = 0
+         },
          .botoes_travados = FALSE
       },
 

@@ -124,7 +124,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
    uint8_t turma = foco->turma;
    uint8_t disc  = foco->disciplina;
    uint8_t per   = foco->periodo;
-   uint8_t seq   = dados->iprova; // Mudei de iprova-1 para iprova apenas, para evitar payload válido nulo.
+   uint8_t seq   = dados->foco_seq_prova; // Mudei de foco_seq_prova-1 para foco_seq_prova apenas, para evitar payload válido nulo.
 
    // ATENÇÃO: gerar_matriz_identificacao também precisará receber GString *tex
    gerar_matriz_identificacao( tex, id, turma, disc, per, seq );
@@ -148,7 +148,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
    g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n", foco->periodo + 1 );
 
    // Prova
-   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->iprova );
+   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->foco_seq_prova );
 
    // Matriz principal de questões e alternativas
    for ( int i = 0; i < NTI; i++ ) { // NTI=10 questões

@@ -34,7 +34,7 @@ void rolar_para_o_fim( GtkScrolledWindow *scrolled_window );
 
 void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx );
 
-void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho, const FocoCoordenadas *foco_cache );
+void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho );
 
 void professor_da_disciplina( const char *diretorio, GtkWidget *entry_professor, char *professor );
 

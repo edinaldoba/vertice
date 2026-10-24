@@ -11,12 +11,6 @@
 
 
 typedef struct {
-
-   // Dentro da definição da struct no seu header:
-   gboolean botoes_travados;   // TRUE se o stack_pages estiver bloqueado
-   GtkWidget *botao_ativo;     // Ponteiro para o botão que está travado no momento
-   GtkWidget *check_modo_edicao;
-
    /*** CONTEÚDO ***/
 
    //-- Calendário
@@ -30,19 +24,22 @@ typedef struct {
    GtkWidget *qtd_aulas;
 
    //-- Janela com rolagem
-   GtkWidget *scrolled_window_conteudo;
-   GtkWidget *treeview_conteudo;
+   GtkWidget *scrolled_window;
+   GtkWidget *treeview;
 
    //-- Registro do Conteúdo
    GtkWidget *tema;
    GtkWidget *descricao;
-   GtkWidget *btn_salvar_conteudo;
+   GtkWidget *btn_salvar;
    GtkWidget *tipo_registro;
    GtkTreeIter iter_em_edicao;
    gboolean editando; // FALSE = Novo Registro, TRUE = Editando Existente
    GtkWidget *remover_registro;
 
+} InterfaceConteudo;
 
+
+typedef struct {
    /*** FREQUÊNCIA ***/
 
    //-- Botões e combos
@@ -50,7 +47,7 @@ typedef struct {
    GtkWidget *label_ch;
    GtkWidget *check_por_aluno;
    GtkWidget *combo_status;  // StatusAssiduidade
-   GtkWidget *btn_salvar_frequencia; // Botão SALVAR StatusAssiduidade selecionado no combo
+   GtkWidget *btn_salvar; // Botão SALVAR StatusAssiduidade selecionado no combo
    GtkWidget *btn_presente;          // Botão para salvar StatusAssiduidade PRESENTE
    GtkWidget *btn_ausente;           // Botão para salvar StatusAssiduidade AUSENTE
    GtkWidget *btn_justificada;       // Botão para salvar StatusAssiduidade FALTA JUSTIFICADA
@@ -58,19 +55,24 @@ typedef struct {
    GtkWidget *combo_alunos;
 
    //-- Janela com rolagem
-   GtkWidget *scrolled_window_frequencia;
-   GtkWidget *treeview_frequencia;
+   GtkWidget *scrolled_window;
+   GtkWidget *treeview;
 
    gulong handler_combo_alunos;
    gulong handler_combo_data;
    int limite_combo_alunos;
    int foco_combo_alunos;
 
+} InterfaceFrequencia;
+
+
+
+typedef struct {
    /*** AVALIAÇÕES ***/
    GArray *avaliacoes;
 
    //-- Seleção de Avaliação Ativa
-   GtkWidget *combo_avaliacoes; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
+   GtkWidget *combo_avaliacao; // Seleciona qual nota/coluna está sendo editada (0 = Av1, 1 = Rec1, ..., 9 = Rec5)
    GtkWidget *btn_nova_avaliacao;
    GtkWidget *btn_editar_avaliacao;
 
@@ -83,24 +85,57 @@ typedef struct {
    GtkWidget *check_desativar_avaliacao;
    gulong handler_check_desativar;
 
-   GtkWidget *btn_salvar_avaliacoes; // Botão SALVAR
+   GtkWidget *btn_salvar; // Botão SALVAR
 
    //-- Janela com rolagem e Tabela de Notas
-   GtkWidget *scrolled_window_avaliacoes;
-   GtkWidget *treeview_avaliacoes;
+   GtkWidget *scrolled_window;
+   GtkWidget *treeview;
 
    //-- Handlers e Sinalizadores de Controle
-   gulong handler_combo_avaliacoes;
+   gulong handler_combo_avaliacao;
    int foco_avaliacao;          // Guardião do índice da avaliação ativa (0 a 9)
 
+} InterfaceAvaliacao;
+
+
+typedef struct {
    /*** RELATÓRIO ***/
    //-- Janela com rolagem e Tabela de Notas
-   GtkWidget *scrolled_window_relatorio;
-   GtkWidget *treeview_relatorio;
+   GtkWidget *scrolled_window;
+   GtkWidget *treeview;
    GtkWidget *btn_consolidar;
    GtkWidget *check_pendencias;
 
-} InterfaceRegistroDiario;
+} InterfaceRelatorio;
+
+
+typedef struct {
+   GtkWidget *professor;
+   GtkWidget *gestor;
+} InterfaceResponsavel;
+
+
+typedef struct {
+
+   // Dentro da definição da struct no seu header:
+   gboolean botoes_travados;   // TRUE se o stack_pages estiver bloqueado
+   GtkWidget *botao_ativo;     // Ponteiro para o botão que está travado no momento
+
+   InterfaceResponsavel responsavel; // Label professor e label gestor
+   GtkWidget *check_expor_dados; // Copia provas e relatório para a pasta da escola
+   GtkWidget *check_modo_edicao;
+
+   InterfaceConteudo   conteudo;
+   InterfaceFrequencia frequencia;
+   InterfaceAvaliacao  avaliacao;
+   InterfaceRelatorio  relatorio;
+
+   GtkWidget *btn_conteudo;
+   GtkWidget *btn_frequencia;
+   GtkWidget *btn_avaliacao;
+   GtkWidget *btn_relatorio;
+
+} InterfaceDiario;
 
 
 typedef struct {
@@ -136,8 +171,6 @@ typedef struct {
 
 
 typedef struct {
-   GtkWidget *expor_dados;         // Ativa exibição de logs detalhados de depuração
-
    // =========================================================================
    // VALIDAÇÃO DE INTEGRIDADE DOS CARTÕES-RESPOSTA
    // =========================================================================
@@ -161,10 +194,6 @@ typedef struct {
    // =========================================================================
    // GESTÃO PEDAGÓGICA: DIÁRIO DE CLASSE E RELATÓRIOS
    // =========================================================================
-   GtkWidget *frequencia;              // Exporta/Gerencia chamadas e assiduidade
-   GtkWidget *conteudos;               // Exporta/Gerencia o registro de aulas dadas
-   GtkWidget *avaliacoes;              // Consolida as notas do período letivo
-   GtkWidget *relatorio_final;         // Consolida o fechamento anual/período
    GtkWidget *atualizar_alunos;        // Atualiza a lista de alunos a partir de xml do siaep
 
    // =========================================================================
@@ -188,14 +217,6 @@ typedef struct {
    ItemCombo *escolas;
    ItemCombo *turmas;
    ItemCombo *disciplinas;
-
-   // Ponteiros para as constantes
-   const ItemCombo *periodos;
-   const ItemCombo *cores_destaque;
-   const ItemCombo *decoracoes_estilo;
-   const ItemCombo *provas_sequencia;
-   const ItemCombo *status_assiduidade;
-
 } InterfaceListas;
 
 
@@ -208,10 +229,7 @@ typedef struct {
    int turma;
    int disciplina;
    int periodo;
-   int cor_destaque;
-   int decoracao_estilo;
    int tema;
-   int estilo;
 } FocoCoordenadas;
 
 // 2. Tipo para as quantidades máximas físicas (limites de disco)
@@ -220,12 +238,8 @@ typedef struct {
    int escolas;
    int turmas;
    int disciplinas;
-   int periodos;
-   int cores_destaque;
-   int decoracoes_estilo;
    int temas;
    int subtemas;
-   // int estilos; // Não precisa, por enquanto
 } LimitesFiltro;
 
 // 3. A estrutura unificada que consolida o painel de navegação
@@ -244,8 +258,6 @@ typedef struct {
    gulong turma;
    gulong disciplina;
    gulong periodo;
-   gulong cor_destaque;
-   gulong decoracao_estilo;
    gulong tema;
    gulong tema_espelho;
    gulong expor_dados;
@@ -270,11 +282,6 @@ typedef struct {
    char *proximo_instrucao;
 } InterfacePainel;
 
-
-typedef struct {
-   GtkWidget *professor;
-   GtkWidget *gestor;
-} InterfaceCabecalho;
 
 
 
@@ -343,9 +350,7 @@ typedef struct {
 
    InterfacePainel painel;
 
-   InterfaceCabecalho cabecalho;
-
-   InterfaceRegistroDiario ui_diario;
+   InterfaceDiario ui_diario;
 
    GRand *rand; // <- Ponteiro para o gerador de números aleatórios
 
@@ -353,14 +358,6 @@ typedef struct {
 
 
 
-
-
-//==================== ESTRUTURAS DE DADOS AUXILIARES ========================
-typedef struct {
-   DadosRascunho   rascunho;
-   FocoCoordenadas foco; // Mantém os focos para sincronizar os carrosséis estéticos
-} PacotePersistencia;
-//==================================================================
 
 
 
@@ -384,8 +381,6 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
 bool detectar_ubuntu( void );
 
 bool carregar_estado_aplicativo( AppContext *ctx );
-
-void atualizar_interface_com_dados( AppContext *ctx, const PacotePersistencia *pacote );
 
 void atualizar_tema( AppContext *ctx, const char *tema );
 

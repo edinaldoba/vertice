@@ -4,17 +4,20 @@
 APP_NAME = app
 CC       = gcc
 
-# Arquivos de recursos e interface
+# Arquivos de recursos, interface e estilos
 RESOURCES_XML = recursos/recursos.xml
 RESOURCES_C   = recursos.c
 UI_FILE       = recursos/interface.glade
+PROFESSOR_STY = recursos/professor.sty
+CSS_FILES     = $(wildcard recursos/css/*.css)
 
 # Regra para validar, limpar a UI e gerar o fonte dos recursos
-$(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE)
+# Agora o Make observa modificações no XML, no Glade e em qualquer CSS!
+$(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 	@echo "🎨 Validando e simplificando a interface XML..."
 	@gtk-builder-tool validate $(UI_FILE)
 	@gtk-builder-tool simplify --replace $(UI_FILE)
-	@echo "🛠️ Compilando recursos GTK..."
+	@echo "🛠️ Compilando recursos GTK (UI e CSS)..."
 	glib-compile-resources $(RESOURCES_XML) --sourcedir=recursos --target=$(RESOURCES_C) --generate-source
 
 # Módulos do sistema escritos em C puro

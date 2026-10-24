@@ -199,7 +199,7 @@ void* thread_gerar_prova_background( void *data ) {
 
    char nome[32] = {0};
    nome_base_gabaritos_bin( nome, sizeof( nome ), args->foco.turma, args->foco.disciplina,
-                            args->foco.periodo, args->dados.iprova );
+                            args->foco.periodo, args->dados.foco_seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
@@ -697,7 +697,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
          }
       }
 
-      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->iprova );
+      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->foco_seq_prova );
       g_autofree char *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
 
       g_remove( arquivo_saida );

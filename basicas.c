@@ -596,56 +596,48 @@ int origem_mais_recente( const char *origem, const char *destino ) {
 // FUNÇÕES PARA MANIPULAÇÃO DE RECURSOS (GLIB) PARA O DISCO FÍSICO
 // =====================================================================
 
-// Extrai o arquivo da memória do executável e grava no HD
+// Extrai o arquivo da memória do executável e grava no HD via GLib
 static int copiar_recurso_para_disco( const char *caminho_recurso, const char *destino ) {
    GError *error = NULL;
 
-   // 1. Puxa os dados diretamente da memória do executável (GResource)
-   GBytes *bytes = g_resources_lookup_data( caminho_recurso, G_RESOURCE_LOOKUP_FLAGS_NONE, &error );
+   // 1. Puxa os dados da memória (GResource). Usamos g_autoptr para liberação automática.
+   g_autoptr(GBytes) bytes = g_resources_lookup_data( caminho_recurso, G_RESOURCE_LOOKUP_FLAGS_NONE, &error );
    if ( bytes == NULL ) {
       g_printerr( "🚨 Erro interno no GResource: %s\n", error->message );
       g_clear_error( &error );
       return -1;
    }
 
-   // 2. Extrai o ponteiro e o tamanho dos dados
    gsize tamanho;
    gconstpointer buffer = g_bytes_get_data( bytes, &tamanho );
 
-   // 3. Grava no disco rígido físico com as funções padrão do C
-   FILE *dst = fopen( destino, "wb" );
-   if ( dst == NULL ) {
-      g_bytes_unref( bytes ); // Evita vazamento de memória
+   // 2. Grava no disco atomicamente usando GLib (substitui fopen, fwrite, fclose)
+   if ( !g_file_set_contents( destino, buffer, tamanho, &error ) ) {
+      g_printerr( "🚨 Erro ao gravar o arquivo %s: %s\n", destino, error->message );
+      g_clear_error( &error );
       return -1;
    }
 
-   size_t gravados = fwrite( buffer, 1, tamanho, dst );
-   fclose( dst );
-
-   // Libera o recurso da memória RAM
-   g_bytes_unref( bytes );
-
-   return ( gravados == tamanho ) ? 0 : -1;
+   return 0; // g_autoptr(GBytes) fará o g_bytes_unref() automaticamente ao sair da função
 }
 
-// Como recursos embutidos não tem "data de modificação", comparamos o tamanho do arquivo
+// Compara o tamanho do recurso embutido com o arquivo físico
 static int recurso_foi_modificado( const char *caminho_recurso, const char *caminho_destino ) {
    gsize tamanho_recurso;
 
    // Pega o tamanho do arquivo embutido
    if ( !g_resources_get_info( caminho_recurso, G_RESOURCE_LOOKUP_FLAGS_NONE, &tamanho_recurso, NULL, NULL ) ) {
-      return 0; // Recurso não existe
+      return 0; // Recurso não existe na memória
    }
 
-   struct stat st_dest;
+   GStatBuf st_dest; // Estrutura stat nativa da GLib
    // Pega o tamanho do arquivo físico no disco
-   if ( stat( caminho_destino, &st_dest ) == 0 ) {
-      // Se os tamanhos forem diferentes, você alterou o .sty e recompilou!
+   if ( g_stat( caminho_destino, &st_dest ) == 0 ) {
       if ( ( gsize )st_dest.st_size != tamanho_recurso ) {
-         return 1;
+         return 1; // Tamanhos diferentes: houve modificação
       }
    }
-   return 0; // Estão iguais
+   return 0; // Estão iguais ou arquivo destino não existe
 }
 
 
@@ -653,66 +645,78 @@ static int recurso_foi_modificado( const char *caminho_recurso, const char *cami
 // FUNÇÃO PRINCIPAL: ORQUESTRADOR DO AMBIENTE LATEX
 // =====================================================================
 void preparar_ambiente_latex( const char *recursos_prefix ) {
-   const char *home = getenv( "HOME" );
+   // 1. Busca a pasta HOME usando função segura da GLib (independe de getenv)
+   const char *home = g_get_home_dir();
    if ( home == NULL ) {
-      fprintf( stderr, "🚨 Erro: Variável de ambiente HOME não encontrada.\n" );
+      g_printerr( "🚨 Erro: Diretório HOME não encontrado pelo sistema.\n" );
       return;
    }
 
-   char pasta_destino[512];
-   char caminho_destino_final[1014];
-   char origem_completa[512];
+   // 2. Constrói os caminhos dinamicamente sem perigo de estourar buffer (char[512])
+   g_autofree gchar *pasta_destino = g_build_filename( home, "texmf", "tex", "latex", "professor", NULL );
+   g_autofree gchar *caminho_destino_final = g_build_filename( pasta_destino, "professor.sty", NULL );
+   g_autofree gchar *origem_completa = g_build_filename( recursos_prefix, "professor.sty", NULL );
 
-   snprintf( pasta_destino, sizeof( pasta_destino ), "%s/texmf/tex/latex/professor", home );
-   snprintf( caminho_destino_final, sizeof( caminho_destino_final ), "%s/professor.sty", pasta_destino );
-   snprintf( origem_completa, sizeof( origem_completa ), "%s/professor.sty", recursos_prefix );
+   g_print( "🔍 Verificando ambiente LaTeX...\n" );
 
-   printf( "🔍 Verificando ambiente LaTeX...\n" );
-
-   // 1. Verifica e cria o diretório físico texmf
-   struct stat st;
-   if ( stat( pasta_destino, &st ) != 0 ) {
-      printf( "📁 Criando estrutura de diretórios no texmf...\n" );
-      criar_diretorios_cascata( pasta_destino );
+   // 3. Verifica e cria o diretório físico texmf (substitui sua rotina customizada)
+   if ( !g_file_test( pasta_destino, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR ) ) {
+      g_print( "📁 Criando estrutura de diretórios no texmf...\n" );
+      if ( g_mkdir_with_parents( pasta_destino, 0755 ) != 0 ) {
+         g_printerr( "🚨 Erro ao criar a pasta: %s\n", pasta_destino );
+         return;
+      }
    }
 
-   // 2. Verifica se o pacote JÁ EXISTE NO DISCO físico
-   EstadoArquivo estado = verificar_arquivo( caminho_destino_final );
+   // 4. Verifica se o pacote JÁ EXISTE NO DISCO físico e não está vazio
+   gboolean existe_no_disco = g_file_test( caminho_destino_final, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR );
+   if ( existe_no_disco ) {
+      GStatBuf st;
+      if ( g_stat( caminho_destino_final, &st ) == 0 && st.st_size == 0 ) {
+         existe_no_disco = FALSE; // Se existir, mas o tamanho for 0, tratamos como inexistente
+      }
+   }
 
-   if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
-      printf( "⚠️ O pacote professor.sty não foi encontrado no sistema TeX.\n" );
+   if ( !existe_no_disco ) {
+      g_print( "⚠️ O pacote professor.sty não foi encontrado (ou está vazio) no sistema TeX.\n" );
 
-      // 3. Verifica se o RECURSO existe na MEMÓRIA (Usando GLib ao invés de stat)
+      // Verifica se o RECURSO existe na MEMÓRIA
       if ( g_resources_get_info( origem_completa, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL, NULL, NULL ) ) {
 
          if ( copiar_recurso_para_disco( origem_completa, caminho_destino_final ) == 0 ) {
-            printf( "✅ Sucesso: professor.sty instalado em %s\n", pasta_destino );
+            g_print( "✅ Sucesso: professor.sty instalado em %s\n", pasta_destino );
 
-            // 4. Atualiza o banco do TeX
-            char cmd_texhash[512];
-            snprintf( cmd_texhash, sizeof( cmd_texhash ), "texhash %s/texmf", home );
-            if ( system( cmd_texhash ) == -1 ) {
-               fprintf( stderr, "Erro crítico: Não foi possível atualizar /texmf\n" );
+            // 5. Atualiza o banco do TeX (Substitui o system() para evitar travamentos de shell)
+            g_autofree gchar *pasta_texmf = g_build_filename( home, "texmf", NULL );
+            gchar *argv[] = { (gchar*)"texhash", pasta_texmf, NULL }; // Comando em array
+            GError *spawn_err = NULL;
+
+            if ( !g_spawn_sync( NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &spawn_err ) ) {
+               g_printerr( "🚨 Erro crítico ao executar texhash: %s\n", spawn_err->message );
+               g_clear_error( &spawn_err );
             }
-         } else {
-            fprintf( stderr, "🚨 Erro de I/O ao gravar no disco.\n" );
          }
       } else {
-         fprintf( stderr, "🚨 Erro: O recurso interno não foi encontrado em: %s\n", origem_completa );
+         g_printerr( "🚨 Erro: O recurso interno não foi encontrado em: %s\n", origem_completa );
       }
 
    } else {
-      printf( "✨ Ambiente pronto: professor.sty já está instalado no sistema.\n" );
+      g_print( "✨ Ambiente pronto: professor.sty já está instalado no sistema.\n" );
 
-      // 5. O update invisível (checa diferença de tamanho entre a memória e o disco)
+      // 6. O update invisível (checa diferença de tamanho entre a memória e o disco)
       if ( recurso_foi_modificado( origem_completa, caminho_destino_final ) ) {
-         printf( "🔄 Nova versão do .sty detectada no binário! Atualizando o texmf...\n" );
+         g_print( "🔄 Nova versão do .sty detectada no binário! Atualizando o texmf...\n" );
+
          if ( copiar_recurso_para_disco( origem_completa, caminho_destino_final ) == 0 ) {
-            printf( "✅ Pacote atualizado com sucesso.\n" );
+            g_print( "✅ Pacote atualizado com sucesso.\n" );
          }
       }
    }
 }
+//=====================================================================================================
+
+
+
 
 void preparar_ambiente_latex_no_disco( void ) {
    const char *home = getenv( "HOME" );
