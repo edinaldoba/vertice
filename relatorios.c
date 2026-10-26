@@ -1226,7 +1226,7 @@ void disparar_latex( const char *nome_base, const char *pasta_destino,
 
    snprintf( path_pdf_temp, sizeof( path_pdf_temp ), "%s/%s.pdf", pasta_temp, nome_base );
 
-   if ( dados->expor ) {
+   if ( dados->expor_dados ) {
       expor_relatorio_escola( path_pdf_temp, nome_base, dados, caminho );
    }
 

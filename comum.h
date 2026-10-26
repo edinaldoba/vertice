@@ -56,8 +56,7 @@ typedef enum {
    CATEGORIA_UI_FONTE_LATEX    = 3,
    CATEGORIA_UI_PAGINAS        = 4,
    CATEGORIA_UI_CABECALHO      = 5,
-   // ID contínuo para evitar colisões
-   CATEGORIA_UI_NUM_CRUZADOS   = 6,
+   CATEGORIA_UI_VALIDAR_CICLOS = 6,
    CATEGORIA_UI_NAO_PRESENCIAL = 7,
    CATEGORIA_UI_EXPOR_DADOS    = 8
 } CategoriaInterface;
@@ -76,7 +75,7 @@ typedef enum {
    DECORACAO_QUADRADOS = 4,
    DECORACAO_LINHAS    = 5,
    DECORACAO_SENOIDES  = 6
-} DecoracaoEstilo;
+} DecoracaoLatex;
 
 typedef enum {
    COR_SERIE_PRIMEIRO_ANO = 0,
@@ -153,10 +152,12 @@ typedef struct {
    char tema[64], prova_sequencia[64];
 
    // 3. Configurações Numéricas e Estatísticas da Turma
-   int foco_seq_prova, qtd_alunos_ativos, qtd_alunos_total;
+   int qtd_alunos_ativos, qtd_alunos_total, seq_prova;
 
    // 4. Configurações de Layout do LaTeX
-   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
+   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex;
+
+   int foco_cor_serie, foco_decoracao;
 
    // 5. Matriz do Acervo
    int  qtd_questoes[NTI];
@@ -166,10 +167,7 @@ typedef struct {
    } temas_prova_sequencia[NTI];
 
    // 6. Flags de Controle
-   gboolean expor, cruz, naopresencial;
-
-   // 7. Estilo visual da interface
-   int ui_foco_estilo;
+   gboolean expor_dados, validar_ciclos, nao_presencial;
 
 } InterfaceDados;
 //=========================================================================================================//
@@ -184,7 +182,7 @@ typedef struct {
    } temas_prova_sequencia[NTI];
 
    // 4. Flags de Controle Estéticas
-   gboolean expor, naopresencial;
+   gboolean expor_dados, nao_presencial;
 } DadosRascunho;
 //=========================================================================================================//
 
@@ -262,7 +260,7 @@ typedef enum {
 typedef struct {
    uint32_t cod_aluno; // Código único do aluno
    SituacaoAluno sit;  // Situação do aluno
-   ObservacaoAluno obs; // Observação sobre o aluno no relatório final
+   // ObservacaoAluno obs; // Observação sobre o aluno no relatório final
    gboolean ativo;     // Status de matrícula global
 } __attribute__( ( packed ) ) AcessoFicha;
 

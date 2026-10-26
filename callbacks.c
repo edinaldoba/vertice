@@ -141,6 +141,12 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
    ctx->cabecalho.foco_periodo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_periodo ) );
    if ( ctx->cabecalho.foco_periodo < 0 ) return;
 
+   // As pendência só podem ser resolvidas se o período selecionado for maior ou igual ao período corrente (atual)
+   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
+      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( ctx->ui_diario.relatorio.check_pendencias );
+      gtk_toggle_button_set_active( check_pendencias, FALSE );
+   }
+
    if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
       gboolean ativo = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) );
       if ( ativo ) gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), FALSE );
@@ -158,12 +164,13 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
 
 
 
-void on_entry_cor_destaque_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_entry_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   ctx->dados.foco_cor_serie = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_latex.combo_cor_serie ) );
+   ctx->ui_latex.foco_cor_serie = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_latex.combo_cor_serie ) );
+   ctx->dados.foco_cor_serie = ctx->ui_latex.foco_cor_serie;
 }
 
 
@@ -172,7 +179,8 @@ void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer us
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   ctx->dados.foco_decoracao = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_latex.combo_decoracao ) );
+   ctx->ui_latex.foco_decoracao = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->ui_latex.combo_decoracao ) );
+   ctx->dados.foco_decoracao = ctx->ui_latex.foco_decoracao;
 }
 
 
@@ -181,7 +189,7 @@ void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) 
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   ctx->dados.ui_foco_estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_estilo ) );
+   ctx->cabecalho.foco_estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_estilo ) );
 
    interface_style( ctx );
 
@@ -808,8 +816,8 @@ static gboolean _on_treeview_notas_key_press_event( GtkWidget *widget, GdkEventK
 
    GtkTreeViewColumn *nova_coluna = column;
 
-   // 1. CALCULA O DESTINO (Delega a lógica do switch para a auxiliar)
-   gboolean mover_cursor = calcular_destino_cursor( event->keyval, model, path, current_col_node, &nova_coluna );
+   // 1. CALCULA O DESTINO (Agora injetando ctx e tree_view)
+   gboolean mover_cursor = calcular_destino_cursor( ctx, event->keyval, model, path, current_col_node, &nova_coluna );
 
    gboolean tratado = FALSE;
 
@@ -872,11 +880,7 @@ void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *e
 void on_cell_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
 
-   // Resgata o TreeView que armazenamos no GObject do Renderer
-   GtkTreeView *tree_view = GTK_TREE_VIEW( g_object_get_data( G_OBJECT( renderer ), "ptr_treeview" ) );
-   if ( tree_view ) {
-      processar_gravacao_nota( ctx, tree_view, GTK_CELL_RENDERER( renderer ), path_string, new_text );
-   }
+   processar_gravacao_nota( ctx, GTK_CELL_RENDERER( renderer ), path_string, new_text );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -977,6 +981,11 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
+   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
+      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_atual );
+   }
+
    int d = ctx->cabecalho.foco_disciplina;
 
    // Varredura e Cálculo limpo
@@ -987,6 +996,9 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
 
    // Atualiza a Interface
    carregar_relatorio_ui( ctx );
+
+   // Nova função embrulhada roda APÓS a UI ser atualizada
+   gerar_acesso_recuperacao_final( ctx );
 }
 
 
@@ -994,13 +1006,18 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
 void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_CHECK_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
+   if ( !ctx ) return;
 
-   if ( !ctx || !relatorio->treeview ) return;
+   gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
+
+   if ( estado && ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
+      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_atual );
+   }
 
    // Força a repintura e reavaliação de todas as células do Relatório Final
    // Não é necessário redesenhar a interface, mas não apague linha seguinte.
-   gtk_widget_queue_draw( relatorio->treeview );
+   gtk_widget_queue_draw( ctx->ui_diario.relatorio.treeview );
 }
 //===================================================================================================
 
@@ -1444,12 +1461,12 @@ void on_combo_sequencia_prova_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
 
-   int idx = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+   ctx->ui_prova.foco_seq_prova = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
 
    // TRAVA DE SEGURANÇA: Ignora se nenhum item estiver selecionado (-1)
-   if ( idx < 0 ) return;
+   if ( ctx->ui_prova.foco_seq_prova < 0 ) return;
 
-   ctx->dados.foco_seq_prova = idx + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
+   ctx->dados.seq_prova = ctx->ui_prova.foco_seq_prova + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
 
    const gchar *texto_seq_prova = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
 
@@ -1561,7 +1578,7 @@ void on_radio_atualizar_generic_interface_toggled( GtkWidget *widget, gpointer u
 
 
 
-void on_check_atualizar_gbooleaneanos_interface_toggled( GtkWidget *widget, gpointer user_data ) {
+void on_check_atualizar_booleanos_interface_toggled( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx || !widget ) return;
@@ -1576,11 +1593,10 @@ void on_check_atualizar_gbooleaneanos_interface_toggled( GtkWidget *widget, gpoi
    if ( categoria == 0 ) return;
 
    // Dentro de callbacks.c (Linha 381):
-   atualizar_gbooleaneanos_interface( estado, categoria, ctx );
+   atualizar_booleanos_interface( estado, categoria, ctx );
 
    // Feedback limpo no terminal do seu Debian
-   g_print( "[UI Check] Alterado: Widget '%s' (Cat %d) -> %s\n",
-            check_nome, categoria, estado ? "ATIVADO" : "DESATIVADO" );
+   g_print( "[UI Check] Alterado: Widget '%s' (Cat %d) -> %s\n", check_nome, categoria, estado ? "ATIVADO" : "DESATIVADO" );
 }
 
 

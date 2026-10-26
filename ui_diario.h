@@ -40,17 +40,18 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto );
 
 gboolean salvar_fichas( AppContext *ctx, gboolean final_save );
 
-gboolean calcular_destino_cursor( guint keyval, GtkTreeModel *model, GtkTreePath *path,
+gboolean calcular_destino_cursor( AppContext *ctx, guint keyval, GtkTreeModel *model, GtkTreePath *path,
                                   GList *current_col_node, GtkTreeViewColumn **nova_coluna );
 void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_destino, GtkTreeViewColumn *col_destino );
 
-void processar_gravacao_nota( AppContext *ctx, GtkTreeView *tree_view, GtkCellRenderer *renderer,
-                              const gchar *path_string, const gchar *new_text );
+void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer, const gchar *path_string, const gchar *new_text );
 
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column );
 void carregar_notas_ui_por_periodo( AppContext *ctx );
 
 void carregar_relatorio_ui( AppContext *ctx );
+
+void gerar_acesso_recuperacao_final( AppContext *ctx );
 
 
 #endif

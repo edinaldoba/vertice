@@ -311,7 +311,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkCheckButton" id="check_expor">
+                          <object class="GtkCheckButton" id="check_expor_dados">
                             <property name="label" translatable="yes">Expôr</property>
                             <property name="width-request">200</property>
                             <property name="visible">1</property>
@@ -1110,9 +1110,7 @@
                                         <property name="title" translatable="yes">AV-1</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">2</attribute>
                                           </attributes>
@@ -1126,9 +1124,7 @@
                                         <property name="title" translatable="yes">REC-1</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">3</attribute>
                                           </attributes>
@@ -1142,9 +1138,7 @@
                                         <property name="title" translatable="yes">AV-2</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">4</attribute>
                                           </attributes>
@@ -1158,9 +1152,7 @@
                                         <property name="title" translatable="yes">REC-2</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">5</attribute>
                                           </attributes>
@@ -1174,9 +1166,7 @@
                                         <property name="title" translatable="yes">AV-3</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">6</attribute>
                                           </attributes>
@@ -1190,9 +1180,7 @@
                                         <property name="title" translatable="yes">REC-3</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">7</attribute>
                                           </attributes>
@@ -1206,9 +1194,7 @@
                                         <property name="title" translatable="yes">AV-4</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">8</attribute>
                                           </attributes>
@@ -1222,9 +1208,7 @@
                                         <property name="title" translatable="yes">REC-4</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">9</attribute>
                                           </attributes>
@@ -1238,9 +1222,7 @@
                                         <property name="title" translatable="yes">AV-5</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">10</attribute>
                                           </attributes>
@@ -1254,9 +1236,7 @@
                                         <property name="title" translatable="yes">REC-5</property>
                                         <property name="expand">1</property>
                                         <child>
-                                          <object class="GtkCellRendererText">
-                                            <property name="editable">1</property>
-                                          </object>
+                                          <object class="GtkCellRendererText"/>
                                           <attributes>
                                             <attribute name="text">11</attribute>
                                           </attributes>
@@ -1673,6 +1653,8 @@
                             <child>
                               <object class="GtkComboBoxText" id="combo_tema_acervo">
                                 <property name="visible">1</property>
+                                <property name="margin-start">2</property>
+                                <property name="margin-end">2</property>
                               </object>
                               <packing>
                                 <property name="position">1</property>
@@ -2151,7 +2133,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkButton" id="button_gcc">
+                          <object class="GtkButton" id="button_diversificar">
                             <property name="label" translatable="yes">DIVERSIFICAR</property>
                             <property name="visible">1</property>
                             <property name="can-focus">1</property>
@@ -2226,6 +2208,8 @@
                             <child>
                               <object class="GtkComboBoxText" id="combo_tema">
                                 <property name="visible">1</property>
+                                <property name="margin-start">2</property>
+                                <property name="margin-end">2</property>
                               </object>
                               <packing>
                                 <property name="position">1</property>
@@ -2288,10 +2272,30 @@
                             <child>
                               <object class="GtkBox" id="box_provas_config">
                                 <property name="visible">1</property>
-                                <property name="margin-start">25</property>
-                                <property name="margin-end">25</property>
-                                <property name="spacing">25</property>
-                                <property name="homogeneous">1</property>
+                                <property name="margin-start">2</property>
+                                <property name="margin-end">2</property>
+                                <property name="spacing">10</property>
+                                <child>
+                                  <object class="GtkBox" id="box_qtd_ativos">
+                                    <property name="width-request">125</property>
+                                    <property name="visible">1</property>
+                                    <child>
+                                      <object class="GtkLabel" id="label_qtd_ativos">
+                                        <property name="visible">1</property>
+                                        <property name="label" translatable="yes">qtd ativos</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">1</property>
+                                      </packing>
+                                    </child>
+                                    <style>
+                                      <class name="mini-card"/>
+                                    </style>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">1</property>
+                                  </packing>
+                                </child>
                                 <child>
                                   <object class="GtkComboBoxText" id="combo_sequencia_prova">
                                     <property name="visible">1</property>
@@ -2302,12 +2306,16 @@
                                       <item translatable="yes">Terceira Prova</item>
                                     </items>
                                   </object>
+                                  <packing>
+                                    <property name="expand">1</property>
+                                    <property name="position">1</property>
+                                  </packing>
                                 </child>
                                 <child>
                                   <object class="GtkBox" id="box_nao_presencial">
                                     <property name="visible">1</property>
                                     <child>
-                                      <object class="GtkCheckButton" id="check_naopresencial">
+                                      <object class="GtkCheckButton" id="check_nao_presencial">
                                         <property name="label" translatable="yes">Não Presencial</property>
                                         <property name="visible">1</property>
                                         <property name="can-focus">1</property>
@@ -2319,7 +2327,8 @@
                                     </style>
                                   </object>
                                   <packing>
-                                    <property name="position">1</property>
+                                    <property name="expand">1</property>
+                                    <property name="position">2</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -2327,7 +2336,7 @@
                                     <property name="visible">1</property>
                                     <child>
                                       <object class="GtkCheckButton" id="check_validar_ciclos">
-                                        <property name="label" translatable="yes">Números Cruzados</property>
+                                        <property name="label" translatable="yes">Validar Ciclos</property>
                                         <property name="visible">1</property>
                                         <property name="can-focus">1</property>
                                         <property name="draw-indicator">1</property>
@@ -2341,7 +2350,8 @@
                                     </style>
                                   </object>
                                   <packing>
-                                    <property name="position">2</property>
+                                    <property name="expand">1</property>
+                                    <property name="position">3</property>
                                   </packing>
                                 </child>
                               </object>

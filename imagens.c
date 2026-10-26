@@ -819,7 +819,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    // const CaminhoDiretorio *caminho = &ctx->caminho;
 
    char nome_bin[64];
-   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->foco_seq_prova );
+   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->seq_prova );
 
    g_autofree char *path_resp = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
                                 "respostas", nome_bin, NULL );
@@ -956,10 +956,10 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
          if ( ctx->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ctx->fichas->len ) {
             FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
             int periodo = map->per;
-            int foco_seq_prova = map->seq;
+            int seq_prova = map->seq;
 
             if ( periodo >= 0 && periodo <= 4 ) {
-               ficha->disciplina[cabecalho->foco_disciplina].periodo[periodo].avaliacoes[2 * foco_seq_prova - 2].av  = ( float )nota;
+               ficha->disciplina[cabecalho->foco_disciplina].periodo[periodo].avaliacoes[2 * seq_prova - 2].av  = ( float )nota;
                ficha->ficha_modificada = TRUE;
             }
          }

@@ -547,8 +547,8 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    }
 }
 
-void siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel && ctx );
+gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
+   g_return_val_if_fail( painel && ctx, FALSE );
    const InterfaceDados *dados   = &ctx->dados;
 
    g_autofree gchar *dir_origem = g_build_filename( ".", "planilhas", dados->ano, dados->escola, dados->periodo, NULL );
@@ -567,14 +567,14 @@ void siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
       }
    } else {
       g_printerr( "Erro ao abrir diretório %s: %s\n", dir_origem, erro->message );
-      return;
+      return FALSE;
    }
 
    int num_arquivos = lista_arquivos->len;
 
    if ( num_arquivos == 0 ) {
       g_print( "Nenhum arquivo .xls encontrado no diretório: %s\n", dir_origem );
-      return;
+      return FALSE;
    }
 
    g_print( "Iniciando processamento paralelo de %d arquivos...\n", num_arquivos );
@@ -589,6 +589,8 @@ void siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
    }
 
    atualizar_acesso_e_adicionar_novos_alunos( ctx );
+
+   return TRUE;
 }
 
 

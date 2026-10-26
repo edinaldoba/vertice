@@ -349,25 +349,39 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
              "%s/Documentos/%s/%s", home, dados->ano, dados->escola );
 
    if ( !diretorio_existe( caminho->dados ) )            {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->dados );
+      if (g_mkdir_with_parents( caminho->dados, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->dados);
+      }
    }
    if ( !diretorio_existe( caminho->gabaritos ) )        {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->gabaritos );
+      if (g_mkdir_with_parents( caminho->gabaritos, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->gabaritos);
+      }
    }
    if ( !diretorio_existe( caminho->relatorios ) )       {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->relatorios );
+      if (g_mkdir_with_parents( caminho->relatorios, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios);
+      }
    }
    if ( !diretorio_existe( caminho->relatorios_final ) ) {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->relatorios_final );
+      if (g_mkdir_with_parents( caminho->relatorios_final, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios_final);
+      }
    }
    if ( !diretorio_existe( caminho->externo ) )          {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo );
+      if (g_mkdir_with_parents( caminho->externo, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo);
+      }
    }
    if ( !diretorio_existe( caminho->externo_final ) )    {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo_final );
+      if (g_mkdir_with_parents( caminho->externo_final, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_final);
+      }
    }
    if ( !diretorio_existe( caminho->externo_escola ) )   {
-      g_printerr( "AVISO: Pasta ausente: %s\n", caminho->externo_escola );
+      if (g_mkdir_with_parents( caminho->externo_escola, 0755 ) != 0) {
+         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_escola);
+      }
    }
 }
 
@@ -438,64 +452,95 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
 
-   g_autofree char *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
+   gboolean precisa_consolidar = FALSE;
 
-   EstadoArquivo estado_arquivo = verificar_arquivo( arquivo_acesso );
-   if ( estado_arquivo == ARQUIVO_INEXISTENTE || estado_arquivo == ARQUIVO_VAZIO ) {
-      siaep_atualizar_alunos( &ctx->painel, ctx );
+   g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
+
+   // 2. Substituição do verificar_arquivo pelo g_stat nativo
+   // Verifica tanto a existência (retorno != 0) quanto se está vazio (tamanho == 0)
+   GStatBuf stat_buf;
+   if ( g_stat( arquivo_acesso, &stat_buf ) != 0 || stat_buf.st_size == 0 ) {
+      if( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
+         copiar_acesso_bin( ctx );
+         if( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+            precisa_consolidar = TRUE;
+         }
+      }
    }
 
    gsize tamanho_arquivo = 0;
-   g_autofree AcessoFicha *buffer_acessos = NULL;
+   gchar *conteudo_acessos = NULL;
    dados->qtd_alunos_ativos = 0;
 
-   if ( !g_file_get_contents( arquivo_acesso, ( gchar ** )&buffer_acessos, &tamanho_arquivo, NULL ) ) {
+   // 3. Leitura do arquivo de acesso binário
+   if ( !g_file_get_contents( arquivo_acesso, &conteudo_acessos, &tamanho_arquivo, NULL ) ) {
       g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso );
-      dados->qtd_alunos_total = dados->qtd_alunos_ativos;
+      dados->qtd_alunos_total = 0;
       return;
    }
+
+   // Transforma o buffer raw de chars na struct e garante a liberação automática
+   g_autofree AcessoFicha *buffer_acessos = ( AcessoFicha * )conteudo_acessos;
 
    dados->qtd_alunos_total = tamanho_arquivo / sizeof( AcessoFicha );
    if ( dados->qtd_alunos_total == 0 ) return;
 
-   // 3. Inicialização do GArray já com o tamanho exato pré-alocado (mais rápido)
+   // 4. Inicialização do GArray já com o tamanho exato pré-alocado
    ctx->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
 
-   g_autofree char *dir_base_alunos = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL );
+   g_autofree gchar *dir_base_alunos = g_build_filename( ".", "dados", "informados",
+                                                         dados->ano, dados->escola, "alunos", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];
-      g_autofree char *ficha_aluno = g_strdup_printf( "%s/%" PRIu32 ".bin", dir_base_alunos, acesso->cod_aluno );
 
-      FILE *fa = fopen( ficha_aluno, "rb" );
-      if ( !fa ) {
-         g_printerr( "[Aviso] Ficha não encontrada para o aluno %" PRIu32 "\n", acesso->cod_aluno );
-         continue;
-      }
+      // Constrói o caminho de forma segura para o SO (evita concatenar "%s/%d.bin" na mão)
+      g_autofree gchar *nome_arquivo = g_strdup_printf( "%" PRIu32 ".bin", acesso->cod_aluno );
+      g_autofree gchar *ficha_aluno = g_build_filename( dir_base_alunos, nome_arquivo, NULL );
 
-      // Cria uma ficha temporária zerada para receber os dados
-      FichaAluno temp_ficha = {0};
+      gsize tamanho_ficha = 0;
+      gchar *conteudo_ficha = NULL;
 
-      if ( fread( &temp_ficha, sizeof( FichaAluno ), 1, fa ) == 1 ) {
-         temp_ficha.cod_aluno = acesso->cod_aluno;
-         temp_ficha.idx_siaep = i;
-         temp_ficha.sit = acesso->sit;
-         temp_ficha.ativo = acesso->ativo;
-         temp_ficha.ficha_modificada = FALSE;
+      // 5. Carregamento binário purista sem misturar FILE* do C padrão com GLib
+      if ( g_file_get_contents( ficha_aluno, &conteudo_ficha, &tamanho_ficha, NULL ) ) {
 
-         if ( temp_ficha.ativo ) {
-            dados->qtd_alunos_ativos++;
+         // Validação extra de segurança: a ficha em disco bate com a struct na memória?
+         if ( tamanho_ficha == sizeof( FichaAluno ) ) {
+            FichaAluno temp_ficha;
+
+            // Hidrata a struct local a partir do buffer cru em memória
+            memcpy( &temp_ficha, conteudo_ficha, sizeof( FichaAluno ) );
+
+            temp_ficha.cod_aluno = acesso->cod_aluno;
+            temp_ficha.idx_siaep = i;
+            temp_ficha.sit = acesso->sit;
+            temp_ficha.ativo = acesso->ativo;
+            temp_ficha.ficha_modificada = FALSE;
+
+            if ( temp_ficha.ativo ) {
+               dados->qtd_alunos_ativos++;
+            }
+
+            // Anexa a cópia da ficha direto no GArray
+            g_array_append_val( ctx->fichas, temp_ficha );
+         } else {
+            g_printerr( "[Aviso] Tamanho corrompido para o aluno %" PRIu32 "\n", acesso->cod_aluno );
          }
 
-         // Anexa a cópia da ficha direto no GArray
-         g_array_append_val( ctx->fichas, temp_ficha );
-      }
+         // Libera o buffer temporário alocado pelo g_file_get_contents
+         g_free( conteudo_ficha );
 
-      fclose( fa );
+      } else {
+         g_printerr( "[Aviso] Ficha não encontrada para o aluno %" PRIu32 "\n", acesso->cod_aluno );
+      }
    }
 
-   // 5. Ordenação Alfabética nativa do GArray
+   // 6. Ordenação Alfabética nativa do GArray
    g_array_sort( ctx->fichas, alfabetica_lista_de_alunos );
+
+   if ( precisa_consolidar ) {
+      gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.relatorio.btn_consolidar ) );
+   }
 }
 //----------------------------------------------------------------------------------------------------
 

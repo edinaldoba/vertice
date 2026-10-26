@@ -877,7 +877,7 @@ void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, in
          fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
       }
    } else {
-      sprintf( str, "cp ./dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/%s 'Relatórios e Provas'/", dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->foco_seq_prova, img );
+      sprintf( str, "cp ./dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/%s 'Relatórios e Provas'/", dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->seq_prova, img );
       if ( system( str ) == -1 ) {
          fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
       }
@@ -1014,7 +1014,7 @@ void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, in
    if ( dados->periodo[0] == 'R' ) {
       sprintf( str, "cp %s ../dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens Recuperação Final'/", img, dados->ano, dados->disciplina, dados->escola );
    } else {
-      sprintf( str, "cp %s ../dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/", img, dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->foco_seq_prova );
+      sprintf( str, "cp %s ../dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/", img, dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->seq_prova );
    }
 
    if ( system( str ) == -1 ) {

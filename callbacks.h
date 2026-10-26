@@ -14,7 +14,7 @@ void on_entry_atualizar_escola_interface_changed( GtkWidget *widget, gpointer us
 void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer user_data );
 void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointer user_data );
 void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_cor_destaque_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_entry_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data );
 void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
 void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
@@ -115,7 +115,7 @@ void on_radio_atualizar_generic_interface_toggled( GtkWidget *widget, gpointer u
 // 6. CAIXAS DE SELEÇÃO E CONTROLE DE ESTADO (CHECK BUTTONS)
 // =========================================================================
 // Chaves gbooleaneanas independentes de configuração da interface e do sistema
-void on_check_atualizar_gbooleaneanos_interface_toggled( GtkWidget *widget, gpointer user_data );
+void on_check_atualizar_booleanos_interface_toggled( GtkWidget *widget, gpointer user_data );
 //==========================================================================
 
 // =========================================================================

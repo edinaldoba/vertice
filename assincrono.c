@@ -197,7 +197,7 @@ void* thread_gerar_prova_background( void *data ) {
 
    char nome[32] = {0};
    nome_base_gabaritos_bin( nome, sizeof( nome ), args->cabecalho.foco_turma, args->cabecalho.foco_disciplina,
-                            args->cabecalho.foco_periodo, args->dados.foco_seq_prova );
+                            args->cabecalho.foco_periodo, args->dados.seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
@@ -676,7 +676,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
       g_print( "[SUCESSO] Processamento assíncrono do LaTeX concluído.\n" );
 
       // 5.1. Arquivos Não Presenciais
-      if ( dados->naopresencial ) {
+      if ( dados->nao_presencial ) {
          copiar_arquivos_correcao_nao_presencial( ( MapeamentoGabarito * )map_array->data, map_array->len, ctx );
       }
 
@@ -695,7 +695,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
          }
       }
 
-      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->foco_seq_prova );
+      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->seq_prova );
       g_autofree char *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
 
       g_remove( arquivo_saida );
@@ -717,7 +717,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
       // 7. EXIBIÇÃO AUTOMÁTICA E FEEDBACK NA INTERFACE
       // ====================================================================================
       if ( g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
-         if ( dados->expor ) {
+         if ( dados->expor_dados ) {
             copiar_arquivos_correcao_externamente( dados, caminho, arquivo_saida );
          }
 

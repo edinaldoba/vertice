@@ -43,6 +43,8 @@ typedef struct {
    int foco_turma;
    int foco_disciplina;
    int foco_periodo;
+   int foco_periodo_atual;
+   int foco_estilo;
 
    int limite_anos;
    int limite_escolas;
@@ -176,6 +178,9 @@ typedef struct {
    GtkWidget *combo_cor_serie;
    GtkWidget *combo_decoracao;
 
+   int foco_cor_serie;
+   int foco_decoracao;
+
    GtkWidget *btn_pdflatex;      // Visualiza o catálogo de questões selecionadas em PDF
    GtkWidget *btn_compilar;      // Renderiza o script LaTeX final
    GtkWidget *btn_diversificar;  // Compila e executa as rotinas geradoras em C
@@ -208,7 +213,11 @@ typedef struct {
 
    GtkWidget *listbox_subtemas;
 
+   GtkWidget *label_qtd_ativos;
+
    GtkWidget *combo_seq_prova;
+   int foco_seq_prova;
+
    GtkWidget *check_nao_presencial; // Regras flexíveis para alunos remotos
    GtkWidget *check_validar_ciclos; // Detecção de fraudes cíclicas nos gabaritos
 
@@ -300,7 +309,7 @@ void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite
 void interface_style( AppContext *ctx );
 
 // Funções de carregamento e salvamento
-void atualizar_gbooleaneanos_interface( const gboolean estado, const int categoria, AppContext *ctx );
+void atualizar_booleanos_interface( const gboolean estado, const int categoria, AppContext *ctx );
 
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor );
 
@@ -319,6 +328,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
 gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
+gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index );
+void copiar_acesso_bin( AppContext *ctx );
 
 void atualizar_dados_e_alunos_ativos( AppContext *ctx );
 void inicializar_estado_do_aplicativo( AppContext *ctx );

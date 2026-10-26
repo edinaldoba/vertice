@@ -307,7 +307,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
 
       // Coluna 3: Data e Turma
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-1.75) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
-      if ( dados->naopresencial ) {
+      if ( dados->nao_presencial ) {
          g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black!80] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
       }
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-2.25) {{\\color{CorSerie!80}\\small\\bfseries Turma:} {\\color{black!80} %s}};\n", dados->turma );
@@ -352,7 +352,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (0,-3.88) rectangle (3.8,-5.5);\n" );
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.185) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
 
-      if ( dados->naopresencial ) {
+      if ( dados->nao_presencial ) {
          g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (1.34,-4.145) {\\small\\bfseries %.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
       }
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.69) {{\\color{CorSerie!80}\\small\\bfseries Série:} {\\color{black!80}%c\\textsuperscript{o} Ano}};\n", dados->turma[0] );
@@ -610,7 +610,7 @@ void prova( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho, co
 
       file_permute( pb, dados->total_questoes );
 
-      if ( dados->naopresencial ) {
+      if ( dados->nao_presencial ) {
          imagens_para_prova( num_ativo, jj + 1, fichas, dados, cabecalho );
       }
 
@@ -651,11 +651,11 @@ void prova( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho, co
 
       if ( dados->qtd_paginas == 1 ) {
          g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, cabecalho );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->nao_presencial, dados, cabecalho );
          g_string_append( tex_corpo, "\\end{center}\n" );
       } else {
          g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->naopresencial, dados, cabecalho );
+         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->nao_presencial, dados, cabecalho );
          g_string_append( tex_corpo, "\\end{center}\n" );
       }
 
@@ -789,7 +789,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
    // 1. Compilação paralela do LaTeX
    g_pdflatex_parallel( "./dados/temporarios" );
 
-   if ( dados->naopresencial ) {
+   if ( dados->nao_presencial ) {
       copiar_arquivos_prova_nao_presencial( fichas, dados, caminho );
    }
 
@@ -845,7 +845,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
    // =========================================================================
    // Só copiamos se a flag estiver ativa E se o pdfunite teve sucesso!
    if ( g_file_test( destino_relatorio, G_FILE_TEST_EXISTS ) ) {
-      if ( dados->expor ) {
+      if ( dados->expor_dados ) {
          copiar_arquivos_prova_externamente( dados, caminho, destino_relatorio );
       }
       g_xdg_open( destino_relatorio );

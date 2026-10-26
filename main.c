@@ -161,7 +161,9 @@ void inicializacao_app_context( AppContext *ctx ) {
          .handler_ano              = 0,
          .handler_escola           = 0,
          .handler_turma            = 0,
-         .handler_disciplina       = 0
+         .handler_disciplina       = 0,
+
+         .foco_estilo    = 0
       },
 
       .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
@@ -181,7 +183,7 @@ void inicializacao_app_context( AppContext *ctx ) {
          .tema              = "",
          .prova_sequencia  = "Primeira Prova",
 
-         .foco_seq_prova            = 1,
+         .seq_prova         = 1,
          .qtd_alunos_ativos = 0,
          .qtd_alunos_total  = 0,
 
@@ -190,7 +192,6 @@ void inicializacao_app_context( AppContext *ctx ) {
          .separadores       = 1,
          .cabecalho_tipo    = 1,
          .fonte_latex       = 1,
-         .ui_foco_estilo    = 0,
 
          .qtd_questoes      = {0},
          .total_questoes    = 10,
@@ -198,9 +199,9 @@ void inicializacao_app_context( AppContext *ctx ) {
             {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}
          },
 
-         .expor            = FALSE,
-         .cruz             = FALSE,
-         .naopresencial    = FALSE
+         .expor_dados       = FALSE,
+         .validar_ciclos    = FALSE,
+         .nao_presencial    = FALSE
       },
 
       .painel = {

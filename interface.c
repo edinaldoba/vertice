@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 
 #include "comum.h"
+#include "glib_gio.h"
 #include "interface.h"
 #include "basicas.h"
 #include "callbacks.h"
@@ -51,7 +52,7 @@ void interface_style( AppContext *ctx ) {
    // Alocação segura via GLib com liberação automática (sem limite fixo de 256 bytes)
    g_autofree gchar *arquivo_css = NULL;
 
-   switch ( ctx->dados.ui_foco_estilo ) {
+   switch ( ctx->cabecalho.foco_estilo ) {
    case STYLE_DARK_GREEN:
       arquivo_css = g_strdup_printf( "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
       break;
@@ -88,7 +89,7 @@ void interface_style( AppContext *ctx ) {
 
 
 //---------------------------------------------------------------------------------------------------------------
-void atualizar_gbooleaneanos_interface( const gboolean estado, const int categoria, AppContext *ctx ) {
+void atualizar_booleanos_interface( const gboolean estado, const int categoria, AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados  *dados     = &ctx->dados;
@@ -96,25 +97,25 @@ void atualizar_gbooleaneanos_interface( const gboolean estado, const int categor
    InterfaceProva  *ui_prova  = &ctx->ui_prova;
 
    switch ( categoria ) {
-   case CATEGORIA_UI_NUM_CRUZADOS:
-      dados->cruz = estado;
+   case CATEGORIA_UI_VALIDAR_CICLOS:
+      dados->validar_ciclos = estado;
       break;
 
    case CATEGORIA_UI_NAO_PRESENCIAL:
-      dados->naopresencial = estado;
+      dados->nao_presencial = estado;
 
       // Regra: Se a prova não é presencial (TRUE), os dados PRECISAM ser expostos (TRUE).
-      if ( dados->naopresencial && !dados->expor ) {
+      if ( dados->nao_presencial && !dados->expor_dados ) {
          // Força o botão 'Expor Dados' a ligar. O GTK emitirá um "toggled" para ele.
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ui_diario->check_expor_dados ), TRUE );
       }
       break;
 
    case CATEGORIA_UI_EXPOR_DADOS:
-      dados->expor = estado;
+      dados->expor_dados = estado;
 
       // Regra: Se os dados forem ocultados (FALSE), a prova não pode ser 'não presencial' (FALSE).
-      if ( !dados->expor && dados->naopresencial ) {
+      if ( !dados->expor_dados && dados->nao_presencial ) {
          // Força o botão 'Não Presencial' a desligar. O GTK emitirá um "toggled" para ele.
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ui_prova->check_nao_presencial ), FALSE );
       }
@@ -240,7 +241,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
    }
 
    char nome[32] = {0};
-   nome_base_gabaritos_bin( nome, sizeof( nome ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->foco_seq_prova );
+   nome_base_gabaritos_bin( nome, sizeof( nome ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
@@ -276,20 +277,20 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       if ( contador > dados->qtd_alunos_ativos ) {
          int removidos = contador - dados->qtd_alunos_ativos;
          msg_gabarito = meu_gerador_variadico(
-            "<b>ESCOLA:</b> %s\n"
-            "<b>TURMA:</b> %s\n\n"
-            "A turma atual possui <b>%d aluno(s) a menos</b> que o arquivo de gabaritos existente.\n\n"
-            "Deseja sobrescrever o arquivo para refletir a nova quantidade exata da turma?",
-            dados->escola, dados->turma, removidos
-         );
+                           "<b>ESCOLA:</b> %s\n"
+                           "<b>TURMA:</b> %s\n\n"
+                           "A turma atual possui <b>%d aluno(s) a menos</b> que o arquivo de gabaritos existente.\n\n"
+                           "Deseja sobrescrever o arquivo para refletir a nova quantidade exata da turma?",
+                           dados->escola, dados->turma, removidos
+                        );
       } else {
          msg_gabarito = meu_gerador_variadico(
-            "<b>ESCOLA:</b> %s\n"
-            "<b>TURMA:</b> %s\n\n"
-            "O arquivo de <b>Gabaritos</b> da <b>%s Prova</b> do <b>%s</b> já existe.\n\n"
-            "Deseja criar um novo arquivo e sobrescrever o anterior?",
-            dados->escola, dados->turma, dados->prova_sequencia, dados->periodo
-         );
+                           "<b>ESCOLA:</b> %s\n"
+                           "<b>TURMA:</b> %s\n\n"
+                           "O arquivo de <b>Gabaritos</b> da <b>%s Prova</b> do <b>%s</b> já existe.\n\n"
+                           "Deseja criar um novo arquivo e sobrescrever o anterior?",
+                           dados->escola, dados->turma, dados->prova_sequencia, dados->periodo
+                        );
       }
 
       gboolean emitir_gabarito = mostrar_popup_confirmacao( janela_principal, "Aviso de Sobrescrita", msg_gabarito );
@@ -368,7 +369,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
    if ( !dados ) return;
 
    char caminho_arquivo[1024];
-   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, dados->foco_seq_prova );
+   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, dados->seq_prova );
 
    FILE *arquivo = fopen( caminho_arquivo, "wb" );
    if ( !arquivo ) return;
@@ -382,8 +383,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
    rascunho.separadores    = dados->separadores;
    rascunho.cabecalho_tipo = dados->cabecalho_tipo;
    rascunho.fonte_latex    = dados->fonte_latex;
-   rascunho.expor          = dados->expor;
-   rascunho.naopresencial  = dados->naopresencial;
+   rascunho.expor_dados    = dados->expor_dados;
+   rascunho.nao_presencial = dados->nao_presencial;
 
    // Copia as matrizes de questões (0 a nti)
    for ( int i = 0; i < NTI; i++ ) {
@@ -502,7 +503,7 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
 
    // 1. Montagem do caminho baseado no índice da prova
    char caminho_arquivo[1024];
-   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, ctx->dados.foco_seq_prova );
+   snprintf( caminho_arquivo, sizeof( caminho_arquivo ), "%s/cache%d.bin", caminho->dados, ctx->dados.seq_prova );
 
    // 2. Tenta abrir o arquivo em modo de leitura binária ("rb")
    FILE *arquivo = fopen( caminho_arquivo, "rb" );
@@ -649,6 +650,64 @@ void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco,
 
 
 
+/**
+ * @brief Obtém o texto de um GtkComboBoxText em um índice específico.
+ *
+ * @param combo O GtkComboBoxText alvo.
+ * @param index O índice (base 0) do item desejado.
+ * @return gchar* alocado dinamicamente com o texto, ou NULL em caso de falha.
+ *         IMPORTANTE: O chamador deve liberar a memória (use g_autofree).
+ */
+gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index ) {
+   // 1. Blindagem de ponteiro padrão GLib
+   g_return_val_if_fail( GTK_IS_COMBO_BOX( combo ), NULL );
+
+   // Índice negativo geralmente ocorre ao resgatar um 'active_index' sem nada selecionado
+   if ( index < 0 ) return NULL;
+
+   // 2. Obtém o modelo de dados interno (GtkListStore)
+   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   if ( !model ) return NULL;
+
+   // 3. Aponta o iterador para o índice informado
+   GtkTreeIter iter;
+   if ( !gtk_tree_model_iter_nth_child( model, &iter, NULL, index ) ) {
+      return NULL; // Índice fora dos limites do combo
+   }
+
+   // 4. Extrai a string da coluna 0 (O GTK aloca memória aqui internamente)
+   gchar *texto = NULL;
+   gtk_tree_model_get( model, &iter, 0, &texto, -1 );
+
+   return texto;
+}
+
+
+void copiar_acesso_bin( AppContext *ctx ) {
+   InterfaceDados *dados = &ctx->dados;
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+
+   // 1. Extração segura da nomenclatura direto da UI
+   g_autofree gchar *nome_periodo_anterior = combo_box_text_get_text_at( combo, ctx->cabecalho.foco_periodo - 1 );
+   g_autofree gchar *nome_periodo_corrente = combo_box_text_get_text_at( combo, ctx->cabecalho.foco_periodo );
+   if ( !nome_periodo_anterior || !nome_periodo_corrente ) return;
+
+   // 2. Construção dos caminhos absolutos (adicionando "acesso.bin" ao final do diretório)
+   g_autofree gchar *dir_periodo_anterior = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
+                                            dados->turma, dados->disciplina, nome_periodo_anterior, NULL );
+   g_autofree gchar *arq_periodo_anterior = g_build_filename( dir_periodo_anterior, "acesso.bin", NULL );
+
+   g_autofree gchar *dir_periodo_corrente = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
+                                            dados->turma, dados->disciplina, nome_periodo_corrente, NULL );
+   g_autofree gchar *arq_periodo_corrente = g_build_filename( dir_periodo_corrente, "acesso.bin", NULL );
+
+   if (g_mkdir_with_parents(dir_periodo_corrente, 0755) != 0) {
+       g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", dir_periodo_corrente);
+       return;
+   }
+
+   gio_copiar_arquivo( arq_periodo_anterior, arq_periodo_corrente );
+}
 
 
 
@@ -826,7 +885,9 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    carregar_relatorio_ui( ctx );
 
-   carregar_notas_ui_por_periodo( ctx );
+   if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
+      carregar_notas_ui_por_periodo( ctx );
+   }
 
    int limite = ( dados->qtd_alunos_total < 0 ) ? 0 : dados->qtd_alunos_total;
 
@@ -863,13 +924,8 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    iniciar_autosave_diario( ctx, 5 );
 
-   // painel->format_cabecalho = meu_gerador_variadico( "%s  -  <b>%s</b>  -  %s  -  <b>%s / %c</b>  -  %d ativos",
-   //                            dados->escola, dados->turma, dados->disciplina, dados->ano, dados->periodo[0],
-   //                            ( dados->qtd_alunos_ativos == -1 ) ? 0 : dados->qtd_alunos_ativos );
-   //
-   // gtk_label_set_markup( GTK_LABEL( painel->cabecalho ), painel->format_cabecalho );
-   // g_free( painel->format_cabecalho );
-
+   g_autofree gchar *texto_ativos = g_strdup_printf( "%d ativos", dados->qtd_alunos_ativos );
+   gtk_label_set_text( GTK_LABEL( ctx->ui_prova.label_qtd_ativos ), texto_ativos );
 }
 //==================================================================================================
 
@@ -901,7 +957,8 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    int qtd_caracteres = 10;
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
-   cabecalho->foco_periodo = foco_periodo_corrente( escalar_hoje );
+   cabecalho->foco_periodo_atual = foco_periodo_corrente( escalar_hoje );
+   cabecalho->foco_periodo = cabecalho->foco_periodo_atual;
    gtk_combo_box_set_active( GTK_COMBO_BOX( cabecalho->combo_periodo ), cabecalho->foco_periodo );
    const gchar *texto_periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
    if ( texto_periodo ) {

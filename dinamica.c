@@ -644,8 +644,8 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    // -------------------------------------------------------------------------
 
    // 3.1 gbooleaneanos: 'Não Presencial' domina sobre 'Expor Dados'
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_expor_dados ), rascunho->expor );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_prova.check_nao_presencial ), rascunho->naopresencial );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_expor_dados ), rascunho->expor_dados );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_prova.check_nao_presencial ), rascunho->nao_presencial );
 
    // 3.2 Radios Independentes
    int idx_valido = CLAMP( rascunho->separadores - 1, 0, 1 );

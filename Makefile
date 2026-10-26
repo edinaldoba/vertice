@@ -12,7 +12,6 @@ PROFESSOR_STY = recursos/professor.sty
 CSS_FILES     = $(wildcard recursos/css/*.css)
 
 # Regra para validar, limpar a UI e gerar o fonte dos recursos
-# Agora o Make observa modificações no XML, no Glade e em qualquer CSS!
 $(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 	@echo "🎨 Validando e simplificando a interface XML..."
 	@gtk-builder-tool validate $(UI_FILE)
@@ -21,17 +20,17 @@ $(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 	glib-compile-resources $(RESOURCES_XML) --sourcedir=recursos --target=$(RESOURCES_C) --generate-source
 
 # Módulos do sistema escritos em C puro
-C_SOURCES = main.c auxiliar.c interface.c dinamica.c assincrono.c relatorios.c imagens.c pds.c matriz.c \
-            glib_gio.c imgcore.c callbacks.c basicas.c provas.c omr.c gas.c seduc-ma.c \
-            latex.c mensagens.c layout.c signals.c acervo.c ui_diario.c rgba.c \
+C_SOURCES = main.c layout.c signals.c callbacks.c ui_diario.c auxiliar.c interface.c dinamica.c \
+            assincrono.c relatorios.c imagens.c pds.c provas.c omr.c gas.c seduc-ma.c latex.c \
+            mensagens.c acervo.c basicas.c rgba.c matriz.c glib_gio.c imgcore.c \
             acervo/estatistica.c \
             $(RESOURCES_C)
 
-# Consolidação dos objetos gerados
+# Consolidação dos objetos
 OBJECTS = $(C_SOURCES:.c=.o)
 
 # =====================================================================
-# 2. PACOTES E DEPENDÊNCIAS (GLib, GTK3, Poppler, Cairo)
+# 2. PACOTES E DEPENDÊNCIAS
 # =====================================================================
 PKG_DEPS = gtk+-3.0 poppler-glib cairo
 
@@ -39,42 +38,69 @@ PKG_CFLAGS = $(shell pkg-config --cflags $(PKG_DEPS))
 PKG_LIBS   = $(shell pkg-config --libs $(PKG_DEPS))
 
 # =====================================================================
-# 3. FLAGS DE ALTO DESEMPENHO E SEGURANÇA
+# 3. FLAGS BASE (Comuns a ambos os modos)
 # =====================================================================
-PERF_FLAGS = -O3 -march=native -flto=auto -fno-plt -fopenmp
+BASE_WARNINGS = -Wall -Wextra -Wunused-result -D_FORTIFY_SOURCE=2 \
+                -Wpedantic -Wshadow -Wcast-align -Wunreachable-code \
+                -Wpointer-arith -Wwrite-strings -Wno-overlength-strings
 
-BASE_WARNINGS = -Wall -Wextra -Wunused-result -Wpedantic -Wshadow \
-                -Wcast-align -Wunreachable-code -Wpointer-arith \
-                -Wwrite-strings -Wno-overlength-strings
-
-CFLAGS = $(BASE_WARNINGS) -Wmissing-prototypes -D_FORTIFY_SOURCE=2 $(PKG_CFLAGS) $(PERF_FLAGS)
-
-LDFLAGS = -fopenmp -flto=auto -s
-
+COMMON_CFLAGS = $(BASE_WARNINGS) -Wmissing-prototypes -march=native -fopenmp $(PKG_CFLAGS)
+COMMON_LDFLAGS = -fopenmp
 LDLIBS = $(PKG_LIBS) -lssl -lcrypto -llapacke -llapack -lblas -lm
 
 # =====================================================================
-# 4. REGRAS DE COMPILAÇÃO E LINKAGEM
+# 4. CONTROLE DE MODO (Desempenho vs Depuração)
 # =====================================================================
-.PHONY: all clean run
+# Para compilar em depuração, execute: make MODE=debug
+# O padrão é o modo de desempenho.
+ifeq ($(MODE),debug)
+    # Flags de Diagnóstico e AddressSanitizer
+    SPECIFIC_CFLAGS = -O1 -g -fsanitize=address -fno-omit-frame-pointer
+    SPECIFIC_LDFLAGS = -rdynamic -g -fsanitize=address
+    MODE_MSG = "🛠️ Compilando em modo DIAGNÓSTICO (AddressSanitizer)..."
+else
+    # Flags de Alto Desempenho e Segurança
+    SPECIFIC_CFLAGS = -O3 -flto=auto -fno-plt
+    SPECIFIC_LDFLAGS = -flto=auto -s
+    MODE_MSG = "🚀 Linkando objetos com otimizações globais (-O3 -flto) via GCC..."
+endif
+
+CFLAGS = $(COMMON_CFLAGS) $(SPECIFIC_CFLAGS)
+LDFLAGS = $(COMMON_LDFLAGS) $(SPECIFIC_LDFLAGS)
+
+# =====================================================================
+# 5. REGRAS DE COMPILAÇÃO E LINKAGEM
+# =====================================================================
+.PHONY: all clean run debug release
 
 all: $(APP_NAME)
 
+debug:
+	@$(MAKE) MODE=debug
+
+release:
+	@$(MAKE) MODE=release
+
 $(APP_NAME): $(OBJECTS)
-	@echo "🚀 Linkando objetos com otimizações globais (-O3 -flto) via GCC..."
+	@echo $(MODE_MSG)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(APP_NAME) $(LDLIBS)
-	@echo "✔ Compilação purista de alto desempenho concluída com sucesso!"
+	@echo "✔ Processo concluído com sucesso!"
 
 %.o: %.c
 	@echo "📦 Compilando módulo C: $<..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # =====================================================================
-# 5. COMANDOS UTILITÁRIOS
+# 6. COMANDOS UTILITÁRIOS
 # =====================================================================
 run: all
+ifeq ($(MODE),debug)
+	@echo "🏃 Executando o aplicativo em modo de diagnóstico (ASan ativo)..."
+	LSAN_OPTIONS=suppressions=lsan.supp ./$(APP_NAME)
+else
 	@echo "🏃 Executando o aplicativo em modo de alto desempenho..."
 	./$(APP_NAME)
+endif
 
 clean:
 	@echo "🧹 Limpando arquivos de objeto e binários antigos..."
