@@ -271,9 +271,9 @@ gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remoca
          gboolean tipo_pedagogico = ( d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
 
          if ( tipo_feriado || tipo_pedagogico ) {
-            gtk_entry_set_text( GTK_ENTRY( conteudo->tema ), "" );
+            gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), "" );
          }
-         gtk_entry_set_text( GTK_ENTRY( conteudo->descricao ), "" );
+         gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
       }
    }
 
@@ -374,8 +374,8 @@ void registrar_aula( AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->diarios );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->tema ) );
-   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->descricao ) );
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
 
    if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
 
@@ -439,12 +439,12 @@ void registrar_aula( AppContext *ctx ) {
 
    RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, novo_indice );
    if ( d->tipo_registro == TIPO_REGISTRO_FERIADO || d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
-      gtk_entry_set_text( GTK_ENTRY( conteudo->tema ), "" );
-      gtk_widget_grab_focus( conteudo->tema );
+      gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), "" );
+      gtk_widget_grab_focus( conteudo->entry_tema );
    } else {
-      gtk_widget_grab_focus( conteudo->descricao );
+      gtk_widget_grab_focus( conteudo->entry_descricao );
    }
-   gtk_entry_set_text( GTK_ENTRY( conteudo->descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
 }
 
 
@@ -464,8 +464,8 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    RegistroDiario *reg = &g_array_index( ctx->diarios, RegistroDiario, idx );
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->tema ) );
-   const gchar *desc = gtk_entry_get_text( GTK_ENTRY( conteudo->descricao ) );
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
+   const gchar *desc = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
    if ( !tema[0] && !desc[0] ) return;
 
    int temp_qtd = 0;
@@ -510,7 +510,7 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    conteudo->editando = FALSE;
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( tree_view ) );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
 }
 
 
@@ -602,8 +602,8 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), str_ch );
 
    gtk_combo_box_set_active( GTK_COMBO_BOX( conteudo->tipo_registro ), diario_edicao->tipo_registro );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->tema ), diario_edicao->tema );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->descricao ), diario_edicao->descricao );
+   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), diario_edicao->tema );
+   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), diario_edicao->descricao );
 
    // 4. Atualiza o estado da aplicação
    conteudo->iter_em_edicao = *iter;
@@ -2141,7 +2141,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    gtk_list_store_clear( store );
 
    int d = ctx->cabecalho.foco_disciplina;
-   int foco_periodo = QUARTO_PERIODO; // ctx->cabecalho.foco_periodo; // 0 (1ºP) a 3 (4ºP)
+   gboolean eh_rec = ( ctx->cabecalho.foco_periodo_vigente == RECUPERACAO_FINAL );
+   int foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foco_periodo_vigente; // 0 (1ºP) a 3 (4ºP)
 
    int faltantes_globais = numero_de_periodos_sem_notas_registradas( ctx->fichas, d );
 
@@ -2157,9 +2158,9 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, p );
 
       g_autofree gchar *acesso_bin = g_build_filename( ".", "dados", "informados", ctx->dados.ano,
-                                     ctx->dados.escola, ctx->dados.turma,
-                                     ctx->dados.disciplina, texto_periodo,
-                                     "acesso.bin", NULL );
+                                                       ctx->dados.escola, ctx->dados.turma,
+                                                       ctx->dados.disciplina, texto_periodo,
+                                                       "acesso.bin", NULL );
       gchar *conteudo = NULL;
       gsize tamanho = 0;
 
@@ -2168,8 +2169,12 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          AcessoFicha *acessos = ( AcessoFicha * )conteudo;
 
          for ( int a = 0; a < qtd_acessos; a++ ) {
-            g_hash_table_add( hash_acesso[p], GINT_TO_POINTER( acessos[a].cod_aluno ) );
+            // SACADA DE MESTRE: Salva o cod_aluno como CHAVE e o status ativo como VALOR
+            g_hash_table_insert( hash_acesso[p],
+                                 GINT_TO_POINTER( acessos[a].cod_aluno ),
+                                 GINT_TO_POINTER( acessos[a].ativo ) );
          }
+
          g_free( conteudo );
       }
    }
@@ -2185,14 +2190,19 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       char str_cols[8][16] = {{0}};
       char obs[160] = {0};
 
-      // --- PASSO NOVO: Detecção de Matrícula Tardia (Bitmask) ---
+      // --- PASSO NOVO: Busca do status ativo do aluno no período atual em O(1) ---
+      gpointer ptr_ativo = NULL;
+      gboolean presente_no_foco = g_hash_table_lookup_extended( hash_acesso[foco_periodo],
+                                                                GINT_TO_POINTER( ficha->cod_aluno ),
+                                                                NULL, &ptr_ativo );
+
+      // Resgata o booleano de dentro do ponteiro
+      gboolean ativo_no_foco = presente_no_foco ? GPOINTER_TO_INT( ptr_ativo ) : FALSE;
       int mascara_pendencias = 0;
-      gboolean presente_no_foco = g_hash_table_contains( hash_acesso[foco_periodo], GINT_TO_POINTER( ficha->cod_aluno ) );
 
       if ( presente_no_foco ) {
          for ( int p = 0; p < foco_periodo; p++ ) {
-            gboolean presente_anterior = g_hash_table_contains( hash_acesso[p], GINT_TO_POINTER( ficha->cod_aluno ) );
-            if ( !presente_anterior ) {
+            if ( !g_hash_table_contains( hash_acesso[p], GINT_TO_POINTER( ficha->cod_aluno ) ) ) {
                mascara_pendencias |= ( 1 << p ); // Bits 0 a 3: Matrícula Tardia
             }
          }
@@ -2200,11 +2210,9 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // --- PASSO A: Formata as notas dos 4 períodos ---
       for ( int j = 0; j < 4; j++ ) {
-         // Formata apenas se o aluno específico tiver a nota consolidada
          if ( rel->notas_periodos[j] >= 0.0f ) {
             _formatar_nota_com_espaco_tabular( rel->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
          }
-         // Se for < 0.0f, não imprime nada, mas também NÃO incrementa nenhum faltante local!
       }
 
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
@@ -2223,27 +2231,23 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // --- PASSO C: Lógica de Status & Destravamento de Edição Final ---
       if ( rel->soma >= 0.0f ) {
-         // Agora a projeção usa estritamente os bimestres ainda intocados globalmente
          float max_futuro = rel->soma + ( faltantes_globais * 10.0f );
 
          if ( rel->conselho >= 0.0f ) {
             g_strlcpy( obs, ( rel->conselho >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
-            mascara_pendencias |= ( 1 << 5 ); // Bit 5: Permite corrigir Conselho
+            mascara_pendencias |= ( 1 << 4 );
+            mascara_pendencias |= ( 1 << 5 );
          } else if ( rel->rec_final >= 0.0f ) {
             g_strlcpy( obs, ( rel->rec_final >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Permite corrigir Rec Final
-
+            mascara_pendencias |= ( 1 << 4 );
             if ( rel->rec_final < 6.0f ) {
-               mascara_pendencias |= ( 1 << 5 ); // Bit 5: Destrava Conselho
+               mascara_pendencias |= ( 1 << 5 );
             }
          } else if ( rel->soma > 22.2f ) {
             g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
-         }
-         // Aqui validamos se mesmo tirando 10 em todos os bimestres restantes a nota atinge o teto
-         else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
+         } else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
             g_strlcpy( obs, "Rec Final", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 ); // Bit 4: Destrava Rec Final
+            mascara_pendencias |= ( 1 << 4 );
          } else {
             g_strlcpy( obs, "Cursando", sizeof( obs ) );
          }
@@ -2251,10 +2255,16 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // --- PASSO D: Filtro Visual para Alunos Inativos ---
       if ( !ficha->ativo ) {
-         // str_cols[4][0] = '\0';
-         // str_cols[5][0] = '\0';
          str_cols[6][0] = '\0';
          str_cols[7][0] = '\0';
+         obs[0] = '\0';
+      }
+
+      // ----------------------------------------------------------------------
+      // CORREÇÃO DO BUG: Sincronização O(1) pelo cod_aluno.
+      // Se o aluno está inativo (ou sequer existia) no período focado, oculta a OBS.
+      // ----------------------------------------------------------------------
+      if ( !ativo_no_foco ) {
          obs[0] = '\0';
       }
 
@@ -2280,8 +2290,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           12, mascara_pendencias,
                           -1 );
    }
-
-
 
    // Limpeza O(1) da Memória das Hash Tables
    for ( int p = 0; p <= foco_periodo; p++ ) {

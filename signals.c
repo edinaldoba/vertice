@@ -540,7 +540,7 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
    g_signal_connect( conteudo->stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
    g_signal_connect( conteudo->stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
 
-   g_signal_connect( conteudo->descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
+   g_signal_connect( conteudo->entry_descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
    g_signal_connect( conteudo->btn_salvar, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
    g_signal_connect( conteudo->remover_registro, "clicked",
                      G_CALLBACK( on_button_remover_registro_diario_selecionado_clicked ), ctx );

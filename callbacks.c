@@ -131,27 +131,41 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
 
 
 //------------------------------------------------------------------------------------
+static void _limpar_registro_em_edicao( GtkEntry *entry_descricao, gboolean *editando );
 static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina );
 //------------------------------------------------------------------------------------
 void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) return;
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
+   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    ctx->cabecalho.foco_periodo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_periodo ) );
    if ( ctx->cabecalho.foco_periodo < 0 ) return;
 
    // As pendência só podem ser resolvidas se o período selecionado for maior ou igual ao período corrente (atual)
-   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
-      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( ctx->ui_diario.relatorio.check_pendencias );
+   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_vigente ) {
+      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( relatorio->check_pendencias );
       gtk_toggle_button_set_active( check_pendencias, FALSE );
    }
 
    if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
-      gboolean ativo = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) );
-      if ( ativo ) gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), FALSE );
-      _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_relatorio" );
-      if ( ativo ) gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+
+      const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ctx->ui_diario.stack_pages ) );
+      if ( g_strcmp0( aba_ativa, "page_relatorio" ) != 0 ) {
+         gboolean ativo = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) );
+         if ( ativo ) {
+            gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.btn_relatorio ) );
+         } else {
+            _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+            _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_relatorio" );
+         }
+      }
+      gtk_widget_set_sensitive( ctx->ui_diario.btn_avaliacao, FALSE );
+
+   } else {
+      gtk_widget_set_sensitive( ctx->ui_diario.btn_avaliacao, TRUE );
    }
 
    gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_periodo ) );
@@ -444,7 +458,7 @@ void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
 
-   gtk_widget_grab_focus( conteudo->descricao );
+   gtk_widget_grab_focus( conteudo->entry_descricao );
 }
 
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {
@@ -470,7 +484,7 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
       carregar_registro_para_edicao( ctx, &iter );
 
       // Apenas gerencia a usabilidade visual
-      gtk_widget_grab_focus( conteudo->descricao );
+      gtk_widget_grab_focus( conteudo->entry_descricao );
    }
 }
 
@@ -981,9 +995,24 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
    g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
+   if ( ctx->cabecalho.foco_periodo != ctx->cabecalho.foco_periodo_vigente ) {
+
+      GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
+
       GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
-      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_atual );
+
+      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+      g_autofree gchar *msg_periodo = meu_gerador_variadico(
+         "A consolidação final exige os dados do período vigente.\n\n"
+         "Mudando automaticamente para o <b>%s</b>.",
+         texto_periodo
+      );
+
+      // Como o título é NULL, o popup atua como um aviso de "OK"
+      mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );
+
+      // Muda imediatamente para o período atual
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
    }
 
    int d = ctx->cabecalho.foco_disciplina;
@@ -1007,17 +1036,18 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
    g_return_if_fail( GTK_IS_CHECK_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
+   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
 
-   if ( estado && ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_atual ) {
+   if ( estado && ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_vigente ) {
       GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
-      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_atual );
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
    }
 
    // Força a repintura e reavaliação de todas as células do Relatório Final
    // Não é necessário redesenhar a interface, mas não apague linha seguinte.
-   gtk_widget_queue_draw( ctx->ui_diario.relatorio.treeview );
+   gtk_widget_queue_draw( relatorio->treeview );
 }
 //===================================================================================================
 
@@ -1026,6 +1056,13 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
 
 
 //===================================================================================================
+static void _limpar_registro_em_edicao( GtkEntry *entry_descricao, gboolean *editando ) {
+   if ( *editando ) {
+      *editando = FALSE;
+      gtk_entry_set_text( entry_descricao, "" );
+   }
+}
+//---------------------------------------------------------------------------------------------------
 static gboolean _ui_diario_mudar_aba( GtkWidget *widget, const char *nome_da_pagina ) {
    g_return_val_if_fail( GTK_IS_STACK( widget ) && nome_da_pagina, FALSE );
    const gchar *pagina_atual = gtk_stack_get_visible_child_name( GTK_STACK( widget ) );
@@ -1047,11 +1084,6 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
       return FALSE;
    }
 
-   if ( ctx->cabecalho.foco_periodo == 5 ) {
-      // Conselho de classe
-      return FALSE;
-   }
-
    if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_conteudo" ) ) {
       gtk_widget_grab_focus( conteudo->tipo_registro );
    }
@@ -1069,20 +1101,7 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
       return FALSE;
    }
 
-   if ( ctx->cabecalho.foco_periodo == 5 ) {
-      // Conselho de classe
-      return FALSE;
-   }
-
-   // 1. Bloqueia a navegação se houver uma edição de conteúdo aberta
-   if ( conteudo->editando ) {
-      ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Edição em Andamento" );
-      ctx->painel.format_subtitulo = meu_gerador_variadico( "Registro de aula não salvo" );
-      ctx->painel.format_instrucao = meu_gerador_variadico( "Conclua as modificações e salve o conteúdo atual antes de alternar para a frequência." );
-      criar_mensagem_painel( AVISO, &ctx->painel );
-
-      return FALSE;
-   }
+   _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
 
    // 2. Permite a transição de aba se o estado estiver limpo
    if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_frequencia" ) ) {
@@ -1095,16 +1114,14 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->ui_diario.botoes_travados ) {
       return FALSE;
    }
 
-   if ( ctx->cabecalho.foco_periodo == 4 || ctx->cabecalho.foco_periodo == 5 ) {
-      // Recuperação Final ou Conselho de classe
-      return FALSE;
-   }
+   _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
 
    if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_avaliacoes" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
@@ -1116,11 +1133,14 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
 gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget && event &&  ctx, FALSE );
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->ui_diario.botoes_travados ) {
       return FALSE;
    }
+
+   _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
 
    if ( _ui_diario_mudar_aba( ctx->ui_diario.stack_pages, "page_relatorio" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
@@ -1238,17 +1258,30 @@ void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
 }
 
 // ======================================================================================
-// CONTROLE DE NAVEGAÇÃO GLOBAL
+// FUNÇÃO AUXILIAR UNIVERSAL DE TRANSIÇÃO DE ABAS
 // ======================================================================================
-void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_NOTEBOOK( widget ) && page );
-   AppContext *ctx = ( AppContext * )user_data;
-   if ( !ctx ) return;
+/**
+ * @brief Configura os metadados do GObject e gerencia a transição de estado do botão de edição.
+ */
+static void _configurar_transicao_aba( AppContext *ctx, GtkWidget *btn_clicado,
+                                       const gchar *nome_pagina, GtkWidget *widget_foco ) {
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   // Se saiu da aba principal de Relatórios/Diário (índice 0), destrava o modo edição
-   if ( page_num != 0 ) {
-      // Isso irá acionar automaticamente on_check_modo_edicao_toggled( ... , FALSE )
-      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), FALSE );
+   GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
+
+   // Associa a string da página e os ponteiros diretamente ao objeto do toggle
+   g_object_set_data( object, "page_name", ( gpointer ) nome_pagina );
+   g_object_set_data( object, "widget_button", ( gpointer ) btn_clicado );
+   g_object_set_data( object, "widget_focus", ( gpointer ) widget_foco );
+
+   // Se o toggle já estiver ativo, força um re-trigger. Senão, ativa naturalmente.
+   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
+      on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
+   } else {
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
+   }
+   if ( btn_clicado != ctx->ui_diario.btn_conteudo ) {
+      _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
    }
 }
 
@@ -1263,24 +1296,10 @@ void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_
 
    // 1º CASO: Primeiro clique (ou botão inativo) -> Ativa o modo de edição
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
-      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
-
-      // Associa a string da página e o ponteiro do botão diretamente ao objeto
-      g_object_set_data( object, "page_name", ( gpointer ) "page_conteudo" );
-      g_object_set_data( object, "widget_button", ( gpointer ) widget );
-      g_object_set_data( object, "widget_focus", ( gpointer ) conteudo->tipo_registro );
-
-      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
-      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
-         // Se já estava ativo, apenas reaplica o estado para a nova aba
-         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
-      } else {
-         // Dispara o sinal 'toggled' naturalmente
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
-      }
-
-      // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
-   } else {
+      _configurar_transicao_aba( ctx, widget, "page_conteudo", conteudo->tipo_registro );
+   }
+   // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
+   else {
       g_print( "Gerando PDF de Conteúdos...\n" );
       relatorio_de_conteudos( &ctx->painel, ctx );
    }
@@ -1290,70 +1309,28 @@ void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
-   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
-      if ( conteudo->editando ) {
-         ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Edição em Andamento" );
-         ctx->painel.format_subtitulo = meu_gerador_variadico( "Registro de aula não salvo" );
-         ctx->painel.format_instrucao = meu_gerador_variadico( "Conclua as modificações e salve o conteúdo atual antes de alternar para a frequência." );
-         criar_mensagem_painel( AVISO, &ctx->painel );
-         return;
-      }
-
-      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
-
-      // Associa a string da página e o ponteiro do botão diretamente ao objeto
-      g_object_set_data( object, "page_name", ( gpointer ) "page_frequencia" );
-      g_object_set_data( object, "widget_button", ( gpointer ) widget );
-      g_object_set_data( object, "widget_focus", ( gpointer ) frequencia->combo_data );
-
-      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
-      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
-         // Se já estava ativo, apenas reaplica o estado para a nova aba
-         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
-      } else {
-         // Dispara o sinal 'toggled' naturalmente
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
-      }
-
+      _configurar_transicao_aba( ctx, widget, "page_frequencia", frequencia->combo_data );
    } else {
       g_print( "Gerando PDF de Frequência...\n" );
       relatorio_de_frequencia( &ctx->painel, ctx );
    }
 }
 
-// Corrigido pequeno erro de digitação no nome: avalicoes -> avaliacoes
 void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) return;
-
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
-      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
-
-      // Associa a string da página e o ponteiro do botão diretamente ao objeto
-      g_object_set_data( object, "page_name", ( gpointer ) "page_avaliacoes" );
-      g_object_set_data( object, "widget_button", ( gpointer ) widget );
-      g_object_set_data( object, "widget_focus", ( gpointer ) avaliacao->combo_avaliacao );
-
-      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
-      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
-         // Se já estava ativo, apenas reaplica o estado para a nova aba
-         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
-      } else {
-         // Dispara o sinal 'toggled' naturalmente
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
-      }
-
+      _configurar_transicao_aba( ctx, widget, "page_avaliacoes", avaliacao->combo_avaliacao );
    } else {
       g_print( "Gerando PDF de Avaliações...\n" );
       relatorio_de_avaliacoes( &ctx->painel, ctx );
-      carregar_relatorio_ui( ctx );
+      carregar_relatorio_ui( ctx ); // Recarrega a UI após gerar o PDF
    }
 }
 
@@ -1364,25 +1341,26 @@ void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) 
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
-      GObject *object = G_OBJECT( ctx->ui_diario.check_modo_edicao );
-
-      // Associa a string da página e o ponteiro do botão diretamente ao objeto
-      g_object_set_data( object, "page_name", ( gpointer ) "page_relatorio" );
-      g_object_set_data( object, "widget_button", ( gpointer ) widget );
-      g_object_set_data( object, "widget_focus", ( gpointer ) relatorio->btn_consolidar );
-
-      // Se o toggle já estiver ativo, força um re-trigger ou ativa diretamente
-      if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ) ) ) {
-         // Se já estava ativo, apenas reaplica o estado para a nova aba
-         on_check_modo_edicao_toggled( ctx->ui_diario.check_modo_edicao, ctx );
-      } else {
-         // Dispara o sinal 'toggled' naturalmente
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_modo_edicao ), TRUE );
-      }
-
+      _configurar_transicao_aba( ctx, widget, "page_relatorio", relatorio->btn_consolidar );
    } else {
       g_print( "Gerando PDF de Relatório Final...\n" );
       relatorio_final( &ctx->painel, ctx );
+   }
+}
+
+
+// ======================================================================================
+// CONTROLE DE NAVEGAÇÃO GLOBAL
+// ======================================================================================
+void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_NOTEBOOK( widget ) && page );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
+
+   // Se saiu da aba principal de Relatórios/Diário (índice 0), destrava o modo edição
+   if ( page_num != 0 ) {
+      _limpar_registro_em_edicao( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
    }
 }
 

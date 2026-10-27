@@ -72,7 +72,6 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
 gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 
 void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data );
-void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data );
 
 // =========================================================================
 // 2. EMISSÃO DE RELATÓRIOS E DIÁRIOS DE CLASSE
@@ -82,6 +81,8 @@ void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_
 void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data );
+
+void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guint page_num, gpointer user_data );
 
 
 void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_data );

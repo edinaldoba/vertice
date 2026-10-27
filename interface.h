@@ -43,7 +43,7 @@ typedef struct {
    int foco_turma;
    int foco_disciplina;
    int foco_periodo;
-   int foco_periodo_atual;
+   int foco_periodo_vigente;
    int foco_estilo;
 
    int limite_anos;
@@ -75,8 +75,8 @@ typedef struct {
 
    GtkWidget *treeview;          // Tabela principal de conteúdos
 
-   GtkWidget *tema;              // Entry do Tema
-   GtkWidget *descricao;         // Entry da Descrição
+   GtkWidget *entry_tema;              // Entry do Tema
+   GtkWidget *entry_descricao;         // Entry da Descrição
    GtkWidget *tipo_registro;     // Combo (Normal, Pedagógico, Extra, etc.)
    GtkWidget *btn_salvar;
    GtkWidget *remover_registro;

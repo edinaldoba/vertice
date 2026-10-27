@@ -244,8 +244,8 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    conteudo->qtd_aulas          = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
    conteudo->stepper_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
    conteudo->tipo_registro      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
-   conteudo->tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
-   conteudo->descricao          = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
+   conteudo->entry_tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
+   conteudo->entry_descricao          = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
    conteudo->btn_salvar         = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
    conteudo->remover_registro   = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
 

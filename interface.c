@@ -341,7 +341,7 @@ gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const
             );
 
    // 2. Define o título da janela (Se for NULL, assume um padrão discreto para o gerenciador de janelas)
-   gtk_window_set_title( GTK_WINDOW( dialog ), titulo ? titulo : "Aviso do Sistema" );
+   gtk_window_set_title( GTK_WINDOW( dialog ), titulo ? titulo : "Aviso" );
 
    // 3. Injeta a mensagem formatada (Pango Markup)
    gtk_message_dialog_format_secondary_markup( GTK_MESSAGE_DIALOG( dialog ), "%s", mensagem );
@@ -957,8 +957,8 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    int qtd_caracteres = 10;
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
-   cabecalho->foco_periodo_atual = foco_periodo_corrente( escalar_hoje );
-   cabecalho->foco_periodo = cabecalho->foco_periodo_atual;
+   cabecalho->foco_periodo_vigente = foco_periodo_corrente( escalar_hoje );
+   cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
    gtk_combo_box_set_active( GTK_COMBO_BOX( cabecalho->combo_periodo ), cabecalho->foco_periodo );
    const gchar *texto_periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
    if ( texto_periodo ) {
