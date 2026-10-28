@@ -549,6 +549,8 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
 gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_val_if_fail( painel && ctx, FALSE );
+   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) return FALSE;
+
    const InterfaceDados *dados   = &ctx->dados;
 
    g_autofree gchar *dir_origem = g_build_filename( ".", "planilhas", dados->ano, dados->escola, dados->periodo, NULL );

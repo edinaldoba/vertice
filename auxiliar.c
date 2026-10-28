@@ -15,6 +15,8 @@
 #include "comum.h"
 #include "interface.h"
 #include "seduc-ma.h"
+#include "glib_gio.h"
+
 #include <inttypes.h>
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
@@ -439,7 +441,137 @@ void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total
 
 
 
-//====================================================================================================
+//==================================================================================================
+void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
+   g_return_if_fail( ctx );
+
+   // 1. Aborta se não houver registros carregados na memória
+   if ( !ctx->diarios || ctx->diarios->len == 0 ) return;
+
+   // 2. Acessa o primeiro registro diretamente do GArray em O(1)
+   RegistroDiario *primeiro_registro = &g_array_index( ctx->diarios, RegistroDiario, 0 );
+
+   // 3. Conta os alunos presentes no primeiro registro salvo na RAM
+   int qtd_fichas = 0;
+   while ( qtd_fichas < 64 && primeiro_registro->chamada[qtd_fichas].cod_aluno != 0 ) {
+      qtd_fichas++;
+   }
+
+   // 4. Validação do Gatilho: Verifica mudanças na quantidade
+   gboolean precisa_sincronizar = ( qtd_fichas != ctx->dados.qtd_alunos_total );
+
+   // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
+   if ( !precisa_sincronizar ) {
+      for ( int k = 0; k < qtd_fichas; k++ ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
+            precisa_sincronizar = TRUE;
+            break;
+         }
+      }
+   }
+
+   // Tudo em sincronia, aborta precocemente.
+   if ( !precisa_sincronizar ) return;
+
+   // =========================================================================
+   // 6. Sincronização em Lote de Alta Performance (O(N) por registro)
+   // =========================================================================
+
+   // Aloca a Hash Table uma única vez fora do laço para não estressar o alocador de memória
+   GHashTable *hash_status = g_hash_table_new( g_direct_hash, g_direct_equal );
+
+   for ( guint r = 0; r < ctx->diarios->len; r++ ) {
+      RegistroDiario *registro = &g_array_index( ctx->diarios, RegistroDiario, r );
+      RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
+
+      // Limpa as chaves do dia anterior sem destruir a Hash Table
+      g_hash_table_remove_all( hash_status );
+
+      // A) Popula a Hash com a chamada desatualizada (cod_aluno -> status)
+      for ( int j = 0; j < 64 && registro->chamada[j].cod_aluno != 0; j++ ) {
+         g_hash_table_insert( hash_status,
+                              GINT_TO_POINTER( registro->chamada[j].cod_aluno ),
+                              GINT_TO_POINTER( registro->chamada[j].status ) );
+      }
+
+      // B) Reconstrói a chamada do zero, espelhando a ordem oficial de ctx->fichas
+      for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
+         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         uint32_t cod_alvo = ficha->cod_aluno;
+         nova_chamada[k].cod_aluno = cod_alvo;
+
+         gpointer ptr_status = NULL;
+
+         // Busca O(1): O aluno já estava matriculado neste dia específico?
+         if ( g_hash_table_lookup_extended( hash_status, GINT_TO_POINTER( cod_alvo ), NULL, &ptr_status ) ) {
+            nova_chamada[k].status = GPOINTER_TO_INT( ptr_status ); // Restaura o status (Presença, Falta, etc.)
+         } else {
+            nova_chamada[k].status = NOVO_ALUNO; // Aluno injetado tardiamente
+         }
+      }
+
+      // Substitui o bloco desatualizado pelo novo na memória do GArray
+      memcpy( registro->chamada, nova_chamada, sizeof( nova_chamada ) );
+   }
+
+   // Limpeza final O(1)
+   g_hash_table_destroy( hash_status );
+}
+//--------------------------------------------------------------------------------------------------
+static void _copiar_acesso_bin( AppContext *ctx ) {
+   g_return_if_fail( ctx != NULL );
+
+   InterfaceDados *dados = &ctx->dados;
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+   int target_periodo = ctx->cabecalho.foco_periodo;
+
+   g_autofree gchar *arq_origem_valido = NULL;
+
+   // =========================================================================
+   // 1. VARREDURA PARA TRÁS: Busca o acesso.bin mais recente já consolidado
+   // =========================================================================
+   // Começa do período IMEDIATAMENTE ANTERIOR ao atual e desce até o 1º período (0)
+   for ( int p = target_periodo - 1; p >= 0; p-- ) {
+      g_autofree gchar *nome_periodo = combo_box_text_get_text_at( combo, p );
+      if ( !nome_periodo ) continue;
+
+      g_autofree gchar *dir_periodo = g_build_filename( ".", "dados", "informados",
+                                                        dados->ano, dados->escola,
+                                                        dados->turma, dados->disciplina,
+                                                        nome_periodo, NULL );
+
+      g_autofree gchar *caminho_teste = g_build_filename( dir_periodo, "acesso.bin", NULL );
+
+      // Verifica se o arquivo de acesso existe neste período anterior
+      if ( g_file_test( caminho_teste, G_FILE_TEST_EXISTS ) ) {
+         // Rouba o ponteiro local para a variável externa sem causar Memory Leak
+         arq_origem_valido = g_steal_pointer( &caminho_teste );
+         break; // Encontrou a versão confiável mais recente, interrompe a busca!
+      }
+   }
+
+   if ( !arq_origem_valido ) {
+      // Não encontrou absolutamente nenhum acesso.bin no passado para copiar.
+      return;
+   }
+
+   // =========================================================================
+   // 2. PREENCHIMENTO PARA FRENTE: Cobre as lacunas do período selecionado
+   // =========================================================================
+   g_autofree gchar *nome_target = combo_box_text_get_text_at( combo, target_periodo );
+   if ( !nome_target ) return;
+
+   g_autofree gchar *dir_target = g_build_filename( ".", "dados", "informados",
+                                                    dados->ano, dados->escola,
+                                                    dados->turma, dados->disciplina,
+                                                    nome_target, NULL );
+
+   g_autofree gchar *arq_target = g_build_filename( dir_target, "acesso.bin", NULL );
+
+   gio_copiar_arquivo( arq_origem_valido, arq_target );
+}
+//--------------------------------------------------------------------------------------------------
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_return_if_fail( ctx );
 
@@ -452,8 +584,6 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
 
-   gboolean precisa_consolidar = FALSE;
-
    g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
    // 2. Substituição do verificar_arquivo pelo g_stat nativo
@@ -461,10 +591,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    GStatBuf stat_buf;
    if ( g_stat( arquivo_acesso, &stat_buf ) != 0 || stat_buf.st_size == 0 ) {
       if( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
-         copiar_acesso_bin( ctx );
-         if( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
-            precisa_consolidar = TRUE;
-         }
+         _copiar_acesso_bin( ctx );
       }
    }
 
@@ -537,10 +664,6 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    // 6. Ordenação Alfabética nativa do GArray
    g_array_sort( ctx->fichas, alfabetica_lista_de_alunos );
-
-   if ( precisa_consolidar ) {
-      gtk_button_clicked( GTK_BUTTON( ctx->ui_diario.relatorio.btn_consolidar ) );
-   }
 }
 //----------------------------------------------------------------------------------------------------
 

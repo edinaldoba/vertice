@@ -998,12 +998,11 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
    if ( ctx->cabecalho.foco_periodo != ctx->cabecalho.foco_periodo_vigente ) {
 
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
-
       GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
 
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
       g_autofree gchar *msg_periodo = meu_gerador_variadico(
-         "A consolidação final exige os dados do período vigente.\n\n"
+         "A <b>Consolidação Final</b> exige o contexto do período vigente.\n\n"
          "Mudando automaticamente para o <b>%s</b>.",
          texto_periodo
       );
@@ -1041,7 +1040,21 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
 
    if ( estado && ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_vigente ) {
-      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+
+      GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
+      GtkComboBox *combo_periodo  = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+
+      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+
+      g_autofree gchar *msg_periodo = meu_gerador_variadico(
+         "As <b>Pendências e Exceções</b> são tratadas a partir do período vigente\n\n"
+         "Mudando automaticamente para o <b>%s</b>.",
+         texto_periodo
+      );
+
+      // Como o título é NULL, o popup atua como um aviso de "OK"
+      mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );
+
       gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
    }
 

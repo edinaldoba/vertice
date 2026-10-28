@@ -2328,7 +2328,7 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
                                                  dados->ano, dados->escola, dados->turma, dados->disciplina, nome_rec, NULL );
    g_autofree gchar *arq_rec = g_build_filename( dir_rec, "acesso.bin", NULL );
 
-   if (g_mkdir_with_parents( dir_rec, 0755) != 0 ) {
+   if ( g_mkdir_with_parents( dir_rec, 0755) != 0 ) {
        g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", dir_rec);
        return;
    }

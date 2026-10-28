@@ -683,33 +683,6 @@ gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index ) {
 }
 
 
-void copiar_acesso_bin( AppContext *ctx ) {
-   InterfaceDados *dados = &ctx->dados;
-   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
-
-   // 1. Extração segura da nomenclatura direto da UI
-   g_autofree gchar *nome_periodo_anterior = combo_box_text_get_text_at( combo, ctx->cabecalho.foco_periodo - 1 );
-   g_autofree gchar *nome_periodo_corrente = combo_box_text_get_text_at( combo, ctx->cabecalho.foco_periodo );
-   if ( !nome_periodo_anterior || !nome_periodo_corrente ) return;
-
-   // 2. Construção dos caminhos absolutos (adicionando "acesso.bin" ao final do diretório)
-   g_autofree gchar *dir_periodo_anterior = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                            dados->turma, dados->disciplina, nome_periodo_anterior, NULL );
-   g_autofree gchar *arq_periodo_anterior = g_build_filename( dir_periodo_anterior, "acesso.bin", NULL );
-
-   g_autofree gchar *dir_periodo_corrente = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                            dados->turma, dados->disciplina, nome_periodo_corrente, NULL );
-   g_autofree gchar *arq_periodo_corrente = g_build_filename( dir_periodo_corrente, "acesso.bin", NULL );
-
-   if (g_mkdir_with_parents(dir_periodo_corrente, 0755) != 0) {
-       g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", dir_periodo_corrente);
-       return;
-   }
-
-   gio_copiar_arquivo( arq_periodo_anterior, arq_periodo_corrente );
-}
-
-
 
 
 
@@ -802,73 +775,7 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 
 
-//==================================================================================================
-static void _sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-
-   // 1. Aborta se não houver registros carregados na memória
-   if ( !ctx->diarios || ctx->diarios->len == 0 ) return;
-
-   // 2. Acessa o primeiro registro diretamente do GArray em O(1)
-   RegistroDiario *primeiro_registro = &g_array_index( ctx->diarios, RegistroDiario, 0 );
-
-   // 3. Conta os alunos presentes no primeiro registro salvo na RAM
-   int qtd_fichas = 0;
-   while ( qtd_fichas < 64 && primeiro_registro->chamada[qtd_fichas].cod_aluno != 0 ) {
-      qtd_fichas++;
-   }
-
-   // 4. Validação do Gatilho: Verifica mudanças na quantidade
-   gboolean precisa_sincronizar = ( qtd_fichas != ctx->dados.qtd_alunos_total );
-
-   // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
-   if ( !precisa_sincronizar ) {
-      for ( int k = 0; k < qtd_fichas; k++ ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
-         if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
-            precisa_sincronizar = TRUE;
-            break;
-         }
-      }
-   }
-
-   // Chegaremos até aqui durante todas as mudanças de período ou de turma
-   // Sempre que houver novos alunos entrantes, segue-se o fluxo da função até o fim
-   if ( !precisa_sincronizar ) return; // Tudo em sincronia, aborta precocemente.
-
-   // 6. Sincronização em Lote diretamente no GArray
-   for ( guint r = 0; r < ctx->diarios->len; r++ ) {
-
-      RegistroDiario *registro = &g_array_index( ctx->diarios, RegistroDiario, r );
-      RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
-
-      for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
-         uint32_t cod_alvo = ficha->cod_aluno;
-         nova_chamada[k].cod_aluno = cod_alvo; // Espelha a ordem da ficha atualizada
-
-         gboolean encontrou_aluno = FALSE;
-
-         // Varre a chamada antiga deste dia em busca do aluno
-         for ( int j = 0; j < 64 && registro->chamada[j].cod_aluno != 0; j++ ) {
-            if ( registro->chamada[j].cod_aluno == cod_alvo ) {
-               nova_chamada[k].status = registro->chamada[j].status; // Restaura o status
-               encontrou_aluno = TRUE;
-               break;
-            }
-         }
-
-         // Aplica a regra de negócio para novos alunos injetados pelo SIAEP
-         if ( !encontrou_aluno ) {
-            nova_chamada[k].status = NOVO_ALUNO;
-         }
-      }
-
-      // Substitui o bloco desatualizado pelo novo na memória do GArray
-      memcpy( registro->chamada, nova_chamada, sizeof( nova_chamada ) );
-   }
-}
-//--------------------------------------------------------------------------------------------------
+//===============================================================================================
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
@@ -906,7 +813,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    popular_datas( ctx );
 
    if ( ctx->cabecalho.foco_periodo < 4 ) {
-      _sincronizar_registro_diario_com_turma_siaep( ctx );
+      sincronizar_registro_diario_com_turma_siaep( ctx );
    }
 
    gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
@@ -947,7 +854,6 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
 
    *data = data_de_hoje();
-   long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
@@ -957,8 +863,11 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    int qtd_caracteres = 10;
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
+
+   long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
    cabecalho->foco_periodo_vigente = foco_periodo_corrente( escalar_hoje );
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
+
    gtk_combo_box_set_active( GTK_COMBO_BOX( cabecalho->combo_periodo ), cabecalho->foco_periodo );
    const gchar *texto_periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
    if ( texto_periodo ) {

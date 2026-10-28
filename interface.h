@@ -329,7 +329,6 @@ gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceD
 
 void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
 gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index );
-void copiar_acesso_bin( AppContext *ctx );
 
 void atualizar_dados_e_alunos_ativos( AppContext *ctx );
 void inicializar_estado_do_aplicativo( AppContext *ctx );
