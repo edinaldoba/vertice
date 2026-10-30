@@ -134,22 +134,39 @@ int cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out ) {
    return obter_cor_semantica( COR_FUNDO_PENDENTE, tema_ativo, cor_out );
 }
 
-int cor_texto_observacao( gboolean eh_inativo, int tema_ativo, gchar *texto, GdkRGBA *cor_out ) {
-   gboolean tem_cor = FALSE;
+gboolean cor_texto_observacao( gboolean eh_inativo, int tema_ativo, int pendencias_e_status, GdkRGBA *cor_out ) {
+   // Blindagem de ponteiro
+   g_return_val_if_fail( cor_out != NULL, FALSE );
 
+   // 1. Tratamento prioritário para alunos inativos
    if ( eh_inativo ) {
-      tem_cor = obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
-   } else if ( texto ) {
-      // g_str_has_prefix pega magicamente: "Aprov Dir", "Aprov Cons" e "Aprov Final"
-      if ( g_str_has_prefix( texto, "Aprov" ) ) {
-         tem_cor = obter_cor_semantica( COR_SUCESSO, tema_ativo, cor_out ); // Verde
-      } else if ( g_strcmp0( texto, "Reprovado" ) == 0 ) {
-         tem_cor = obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out ); // Vermelho
-      } else if ( g_strcmp0( texto, "Rec Final" ) == 0 || g_strcmp0( texto, "Conselho" ) == 0 ) {
-         tem_cor = obter_cor_semantica( COR_ALERTA, tema_ativo, cor_out ); // Amarelo/Marrom
-      }
+      return obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
    }
-   return tem_cor;
+
+   // 2. Agrupamentos lógicos de estados (Máscaras combinadas)
+   int mascara_sucesso = OBS_ALUNO_APROVADO_DIRETO |
+                         OBS_ALUNO_APROVADO_NA_FINAL |
+                         OBS_ALUNO_APROVADO_NO_CONSELHO |
+                         OBS_ALUNO_APROVADO_PENDENCIA;
+
+   int mascara_alerta  = OBS_ALUNO_EM_RECUPERACAO_FINAL |
+                         OBS_ALUNO_EM_CONSELHO_CLASSE;
+
+   // 3. Resolução Matemática O(1) via Bitwise AND (&)
+   if ( pendencias_e_status & mascara_sucesso ) {
+      return obter_cor_semantica( COR_SUCESSO, tema_ativo, cor_out ); // Verde
+   }
+
+   if ( pendencias_e_status & OBS_ALUNO_REPROVADO ) {
+      return obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out ); // Vermelho
+   }
+
+   if ( pendencias_e_status & mascara_alerta ) {
+      return obter_cor_semantica( COR_ALERTA, tema_ativo, cor_out ); // Amarelo/Laranja
+   }
+
+   // 4. Fallback (Ex: OBS_ALUNO_CURSANDO) manterá a cor nativa do tema GTK
+   return FALSE;
 }
 
 int cor_texto_aluno_inativo( int eh_inativo, int tema_ativo, GdkRGBA *cor_out ) {

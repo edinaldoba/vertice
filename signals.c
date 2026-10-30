@@ -5,13 +5,9 @@
  */
 
 #include "signals.h"
-#include "acervo.h"
 #include "comum.h"
 #include "interface.h"
 #include "callbacks.h"
-#include "imagens.h"
-#include "relatorios.h"
-#include "acervo.h"
 #include "rgba.h"
 
 
@@ -366,9 +362,15 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    gboolean eh_inativo = FALSE;
-   int mascara_pendencias = 0;
+   int mascara_pendencias = 0; // Armazena apenas MascaraPendencia (Permissões de edição)
+   int mascara_observacao = 0; // Armazena apenas ObservacaoAluno (Estado semântico visual)
 
-   gtk_tree_model_get( model, iter, 11, &eh_inativo, 12, &mascara_pendencias, -1 );
+   // Lê as flags separadamente de suas respectivas colunas no ListStore (11, 12 e 13)
+   gtk_tree_model_get( model, iter,
+                       11, &eh_inativo,
+                       12, &mascara_pendencias,
+                       13, &mascara_observacao,
+                       -1 );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
@@ -379,28 +381,23 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    GdkRGBA cor_fundo;
    gboolean usar_cor_fundo = FALSE;
 
-   // Se for coluna de Período Letivo (bits 0 a 3)
-   if ( modo_pendencias && !eh_inativo && col_idx >= 2 && col_idx <= 4 ) {
-      int p = col_idx - 2;
-      if ( mascara_pendencias & ( 1 << p ) ) {
-         editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->cabecalho.foco_estilo, &cor_fundo ) ) {
-            usar_cor_fundo = TRUE;
-         }
+   // =======================================================================
+   // LÓGICA DE EDIÇÃO E FUNDO DE CÉLULA (Consome apenas mascara_pendencias)
+   // =======================================================================
+   if ( modo_pendencias && !eh_inativo ) {
+      gboolean permissao_ativa = FALSE;
+
+      switch ( col_idx ) {
+         case 2: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_1_PERIODO ); break;
+         case 3: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_2_PERIODO ); break;
+         case 4: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_3_PERIODO ); break;
+         case 5: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_4_PERIODO ); break;
+
+         case 8: permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_REC_FINAL );  break; // Recuperação Final
+         case 9: permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_CONSELHO );   break; // Conselho de Classe
       }
-   }
-   // Se for coluna de Recuperação Final (Coluna 8 -> Bit 4)
-   else if ( modo_pendencias && !eh_inativo && col_idx == 8 ) {
-      if ( mascara_pendencias & ( 1 << 4 ) ) {
-         editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->cabecalho.foco_estilo, &cor_fundo ) ) {
-            usar_cor_fundo = TRUE;
-         }
-      }
-   }
-   // Se for coluna de Conselho (Coluna 9 -> Bit 5)
-   else if ( modo_pendencias && !eh_inativo && col_idx == 9 ) {
-      if ( mascara_pendencias & ( 1 << 5 ) ) {
+
+      if ( permissao_ativa ) {
          editavel = TRUE;
          if ( cor_fundo_celula_pendente( ctx->cabecalho.foco_estilo, &cor_fundo ) ) {
             usar_cor_fundo = TRUE;
@@ -408,7 +405,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       }
    }
 
-   // Aplica as propriedades
+   // Aplica as propriedades de edição
    if ( editavel ) {
       g_object_set( cell, "editable", TRUE, NULL );
       if ( usar_cor_fundo ) {
@@ -423,7 +420,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    // =======================================================================
    gchar *texto = NULL;
 
-   // Ampliamos o range de leitura para incluir a coluna 10 (Observação)
+   // Lê o texto apenas se for coluna de nota ou a coluna 10 (Observação)
    if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 10 ) ) {
       g_object_get( cell, "text", &texto, NULL );
    }
@@ -432,26 +429,28 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    if ( col_idx == 10 ) {
       GdkRGBA cor_texto;
 
-      int tem_cor = cor_texto_observacao( eh_inativo, ctx->cabecalho.foco_estilo, texto, &cor_texto );
+      // Consome exclusivamente a mascara_observacao (coluna 13) para tratar visual/cores
+      int tem_cor = cor_texto_observacao( eh_inativo, ctx->cabecalho.foco_estilo, mascara_observacao, &cor_texto );
 
       if ( tem_cor ) {
-         // Aplica a cor e já aproveitamos para colocar a situação em NEGRITO! Fica premium.
+         // Aplica a cor e já aproveita para colocar a situação em NEGRITO
          g_object_set( cell, "foreground-rgba", &cor_texto, "foreground-set", TRUE,
                        "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
       } else {
-         // "Cursando" ou fallback usa a cor nativa
+         // "Cursando" ou inativo usa a cor nativa GTK
          g_object_set( cell, "foreground-set", FALSE, "weight-set", FALSE, NULL );
       }
    }
    // 2. TRATAMENTO PARA AS COLUNAS DE NOTAS (Índices 2 a 9)
-   else {
+   else if ( col_idx >= 2 && col_idx <= 9 ) {
       _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->cabecalho.foco_estilo );
-      // Desliga o negrito para não vazar a formatação da coluna 10 para as outras células
+      // Desliga o negrito para não vazar a formatação da coluna 10
       g_object_set( cell, "weight-set", FALSE, NULL );
    }
 
    g_free( texto );
 }
+
 //------------------------------------------------------------------------------------------------------------
 static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
    g_return_if_fail( ctx );
@@ -459,6 +458,7 @@ static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
 
    GtkTreeView *tree_relatorio = GTK_TREE_VIEW( relatorio->treeview );
    if ( tree_relatorio ) {
+      // Começa da coluna 1 (Nome) até a 10 (Observação) - Index 0 é Oculto/ID
       for ( int i = 1; i <= 10; i++ ) {
          GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_relatorio, i );
          if ( !col ) continue;
@@ -466,6 +466,7 @@ static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
          GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
          if ( renderers ) {
             GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+            // Injeta o índice da coluna diretamente no objeto do Renderer
             g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
             gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_relatorio, ctx, NULL );
             g_list_free( renderers );
@@ -535,11 +536,13 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
    g_signal_connect( conteudo->calendario_data, "day-selected", G_CALLBACK( on_calendar_day_selected ), ctx );
 
    g_signal_connect( conteudo->entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
-   g_signal_connect( conteudo->entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out ), ctx );
+   g_signal_connect( conteudo->entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out_event ), ctx );
 
    g_signal_connect( conteudo->stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
    g_signal_connect( conteudo->stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
 
+   g_signal_connect( conteudo->entry_tema, "focus-out-event", G_CALLBACK( on_entry_tema_focus_out_event ), ctx );
+   g_signal_connect( conteudo->entry_tema, "activate", G_CALLBACK( on_entry_tema_activate ), ctx );
    g_signal_connect( conteudo->entry_descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
    g_signal_connect( conteudo->btn_salvar, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
    g_signal_connect( conteudo->remover_registro, "clicked",

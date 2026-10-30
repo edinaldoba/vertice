@@ -2,7 +2,6 @@
 #define GLIB_GIO_H
 
 #include <glib.h>
-#include "interface.h"
 
 
 gboolean gio_copiar_arquivo( const gchar *caminho_origem, const gchar *caminho_destino );

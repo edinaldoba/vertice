@@ -7,7 +7,7 @@
 // Funções Wrapper de Conveniência (Traduzem o negócio para a cor semântica)
 int cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out );
 
-int cor_texto_observacao( gboolean eh_inativo, int tema_ativo, gchar *texto, GdkRGBA *cor_out );
+gboolean cor_texto_observacao( gboolean eh_inativo, int tema_ativo, int pendencias_e_status, GdkRGBA *cor_out );
 
 int cor_texto_aluno_inativo( int eh_inativo, int tema_ativo, GdkRGBA *cor_out );
 

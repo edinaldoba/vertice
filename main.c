@@ -8,7 +8,6 @@
 #include <glib-unix.h>
 #include <locale.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #include "interface.h"
 #include "layout.h"
@@ -16,7 +15,6 @@
 #include "basicas.h"
 
 #include "mensagens.h"
-#include "callbacks.h"
 #include "ui_diario.h"
 
 

@@ -6,7 +6,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <string.h>
 #include <poppler.h>

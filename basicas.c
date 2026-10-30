@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wctype.h>
-#include <ctype.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <limits.h>
@@ -22,8 +20,6 @@
 #include "basicas.h"
 #include "comum.h"
 #include "interface.h"
-#include "mensagens.h"
-#include "glib_gio.h"
 
 
 /*

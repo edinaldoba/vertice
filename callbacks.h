@@ -22,9 +22,13 @@ void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 void on_calendar_navigation( GtkWidget *widget, gpointer user_data );
 void on_calendar_day_selected( GtkWidget *widget, gpointer user_data );
-gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
+gboolean on_entry_validar_data_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
+
+void on_entry_tema_activate( GtkWidget *widget, gpointer user_data );
+gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
+
 void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data );
 gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data );

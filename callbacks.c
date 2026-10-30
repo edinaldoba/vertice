@@ -8,19 +8,14 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <gdk/gdkkeysyms.h> // Certifique-se de incluir para ter acesso às chaves GDK_KEY_*
 
-#include "signals.h"
 #include "callbacks.h"
 #include "comum.h"
 #include "imagens.h"
 #include "interface.h"
 #include "relatorios.h"
-#include "provas.h"
-#include "basicas.h"
 #include "acervo.h"
-#include "omr.h"
 #include "mensagens.h"
 #include "dinamica.h"
 #include "assincrono.h"
@@ -286,12 +281,10 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
 }
 
 
-gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
-   ( void )event;
+gboolean on_entry_validar_data_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( GTK_IS_ENTRY( widget ) && event && ctx, FALSE );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
-
-   g_return_val_if_fail( GTK_IS_ENTRY( widget ) && ctx, FALSE );
 
    // 1. A PRIMEIRA AÇÃO DA PERDA DE FOCO: Esconder o popover
    gtk_popover_popdown( GTK_POPOVER( conteudo->popover_calendario ) );
@@ -311,34 +304,60 @@ gboolean on_entry_validar_data_focus_out( GtkWidget *widget, GdkEventFocus *even
 }
 
 
+//========================================================================
+static int _obter_qtd_aulas( GtkLabel *label_qtd ) {
+   const char *str_qtd_aulas = gtk_label_get_text( label_qtd );
+   int qtd = 1;
+   if ( str_qtd_aulas ) sscanf( str_qtd_aulas, "%d", &qtd );
+   return qtd;
+}
+//------------------------------------------------------------------------
+static void _reavaliar_limite_tema_e_descricao( InterfaceConteudo *conteudo ) {
+   g_return_if_fail( conteudo != NULL );
+
+   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
+   atualizar_limite_descricao_por_aulas( conteudo, qtd_aulas );
+}
+//------------------------------------------------------------------------
+void on_entry_tema_activate( GtkWidget *widget, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
+
+   _reavaliar_limite_tema_e_descricao( &ctx->ui_diario.conteudo );
+}
+//------------------------------------------------------------------------
+gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_val_if_fail( GTK_IS_ENTRY( widget ) && event && ctx, FALSE );
+
+   _reavaliar_limite_tema_e_descricao( &ctx->ui_diario.conteudo );
+
+   return FALSE;
+}
+//========================================================================
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   GtkLabel *label_qtd = GTK_LABEL( conteudo->qtd_aulas );
-   const char *str_qtd_aulas = gtk_label_get_text( label_qtd );
+   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
+   if ( qtd_aulas <= 1 ) return; // Trava no limite inferior
 
-   int qtd_aulas = 1;
-   if ( str_qtd_aulas ) sscanf( str_qtd_aulas, "%d", &qtd_aulas );
+   qtd_aulas--;
 
-   if ( qtd_aulas <= 1 ) return;
+   g_autofree char *label_novo = g_strdup_printf( "%d h", qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), label_novo );
 
-   g_autofree char *label_novo = g_strdup_printf( "%d h", --qtd_aulas );
-   gtk_label_set_text( label_qtd, label_novo );
+   // === ATUALIZA O LIMITE E A SINALIZAÇÃO NA ENTRY DE DESCRIÇÃO ===
+   atualizar_limite_descricao_por_aulas( &ctx->ui_diario.conteudo, qtd_aulas );
 }
-
-
+//========================================================================
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   GtkLabel *label_qtd = GTK_LABEL( conteudo->qtd_aulas );
-   const char *str_qtd_aulas = gtk_label_get_text( label_qtd );
-
-   int qtd_aulas = 1;
-   if ( str_qtd_aulas ) sscanf( str_qtd_aulas, "%d", &qtd_aulas );
+   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
 
    // Carga horária igual a 3h é o máximo de aulas admitidas por registro
    if ( qtd_aulas >= 3 ) {
@@ -346,12 +365,16 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
       ctx->painel.format_subtitulo = meu_gerador_variadico( "O limite máximo permitido por registro é de %d horas / aula.", 3 );
       ctx->painel.format_instrucao = meu_gerador_variadico( "%s", "Para cargas horárias diárias maiores, divida o conteúdo e faça múltiplos registros." );
       criar_mensagem_painel( AVISO, &ctx->painel );
-
       return; // Trava o incremento após emitir o aviso
    }
 
-   g_autofree char *label_novo = g_strdup_printf( "%d h", ++qtd_aulas );
-   gtk_label_set_text( label_qtd, label_novo );
+   qtd_aulas++;
+
+   g_autofree char *label_novo = g_strdup_printf( "%d h", qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), label_novo );
+
+   // === ATUALIZA O LIMITE E A SINALIZAÇÃO NA ENTRY DE DESCRIÇÃO ===
+   atualizar_limite_descricao_por_aulas( &ctx->ui_diario.conteudo, qtd_aulas );
 }
 
 
@@ -1002,10 +1025,10 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
 
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
       g_autofree gchar *msg_periodo = meu_gerador_variadico(
-         "A <b>Consolidação Final</b> exige o contexto do período vigente.\n\n"
-         "Mudando automaticamente para o <b>%s</b>.",
-         texto_periodo
-      );
+                                         "A <b>Consolidação Final</b> exige o contexto do período vigente.\n\n"
+                                         "Mudando automaticamente para o <b>%s</b>.",
+                                         texto_periodo
+                                      );
 
       // Como o título é NULL, o popup atua como um aviso de "OK"
       mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );
@@ -1047,10 +1070,10 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
 
       g_autofree gchar *msg_periodo = meu_gerador_variadico(
-         "As <b>Pendências e Exceções</b> são tratadas a partir do período vigente\n\n"
-         "Mudando automaticamente para o <b>%s</b>.",
-         texto_periodo
-      );
+                                         "As <b>Pendências e Exceções</b> são tratadas a partir do período vigente\n\n"
+                                         "Mudando automaticamente para o <b>%s</b>.",
+                                         texto_periodo
+                                      );
 
       // Como o título é NULL, o popup atua como um aviso de "OK"
       mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );

@@ -1,7 +1,6 @@
 #ifndef COMUM_H
 #define COMUM_H
 
-#include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
@@ -201,13 +200,6 @@ typedef struct {
    uint32_t cod_aluno;
    char sit[8];
 } __attribute__( ( packed ) ) AcessoTurmas;
-
-typedef enum {
-   TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
-   TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
-   TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
-   TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
-} __attribute__( ( packed ) ) TipoRegistroDiario;
 //-------------------------------------------------------------------------------------------//
 
 
@@ -240,20 +232,33 @@ typedef enum {
    EVADIDO               = 1 << 5  // Aluno deixou de frequentar e não pediu transferência
 } __attribute__( ( packed ) ) SituacaoAluno;
 
+
+typedef enum {
+   // --- Pendências de Matrícula Tardia (Bits 0 a 3) ---
+   MASK_PENDENCIA_1_PERIODO = ( 1 << 0 ), // Bit 0: Falta de acesso/nota no 1º Período
+   MASK_PENDENCIA_2_PERIODO = ( 1 << 1 ), // Bit 1: Falta de acesso/nota no 2º Período
+   MASK_PENDENCIA_3_PERIODO = ( 1 << 2 ), // Bit 2: Falta de acesso/nota no 3º Período
+   MASK_PENDENCIA_4_PERIODO = ( 1 << 3 ), // Bit 3: Falta de acesso/nota no 4º Período
+
+   // --- Permissões de Edição de Fechamento (Bits 4 e 5) ---
+   MASK_DESTRAVA_REC_FINAL  = ( 1 << 4 ), // Bit 4: Libera edição da nota de Rec Final
+   MASK_DESTRAVA_CONSELHO   = ( 1 << 5 )  // Bit 5: Libera edição da nota de Conselho
+} __attribute__( ( packed ) ) MascaraPendencia;
+//-------------------------------------------------------------------------------------------
 typedef enum {
    // --- Estado Inicial / Neutro (Usado no 1º, 2º, 3º e 4º Períodos Padrão) ---
-   OBS_ALUNO_NENHUMA              = 0,    // Sem observação definida / Em curso
+   OBS_ALUNO_CURSANDO             = 1 << 0,    // Sem observação definida / Em curso
 
    // --- Estados Parciais de Transição (Definidos ao fechar o 4º Período) ---
-   OBS_ALUNO_APROVADO_DIRETO      = 1,    // Aprovado na média nos 4 períodos (Soma >= 24)
-   OBS_ALUNO_EM_RECUPERACAO_FINAL = 2,    // Não atingiu a média; convocado para a Rec. Final
-   OBS_ALUNO_EM_CONSELHO_CLASSE   = 3,    // Depende do Conselho de Classe
+   OBS_ALUNO_APROVADO_DIRETO      = 1 << 1,    // Aprovado na média nos 4 períodos (Soma >= 24)
+   OBS_ALUNO_EM_RECUPERACAO_FINAL = 1 << 2,    // Não atingiu a média; convocado para a Rec. Final
+   OBS_ALUNO_EM_CONSELHO_CLASSE   = 1 << 3,    // Depende do Conselho de Classe
 
    // --- Estados Finais Pós-Avaliações Especiais (Fechamento do Ano) ---
-   OBS_ALUNO_APROVADO_NA_FINAL    = 4,    // Atingiu a nota necessária na Recuperação Final
-   OBS_ALUNO_APROVADO_NO_CONSELHO = 5,    // Aprovado após deliberação do Conselho de Classe
-   OBS_ALUNO_APROVADO_PENDENCIA   = 6,    // Aprovado com dependência/pendência documental
-   OBS_ALUNO_REPROVADO            = 7     // Reprovado no ano letivo
+   OBS_ALUNO_APROVADO_NA_FINAL    = 1 << 4,    // Atingiu a nota necessária na Recuperação Final
+   OBS_ALUNO_APROVADO_NO_CONSELHO = 1 << 5,    // Aprovado após deliberação do Conselho de Classe
+   OBS_ALUNO_APROVADO_PENDENCIA   = 1 << 6,    // Aprovado com dependência/pendência documental
+   OBS_ALUNO_REPROVADO            = 1 << 7     // Reprovado no ano letivo
 
 } __attribute__( ( packed ) ) ObservacaoAluno;
 
@@ -317,12 +322,19 @@ typedef struct {
    StatusAssiduidade status;
 } __attribute__( ( packed ) ) RegistroChamada;
 
+typedef enum {
+   TIPO_REGISTRO_AULA_NORMAL = 0, // Registre inclusive dias que você faltou; pago com aulas extras (Registrado no SIAEP)
+   TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
+   TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
+   TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
+} __attribute__( ( packed ) ) TipoRegistroDiario;
+
 typedef struct {
    char data[16];
    int qtd_aulas;
-   char tema[32];
-   char descricao[128];
-   TipoRegistroDiario tipo_registro; // Guarda 0, 1 ou 2 (TipoRegistroDiario)
+   char tema[50];
+   char descricao[300];
+   TipoRegistroDiario tipo_registro; // Guarda 0, 1, 2 ou 3 (TipoRegistroDiario)
    RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
 } __attribute__( ( packed ) ) RegistroDiario;
 

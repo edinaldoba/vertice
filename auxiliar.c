@@ -351,38 +351,38 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
              "%s/Documentos/%s/%s", home, dados->ano, dados->escola );
 
    if ( !diretorio_existe( caminho->dados ) )            {
-      if (g_mkdir_with_parents( caminho->dados, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->dados);
+      if ( g_mkdir_with_parents( caminho->dados, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->dados );
       }
    }
    if ( !diretorio_existe( caminho->gabaritos ) )        {
-      if (g_mkdir_with_parents( caminho->gabaritos, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->gabaritos);
+      if ( g_mkdir_with_parents( caminho->gabaritos, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->gabaritos );
       }
    }
    if ( !diretorio_existe( caminho->relatorios ) )       {
-      if (g_mkdir_with_parents( caminho->relatorios, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios);
+      if ( g_mkdir_with_parents( caminho->relatorios, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios );
       }
    }
    if ( !diretorio_existe( caminho->relatorios_final ) ) {
-      if (g_mkdir_with_parents( caminho->relatorios_final, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios_final);
+      if ( g_mkdir_with_parents( caminho->relatorios_final, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios_final );
       }
    }
    if ( !diretorio_existe( caminho->externo ) )          {
-      if (g_mkdir_with_parents( caminho->externo, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo);
+      if ( g_mkdir_with_parents( caminho->externo, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo );
       }
    }
    if ( !diretorio_existe( caminho->externo_final ) )    {
-      if (g_mkdir_with_parents( caminho->externo_final, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_final);
+      if ( g_mkdir_with_parents( caminho->externo_final, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_final );
       }
    }
    if ( !diretorio_existe( caminho->externo_escola ) )   {
-      if (g_mkdir_with_parents( caminho->externo_escola, 0755 ) != 0) {
-         g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_escola);
+      if ( g_mkdir_with_parents( caminho->externo_escola, 0755 ) != 0 ) {
+         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_escola );
       }
    }
 }
@@ -537,9 +537,9 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
       if ( !nome_periodo ) continue;
 
       g_autofree gchar *dir_periodo = g_build_filename( ".", "dados", "informados",
-                                                        dados->ano, dados->escola,
-                                                        dados->turma, dados->disciplina,
-                                                        nome_periodo, NULL );
+                                      dados->ano, dados->escola,
+                                      dados->turma, dados->disciplina,
+                                      nome_periodo, NULL );
 
       g_autofree gchar *caminho_teste = g_build_filename( dir_periodo, "acesso.bin", NULL );
 
@@ -563,9 +563,9 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    if ( !nome_target ) return;
 
    g_autofree gchar *dir_target = g_build_filename( ".", "dados", "informados",
-                                                    dados->ano, dados->escola,
-                                                    dados->turma, dados->disciplina,
-                                                    nome_target, NULL );
+                                  dados->ano, dados->escola,
+                                  dados->turma, dados->disciplina,
+                                  nome_target, NULL );
 
    g_autofree gchar *arq_target = g_build_filename( dir_target, "acesso.bin", NULL );
 
@@ -586,11 +586,9 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
-   // 2. Substituição do verificar_arquivo pelo g_stat nativo
-   // Verifica tanto a existência (retorno != 0) quanto se está vazio (tamanho == 0)
-   GStatBuf stat_buf;
-   if ( g_stat( arquivo_acesso, &stat_buf ) != 0 || stat_buf.st_size == 0 ) {
-      if( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
+   EstadoArquivo estado = verificar_arquivo( arquivo_acesso );
+   if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
+      if ( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
          _copiar_acesso_bin( ctx );
       }
    }
@@ -616,7 +614,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    ctx->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
 
    g_autofree gchar *dir_base_alunos = g_build_filename( ".", "dados", "informados",
-                                                         dados->ano, dados->escola, "alunos", NULL );
+                                       dados->ano, dados->escola, "alunos", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];

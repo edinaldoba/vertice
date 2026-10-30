@@ -141,6 +141,8 @@
       <column type="gboolean"/>
       <!-- column-name mask_pendencia -->
       <column type="gint"/>
+      <!-- column-name mask_observacao -->
+      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkApplicationWindow" id="janela_principal">
@@ -525,15 +527,15 @@
                                     <property name="can-focus">1</property>
                                     <property name="max-length">30</property>
                                     <property name="width-chars">20</property>
-                                    <property name="placeholder-text" translatable="yes">TEMA</property>
+                                    <property name="placeholder-text" translatable="yes">TEMA (máx. 30 caracteres)</property>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkEntry" id="entry_descricao">
                                     <property name="visible">1</property>
                                     <property name="can-focus">1</property>
-                                    <property name="max-length">120</property>
-                                    <property name="placeholder-text" translatable="yes">Descrição</property>
+                                    <property name="max-length">95</property>
+                                    <property name="placeholder-text" translatable="yes">Descrição (máx. 95 caracteres)</property>
                                   </object>
                                   <packing>
                                     <property name="expand">1</property>

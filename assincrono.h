@@ -1,7 +1,6 @@
 #ifndef ASSINCRONO_H
 #define ASSINCRONO_H
 
-#include "comum.h"
 #include "interface.h"
 
 void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) );

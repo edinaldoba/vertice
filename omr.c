@@ -13,7 +13,6 @@
 
 #include "comum.h"
 #include "omr.h"
-#include "basicas.h"
 #include "interface.h"
 
 

@@ -9,13 +9,10 @@
 #include <sys/stat.h>
 #include <glib.h>
 #include <glib/gstdio.h>
-#include <omp.h>
-#include <math.h>
 
 #include "glib_gio.h"
 #include "interface.h"
 #include "provas.h"
-#include "omr.h"
 #include "comum.h"
 #include "basicas.h"
 #include "latex.h"

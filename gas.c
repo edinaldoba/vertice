@@ -4,7 +4,6 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // Não esqueça de incluir para usar o memcpy
 #include <math.h>

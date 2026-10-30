@@ -12,6 +12,8 @@ void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );
 
+void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, int qtd_aulas );
+
 void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem );
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status );

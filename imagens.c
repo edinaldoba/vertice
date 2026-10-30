@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <omp.h>
 #include <glib/gstdio.h> // Necessário para g_remove e g_mkdir_with_parents
+#include <omp.h>
 
 #include "comum.h"
 #include "imagens.h"
@@ -22,8 +22,6 @@
 #include "pds.h"
 #include "gas.h"
 #include "assincrono.h"
-
-
 
 
 

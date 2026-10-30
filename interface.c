@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 
 #include "comum.h"
-#include "glib_gio.h"
 #include "interface.h"
 #include "basicas.h"
 #include "callbacks.h"

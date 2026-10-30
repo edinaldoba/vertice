@@ -8,16 +8,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <sys/stat.h>
 #include <inttypes.h>
 
 #include "comum.h"
 #include "interface.h"
 #include "basicas.h"
-#include "callbacks.h"
 #include "mensagens.h"
-#include "dinamica.h"
 
 
 static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, const gchar *caminho_arquivo );
@@ -512,6 +509,35 @@ void modificar_registro_aula( AppContext *ctx ) {
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( tree_view ) );
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
 }
+
+
+
+// ======================================================================================
+/**
+ * @brief Atualiza dinamicamente o limite de caracteres da descrição e o placeholder
+ *        conforme a carga horária selecionada e o tamanho do tema já digitado.
+ */
+void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, int qtd_aulas ) {
+   GtkEntry *entry_descricao = GTK_ENTRY( conteudo->entry_descricao );
+
+   const gchar *texto = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
+   int qtd_caracteres = g_utf8_strlen( texto, -1 );
+
+   // Matemática inteira limpa: (x * 3) / 2 substitui o round(x * 1.5)
+   // Se qtd_caracteres == 0, a subtração será 0 automaticamente, dispensando o if/else
+   int limite_chars = ( qtd_aulas * 98 ) - ( ( qtd_caracteres * 7 ) / 5 ) - ( qtd_aulas==1 ? 3 : 0 );
+
+   // Prevenção contra estouro reverso (caso o tema digitado seja absurdamente longo)
+   if ( limite_chars < 0 ) limite_chars = 0;
+
+   // 1. Aplica o limite físico de caracteres na GtkEntry
+   gtk_entry_set_max_length( entry_descricao, limite_chars );
+
+   // 2. Sinaliza visualmente no placeholder da entry para orientar o usuário
+   g_autofree char *placeholder = g_strdup_printf( "Descrição (máx. %d caracteres)", limite_chars );
+   gtk_entry_set_placeholder_text( entry_descricao, placeholder );
+}
+// ======================================================================================
 
 
 
@@ -1189,10 +1215,54 @@ void carregar_diario( AppContext *ctx ) {
    }
 }
 
+
+/**
+ * @brief Cria um novo GArray de RegistroDiarioAux a partir das fichas antigas (RegistroDiario).
+ *
+ * @param fichas_antigas GArray original contendo RegistroDiario (ctx->fichas).
+ * @return GArray* Novo GArray alocado contendo RegistroDiarioAux, ou NULL em caso de erro.
+ */
+// static GArray *copiar_fichas_para_aux( const GArray *fichas_antigas ) {
+//    if ( !fichas_antigas ) {
+//       return NULL;
+//    }
+//
+//    // Aloca um novo GArray otimizado para o tamanho exato da origem
+//    GArray *fichas_novas = g_array_sized_new( FALSE, FALSE, sizeof( RegistroDiarioAux ), fichas_antigas->len );
+//
+//    for ( guint i = 0; i < fichas_antigas->len; i++ ) {
+//       const RegistroDiario *antigo = &g_array_index( fichas_antigas, RegistroDiario, i );
+//       RegistroDiarioAux novo = {0}; // Inicializa a nova estrutura zerada
+//
+//       // 1. Copia a data com segurança usando g_strlcpy da GLib
+//       g_strlcpy( novo.data, antigo->data, sizeof( novo.data ) );
+//
+//       // 2. Copia a quantidade de aulas e tipo de registro
+//       novo.qtd_aulas = antigo->qtd_aulas;
+//       novo.tipo_registro = antigo->tipo_registro;
+//
+//       // 3. Copia o tema adaptando para o novo limite de 50 bytes com g_strlcpy
+//       g_strlcpy( novo.tema, antigo->tema, sizeof( novo.tema ) );
+//
+//       // 4. Copia a descrição adaptando para o novo limite de 300 bytes com g_strlcpy
+//       g_strlcpy( novo.descricao, antigo->descricao, sizeof( novo.descricao ) );
+//
+//       // 5. Copia o array fixo de chamadas (64 elementos) via memcpy
+//       memcpy( novo.chamada, antigo->chamada, sizeof( antigo->chamada ) );
+//
+//       // Adiciona o elemento convertido ao novo GArray
+//       g_array_append_val( fichas_novas, novo );
+//    }
+//
+//    return fichas_novas;
+// }
+
 void salvar_diario( AppContext *ctx, gboolean final_save ) {
    g_return_if_fail( ctx );
 
    salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
+   // GArray *diarios_novos = copiar_fichas_para_aux( ctx->diarios );
+   // salvar_garray_binario( diarios_novos, sizeof( RegistroDiarioAux ), ctx->path_save_diario );
 
    if ( !final_save ) {
       g_free( ctx->path_save_diario );
@@ -2198,7 +2268,10 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // Resgata o booleano de dentro do ponteiro
       gboolean ativo_no_foco = presente_no_foco ? GPOINTER_TO_INT( ptr_ativo ) : FALSE;
+
+      // Separação dos domínios em variáveis distintas
       int mascara_pendencias = 0;
+      int mascara_observacao = 0;
 
       if ( presente_no_foco ) {
          for ( int p = 0; p < foco_periodo; p++ ) {
@@ -2234,22 +2307,39 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          float max_futuro = rel->soma + ( faltantes_globais * 10.0f );
 
          if ( rel->conselho >= 0.0f ) {
-            g_strlcpy( obs, ( rel->conselho >= 6.0f ) ? "Aprov Cons" : "Reprovado", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 );
-            mascara_pendencias |= ( 1 << 5 );
-         } else if ( rel->rec_final >= 0.0f ) {
-            g_strlcpy( obs, ( rel->rec_final >= 6.0f ) ? "Aprov Final" : "Conselho", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 );
-            if ( rel->rec_final < 6.0f ) {
-               mascara_pendencias |= ( 1 << 5 );
+            if ( rel->conselho >= 6.0f ) {
+               g_strlcpy( obs, "Aprov Cons", sizeof( obs ) );
+               mascara_observacao |= OBS_ALUNO_APROVADO_NO_CONSELHO;
+            } else {
+               g_strlcpy( obs, "Reprovado", sizeof( obs ) );
+               mascara_observacao |= OBS_ALUNO_REPROVADO;
             }
+            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+            mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
+
+         } else if ( rel->rec_final >= 0.0f ) {
+            if ( rel->rec_final >= 6.0f ) {
+               g_strlcpy( obs, "Aprov Final", sizeof( obs ) );
+               mascara_observacao |= OBS_ALUNO_APROVADO_NA_FINAL;
+            } else {
+               g_strlcpy( obs, "Conselho", sizeof( obs ) );
+               mascara_observacao |= OBS_ALUNO_EM_CONSELHO_CLASSE;
+               mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
+            }
+            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+
          } else if ( rel->soma > 22.2f ) {
             g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
+            mascara_observacao |= OBS_ALUNO_APROVADO_DIRETO;
+
          } else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
             g_strlcpy( obs, "Rec Final", sizeof( obs ) );
-            mascara_pendencias |= ( 1 << 4 );
+            mascara_observacao |= OBS_ALUNO_EM_RECUPERACAO_FINAL;
+            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+
          } else {
             g_strlcpy( obs, "Cursando", sizeof( obs ) );
+            mascara_observacao |= OBS_ALUNO_CURSANDO;
          }
       }
 
@@ -2287,7 +2377,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           9, str_cols[7],
                           10, obs,
                           11, !ficha->ativo,
-                          12, mascara_pendencias,
+                          12, mascara_pendencias, // Coluna 12 exclusiva de permissões
+                          13, mascara_observacao, // Coluna 13 exclusiva de estado (renderização)
                           -1 );
    }
 
@@ -2321,16 +2412,16 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
 
    // 2. Construção dos caminhos absolutos (adicionando "acesso.bin" ao final do diretório)
    g_autofree gchar *dir_p4 = g_build_filename( ".", "dados", "informados",
-                                                dados->ano, dados->escola, dados->turma, dados->disciplina, nome_p4, NULL );
+                              dados->ano, dados->escola, dados->turma, dados->disciplina, nome_p4, NULL );
    g_autofree gchar *arq_p4 = g_build_filename( dir_p4, "acesso.bin", NULL );
 
    g_autofree gchar *dir_rec = g_build_filename( ".", "dados", "informados",
-                                                 dados->ano, dados->escola, dados->turma, dados->disciplina, nome_rec, NULL );
+                               dados->ano, dados->escola, dados->turma, dados->disciplina, nome_rec, NULL );
    g_autofree gchar *arq_rec = g_build_filename( dir_rec, "acesso.bin", NULL );
 
-   if ( g_mkdir_with_parents( dir_rec, 0755) != 0 ) {
-       g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", dir_rec);
-       return;
+   if ( g_mkdir_with_parents( dir_rec, 0755 ) != 0 ) {
+      g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", dir_rec );
+      return;
    }
 
    // 3. Carrega o arquivo do 4º Período integralmente para a RAM

@@ -1,3 +1,4 @@
+-std=gnu11
 -Wall
 -Wextra
 -D_FORTIFY_SOURCE=2
