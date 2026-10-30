@@ -628,6 +628,7 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_status ) );
+
    registrar_status_assiduidade_frequencia( &ctx->painel, ctx, status );
 }
 
@@ -638,18 +639,21 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
 void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
 
    GtkToggleButton *togglebutton = GTK_TOGGLE_BUTTON( widget );
    gboolean modo_por_aluno = gtk_toggle_button_get_active( togglebutton );
 
-   // A coluna 2 é a "NASCIMENTO" / "DATA AULA"
-   GtkTreeViewColumn *coluna = gtk_tree_view_get_column( GTK_TREE_VIEW( frequencia->treeview ), 2 );
+   GtkTreeViewColumn *col_cod_aluno = gtk_tree_view_get_column( tree_view, 2 );
+   if ( col_cod_aluno ) gtk_tree_view_column_set_visible( col_cod_aluno, !modo_por_aluno );
 
+   // A coluna 3 é a "NASCIMENTO" / "DATA AULA"
+   GtkTreeViewColumn *col_data_ou_nasc = gtk_tree_view_get_column( tree_view, 3 );
    if ( modo_por_aluno ) {
-      gtk_tree_view_column_set_title( coluna, "DATA  AULA" );
+      gtk_tree_view_column_set_title( col_data_ou_nasc, "DATA  AULA" );
       renderizar_frequencia_modo_por_aluno( ctx );
    } else {
-      gtk_tree_view_column_set_title( coluna, "NASCIMENTO" );
+      gtk_tree_view_column_set_title( col_data_ou_nasc, "NASCIMENTO" );
       renderizar_frequencia_modo_normal( ctx );
    }
 }

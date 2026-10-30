@@ -152,7 +152,8 @@ static void _inicializar_renderizadores_conteudo( AppContext *ctx ) {
 
    // Aplica para as colunas visíveis que precisam da cor (ex: Data, Tema, Descrição...)
    // Supondo que sejam as colunas 0, 1, 2 e 3 do TreeView
-   for ( int i = 0; i <= 3; i++ ) {
+   // COLORIR SOMENTE O TEMA E A DESCRIÇÃO
+   for ( int i = 2; i <= 3; i++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
       if ( !col ) continue;
 
@@ -197,8 +198,8 @@ static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRend
 
    int status = 0;
 
-   // Captura o status puro da coluna 5
-   gtk_tree_model_get( model, iter, 5, &status, -1 );
+   // Captura o status puro da coluna 6
+   gtk_tree_model_get( model, iter, 6, &status, -1 );
 
    // Delega a pintura
    _aplicar_cor_condicional_frequencia( cell, status, ctx->cabecalho.foco_estilo );
@@ -212,8 +213,8 @@ static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
 
-   // Aplica nas colunas: Nome (1), Data/Nascimento (2) e Status Textual (3)
-   for ( int i = 1; i <= 3; i++ ) {
+   // Aplica nas colunas: Nome (1), Cod_Aluno (2) Data/Nascimento (3) e Status Textual (4)
+   for ( int i = 1; i <= 4; i++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
       if ( !col ) continue;
 
@@ -388,13 +389,25 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       gboolean permissao_ativa = FALSE;
 
       switch ( col_idx ) {
-         case 2: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_1_PERIODO ); break;
-         case 3: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_2_PERIODO ); break;
-         case 4: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_3_PERIODO ); break;
-         case 5: permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_4_PERIODO ); break;
+      case 2:
+         permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_1_PERIODO );
+         break;
+      case 3:
+         permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_2_PERIODO );
+         break;
+      case 4:
+         permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_3_PERIODO );
+         break;
+      case 5:
+         permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_4_PERIODO );
+         break;
 
-         case 8: permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_REC_FINAL );  break; // Recuperação Final
-         case 9: permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_CONSELHO );   break; // Conselho de Classe
+      case 8:
+         permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_REC_FINAL );
+         break; // Recuperação Final
+      case 9:
+         permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_CONSELHO );
+         break; // Conselho de Classe
       }
 
       if ( permissao_ativa ) {

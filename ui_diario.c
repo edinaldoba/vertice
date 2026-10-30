@@ -525,7 +525,7 @@ void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, in
 
    // Matemática inteira limpa: (x * 3) / 2 substitui o round(x * 1.5)
    // Se qtd_caracteres == 0, a subtração será 0 automaticamente, dispensando o if/else
-   int limite_chars = ( qtd_aulas * 98 ) - ( ( qtd_caracteres * 7 ) / 5 ) - ( qtd_aulas==1 ? 3 : 0 );
+   int limite_chars = ( qtd_aulas * 98 ) - ( ( qtd_caracteres * 7 ) / 5 ) - ( qtd_aulas == 1 ? 3 : 0 );
 
    // Prevenção contra estouro reverso (caso o tema digitado seja absurdamente longo)
    if ( limite_chars < 0 ) limite_chars = 0;
@@ -732,8 +732,8 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
    if ( gtk_tree_model_get_iter( model_view, &iter, path ) ) {
       // Injeção MVC pura! Coluna 5 recebe o int.
       gtk_list_store_set( store_view, &iter,
-                          3, str_status,
-                          5, status_num,
+                          4, str_status,
+                          6, status_num,
                           -1 );
    }
 
@@ -748,6 +748,37 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
    if ( ( guint )idx_aula < ctx->diarios->len ) {
       gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), idx_aula );
    }
+}
+
+static gchar *_cod_aluno_formatado( uint32_t cod_aluno ) {
+   g_autofree gchar *str_temp = g_strdup_printf( "%" PRIu32, cod_aluno );
+   int len = strlen( str_temp );
+
+   // Se o número tiver 3 dígitos ou menos, não precisa de ponto.
+   if ( len <= 3 ) {
+      return g_steal_pointer( &str_temp );
+   }
+
+   int qtd_pontos = ( len - 1 ) / 3;
+   int novo_len = len + qtd_pontos;
+
+   gchar *resultado = g_malloc( novo_len + 1 );
+   resultado[novo_len] = '\0';
+
+   int i_origem = len - 1;
+   int i_destino = novo_len - 1;
+   int contador = 0;
+
+   // Copia de trás para frente inserindo os pontos a cada 3 casas
+   while ( i_origem >= 0 ) {
+      if ( contador > 0 && contador % 3 == 0 ) {
+         resultado[i_destino--] = '.';
+      }
+      resultado[i_destino--] = str_temp[i_origem--];
+      contador++;
+   }
+
+   return resultado;
 }
 
 static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int idx_aluno,
@@ -775,8 +806,8 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
 
    if ( modo_edicao ) {
       gtk_list_store_set( store_view, &iter_view,
-                          3, str_status,
-                          5, status_num,
+                          4, str_status,
+                          6, status_num,
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
@@ -788,16 +819,20 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
       const char *fonte_numerica = "Monospace 19px";
+      g_autofree gchar *texto_cod_aluno = NULL;
+
+      texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
 
       gtk_list_store_append( store_view, &iter_view );
       gtk_list_store_set( store_view, &iter_view,
                           0, idx_aluno + 1,
                           1, ficha->aluno,
-                          2, nasc,
-                          3, str_status,
-                          4, !ficha->ativo,
-                          5, status_num, // Status numérico puro
-                          6, fonte_numerica,
+                          2, texto_cod_aluno,
+                          3, nasc,
+                          4, str_status,
+                          5, !ficha->ativo,
+                          6, status_num, // Status numérico puro
+                          7, fonte_numerica,
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
@@ -811,16 +846,19 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
 
          g_autofree gchar *nasc_inativo = _formatar_data_extenso( ficha->nasc );
 
+         texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
+
          GtkTreeIter iter_inativo;
          gtk_list_store_append( store_view, &iter_inativo );
          gtk_list_store_set( store_view, &iter_inativo,
                              0, idx_aluno + 1,
                              1, ficha->aluno,
-                             2, nasc_inativo,
-                             3, texto_status,
-                             4, !ficha->ativo,
-                             5, SEM_STATUS, // Status numérico puro para inativos
-                             6, fonte_numerica,
+                             2, texto_cod_aluno,
+                             3, nasc_inativo,
+                             4, texto_status,
+                             5, !ficha->ativo,
+                             6, SEM_STATUS, // Status numérico puro para inativos
+                             7, fonte_numerica,
                              -1 );
       }
    }
@@ -902,14 +940,17 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
       GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
       g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, status_atual );
 
+      g_autofree gchar *texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
+
       gtk_list_store_set( store_view, &iter,
                           0, i + 1,
                           1, ficha->aluno,
-                          2, nasc,
-                          3, texto_status,
-                          4, !ficha->ativo,
-                          5, status_atual, // Injeta apenas o inteiro!
-                          6, fonte_numerica,
+                          2, texto_cod_aluno,
+                          3, nasc,
+                          4, texto_status,
+                          5, !ficha->ativo,
+                          6, status_atual, // Injeta apenas o inteiro!
+                          7, fonte_numerica,
                           -1 );
 
       linhas_renderizadas++;
@@ -978,10 +1019,10 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
       gtk_list_store_set( store_view, &iter,
                           0, idx_aluno + 1,
                           1, ficha->aluno,
-                          2, diario->data,
-                          3, texto_status,
-                          4, !ficha->ativo,
-                          5, idx_st, // Injeta apenas o inteiro!
+                          3, diario->data,
+                          4, texto_status,
+                          5, !ficha->ativo,
+                          6, idx_st, // Injeta apenas o inteiro!
                           -1 );
    }
 
@@ -2228,9 +2269,9 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, p );
 
       g_autofree gchar *acesso_bin = g_build_filename( ".", "dados", "informados", ctx->dados.ano,
-                                                       ctx->dados.escola, ctx->dados.turma,
-                                                       ctx->dados.disciplina, texto_periodo,
-                                                       "acesso.bin", NULL );
+                                     ctx->dados.escola, ctx->dados.turma,
+                                     ctx->dados.disciplina, texto_periodo,
+                                     "acesso.bin", NULL );
       gchar *conteudo = NULL;
       gsize tamanho = 0;
 
@@ -2263,8 +2304,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       // --- PASSO NOVO: Busca do status ativo do aluno no período atual em O(1) ---
       gpointer ptr_ativo = NULL;
       gboolean presente_no_foco = g_hash_table_lookup_extended( hash_acesso[foco_periodo],
-                                                                GINT_TO_POINTER( ficha->cod_aluno ),
-                                                                NULL, &ptr_ativo );
+                                  GINT_TO_POINTER( ficha->cod_aluno ),
+                                  NULL, &ptr_ativo );
 
       // Resgata o booleano de dentro do ponteiro
       gboolean ativo_no_foco = presente_no_foco ? GPOINTER_TO_INT( ptr_ativo ) : FALSE;

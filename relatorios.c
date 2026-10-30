@@ -608,20 +608,20 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 //==================================================================================================
 static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx ) {
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                         "\\usepackage[utf8]{inputenc}\n"
-                         "\\usepackage[T1]{fontenc}\n" );
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( ctx->dados.fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
    g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                         "\\usepackage[dvipsnames]{xcolor}\n"
-                         "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
-                         "\\usetikzlibrary{calc}\n"
-                         "\\pagestyle{empty}\n\n"
-                         "\\begin{document}\n\\begin{landscape}\n\n" );
+                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                    "\\usepackage[dvipsnames]{xcolor}\n"
+                    "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
+                    "\\usetikzlibrary{calc}\n"
+                    "\\pagestyle{empty}\n\n"
+                    "\\begin{document}\n\\begin{landscape}\n\n" );
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1025,20 +1025,20 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 
    // --- CABEÇALHO DO DOCUMENTO LATEX ---
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                         "\\usepackage[utf8]{inputenc}\n"
-                         "\\usepackage[T1]{fontenc}\n" );
+                    "\\usepackage[utf8]{inputenc}\n"
+                    "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) g_string_append( tex, "\\usepackage{cmbright}\n" );
 
    g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                         "\\usepackage{tikz,ulem,graphicx}\n"
-                         "\\usetikzlibrary{calc}\n"
-                         "\\pagestyle{empty}\n\n"
-                         "\\begin{document}\n"
-                         "  \\noindent\\begin{tikzpicture}\n"
-                         "  \\fill (0,0) circle (0pt);\n"
-                         "  \\draw (1,-1) rectangle (20,-28.7);\n" );
+                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                    "\\usepackage{tikz,ulem,graphicx}\n"
+                    "\\usetikzlibrary{calc}\n"
+                    "\\pagestyle{empty}\n\n"
+                    "\\begin{document}\n"
+                    "  \\noindent\\begin{tikzpicture}\n"
+                    "  \\fill (0,0) circle (0pt);\n"
+                    "  \\draw (1,-1) rectangle (20,-28.7);\n" );
 
    // Renderização das Linhas Estruturais Fixas
    g_string_append_printf( tex,

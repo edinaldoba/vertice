@@ -267,9 +267,9 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    frequencia->btn_justificada  = GTK_WIDGET( gtk_builder_get_object( builder, "button_justificada" ) );
 
    frequencia->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
-   for ( int i = 0; i < 4; i++ ) {
+   for ( int i = 0; i < 5; i++ ) {
       if ( i != 1 ) _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5 );
-      if ( i == 0 ) _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
+      if ( i == 0 || i == 2 ) _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
    }
 
    // --- SUB-ABA: AVALIAÇÕES ---

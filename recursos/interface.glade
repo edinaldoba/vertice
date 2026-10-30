@@ -101,6 +101,8 @@
       <column type="guint"/>
       <!-- column-name nome -->
       <column type="gchararray"/>
+      <!-- column-name cod_alunoo -->
+      <column type="gchararray"/>
       <!-- column-name nascimento -->
       <column type="gchararray"/>
       <!-- column-name status -->
@@ -867,8 +869,20 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="strikethrough">4</attribute>
+                                            <attribute name="strikethrough">5</attribute>
                                             <attribute name="text">1</attribute>
+                                          </attributes>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkTreeViewColumn">
+                                        <property name="fixed-width">230</property>
+                                        <property name="title" translatable="yes">CÓDIGO  ALUNO</property>
+                                        <child>
+                                          <object class="GtkCellRendererText"/>
+                                          <attributes>
+                                            <attribute name="text">2</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -880,8 +894,8 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="font">6</attribute>
-                                            <attribute name="text">2</attribute>
+                                            <attribute name="font">7</attribute>
+                                            <attribute name="text">3</attribute>
                                           </attributes>
                                         </child>
                                       </object>
@@ -893,7 +907,7 @@
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
-                                            <attribute name="text">3</attribute>
+                                            <attribute name="text">4</attribute>
                                           </attributes>
                                         </child>
                                       </object>
