@@ -10,7 +10,6 @@
 #include "assincrono.h"
 #include "comum.h"
 #include "glib/gstdio.h"
-#include "interface.h"
 #include "mensagens.h"
 #include "provas.h"
 #include "basicas.h"
@@ -20,20 +19,14 @@
 
 
 
-
+// Estrutura de transporte para a Thread
 typedef struct {
-   InterfacePainel  *painel;         // ◄ PONTEIRO (Lê a UI viva, garantindo que o mouse_hover funcione)
-   InterfaceDados   dados;           // ◄ Por valor (Cópia estática blindada)
-   InterfaceCabecalho  cabecalho;          // ◄ Por valor
-   CaminhoDiretorio caminho;         // ◄ Por valor
-   CalendarioData   data;            // ◄ Por valor
-   GArray           *fichas;         // ◄ Ponteiro (Clone seguro na Heap para a Thread)
-   GtkWidget        *botao_gerar;    // ◄ Ponteiro (Widget vivo)
-   GtkWidget        *botao_corrigir; // ◄ Ponteiro (Widget vivo)
-   GtkWidget        *botao_importar; // ◄ Ponteiro (Widget vivo)
-   GtkWidget        *aba_latex;      // ◄ Ponteiro (Widget vivo)
-   gboolean         sucesso;
+   AppContext         *ctx;         // Usado EXCLUSIVAMENTE nas callbacks da Main Thread
+   GtkWidget          *botao_gerar; // Ponteiro para o botão que disparou a ação
+   MotorProvaSnapshot snap;         // O pacote de dados blindado para a Thread e para a função prova()
+   gboolean           sucesso;
 } ProvaThreadArgs;
+
 
 /**
  * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
@@ -42,12 +35,8 @@ typedef struct {
 static GArray* clonar_diario_alunos( GArray *fichas_originais ) {
    if ( !fichas_originais || fichas_originais->len == 0 ) return NULL;
 
-   // Criação do novo GArray independente (limpo com zeros)
    GArray *fichas_clone = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), fichas_originais->len );
-
-   // Cópia física bruta (Block Copy) bit a bit dos elementos internos
    g_array_append_vals( fichas_clone, fichas_originais->data, fichas_originais->len );
-
    return fichas_clone;
 }
 
@@ -55,45 +44,44 @@ static GArray* clonar_diario_alunos( GArray *fichas_originais ) {
 // A NOVA FUNÇÃO DE ENTRADA DO MOTOR
 // ============================================================================
 void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
-   ProvaThreadArgs *args = malloc( sizeof( ProvaThreadArgs ) );
+   ProvaThreadArgs *args = g_malloc0( sizeof( ProvaThreadArgs ) ); // g_malloc0 zera a memória nativamente
    if ( !args ) return;
 
-   // Snapshots por valor (Segurança Thread-Safe)
-   args->dados   = ctx->dados;
-   args->cabecalho    = ctx->cabecalho;
-   args->caminho = ctx->caminho;
-   args->data    = ctx->data;
+   // 1. Snapshot Seguro (Deep Copy por valor e array na Heap)
+   args->snap.dados     = ctx->dados;
+   args->snap.cabecalho = ctx->cabecalho;
+   args->snap.caminho   = ctx->caminho;
+   args->snap.data      = ctx->data;
+   args->snap.fichas    = clonar_diario_alunos( ctx->fichas );
 
-   // Snapshots por referência (Acesso UI Viva e Clone Heap)
-   args->painel      = &ctx->painel; // Ponteiro para o painel atual do AppContext
-   args->fichas      = clonar_diario_alunos( ctx->fichas );
+   // 2. Referências Mestre para a Main Thread
+   args->ctx         = ctx;
    args->botao_gerar = widget;
-   args->botao_corrigir = ctx->ui_prova.btn_corrigir;
-   args->botao_importar = ctx->ui_prova.btn_importar;
 
-   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 ); // ABA LATEX
-   args->aba_latex = aba_latex;
-
-   pthread_t thread_id;
-   pthread_attr_t attr;
-   pthread_attr_init( &attr );
-   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
+   // 3. Congelamento da Interface (Acessando direto do ctx)
+   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
 
    gtk_widget_set_sensitive( widget, FALSE );
    gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
    gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, FALSE );
    gtk_widget_set_sensitive( aba_latex, FALSE );
 
-   if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
+   // 4. Criação da Thread Detached
+   pthread_t thread_id;
+   pthread_attr_t attr;
+   pthread_attr_init( &attr );
+   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
 
+   if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
+      // Rollback imediato em caso de erro na alocação da thread
       gtk_widget_set_sensitive( widget, TRUE );
       gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
       gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
       gtk_widget_set_sensitive( aba_latex, TRUE );
 
       g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
-      if ( args->fichas ) g_array_unref( args->fichas );
-      free( args );
+      if ( args->snap.fichas ) g_array_unref( args->snap.fichas );
+      g_free( args );
    }
 
    pthread_attr_destroy( &attr );
@@ -106,26 +94,23 @@ static gboolean ocultar_painel_e_desalocar_args_cb( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
    if ( !args ) return G_SOURCE_REMOVE;
 
-   InterfacePainel *painel = args->painel; // Usa o ponteiro direto!
+   InterfacePainel *painel = &args->ctx->painel; // Recupera direto do contexto mestre
 
    if ( painel ) {
-      // 1. Hover check em tempo real no ponteiro vivo
       if ( painel->mouse_hover ) {
-         return G_SOURCE_CONTINUE; // Adia a ocultação!
+         return G_SOURCE_CONTINUE;
       }
-
-      // 2. Oculta o Revealer suavemente
       if ( painel->revealer_painel ) {
          gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
       }
       painel->timeout_id = 0;
    }
 
-   // 3. DESALOCAÇÃO SEGURA NA HEAP (Somente quando a UI terminar)
-   if ( args->fichas != NULL ) {
-      g_array_unref( args->fichas );
+   // Limpeza blindada da memória
+   if ( args->snap.fichas != NULL ) {
+      g_array_unref( args->snap.fichas );
    }
-   free( args );
+   g_free( args );
 
    g_print( "[GLib Timer] Toast ocultado. Memory cleanup de ProvaThreadArgs concluído.\n" );
    return G_SOURCE_REMOVE;
@@ -138,17 +123,21 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
    if ( !args ) return FALSE;
 
-   if ( args->botao_gerar )    gtk_widget_set_sensitive( args->botao_gerar,    TRUE );
-   if ( args->botao_corrigir ) gtk_widget_set_sensitive( args->botao_corrigir, TRUE );
-   if ( args->botao_importar ) gtk_widget_set_sensitive( args->botao_importar, TRUE );
-   if ( args->aba_latex )      gtk_widget_set_sensitive( args->aba_latex,      TRUE );
+   AppContext *ctx = args->ctx;
+   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
+
+   // Reativa a UI acessando os ponteiros mestre armazenados no AppContext
+   if ( args->botao_gerar )          gtk_widget_set_sensitive( args->botao_gerar, TRUE );
+   if ( ctx->ui_prova.btn_corrigir ) gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
+   if ( ctx->ui_prova.btn_importar ) gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
+   if ( aba_latex )                  gtk_widget_set_sensitive( aba_latex, TRUE );
 
    char instrucao[256] = {0};
-   InterfacePainel *painel = args->painel;
+   InterfacePainel *painel = &ctx->painel;
 
    if ( args->sucesso ) {
       snprintf( instrucao, sizeof( instrucao ), "Pronto para impressão: %s Prova.pdf (em tela)",
-                args->dados.prova_sequencia );
+                args->snap.dados.prova_sequencia );
 
       painel->format_titulo    = meu_gerador_variadico( "✔ Prova Gerada com Sucesso!" );
       painel->format_subtitulo = meu_gerador_variadico( "O arquivo PDF foi compilado e estruturado corretamente via TeX." );
@@ -157,7 +146,7 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
       criar_mensagem_painel( SUCESSO, painel );
    } else {
       snprintf( instrucao, sizeof( instrucao ), "Verifique o arquivo lista.dat do \"%s\" ou os logs do compilador.",
-                args->dados.periodo );
+                args->snap.dados.periodo );
 
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro no Motor TeX" );
       painel->format_subtitulo = meu_gerador_variadico( "Falha crítica na estruturação ou compilação assíncrona dos gabaritos." );
@@ -166,7 +155,6 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
       criar_mensagem_painel( ERRO, painel );
    }
 
-   // REPROGRAMA O TIMER COM O CONTEXTO ISOLADO
    if ( painel->timeout_id > 0 ) {
       g_source_remove( painel->timeout_id );
    }
@@ -174,65 +162,65 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    guint tempo_exibicao = ( args->sucesso ) ? 4000 : 6000;
    painel->timeout_id = g_timeout_add( tempo_exibicao, ocultar_painel_e_desalocar_args_cb, args );
 
-   return FALSE; // Remove da fila Idle
+   return FALSE;
 }
 
-
-
-
-
+// ============================================================================
+// WORKER: Executa em Background I/O Intensivo e Sistema Operacional
+// ============================================================================
 void* thread_gerar_prova_background( void *data ) {
-
    g_autoptr( GTimer ) cronometro = g_timer_new();
 
    if ( !data ) return NULL;
    ProvaThreadArgs *args = ( ProvaThreadArgs * )data;
+   MotorProvaSnapshot *snap = &args->snap; // Alias semântico para facilitar o acesso aos dados blindados
 
    args->sucesso = TRUE;
-
    g_print( "[Thread] Iniciando compilação com contexto clonado...\n" );
 
-   g_autofree
-   char *destino = g_build_filename( ".", "dados", "gabaritos", args->dados.ano, args->dados.escola, "gabaritos", NULL );
+   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL );
 
    char nome[32] = {0};
-   nome_base_gabaritos_bin( nome, sizeof( nome ), args->cabecalho.foco_turma, args->cabecalho.foco_disciplina,
-                            args->cabecalho.foco_periodo, args->dados.seq_prova );
+   nome_base_gabaritos_bin( nome, sizeof( nome ), snap->cabecalho.foco_turma, snap->cabecalho.foco_disciplina,
+                            snap->cabecalho.foco_periodo, snap->dados.seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
    FILE *p = fopen( arquivo, "rb" );
    if ( !p ) {
       g_printerr( "Erro ao abrir o arquivo para leitura: %s\n", arquivo );
+
+      // CORREÇÃO DE BUG: Se a leitura falhar, você DEVE sinalizar falha e chamar o g_idle_add.
+      // Do contrário, a UI continuaria travada para sempre com os botões desativados.
+      args->sucesso = FALSE;
+      g_idle_add( reativar_botao_gerar_prova, args );
       return NULL;
    }
 
-   ItemTextoCurto *G = g_new0( ItemTextoCurto, args->dados.qtd_alunos_ativos );
+   ItemTextoCurto *G = g_new0( ItemTextoCurto, snap->dados.qtd_alunos_ativos );
+   size_t lidos = fread( G, sizeof( ItemTextoCurto ), snap->dados.qtd_alunos_ativos, p );
 
-   size_t lidos = fread( G, sizeof( ItemTextoCurto ), args->dados.qtd_alunos_ativos, p );
-
-   if ( lidos != ( size_t )args->dados.qtd_alunos_ativos ) {
+   if ( lidos != ( size_t )snap->dados.qtd_alunos_ativos ) {
       g_printerr( "Aviso de I/O: Esperava %d alunos, mas só consegui ler %zu.\n",
-                  args->dados.qtd_alunos_ativos, lidos );
+                  snap->dados.qtd_alunos_ativos, lidos );
    }
-
    fclose( p );
 
-
    if ( args->sucesso ) {
+      // =========================================================================
+      // ASSINATURA TOTALMENTE ENXUTA!
+      // A função prova() agora exige apenas dois parâmetros:
+      // O Snapshot do motor e o buffer G lido do disco.
+      // =========================================================================
+      prova( snap, G );
 
-      prova( &args->dados, &args->cabecalho, args->fichas, &args->caminho, &args->data, G );
-
-      salvar_estado_aplicativo( &args->dados, &args->caminho );
+      salvar_estado_aplicativo( &snap->dados, &snap->caminho );
    }
 
    g_free( G );
 
-   // Agenda a execução gráfica passando o pacote com o veredito
+   // Devolve o fluxo à Main Thread para restaurar os botões e chamar o Toast
    g_idle_add( reativar_botao_gerar_prova, args );
-
-
-
    display_tempo( "Geração de prova", cronometro );
 
    return NULL;
@@ -626,7 +614,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
 
    // 1. Construção simplificada: Não precisamos criar o diretório "Notas" separadamente.
    // O g_mkdir_with_parents já cria toda a árvore genealógica de pastas se não existirem.
-   if ( dados->periodo[0] == 'R' ) {
+   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
       diretorio_imagens = g_build_filename( caminho->externo, "Notas", "Recuperação Final Imagens Corrigidas", NULL );
 
    } else {

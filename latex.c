@@ -306,7 +306,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // Formatação Dinâmica do Título da Prova
    char titulo_prova[512];
-   if ( dados->periodo[0] == 'R' ) {
+   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
       snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s / \\textbf{%s}",
                 dados->periodo, dados->disciplina, dados->ano );
    } else {

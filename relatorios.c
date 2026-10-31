@@ -631,7 +631,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
    int offset = ( pagina == 1 ) ? 0 : 27;
 
    const InterfaceDados *dados = &ctx->dados;
-   gboolean eh_recuperacao = ( dados->periodo[0] == 'R' );
+   gboolean eh_recuperacao = ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL );
    int nal = dados->qtd_alunos_total;
    int nn = ctx->diarios->len;
    double p = 199.0 / 330.0;
@@ -974,7 +974,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
 static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
    g_autoptr( GString ) tex = g_string_new( "" );
    const InterfaceDados *dados = &( ctx->dados );
-   gboolean eh_recuperacao = ( dados->periodo[0] == 'R' );
+   gboolean eh_recuperacao = ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL );
 
    int nn = registros->len;
    int somach = 0, ad = 0, ap = 0;

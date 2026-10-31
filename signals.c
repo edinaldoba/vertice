@@ -110,146 +110,167 @@ static void _configurar_colunas_editaveis( AppContext *ctx, GtkTreeView *treevie
 
 
 
+/**
+ * Verifica se a linha atual está clicada/selecionada pelo usuário.
+ * Retorna TRUE se a cor de seleção foi aplicada.
+ */
+// static gboolean _cor_fundo_linha_selecionada_modelo( GtkTreeView *treeview, GtkTreeModel *model,
+//                                                        GtkTreeIter *iter, int tema_ativo, GdkRGBA *cor_out ) {
+//    GtkTreePath *path = gtk_tree_model_get_path( model, iter );
+//    if ( !path ) return FALSE;
+//
+//    GtkTreeSelection *selecao = gtk_tree_view_get_selection( treeview );
+//    gboolean selecionada = gtk_tree_selection_path_is_selected( selecao, path );
+//    gtk_tree_path_free( path );
+//
+//    if ( selecionada ) {
+//       return cor_fundo_linha_selecionada( tema_ativo, cor_out );
+//    }
+//    return FALSE;
+// }
 
 
 //===================================================================================================
-// FUNÇÃO DE APLICAÇÃO VISUAL DA COR
+// 1. FUNÇÕES UTILITÁRIAS GENÉRICAS (MÓDULO BASE)
 //===================================================================================================
-static void _aplicar_cor_condicional_conteudo( GtkCellRenderer *cell, int tipo_registro, int interface_style ) {
-   GdkRGBA cor;
 
-   // Se for Feriado ou Pedagógico, a função preenche a cor correta do tema e retorna 1
-   if ( cor_texto_tipo_registro( tipo_registro, interface_style, &cor ) ) {
-      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
+/**
+ * Aplica o padrão zebrado descobrindo automaticamente a linha (row) atual.
+ * Retorna TRUE se a cor foi aplicada.
+ */
+static gboolean _cor_fundo_linha_zebrada_modelo( GtkTreeModel *model, GtkTreeIter *iter, int tema_ativo, GdkRGBA *cor_out ) {
+   GtkTreePath *path = gtk_tree_model_get_path( model, iter );
+   if ( !path ) return FALSE;
 
-   } else {
-      // Fallback: Aulas normais usam a cor padrão do GTK para o tema
-      g_object_set( cell, "foreground-set", FALSE, NULL );
+   gint row_idx = gtk_tree_path_get_indices( path )[0];
+   gtk_tree_path_free( path );
+
+   return cor_fundo_linha_zebrada( row_idx, tema_ativo, cor_out );
+}
+
+/**
+ * Utilitário para injetar o índice da coluna em todos os renderizadores de um intervalo
+ * e conectar a função de CellDataFunc. Elimina a repetição dos 4 loops.
+ */
+static void _vincular_renderizadores_em_massa( GtkTreeView *tree_view, int col_inicio, int col_fim,
+      GtkTreeCellDataFunc callback, AppContext *ctx ) {
+   if ( !tree_view ) return;
+
+   for ( int i = col_inicio; i <= col_fim; i++ ) {
+      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
+      if ( !col ) continue;
+
+      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
+      if ( renderers ) {
+         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
+
+         // Injeta a identidade da coluna no próprio renderer
+         g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
+         gtk_tree_view_column_set_cell_data_func( col, renderer, callback, ctx, NULL );
+
+         g_list_free( renderers );
+      }
    }
 }
 
+/**
+ * Utilitário para aplicar ou remover a cor de fundo nativa no renderer.
+ */
+static inline void _aplicar_cor_fundo( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
+   if ( usar ) g_object_set( cell, "cell-background-rgba", cor, "cell-background-set", TRUE, NULL );
+   else        g_object_set( cell, "cell-background-set", FALSE, NULL );
+}
+
+/**
+ * Utilitário para aplicar ou remover a cor de fonte nativa no renderer.
+ */
+static inline void _aplicar_cor_texto( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
+   if ( usar ) g_object_set( cell, "foreground-rgba", cor, "foreground-set", TRUE, NULL );
+   else        g_object_set( cell, "foreground-set", FALSE, NULL );
+}
+
+
 //===================================================================================================
-// CALLBACK DO GTK (Cell Data Func)
+// 2. MÓDULO: DIÁRIO DE CONTEÚDO
 //===================================================================================================
 static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
+   int tema_ativo = ctx->cabecalho.foco_estilo;
 
-   int tipo_registro = 0;
+   // 1. Fundo da linha (Zebrado)
+   GdkRGBA cor;
+   gboolean zebrado = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor );
+   _aplicar_cor_fundo( cell, zebrado, &cor );
 
-   // Captura o tipo de registro da coluna 4 silenciosamente
-   gtk_tree_model_get( model, iter, 4, &tipo_registro, -1 );
+   // 2. Identificação da coluna e aplicação condicional da fonte
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
-   // Aplica a cor na célula atual
-   _aplicar_cor_condicional_conteudo( cell, tipo_registro, ctx->cabecalho.foco_estilo );
+   if ( col_idx == 2 || col_idx == 3 ) {
+      int tipo_registro = 0;
+      gtk_tree_model_get( model, iter, 4, &tipo_registro, -1 );
+
+      gboolean tem_cor = cor_texto_tipo_registro( tipo_registro, tema_ativo, &cor );
+      _aplicar_cor_texto( cell, tem_cor, &cor );
+   } else {
+      _aplicar_cor_texto( cell, FALSE, NULL );
+   }
 }
 
 static void _inicializar_renderizadores_conteudo( AppContext *ctx ) {
-   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
-
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
-
-   // Aplica para as colunas visíveis que precisam da cor (ex: Data, Tema, Descrição...)
-   // Supondo que sejam as colunas 0, 1, 2 e 3 do TreeView
-   // COLORIR SOMENTE O TEMA E A DESCRIÇÃO
-   for ( int i = 2; i <= 3; i++ ) {
-      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
-      if ( !col ) continue;
-
-      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
-      if ( renderers ) {
-         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-         gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_conteudo, ctx, NULL );
-         g_list_free( renderers );
-      }
-   }
+   g_return_if_fail( ctx != NULL );
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.conteudo.treeview ),
+                                      0, 3, _on_renderizar_cores_conteudo, ctx );
 }
 
 
-
-
-
-
-
-
 //===================================================================================================
-// FUNÇÃO DE APLICAÇÃO VISUAL DA COR (FREQUÊNCIA)
-//===================================================================================================
-static void _aplicar_cor_condicional_frequencia( GtkCellRenderer *cell, int status, int interface_style ) {
-   GdkRGBA cor;
-
-   // A sua função original que calcula as cores de frequência já retorna 1 se houver cor!
-   if ( cor_texto_linha_frequencia( status, interface_style, &cor ) ) {
-      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
-
-   } else {
-      g_object_set( cell, "foreground-set", FALSE, NULL );
-   }
-}
-
-//===================================================================================================
-// CALLBACK DO GTK (Cell Data Func)
+// 3. MÓDULO: DIÁRIO DE FREQUÊNCIA
 //===================================================================================================
 static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
+   int tema_ativo = ctx->cabecalho.foco_estilo;
 
-   int status = 0;
+   // 1. Fundo da linha (Zebrado)
+   GdkRGBA cor;
+   gboolean zebrado = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor );
+   _aplicar_cor_fundo( cell, zebrado, &cor );
 
-   // Captura o status puro da coluna 6
-   gtk_tree_model_get( model, iter, 6, &status, -1 );
+   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
-   // Delega a pintura
-   _aplicar_cor_condicional_frequencia( cell, status, ctx->cabecalho.foco_estilo );
-}
+   // 2. Fonte (Protegendo a Coluna 0 de numeração)
+   if ( col_idx != 0 ) {
+      int status = 0;
+      gtk_tree_model_get( model, iter, 6, &status, -1 );
 
-//===================================================================================================
-// INICIALIZADOR (Chame UMA VEZ no seu signals.c ou na inicialização da interface)
-//===================================================================================================
-static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
-   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
-
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
-
-   // Aplica nas colunas: Nome (1), Cod_Aluno (2) Data/Nascimento (3) e Status Textual (4)
-   for ( int i = 1; i <= 4; i++ ) {
-      GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
-      if ( !col ) continue;
-
-      GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
-      if ( renderers ) {
-         GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-         gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_frequencia, ctx, NULL );
-         g_list_free( renderers );
-      }
+      gboolean tem_cor = cor_texto_linha_frequencia( status, tema_ativo, &cor );
+      _aplicar_cor_texto( cell, tem_cor, &cor );
+   } else {
+      _aplicar_cor_texto( cell, FALSE, NULL );
    }
 }
 
-
-
-
+static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
+   g_return_if_fail( ctx != NULL );
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.frequencia.treeview ),
+                                      0, 4, _on_renderizar_cores_frequencia, ctx );
+}
 
 
 //===================================================================================================
-// FUNÇÃO AUXILIAR: Carrega as notas da Memória (GArray) para a Interface Visual (GtkListStore)
+// 4. MÓDULO: AVALIAÇÕES / NOTAS
 //===================================================================================================
 static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean eh_inativo,
-      const gchar *texto_nota, int interface_style ) {
+      const gchar *texto_nota, int tema_ativo ) {
 
-   double nota_val = 10.0; // Valor seguro por padrão (evita acionar a cor de perigo)
+   double nota_val = 10.0;
 
-   // 1. EXTRAÇÃO DO DADO PÚRO (Apenas se o aluno estiver ativo e houver texto válido)
    if ( !eh_inativo && texto_nota && texto_nota[0] != '\0' && g_strcmp0( texto_nota, "-" ) != 0 ) {
-      const gchar *ponteiro_leitura = texto_nota;
+      const gchar *ponteiro_leitura = g_str_has_prefix( texto_nota, "\u2007" ) ? texto_nota + 3 : texto_nota;
 
-      // Avança o ponteiro caso o caractere de alinhamento tabular (Figure Space) esteja presente
-      if ( g_str_has_prefix( ponteiro_leitura, "\u2007" ) ) {
-         ponteiro_leitura += 3;
-      }
-
-      // Buffer local limpo para garantir a leitura correta do float, trocando ',' por '.' em RAM O(1)
       char buffer_float[16];
       g_strlcpy( buffer_float, ponteiro_leitura, sizeof( buffer_float ) );
       g_strdelimit( buffer_float, ",", '.' );
@@ -257,137 +278,80 @@ static void _aplicar_cor_condicional_nota( GtkCellRenderer *cell, gboolean eh_in
       nota_val = g_ascii_strtod( buffer_float, NULL );
    }
 
-   // 2. APLICAÇÃO VISUAL MVC PURA
    GdkRGBA cor;
+   gboolean usar_cor = cor_texto_aluno_inativo( eh_inativo, tema_ativo, &cor ) ||
+                       cor_texto_nota_vermelha( nota_val, tema_ativo, &cor );
 
-   int aluno_inativo = cor_texto_aluno_inativo( eh_inativo, interface_style, &cor );
-   int nota_vermelha = cor_texto_nota_vermelha( nota_val, interface_style, &cor );
-
-   // O nosso wrapper central toma a decisão de negócio (Inativo vs Perigo vs Normal)
-   if ( aluno_inativo || nota_vermelha ) {
-      g_object_set( cell, "foreground-rgba", &cor, "foreground-set", TRUE, NULL );
-
-   } else {
-      // Fallback: Desliga a sobreposição de cor, usando a cor nativa do tema do GTK
-      g_object_set( cell, "foreground-set", FALSE, NULL );
-   }
+   _aplicar_cor_texto( cell, usar_cor, &cor );
 }
-//============================================================================================================
 
-
-
-
-
-//============================================================================================================
 static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
                                         GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
+   int tema_ativo = ctx->cabecalho.foco_estilo;
+
+   GdkRGBA cor;
+   gboolean zebrado = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor );
+   _aplicar_cor_fundo( cell, zebrado, &cor );
 
    gboolean eh_inativo = FALSE;
-   // ATENÇÃO: A flag eh_inativo agora está na coluna 13!
    gtk_tree_model_get( model, iter, 13, &eh_inativo, -1 );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
-   gchar *texto = NULL;
 
-   // Agora lemos o texto até a coluna 12
-   if ( col_idx >= 2 && col_idx <= 12 ) {
-      g_object_get( cell, "text", &texto, NULL );
-   }
-
-   _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->cabecalho.foco_estilo );
-
-   // =======================================================================
-   // LÓGICA DE EDITABILIDADE (ALUNOS INATIVOS E COLUNA CALCULADA)
-   // =======================================================================
-   if ( eh_inativo ) {
-      // Bloqueia a edição de qualquer célula se o aluno estiver inativo
+   // Fonte e Editabilidade
+   if ( col_idx == 0 ) {
+      _aplicar_cor_texto( cell, FALSE, NULL );
       g_object_set( cell, "editable", FALSE, NULL );
-   } else if ( col_idx >= 2 && col_idx < 12 ) {
-      // Restaura a edição para as colunas de notas normais de alunos ativos
-      g_object_set( cell, "editable", TRUE, NULL );
-   } else if ( col_idx == 12 ) {
-      // Trava a edição da coluna 12 (Nota do Período/Calculada)
+   } else if ( col_idx == 1 ) {
+      _aplicar_cor_condicional_nota( cell, eh_inativo, "", tema_ativo );
       g_object_set( cell, "editable", FALSE, NULL );
-   }
-
-   // =======================================================================
-   // LÓGICA DE FONTE (NEGRITO PARA A NOTA DO PERÍODO)
-   // =======================================================================
-   if ( col_idx == 12 ) {
-      // PANGO_WEIGHT_BOLD é nativo do GTK (peso 700)
-      g_object_set( cell, "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
    } else {
-      // Desliga o negrito para as outras colunas não herdarem a formatação
-      g_object_set( cell, "weight-set", FALSE, NULL );
+      gchar *texto = NULL;
+      g_object_get( cell, "text", &texto, NULL );
+      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, tema_ativo );
+      g_free( texto );
+
+      // Média final (12) é negrito e não editável. Notas normais (2 a 11) são editáveis se ativo.
+      g_object_set( cell, "editable", ( !eh_inativo && col_idx < 12 ), NULL );
    }
 
-   g_free( texto );
+   // Negrito para coluna 12 (Média)
+   g_object_set( cell, "weight", PANGO_WEIGHT_BOLD, "weight-set", ( col_idx == 12 ), NULL );
 }
-//----------------------------------------------------------------------------------------------------------------
+
 static void _inicializar_renderizadores_avaliacoes( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
-
-   // =====================================================================
-   // 1. CONECTA RENDERIZADOR DA ABA DE AVALIAÇÕES (Colunas 1 a 11)
-   // =====================================================================
-   GtkTreeView *tree_avaliacoes = GTK_TREE_VIEW( avaliacao->treeview );
-   if ( tree_avaliacoes ) {
-      // O laço agora vai até 12 para cobrir a "Nota do Período"
-      for ( int i = 1; i <= 12; i++ ) {
-         GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_avaliacoes, i );
-         if ( !col ) continue;
-
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
-         if ( renderers ) {
-            GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-            g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
-            gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_notas, ctx, NULL );
-            g_list_free( renderers );
-         }
-      }
-   }
+   g_return_if_fail( ctx != NULL );
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.avaliacao.treeview ),
+                                      0, 12, _on_renderizar_cores_notas, ctx );
 }
-//============================================================================================================
 
 
-
-
-//--------------------------------------------------------------------------------------------------------
+//===================================================================================================
+// 5. MÓDULO: RELATÓRIOS
+//===================================================================================================
 static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
-   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
+   int tema_ativo = ctx->cabecalho.foco_estilo;
 
    gboolean eh_inativo = FALSE;
-   int mascara_pendencias = 0; // Armazena apenas MascaraPendencia (Permissões de edição)
-   int mascara_observacao = 0; // Armazena apenas ObservacaoAluno (Estado semântico visual)
+   int mascara_pendencias = 0, mascara_observacao = 0;
 
-   // Lê as flags separadamente de suas respectivas colunas no ListStore (11, 12 e 13)
-   gtk_tree_model_get( model, iter,
-                       11, &eh_inativo,
-                       12, &mascara_pendencias,
-                       13, &mascara_observacao,
-                       -1 );
-
+   gtk_tree_model_get( model, iter, 11, &eh_inativo, 12, &mascara_pendencias, 13, &mascara_observacao, -1 );
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
-   // Verifica o estado da "chave mestra" de edição
-   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( relatorio->check_pendencias ) );
+   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.relatorio.check_pendencias ) );
 
    gboolean editavel = FALSE;
+   gboolean usar_fundo = FALSE;
    GdkRGBA cor_fundo;
-   gboolean usar_cor_fundo = FALSE;
 
-   // =======================================================================
-   // LÓGICA DE EDIÇÃO E FUNDO DE CÉLULA (Consome apenas mascara_pendencias)
-   // =======================================================================
+   // Lógica de Pendências
    if ( modo_pendencias && !eh_inativo ) {
       gboolean permissao_ativa = FALSE;
-
       switch ( col_idx ) {
       case 2:
          permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_1_PERIODO );
@@ -401,91 +365,52 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
       case 5:
          permissao_ativa = ( mascara_pendencias & MASK_PENDENCIA_4_PERIODO );
          break;
-
       case 8:
          permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_REC_FINAL );
-         break; // Recuperação Final
+         break;
       case 9:
          permissao_ativa = ( mascara_pendencias & MASK_DESTRAVA_CONSELHO );
-         break; // Conselho de Classe
+         break;
       }
 
       if ( permissao_ativa ) {
          editavel = TRUE;
-         if ( cor_fundo_celula_pendente( ctx->cabecalho.foco_estilo, &cor_fundo ) ) {
-            usar_cor_fundo = TRUE;
-         }
+         usar_fundo = cor_fundo_celula_pendente( tema_ativo, &cor_fundo );
       }
    }
 
-   // Aplica as propriedades de edição
-   if ( editavel ) {
-      g_object_set( cell, "editable", TRUE, NULL );
-      if ( usar_cor_fundo ) {
-         g_object_set( cell, "cell-background-rgba", &cor_fundo, "cell-background-set", TRUE, NULL );
-      }
-   } else {
-      g_object_set( cell, "editable", FALSE, "cell-background-set", FALSE, NULL );
+   // Zebrado como fallback do fundo
+   if ( !usar_fundo ) {
+      usar_fundo = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor_fundo );
    }
 
-   // =======================================================================
-   // LÓGICA DO TEXTO E COR DA FONTE
-   // =======================================================================
-   gchar *texto = NULL;
+   _aplicar_cor_fundo( cell, usar_fundo, &cor_fundo );
+   g_object_set( cell, "editable", editavel, NULL );
 
-   // Lê o texto apenas se for coluna de nota ou a coluna 10 (Observação)
-   if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 10 ) ) {
-      g_object_get( cell, "text", &texto, NULL );
-   }
-
-   // 1. TRATAMENTO ESPECÍFICO PARA A COLUNA DE OBSERVAÇÃO (ÍNDICE 10)
+   // Lógica de Fonte
    if ( col_idx == 10 ) {
       GdkRGBA cor_texto;
-
-      // Consome exclusivamente a mascara_observacao (coluna 13) para tratar visual/cores
-      int tem_cor = cor_texto_observacao( eh_inativo, ctx->cabecalho.foco_estilo, mascara_observacao, &cor_texto );
-
-      if ( tem_cor ) {
-         // Aplica a cor e já aproveita para colocar a situação em NEGRITO
+      if ( cor_texto_observacao( eh_inativo, tema_ativo, mascara_observacao, &cor_texto ) ) {
          g_object_set( cell, "foreground-rgba", &cor_texto, "foreground-set", TRUE,
                        "weight", PANGO_WEIGHT_BOLD, "weight-set", TRUE, NULL );
       } else {
-         // "Cursando" ou inativo usa a cor nativa GTK
          g_object_set( cell, "foreground-set", FALSE, "weight-set", FALSE, NULL );
       }
-   }
-   // 2. TRATAMENTO PARA AS COLUNAS DE NOTAS (Índices 2 a 9)
-   else if ( col_idx >= 2 && col_idx <= 9 ) {
-      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, ctx->cabecalho.foco_estilo );
-      // Desliga o negrito para não vazar a formatação da coluna 10
+   } else if ( col_idx >= 1 && col_idx <= 9 ) {
+      gchar *texto = NULL;
+      if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
+         g_object_get( cell, "text", &texto, NULL );
+      }
+      _aplicar_cor_condicional_nota( cell, eh_inativo, texto, tema_ativo );
       g_object_set( cell, "weight-set", FALSE, NULL );
+      g_free( texto );
    }
-
-   g_free( texto );
 }
 
-//------------------------------------------------------------------------------------------------------------
 static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
-   g_return_if_fail( ctx );
-   InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
-
-   GtkTreeView *tree_relatorio = GTK_TREE_VIEW( relatorio->treeview );
-   if ( tree_relatorio ) {
-      // Começa da coluna 1 (Nome) até a 10 (Observação) - Index 0 é Oculto/ID
-      for ( int i = 1; i <= 10; i++ ) {
-         GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_relatorio, i );
-         if ( !col ) continue;
-
-         GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
-         if ( renderers ) {
-            GtkCellRenderer *renderer = GTK_CELL_RENDERER( renderers->data );
-            // Injeta o índice da coluna diretamente no objeto do Renderer
-            g_object_set_data( G_OBJECT( renderer ), "col_model_idx", GINT_TO_POINTER( i ) );
-            gtk_tree_view_column_set_cell_data_func( col, renderer, _on_renderizar_cores_relatorio, ctx, NULL );
-            g_list_free( renderers );
-         }
-      }
-   }
+   g_return_if_fail( ctx != NULL );
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.relatorio.treeview ),
+                                      0, 10, _on_renderizar_cores_relatorio, ctx );
 }
 //============================================================================================================
 

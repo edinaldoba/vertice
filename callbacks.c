@@ -477,11 +477,8 @@ static void _treeview_adicionar_ou_modificar_registro_diario( AppContext *ctx ) 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
-   InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    _treeview_adicionar_ou_modificar_registro_diario( ctx );
-
-   gtk_widget_grab_focus( conteudo->entry_descricao );
 }
 
 void on_entry_registrar_aula_activate( GtkWidget *widget, gpointer user_data ) {

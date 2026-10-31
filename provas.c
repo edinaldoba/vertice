@@ -566,8 +566,13 @@ static void executar_gerador_c_de_questoes_nativamente( const char *pasta_tema )
    }
 }
 //--------------------------------------------------------------------------------------------------------
-void prova( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho, const GArray *fichas,
-            const CaminhoDiretorio *caminho, const CalendarioData *data, const ItemTextoCurto *G ) {
+void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
+
+   const InterfaceDados *dados = &snap->dados;
+   const InterfaceCabecalho *cabecalho = &snap->cabecalho;
+   const GArray *fichas = snap->fichas;
+   const CaminhoDiretorio *caminho = &snap->caminho;
+   const CalendarioData *data = &snap->data;
 
    char titulo_prova[512];
    gerar_tex_lista_frequencia( "./dados/temporarios/frequencia.tex", titulo_prova, fichas, dados, data );

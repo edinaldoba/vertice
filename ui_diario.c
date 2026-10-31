@@ -22,8 +22,6 @@ static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, co
 // Callback executada periodicamente em segundo plano pelo loop principal da GLib
 static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-
-   // Proteção contra ponteiros inválidos
    if ( !ctx ) return G_SOURCE_REMOVE;
 
    // Se nada foi alterado, apenas mantém o timer ativo sem gastar I/O
@@ -35,7 +33,9 @@ static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
    gboolean salvou_algo = salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
 
    // 2. Grava as avaliações se houver dados e caminho válido
-   salvou_algo = salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+   if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
+      salvou_algo = salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+   }
 
    salvou_algo = salvar_fichas( ctx, TRUE );
 
@@ -365,7 +365,40 @@ static void _reconstruir_ui_conteudos_da_ram( AppContext *ctx ) {
    g_object_unref( store );
 }
 
+static gboolean _validar_campos_conteudo_diario( InterfacePainel *painel, const InterfaceConteudo *conteudo,
+      const char *tema, const char *descricao ) {
+   g_return_val_if_fail( painel && tema && descricao, FALSE );
 
+   gboolean tema_vazio = ( tema[0] == '\0' );
+   gboolean desc_vazia = ( descricao[0] == '\0' );
+
+   // 1. Caminho feliz: Tudo preenchido, passa direto
+   if ( !tema_vazio && !desc_vazia ) {
+      gtk_widget_grab_focus( conteudo->entry_descricao );
+      return TRUE;
+   }
+
+   // 2. Configurações unificadas de bloqueio
+   painel->format_titulo = meu_gerador_variadico( "⚠ Validação de Conteúdo" );
+
+   // Joga o foco inteligentemente para o primeiro campo que estiver faltando
+   gtk_widget_grab_focus( tema_vazio ? conteudo->entry_tema : conteudo->entry_descricao );
+
+   // 3. Resolução específica da mensagem
+   if ( tema_vazio && desc_vazia ) {
+      painel->format_subtitulo = meu_gerador_variadico( "O registro da aula não pode ficar totalmente em branco." );
+      painel->format_instrucao = meu_gerador_variadico( "Por favor, preencha tanto o <b>Tema</b> quanto a <b>Descrição</b> para prosseguir." );
+   } else if ( tema_vazio ) {
+      painel->format_subtitulo = meu_gerador_variadico( "Faltou informar o <b>Tema</b> da aula." );
+      painel->format_instrucao = meu_gerador_variadico( "Preencha o assunto principal (ex: Função Quadrática) antes de salvar." );
+   } else {
+      painel->format_subtitulo = meu_gerador_variadico( "A <b>Descrição</b> do conteúdo está vazia." );
+      painel->format_instrucao = meu_gerador_variadico( "Forneça um breve detalhamento das atividades que foram abordadas." );
+   }
+
+   criar_mensagem_painel( AVISO, painel );
+   return FALSE;
+}
 
 void registrar_aula( AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->diarios );
@@ -374,7 +407,9 @@ void registrar_aula( AppContext *ctx ) {
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
    const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
 
-   if ( g_strcmp0( tema, "" ) == 0 && g_strcmp0( descricao, "" ) == 0 ) return;
+   if ( !_validar_campos_conteudo_diario( &ctx->painel, conteudo, tema, descricao ) ) {
+      return; // Interrompe o salvamento imediatamente
+   }
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
    GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
@@ -462,8 +497,11 @@ void modificar_registro_aula( AppContext *ctx ) {
    RegistroDiario *reg = &g_array_index( ctx->diarios, RegistroDiario, idx );
 
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
-   const gchar *desc = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
-   if ( !tema[0] && !desc[0] ) return;
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
+
+   if ( !_validar_campos_conteudo_diario( &ctx->painel, conteudo, tema, descricao ) ) {
+      return; // Interrompe o salvamento imediatamente
+   }
 
    int temp_qtd = 0;
    const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->qtd_aulas ) );
@@ -474,7 +512,7 @@ void modificar_registro_aula( AppContext *ctx ) {
                        0, gtk_entry_get_text( GTK_ENTRY( conteudo->entry_data ) ),
                        1, temp_qtd,
                        2, tema,
-                       3, desc,
+                       3, descricao,
                        4, gtk_combo_box_get_active( GTK_COMBO_BOX( conteudo->tipo_registro ) ),
                        -1 );
 

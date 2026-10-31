@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Vértice
+Comment=Sistema de Diários, Frequência e Provas SEDUC-MA
+Exec=vertice
+Icon=vertice
+Categories=Education;Math;
+Terminal=false
+StartupNotify=true

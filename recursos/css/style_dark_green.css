@@ -469,7 +469,7 @@ calendar:selected {
 
 /* --- Tabelas (TreeView) --- */
 treeview {
-    background-color: #222e38;
+    background-color: #1e2932;
     color: #ffffff;
     font-size: 20px;
     border-color: #008200;
@@ -478,7 +478,7 @@ treeview {
 }
 
 treeview:selected {
-    background-color: #334654;
+    background-color: #283741;
 }
 
 treeview header label {

@@ -71,7 +71,7 @@ LDFLAGS = $(COMMON_LDFLAGS) $(SPECIFIC_LDFLAGS)
 # =====================================================================
 # 5. REGRAS DE COMPILAÇÃO E LINKAGEM
 # =====================================================================
-.PHONY: all clean run debug release
+.PHONY: all clean run debug release install uninstall
 
 all: $(APP_NAME)
 
@@ -106,3 +106,33 @@ clean:
 	@echo "🧹 Limpando arquivos de objeto e binários antigos..."
 	rm -f $(OBJECTS) $(APP_NAME) $(RESOURCES_C)
 	@echo "✨ Limpeza concluída."
+
+# =====================================================================
+# 7. INSTALAÇÃO E INTEGRAÇÃO COM O DESKTOP (DEBIAN 12)
+# =====================================================================
+PREFIX ?= /usr/local
+BIN_DIR = $(PREFIX)/bin
+APP_DIR = $(PREFIX)/share/applications
+ICON_DIR = $(PREFIX)/share/icons/hicolor/scalable/apps
+
+install: release
+	@echo "📦 Instalando o Vértice no sistema (requer sudo)..."
+	@install -d $(BIN_DIR)
+	@install -d $(APP_DIR)
+	@install -d $(ICON_DIR)
+	@install -m 755 $(APP_NAME) $(BIN_DIR)/vertice
+	@install -m 644 vertice.desktop $(APP_DIR)/
+	@install -m 644 recursos/imagens/vertice.png $(ICON_DIR)/vertice.png
+	@echo "🔄 Atualizando o banco de dados de atalhos e ícones..."
+	@update-desktop-database $(APP_DIR) || true
+	@gtk-update-icon-cache -f -t $(PREFIX)/share/icons/hicolor || true
+	@echo "✅ Instalação concluída! O Vértice está disponível no menu Educativo."
+
+uninstall:
+	@echo "🗑️ Removendo o Vértice do sistema (requer sudo)..."
+	@rm -f $(BIN_DIR)/vertice
+	@rm -f $(APP_DIR)/vertice.desktop
+	@rm -f $(ICON_DIR)/vertice.png
+	@update-desktop-database $(APP_DIR) || true
+	@gtk-update-icon-cache -f -t $(PREFIX)/share/icons/hicolor || true
+	@echo "✨ Remoção concluída."

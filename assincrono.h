@@ -3,6 +3,7 @@
 
 #include "interface.h"
 
+
 void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) );
 void* thread_gerar_prova_background( void *data );
 

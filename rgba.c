@@ -16,14 +16,17 @@
  * Define o significado da cor independente de onde ela é usada.
  */
 typedef enum {
-   COR_NATIVA = 0,     // Retorna 0 (Usa a cor padrão do GTK)
-   COR_INATIVO,        // Cinzas/Opacos para itens inativos ou sem status
-   COR_PERIGO,         // Vermelhos para Reprovação, Falta, Feriado
-   COR_ALERTA,         // Amarelos para Aulas Extras, Dispensa, Fora de Sala
-   COR_INFORMACAO,     // Azuis/Cianos para Dias Pedagógicos
-   COR_DESTAQUE,       // Roxos/Púrpuras para Atividades Domiciliares
-   COR_SUCESSO,        // Verdes para Faltas Justificadas
-   COR_FUNDO_PENDENTE  // Tons pastéis/mutados para fundo de células editáveis
+   COR_NATIVA = 0,      // Retorna 0 (Usa a cor padrão do GTK)
+   COR_INATIVO,         // Cinzas/Opacos para itens inativos ou sem status
+   COR_PERIGO,          // Vermelhos para Reprovação, Falta, Feriado
+   COR_ALERTA,          // Amarelos para Aulas Extras, Dispensa, Fora de Sala
+   COR_INFORMACAO,      // Azuis/Cianos para Dias Pedagógicos
+   COR_DESTAQUE,        // Roxos/Púrpuras para Atividades Domiciliares
+   COR_SUCESSO,         // Verdes para Faltas Justificadas
+   COR_FUNDO_PENDENTE,  // Tons pastéis/mutados para fundo de células editáveis
+   COR_FUNDO_LINHA_IMPAR, // Cor base das linhas ímpares do padrão zebrado
+   COR_FUNDO_LINHA_PAR,    // Cor de contraste (levemente mais escura/clara) para linhas pares
+   COR_FUNDO_SELECAO
 } CorSemantica;
 
 /**
@@ -40,15 +43,15 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
          *cor_out = ( GdkRGBA ) {
             0.40, 0.45, 0.55, 1.0
-         }; // Deep Blue
+         };
       } else if ( tema_ativo == STYLE_LIGHT ) {
          *cor_out = ( GdkRGBA ) {
             0.60, 0.60, 0.60, 1.0
-         }; // Light
+         };
       } else {
          *cor_out = ( GdkRGBA ) {
             0.45, 0.50, 0.45, 1.0
-         }; // Dark Green (Padrão)
+         };
       }
       break;
 
@@ -68,19 +71,19 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
       }
       break;
 
-   case COR_ALERTA: // Amarelos / Marrons para o Tema Light
+   case COR_ALERTA: // Amarelos / Marrons
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
          *cor_out = ( GdkRGBA ) {
             0.95, 0.79, 0.16, 1.0
-         }; // Deep Blue
+         };
       } else if ( tema_ativo == STYLE_LIGHT ) {
          *cor_out = ( GdkRGBA ) {
             0.70, 0.40, 0.05, 1.0
-         }; // Light
+         };
       } else {
          *cor_out = ( GdkRGBA ) {
             1.00, 0.84, 0.31, 1.0
-         }; // Dark Green (Padrão)
+         };
       }
       break;
 
@@ -132,7 +135,7 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
       }
       break;
 
-   case COR_FUNDO_PENDENTE: // Fundos pastéis/mutados (Backgrounds)
+   case COR_FUNDO_PENDENTE: // Fundos pastéis para edição
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
          *cor_out = ( GdkRGBA ) {
             0.18, 0.25, 0.38, 1.0
@@ -148,6 +151,56 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
       }
       break;
 
+   case COR_FUNDO_LINHA_IMPAR: // Fundo base do padrão zebrado
+      if ( tema_ativo == STYLE_DEEP_BLUE ) {
+         // Azul Marinho Escuro Harmonizado (Substitui o cinza/verde anterior)
+         *cor_out = ( GdkRGBA ) {
+            0.08, 0.14, 0.22, 1.0
+         };
+      } else if ( tema_ativo == STYLE_LIGHT ) {
+         *cor_out = ( GdkRGBA ) {
+            0.95, 0.95, 0.95, 1.0
+         }; // Cinza clarinho suave
+      } else {
+         *cor_out = ( GdkRGBA ) {
+            0.12, 0.16, 0.12, 1.0
+         }; // Verde escuro base
+      }
+      break;
+
+   case COR_FUNDO_LINHA_PAR: // Contraste do padrão zebrado
+      if ( tema_ativo == STYLE_DEEP_BLUE ) {
+         // Azul Marinho Levemente Mais Claro para o Zebrado Suave
+         *cor_out = ( GdkRGBA ) {
+            0.05, 0.09, 0.16, 1.0
+         };
+      } else if ( tema_ativo == STYLE_LIGHT ) {
+         *cor_out = ( GdkRGBA ) {
+            1.00, 1.00, 1.00, 1.0
+         }; // Branco absoluto
+      } else {
+         *cor_out = ( GdkRGBA ) {
+            0.09, 0.12, 0.09, 1.0
+         }; // Verde ainda mais escuro
+      }
+      break;
+
+   case COR_FUNDO_SELECAO: // Dentro do switch de obter_cor_semantica():
+      if ( tema_ativo == STYLE_DEEP_BLUE ) {
+         *cor_out = ( GdkRGBA ) {
+            0.20, 0.27, 0.33, 1.0
+         }; // #334654 (O seu CSS original)
+      } else if ( tema_ativo == STYLE_LIGHT ) {
+         *cor_out = ( GdkRGBA ) {
+            0.85, 0.88, 0.95, 1.0
+         }; // Azul acinzentado suave
+      } else {
+         *cor_out = ( GdkRGBA ) {
+            0.15, 0.22, 0.15, 1.0
+         }; // Verde escuro destacado
+      }
+      break;
+
    default:
       return 0;
    }
@@ -160,6 +213,18 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
 
 int cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out ) {
    return obter_cor_semantica( COR_FUNDO_PENDENTE, tema_ativo, cor_out );
+}
+
+int cor_fundo_linha_zebrada( int row_idx, int tema_ativo, GdkRGBA *cor_out ) {
+   if ( row_idx % 2 == 0 ) {
+      return obter_cor_semantica( COR_FUNDO_LINHA_PAR, tema_ativo, cor_out );
+   } else {
+      return obter_cor_semantica( COR_FUNDO_LINHA_IMPAR, tema_ativo, cor_out );
+   }
+}
+
+int cor_fundo_linha_selecionada( int tema_ativo, GdkRGBA *cor_out ) {
+   return obter_cor_semantica( COR_FUNDO_SELECAO, tema_ativo, cor_out );
 }
 
 gboolean cor_texto_observacao( gboolean eh_inativo, int tema_ativo, int pendencias_e_status, GdkRGBA *cor_out ) {
