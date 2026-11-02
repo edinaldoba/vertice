@@ -23,7 +23,6 @@ $(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 C_SOURCES = main.c layout.c signals.c callbacks.c ui_diario.c auxiliar.c interface.c dinamica.c \
             assincrono.c relatorios.c imagens.c pds.c provas.c omr.c gas.c seduc-ma.c latex.c \
             mensagens.c acervo.c basicas.c rgba.c matriz.c glib_gio.c imgcore.c \
-            acervo/estatistica.c \
             $(RESOURCES_C)
 
 # Consolidação dos objetos
@@ -122,7 +121,7 @@ install: release
 	@install -d $(ICON_DIR)
 	@install -m 755 $(APP_NAME) $(BIN_DIR)/vertice
 	@install -m 644 vertice.desktop $(APP_DIR)/
-	@install -m 644 recursos/imagens/vertice.png $(ICON_DIR)/vertice.png
+	@install -m 644 recursos/imagens/vertice.svg $(ICON_DIR)/vertice.svg
 	@echo "🔄 Atualizando o banco de dados de atalhos e ícones..."
 	@update-desktop-database $(APP_DIR) || true
 	@gtk-update-icon-cache -f -t $(PREFIX)/share/icons/hicolor || true
@@ -132,7 +131,7 @@ uninstall:
 	@echo "🗑️ Removendo o Vértice do sistema (requer sudo)..."
 	@rm -f $(BIN_DIR)/vertice
 	@rm -f $(APP_DIR)/vertice.desktop
-	@rm -f $(ICON_DIR)/vertice.png
+	@rm -f $(ICON_DIR)/vertice.svg
 	@update-desktop-database $(APP_DIR) || true
 	@gtk-update-icon-cache -f -t $(PREFIX)/share/icons/hicolor || true
 	@echo "✨ Remoção concluída."

@@ -59,7 +59,7 @@ static void atualizar_listbox_subtemas_latex( InterfaceLatex *ui_latex, Interfac
       gtk_style_context_add_class( gtk_widget_get_style_context( indicador_label ), "indicador-item-subtema" );
 
       // B. O RÓTULO DO SUBTEMA
-      GtkWidget *texto_label = gtk_label_new( ui_prova->subtemas[i].str );
+      GtkWidget *texto_label = gtk_label_new( ui_prova->subtemas[i] );
 
       // Monta os elementos internos dentro da linha_box
       gtk_box_pack_start( GTK_BOX( linha_box ), indicador_label, FALSE, FALSE, 0 );
@@ -128,16 +128,16 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
 
    // 2. Injeta os novos CheckButtons baseados no diretório carregado
    for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
-      GtkWidget *check = gtk_check_button_new_with_label( ui_prova->subtemas[i].str );
+      GtkWidget *check = gtk_check_button_new_with_label( ui_prova->subtemas[i] );
 
       // O nome do widget agora fica limpo, apenas o nome do subtema
-      gtk_widget_set_name( check, ui_prova->subtemas[i].str );
+      gtk_widget_set_name( check, ui_prova->subtemas[i] );
 
       // A MÁGICA AQUI: Penduramos o índice 'i' invisivelmente no botão
       g_object_set_data( G_OBJECT( check ), "id_widget", GINT_TO_POINTER( i ) );
 
       char checa_id[128];
-      snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, ui_prova->subtemas[i].str );
+      snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, ui_prova->subtemas[i] );
 
       // Procura no FlowBox se esse cara já está selecionado
       GtkWidget *box_encontrado = buscar_widget_por_nome_interno( ui_prova->flowbox_selecionados, checa_id );
@@ -260,7 +260,7 @@ static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const Interfac
 
    // 1. Limpeza inicial completa das NTI (10) posições do vetor de dados
    for ( int i = 0; i < NTI; i++ ) {
-      dados->temas_prova_sequencia[i].str[0] = '\0';
+      g_clear_pointer( &dados->temas_prova_sequencia[i], g_free );
       dados->qtd_questoes[i] = 0;
    }
 
@@ -280,8 +280,7 @@ static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const Interfac
 
          if ( tag_id && label_qtd ) {
 
-            size_t tam = sizeof( dados->temas_prova_sequencia[idx].str );
-            snprintf( dados->temas_prova_sequencia[idx].str, tam, "%s", tag_id );
+            dados->temas_prova_sequencia[idx] = g_strdup( tag_id );
 
             dados->qtd_questoes[idx] = atoi( gtk_label_get_text( GTK_LABEL( label_qtd ) ) );
 
@@ -296,7 +295,7 @@ static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const Interfac
 
    // puts( "\n" );
    // for ( int i = 0; i < NTI; i++ ) {
-   //    printf( "%s -> %d\n", dados->temas_prova_sequencia[i].str, dados->qtd_questoes[i] );
+   //    printf( "%s -> %d\n", dados->temas_prova_sequencia[i], dados->qtd_questoes[i] );
    // }
 }
 
@@ -484,7 +483,8 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
 
       if ( box_encontrado == NULL ) {
 
-         snprintf( caminho->questoes_tex, sizeof( caminho->questoes_tex ), "%s/%s", caminho->banco_questoes, tag_id );
+         g_free(caminho->questoes_tex);
+         caminho->questoes_tex = g_build_filename( caminho->banco_questoes, tag_id, NULL );
          int qtd_tex = quantidade_arquivos_por_extensao( caminho->questoes_tex, ".tex" );
 
          if ( qtd_tex == 0 ) {
@@ -591,8 +591,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
       }
 
       // 1. Acha o índice do tema_salvo no Combo Box e ativa-o
-      ItemCombo chave;
-      snprintf( chave.str, sizeof( chave.str ), "%s", tema_salvo );
+      g_autofree gchar *chave = g_strdup( tema_salvo );
       int t = buscar_indice_bsearch( &chave, ui_prova->temas, ui_prova->limite_temas, sizeof( chave ), comparar_item_combo );
 
       gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_prova.combo_tema ), t );
@@ -678,50 +677,57 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
 // Função auxiliar interna para verificar se o arquivo oculto é lixo do sistema
 static int eh_metadado_valido( const char *nome ) {
    // Ignora o diretório atual (.) e pai (..)
-   if ( strcmp( nome, "." ) == 0 || strcmp( nome, ".." ) == 0 ) return 0;
+   if ( g_strcmp0( nome, "." ) == 0 || g_strcmp0( nome, ".." ) == 0 ) return 0;
 
    // Ignora pastas ou arquivos comuns de sistemas/ferramentas
-   if ( strcmp( nome, ".git" ) == 0 ||
-         strcmp( nome, ".vscode" ) == 0 ||
-         strcmp( nome, ".DS_Store" ) == 0 ) return 0;
+   if ( g_strcmp0( nome, ".git" ) == 0 ||
+         g_strcmp0( nome, ".vscode" ) == 0 ||
+         g_strcmp0( nome, ".DS_Store" ) == 0 ) return 0;
 
    return 1;
 }
 //==================================================================================================
-static void preencher_painel_responsavel( const char *diretorio, GtkWidget *box, const char *prefixo, char *responsavel ) {
-   // 1. Defesa de ponteiros nulos
-   if ( !diretorio || !box || !responsavel ) return;
+static gchar *preencher_painel_responsavel( const char *diretorio, GtkWidget *box, const char *prefixo ) {
+   // 1. Defesas rigorosas com macros GLib
+   g_return_val_if_fail( diretorio, NULL );
+   g_return_val_if_fail( GTK_IS_BOX( box ), NULL );
+   g_return_val_if_fail( prefixo, NULL );
 
-   DIR *dir = opendir( diretorio );
+   // 2. Abertura do diretório no padrão GLib
+   GDir *dir = g_dir_open( diretorio, 0, NULL );
    if ( !dir ) {
-      fprintf( stderr, "ERRO: Não foi possível abrir o diretório do professor: %s\n", diretorio );
-      return;
+      g_printerr( "ERRO: Não foi possível abrir o diretório do responsável: %s\n", diretorio );
+      return NULL;
    }
 
-   struct dirent *dp;
-   gboolean encontrado = FALSE;
+   const gchar *nome_arquivo;
+   gchar *responsavel_extraido = NULL;
 
-   while ( ( dp = readdir( dir ) ) != NULL ) {
-      if ( dp->d_name[0] == '.' && eh_metadado_valido( dp->d_name ) ) {
+   // 3. Iteração segura
+   while ( ( nome_arquivo = g_dir_read_name( dir ) ) != NULL ) {
+      // Identifica o arquivo de metadados oculto (iniciado por '.')
+      if ( nome_arquivo[0] == '.' && eh_metadado_valido( nome_arquivo ) ) {
 
-         int len = calcular_len_limpo( &dp->d_name[1], 20 );
-         snprintf( responsavel, 64, "%.*s", len, &dp->d_name[1] );
+         // Aloca a string ignorando o caractere '.' inicial (índice 1 em diante)
+         responsavel_extraido = g_strdup( nome_arquivo + 1 );
 
-         encontrado = TRUE;
+         // Limita/limpa o tamanho com a sua função customizada
+         int len = calcular_len_limpo( responsavel_extraido, 20 );
+         responsavel_extraido[len] = '\0';
+
          break;
       }
    }
-   closedir( dir );
+   g_dir_close( dir );
 
-   // Fallback caso o arquivo de metadados não exista ou suma
-   if ( !encontrado ) {
-      g_strlcpy( responsavel, "Não Identificado", 32 );
-   }
+   // 4. Fallback: Decide qual string exibir
+   gchar *nome_exibicao = g_strdup( responsavel_extraido ? responsavel_extraido : "Não Identificado" );
 
+   // 5. Atualização da Interface
    limpar_container( box );
 
    GtkWidget *label_prefixo = gtk_label_new( prefixo );
-   GtkWidget *label_reponsavel = gtk_label_new( responsavel );
+   GtkWidget *label_reponsavel = gtk_label_new( nome_exibicao );
 
    gtk_style_context_add_class( gtk_widget_get_style_context( label_prefixo ), "cabecalho" );
 
@@ -730,19 +736,23 @@ static void preencher_painel_responsavel( const char *diretorio, GtkWidget *box,
 
    gtk_widget_show_all( box );
 
+   // 6. Higiene de memória: o GTK já copiou a string internamente para o label
+   g_free( responsavel_extraido );
+
+   return nome_exibicao;
 }
 //======================================================================================================================//
 /**
  * @brief Lê o metadado do "professor" no diretório e atualiza o box visual correspondente.
  */
-void professor_da_disciplina( const char *diretorio, GtkWidget *box_professor, char *professor ) {
-   preencher_painel_responsavel( diretorio, box_professor, "Prof. ", professor );
+gchar *professor_da_disciplina( const char *diretorio, GtkWidget *box_professor ) {
+   return preencher_painel_responsavel( diretorio, box_professor, "Prof. " );
 }
 //======================================================================================================================//
 /**
  * @brief Lê o metadado do "gestor" no diretório e atualiza o box visual correspondente.
  */
-void gestor_da_escola( const char *diretorio, GtkWidget *box_gestor, char *gestor ) {
-   preencher_painel_responsavel( diretorio, box_gestor, "Gest. ", gestor );
+gchar *gestor_da_escola( const char *diretorio, GtkWidget *box_gestor ) {
+   return preencher_painel_responsavel( diretorio, box_gestor, "Gest. " );
 }
 //======================================================================================================================//

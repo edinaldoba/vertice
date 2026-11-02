@@ -146,46 +146,44 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
          };
       } else {
          *cor_out = ( GdkRGBA ) {
-            0.20, 0.30, 0.20, 1.0
+            0.18, 0.28, 0.18, 1.0
          };
       }
       break;
 
    case COR_FUNDO_LINHA_IMPAR: // Fundo base do padrão zebrado
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
-         // Azul Marinho Escuro Harmonizado (Substitui o cinza/verde anterior)
          *cor_out = ( GdkRGBA ) {
-            0.08, 0.14, 0.22, 1.0
+            0.05, 0.14, 0.20, 1.0
          };
       } else if ( tema_ativo == STYLE_LIGHT ) {
          *cor_out = ( GdkRGBA ) {
-            0.95, 0.95, 0.95, 1.0
-         }; // Cinza clarinho suave
+            0.94, 0.94, 0.94, 1.0
+         };
       } else {
          *cor_out = ( GdkRGBA ) {
-            0.12, 0.16, 0.12, 1.0
-         }; // Verde escuro base
+            0.13, 0.16, 0.18, 1.0
+         };
       }
       break;
 
    case COR_FUNDO_LINHA_PAR: // Contraste do padrão zebrado
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
-         // Azul Marinho Levemente Mais Claro para o Zebrado Suave
          *cor_out = ( GdkRGBA ) {
-            0.05, 0.09, 0.16, 1.0
+            0.04, 0.09, 0.13, 1.0
          };
       } else if ( tema_ativo == STYLE_LIGHT ) {
          *cor_out = ( GdkRGBA ) {
             1.00, 1.00, 1.00, 1.0
-         }; // Branco absoluto
+         };
       } else {
          *cor_out = ( GdkRGBA ) {
-            0.09, 0.12, 0.09, 1.0
-         }; // Verde ainda mais escuro
+            0.08, 0.11, 0.12, 1.0
+         };
       }
       break;
 
-   case COR_FUNDO_SELECAO: // Dentro do switch de obter_cor_semantica():
+   case COR_FUNDO_SELECAO: // Não usado por enquanto
       if ( tema_ativo == STYLE_DEEP_BLUE ) {
          *cor_out = ( GdkRGBA ) {
             0.20, 0.27, 0.33, 1.0

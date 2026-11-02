@@ -145,10 +145,10 @@ typedef struct {
 //=========================================================================================================//
 typedef struct {
    // 1. Textos do Cabeçalho da Prova
-   char ano[64], disciplina[64], escola[64], turma[64], periodo[64], gestor[64], professor[64];
+   gchar *ano, *disciplina, *escola, *turma, *periodo, *gestor, *professor;
 
    // 2. Textos do Estilo Visual da Prova
-   char tema[64], prova_sequencia[64];
+   gchar *tema, *prova_sequencia;
 
    // 3. Configurações Numéricas e Estatísticas da Turma
    int qtd_alunos_ativos, qtd_alunos_total, seq_prova;
@@ -161,9 +161,8 @@ typedef struct {
    // 5. Matriz do Acervo
    int  qtd_questoes[NTI];
    int total_questoes; // Total de questões da prova (padrão: 10 questões)
-   struct {
-      char str[128];
-   } temas_prova_sequencia[NTI];
+
+   gchar **temas_prova_sequencia;
 
    // 6. Flags de Controle
    gboolean expor_dados, validar_ciclos, nao_presencial;
@@ -414,21 +413,23 @@ typedef struct {
 //=========================================================================================================//
 //              E S T R U T U R A    D E    D A D O S   -   D I R E T Ó R I O S                            //
 //=========================================================================================================//
+/**
+ * @brief Estrutura de caminhos de diretório do Vértice.
+ * Utiliza ponteiros dinâmicos (gchar *) gerenciados via GLib/POSIX.
+ */
 typedef struct {
+   gchar *dados;            // Caminho para a pasta de dados da turma no período
+   gchar *gabaritos;        // Caminho para a pasta de gabaritos da turma no período
+   gchar *relatorios;       // Caminho para a pasta de relatórios do período da turma
+   gchar *externo;          // Caminho para a pasta externa de dados da turma no período
+   gchar *relatorios_final; // Caminho para salvar o relatório final na hierarquia interna
+   gchar *externo_final;    // Caminho para salvar o relatório final na hierarquia externa
+   gchar *externo_escola;   // Caminho para a pasta externa de relatórios para a escola
+   gchar *banco_questoes;   // Caminho para a pasta do Acervo da disciplina
+   gchar *base;             // Caminho base da aplicação/execução
+   gchar *questoes_tex;     // Caminho para os arquivos .tex das questões
 
-   char dados[512],            // Caminho para a pasta de dados da turma em um dado período
-        gabaritos[512],        // Caminho para a pasta de gabaritos da turma em um dado período
-        relatorios[512],       // Caminho para a pasta de relatórios do período da turma
-        externo[512],          // Caminho para a pasta externa de dados da turma em um dado período
-        relatorios_final[512], // Caminho para salvar o relatórios final na hierarquia interna
-        externo_final[512],    // Caminho para salvar o relatorios final na hierarquia externa
-        externo_escola[256],   // Caminho para a pasta externa de relatórios que serão enviados para escola
-        banco_questoes[256],   // Caminho para a pasta do Acervo da disciplina assinalada na interface
-        base[320],
-        questoes_tex[512];
-
-   const char *recursos_prefix;
-
+   const gchar *recursos_prefix; // Ponteiro constante (string literal não alocada)
 } CaminhoDiretorio;
 //=========================================================================================================//
 

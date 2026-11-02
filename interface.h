@@ -33,10 +33,10 @@ typedef struct {
    gulong handler_turma;
    gulong handler_disciplina;
 
-   ItemCombo *anos;
-   ItemCombo *escolas;
-   ItemCombo *turmas;
-   ItemCombo *disciplinas;
+   gchar **anos;
+   gchar **escolas;
+   gchar **turmas;
+   gchar **disciplinas;
 
    int foco_ano;
    int foco_escola;
@@ -201,14 +201,14 @@ typedef struct {
 
 // Contêiner Mestre: Aba PROVAS (Notebook Page)
 typedef struct {
-   ItemCombo *temas;
+   gchar **temas;
    int foco_tema;
    int limite_temas;
 
    GtkWidget *combo_tema;
    gulong handler_combo_tema;
 
-   ItemCombo *subtemas;
+   gchar **subtemas;
    int limite_subtemas;
 
    GtkWidget *listbox_subtemas;
@@ -327,17 +327,17 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
 
 gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
-void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id );
+void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong handler_id );
 gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index );
 
 void atualizar_dados_e_alunos_ativos( AppContext *ctx );
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 
-gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolean forcar_atualizacao );
-gboolean atualizar_escola_interface( AppContext *ctx, const char *nova_escola, gboolean forcar_atualizacao );
-gboolean atualizar_turma_interface( AppContext *ctx, const char *nova_turma, gboolean forcar_atualizacao );
-void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplina, gboolean forcar_atualizacao );
-void atualizar_periodo_interface( AppContext *ctx, const char *novo_periodo );
+gboolean atualizar_ano_interface( AppContext *ctx, const gchar *novo_ano, gboolean forcar_atualizacao );
+gboolean atualizar_escola_interface( AppContext *ctx, const gchar *nova_escola, gboolean forcar_atualizacao );
+gboolean atualizar_turma_interface( AppContext *ctx, const gchar *nova_turma, gboolean forcar_atualizacao );
+void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gboolean forcar_atualizacao );
+void atualizar_periodo_interface( AppContext *ctx, const gchar *novo_periodo );
 
 
 #endif

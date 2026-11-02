@@ -462,7 +462,7 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
    char str[1024], alternativas[5][1024];
 
    while ( fgets( str, sizeof( str ), f_questao ) != NULL ) {
-      if ( strcmp( str, "% QUESTAO\n" ) == 0 ) {
+      if ( g_strcmp0( str, "% QUESTAO\n" ) == 0 ) {
          g_string_append( tex, "\n\n% QUESTAO\n" );
          int col_factor = ( 3 - dados->qtd_colunas ) * ( dados->cabecalho_tipo == 1 );
 
@@ -580,7 +580,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
    // 1. Pré-compilação do Banco de Questões
    for ( int i = 0; i < NTI; i++ ) {
       if ( dados->qtd_questoes[i] > 0 ) {
-         g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i].str, NULL );
+         g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i], NULL );
          executar_gerador_c_de_questoes_nativamente( pasta_tema );
       }
    }
@@ -598,7 +598,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       // Localiza e carrega os arquivos base de questões para o aluno
       for ( int i = 0; i < NTI; i++ ) {
          if ( dados->qtd_questoes[i] != 0 ) {
-            g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i].str, NULL );
+            g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i], NULL );
             int narq = quantidade_arquivos_por_extensao( pasta_tema, ".tex" );
             g_autofree int *N = randperm( narq );
 

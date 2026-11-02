@@ -186,13 +186,12 @@ void atualizar_tema( AppContext *ctx, const char *tema ) {
    InterfaceProva  *ui_prova  = &ctx->ui_prova;
    InterfacePainel  *painel  = &ctx->painel;
 
-   snprintf( dados->tema, sizeof( dados->tema ), "%s", tema );
+   g_clear_pointer( &ui_prova->temas, g_free );
+   dados->tema = g_strdup( tema );
 
-   free( ui_prova->subtemas );
-   ui_prova->subtemas = NULL;
+   g_clear_pointer( &ui_prova->subtemas, g_free );
 
-   char diretorio[512];
-   snprintf( diretorio, sizeof( diretorio ), "%s/%s", caminho->banco_questoes, dados->tema );
+   g_autofree gchar *diretorio = g_build_filename( caminho->banco_questoes, dados->tema, NULL );
 
    ui_prova->limite_subtemas = quantidade_diretorios( diretorio );
 
@@ -201,7 +200,7 @@ void atualizar_tema( AppContext *ctx, const char *tema ) {
 
    } else {
       const char *nome_widget = gtk_widget_get_name( ctx->ui_prova.combo_tema );
-      if ( strcmp( nome_widget, "evento_via_codigo" ) != 0 ) {
+      if ( g_strcmp0( nome_widget, "evento_via_codigo" ) != 0 ) {
 
          // Alimenta os buffers variádicos e delega o estilo para o motor central (AVISO)
          painel->format_titulo    = meu_gerador_variadico( "⚠ Aviso:" );
@@ -373,7 +372,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
    FILE *arquivo = fopen( caminho_arquivo, "wb" );
    if ( !arquivo ) return;
 
-   DadosRascunho rascunho;
+   DadosRascunho rascunho = {0};
 
    rascunho.foco_cor_serie = dados->foco_cor_serie;
    rascunho.foco_decoracao = dados->foco_decoracao;
@@ -388,8 +387,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
    // Copia as matrizes de questões (0 a nti)
    for ( int i = 0; i < NTI; i++ ) {
       rascunho.qtd_questoes[i] = dados->qtd_questoes[i];
-      size_t tam = sizeof( rascunho.temas_prova_sequencia[i].str );
-      snprintf( rascunho.temas_prova_sequencia[i].str, tam, "%s", dados->temas_prova_sequencia[i].str );
+      size_t tam = sizeof( rascunho.temas_prova_sequencia[i] );
+      snprintf( rascunho.temas_prova_sequencia[i].str, tam, "%s", dados->temas_prova_sequencia[i] );
    }
 
    // 3. Despeja no disco o pacote compacto
@@ -471,18 +470,6 @@ gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceD
    // Se passou por todas as validações, o painel fica livre para receber mensagens de sucesso
    return FALSE;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -596,54 +583,35 @@ void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int 
 //=====================================================================================================//
 // FUNÇÃO AUXILIAR: Alimenta qualquer GtkComboBoxText de forma limpa e automática                      //
 //=====================================================================================================//
-void popular_combo_box_text( GtkWidget *combo, const ItemCombo *lista, int foco, int limite, gulong handler_id ) {
-   if ( !combo || !lista ) return;
+void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong handler_id ) {
+   // Validações rigorosas de tipo para evitar crashes (Melhor prática GTK/GLib)
+   g_return_if_fail( GTK_IS_COMBO_BOX_TEXT( combo ) );
+   g_return_if_fail( lista != NULL );
 
-   /* ==========================================================================
-   ⚠️ EVITA LOOP DE FEEDBACK INFINITO (RECURSÃO MÚTUA DE SINAIS)
-   --------------------------------------------------------------------------
-   Por que este teste é vital?
-   Quando alteramos ou populamos os ComboBoxes em cascata via código (ex: mudar
-   a Escola força a limpeza e reinserção das Turmas), o GTK dispara o sinal
-   "changed" AUTOMATICAMENTE, mesmo sem a intervenção física do usuário.
-
-   A Variável 'handler_id':
-   - Se o sinal estiver conectado com sucesso, o GLib retorna um ID > 0.
-   - O valor 0 é reservado exclusivamente para indicar sinal ausente/desconectado.
-
-   A Estratégia:
-   Bloqueamos temporariamente o callback antes da mutação programática dos dados
-   e o desbloqueamos imediatamente após, garantindo que o motor lógico só
-   reaja quando o clique partir genuinamente do usuário no layout.
-   ========================================================================== */
+   // 1. Bloqueia o sinal para evitar disparos acidentais durante a alteração
    if ( handler_id > 0 ) {
       g_signal_handler_block( combo, handler_id );
    }
 
-   // 2. Agora o remove_all pode rodar em silêncio absoluto
+   // 2. O remove_all roda em absoluto silêncio
    gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( combo ) );
 
-   if ( limite > 0 && lista != NULL ) {
-      for ( int i = 0; i < limite; i++ ) {
-         gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( combo ), lista[i].str );
-      }
-      gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
+   // 3. Preenchimento seguro baseado no padrão GStrv (terminado em NULL).
+   // O limite < 0 atua como um "coringa" para ler o array todo, se você quiser.
+   for ( int i = 0; lista[i] != NULL && ( limite < 0 || i < limite ); i++ ) {
+      gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( combo ), lista[i] );
    }
 
-   // 3. Desbloqueia o sinal
+   gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
+
+   // 4. Desbloqueia o sinal
    if ( handler_id > 0 ) {
       g_signal_handler_unblock( combo, handler_id );
    }
 
-   int qtd_caracteres;
-   if ( g_strcmp0( gtk_widget_get_name( combo ), "momento" ) == 0 ) {
-      qtd_caracteres = 10;
-   } else {
-      qtd_caracteres = 22;
-   }
-
+   // 5. Ajuste visual (Truncamento de texto grande)
+   int qtd_caracteres = 22;
    renderizar_combo_box_ellipsize( combo, qtd_caracteres );
-
 }
 //=====================================================================================================//
 
@@ -701,14 +669,14 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
       limpar_container( ui_latex->listbox_subtemas );
       limpar_container( ui_prova->flowbox_selecionados );
       for ( int i = 0; i < NTI; i++ ) {
-         dados->temas_prova_sequencia[i].str[0] = '\0';
+         g_clear_pointer( &dados->temas_prova_sequencia[i], g_free );
          dados->qtd_questoes[i] = 0;
       }
       montagem->cont_add = 0;
    }
 
    for ( int i = 0; i < ui_prova->limite_temas; i++ ) {
-      free( montagem->handlers_check[i] );
+      g_clear_pointer( &montagem->handlers_check[i], g_free );
    }
 
    // 1. Limpa memórias antigas com segurança (Gerenciamento de RAM)
@@ -724,7 +692,8 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
    ui_prova->limite_temas = 0;
 
    // 2. Define o caminho físico do Acervo para a disciplina atual
-   snprintf( caminho->banco_questoes, sizeof( caminho->banco_questoes ), "./acervo/%s", dados->disciplina );
+   g_clear_pointer( &caminho->banco_questoes, g_free );
+   caminho->banco_questoes = g_build_filename( ".", "acervo", dados->disciplina, NULL );
 
    // 3. Verifica a existência física do diretório
    if ( diretorio_existe( caminho->banco_questoes ) ) {
@@ -744,11 +713,11 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
          popular_combo_box_text( ctx->ui_latex.combo_tema_espelho, ui_prova->temas, 0,
                                  ui_prova->limite_temas, ui_latex->handler_combo_tema_espelho );
 
-         atualizar_tema( ctx, ui_prova->temas[0].str );
+         atualizar_tema( ctx, ui_prova->temas[0] );
 
       } else {
          // Pasta existe, mas está vazia
-         snprintf( dados->tema, sizeof( dados->tema ), "%s", "" );
+         g_clear_pointer( &dados->tema, g_free );
          g_printerr( "AVISO: Nenhum \"tema principal\" foi encontrado em %s\n", caminho->banco_questoes );
       }
 
@@ -765,7 +734,7 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 
       // Pasta da disciplina não existe no Acervo
-      snprintf( dados->tema, sizeof( dados->tema ), "%s", "" );
+      g_clear_pointer( &dados->tema, g_free );
       g_printerr( "AVISO: Pasta ausente: %s\n", caminho->banco_questoes );
    }
 }
@@ -848,6 +817,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    InterfaceConteudo   *conteudo = &ctx->ui_diario.conteudo;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
+   dados->temas_prova_sequencia = g_new0( gchar*, NTI );
 
    gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
 
@@ -867,10 +837,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
 
    gtk_combo_box_set_active( GTK_COMBO_BOX( cabecalho->combo_periodo ), cabecalho->foco_periodo );
-   const gchar *texto_periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
-   if ( texto_periodo ) {
-      snprintf( dados->periodo, sizeof( dados->periodo ), "%s", texto_periodo );
-   }
+   dados->periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
 
    dados->foco_cor_serie = COR_SERIE_PRIMEIRO_ANO;
    gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_cor_serie ), dados->foco_cor_serie );
@@ -878,6 +845,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    dados->foco_decoracao = DECORACAO_TRAPEZIOS;
    gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_decoracao ), dados->foco_decoracao );
 
+   dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->ui_prova.combo_seq_prova ) );
 
    // Varre os diretórios de anos letivos
    cabecalho->limite_anos = quantidade_diretorios( "./dados/informados" );
@@ -894,14 +862,14 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
 
 
-gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolean forcar_atualizacao ) {
+gboolean atualizar_ano_interface( AppContext *ctx, const gchar *novo_ano, gboolean forcar_atualizacao ) {
    if ( !ctx || !novo_ano ) return FALSE;
 
    InterfaceDados  *dados   = &( ctx->dados );
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    // 1. Agora SIM! TRUE significa que mudou, FALSE significa que é igual.
-   gboolean ano_mudou = ( strcmp( novo_ano, dados->ano ) != 0 );
+   gboolean ano_mudou = ( g_strcmp0( novo_ano, dados->ano ) != 0 );
 
    // 2. Barreira de Identidade: Se o ano NÃO mudou E NÃO for um disparo forçado (inicialização), aborta!
    if ( !ano_mudou && !forcar_atualizacao ) {
@@ -910,18 +878,14 @@ gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolea
 
    // 3. Se passou da barreira e o ano mudou de fato, atualiza o dado estrutural
    if ( ano_mudou ) {
-      snprintf( dados->ano, sizeof( dados->ano ), "%s", novo_ano );
+      dados->ano = g_strdup( novo_ano );
    }
 
    // 4. Montagem de diretórios e carga lógica (Ocorre na inicialização ou se o ano mudou de verdade)
-   char diretorio[128];
-   snprintf( diretorio, sizeof( diretorio ), "./dados/informados/%s", dados->ano );
+   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, NULL );
 
    // Gerenciamento seguro da RAM
-   if ( cabecalho->escolas ) {
-      free( cabecalho->escolas );
-      cabecalho->escolas = NULL; // Higiene contra ponteiros órfãos
-   }
+   g_clear_pointer( &cabecalho->escolas, g_free );
 
    ctx->cabecalho.limite_escolas = quantidade_diretorios( diretorio );
    if ( ctx->cabecalho.limite_escolas > 0 ) {
@@ -935,36 +899,33 @@ gboolean atualizar_ano_interface( AppContext *ctx, const char *novo_ano, gboolea
 
 
 
-gboolean atualizar_escola_interface( AppContext *ctx, const char *nova_escola, gboolean forcar_atualizacao ) {
+gboolean atualizar_escola_interface( AppContext *ctx, const gchar *nova_escola, gboolean forcar_atualizacao ) {
    if ( !ctx || !nova_escola ) return FALSE;
 
    InterfaceDados     *dados     = &ctx->dados;
    InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
-   gboolean escola_mudou = ( strcmp( nova_escola, dados->escola ) != 0 );
+   gboolean escola_mudou = ( g_strcmp0( nova_escola, dados->escola ) != 0 );
 
    if ( escola_mudou ) {
-      snprintf( dados->escola, sizeof( dados->escola ), "%s", nova_escola );
+      dados->escola = g_strdup( nova_escola );
    } else if ( !forcar_atualizacao ) {
       return FALSE;
    }
 
-   char diretorio[256];
-   snprintf( diretorio, sizeof( diretorio ), "./dados/informados/%s/%s", dados->ano, dados->escola );
+   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, NULL );
 
    ctx->cabecalho.limite_turmas = quantidade_diretorios( diretorio );
 
-   if ( cabecalho->turmas ) {
-      free( cabecalho->turmas );
-      cabecalho->turmas = NULL;
-   }
+   g_clear_pointer( &cabecalho->turmas, g_free );
 
    if ( ctx->cabecalho.limite_turmas > 0 ) {
       cabecalho->turmas = carregar_diretorios_temas( ctx->cabecalho.limite_turmas, diretorio, ordenar_turmas_novo_em );
    }
 
-   gestor_da_escola( diretorio, responsavel->gestor, dados->gestor );
+   g_clear_pointer( &dados->gestor, g_free );
+   dados->gestor = gestor_da_escola( diretorio, responsavel->gestor );
 
    return TRUE;
 }
@@ -973,34 +934,29 @@ gboolean atualizar_escola_interface( AppContext *ctx, const char *nova_escola, g
 
 
 
-gboolean atualizar_turma_interface( AppContext *ctx, const char *nova_turma, gboolean forcar_atualizacao ) {
+gboolean atualizar_turma_interface( AppContext *ctx, const gchar *nova_turma, gboolean forcar_atualizacao ) {
    if ( !ctx || !nova_turma ) return FALSE;
 
    InterfaceDados  *dados   = &( ctx->dados );
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    // Verifica se a turma mudou de fato na memória
-   gboolean turma_mudou = ( strcmp( nova_turma, dados->turma ) != 0 );
+   gboolean turma_mudou = ( g_strcmp0( nova_turma, dados->turma ) != 0 );
 
    if ( turma_mudou ) {
-      snprintf( dados->turma, sizeof( dados->turma ), "%s", nova_turma );
+      dados->turma = g_strdup( nova_turma );
    } else if ( !forcar_atualizacao ) {
       // Se a turma for idêntica e não for um disparo em cadeia/forçado, aborta aqui!
       return FALSE;
    }
 
    // Montagem do caminho físico: ./dados/informados/ANO/ESCOLA/TURMA
-   char diretorio[256];
-   snprintf( diretorio, sizeof( diretorio ), "./dados/informados/%s/%s/%s",
-             dados->ano, dados->escola, dados->turma );
+   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, dados->turma, NULL );
 
    // Varre o diretório para contar e carregar as disciplinas desta turma
    ctx->cabecalho.limite_disciplinas = quantidade_diretorios( diretorio );
 
-   if ( cabecalho->disciplinas ) {
-      free( cabecalho->disciplinas );
-      cabecalho->disciplinas = NULL; // Higiene mental contra ponteiros órfãos
-   }
+   g_clear_pointer( &cabecalho->disciplinas, g_free );
 
    if ( ctx->cabecalho.limite_disciplinas > 0 ) {
       cabecalho->disciplinas = carregar_diretorios_temas( ctx->cabecalho.limite_disciplinas, diretorio, NULL );
@@ -1020,7 +976,7 @@ gboolean atualizar_turma_interface( AppContext *ctx, const char *nova_turma, gbo
 
 
 
-void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplina, gboolean forcar_atualizacao ) {
+void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gboolean forcar_atualizacao ) {
    if ( !ctx || !nova_disciplina ) return;
 
    InterfaceDados     *dados     = &ctx->dados;
@@ -1028,11 +984,11 @@ void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplin
    InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
 
    // Agora SIM! TRUE significa que mudou, FALSE significa que é igual.
-   gboolean disciplina_mudou = ( strcmp( nova_disciplina, dados->disciplina ) != 0 );
+   gboolean disciplina_mudou = ( g_strcmp0( nova_disciplina, dados->disciplina ) != 0 );
 
    // 1. Atualiza o dado estrutural se houver mudança real
    if ( disciplina_mudou ) {
-      snprintf( dados->disciplina, sizeof( dados->disciplina ), "%s", nova_disciplina );
+      dados->disciplina = g_strdup( nova_disciplina );
    }
 
    // 2. Lógica de atualização dos caminhos e alunos da pauta
@@ -1045,12 +1001,10 @@ void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplin
    }
 
    if ( disciplina_mudou ) {
-      char diretorio[512];
+      g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, dados->turma, dados->disciplina, NULL );
 
-      snprintf( diretorio, sizeof( diretorio ), "./dados/informados/%s/%s/%s/%s",
-                dados->ano, dados->escola, dados->turma, dados->disciplina );
-
-      professor_da_disciplina( diretorio, responsavel->professor, dados->professor );
+      g_clear_pointer( &dados->professor, g_free );
+      dados->professor = professor_da_disciplina( diretorio, responsavel->professor );
 
       _atualizar_acervo_questoes_e_temas( ctx );
 
@@ -1059,13 +1013,13 @@ void atualizar_disciplina_interface( AppContext *ctx, const char *nova_disciplin
 
 
 
-void atualizar_periodo_interface( AppContext *ctx, const char *novo_periodo ) {
+void atualizar_periodo_interface( AppContext *ctx, const gchar *novo_periodo ) {
    if ( !ctx || !novo_periodo ) return;
 
    InterfaceDados   *dados   = &( ctx->dados );
    CaminhoDiretorio *caminho = &( ctx->caminho );
 
-   snprintf( dados->periodo, sizeof( dados->periodo ), "%s", novo_periodo );
+   dados->periodo = g_strdup( novo_periodo );
    caminhos_uteis_de_diretorios( dados, caminho );
    atualizar_dados_e_alunos_ativos( ctx );
 }

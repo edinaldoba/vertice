@@ -12,10 +12,14 @@
 #include "interface.h"
 #include "assincrono.h"
 #include "latex.h"
-#include "./acervo/estatistica.h"
+// #include "./acervo/estatistica.h"
 
 // Caso ainda não tenha no seu header
 #include <stdio.h>
+#include <glib.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 
 
@@ -42,7 +46,7 @@ static gboolean executar_gerador_c_nativamente( const char *pasta_tema ) {
          return TRUE; // Compilou e executou o gerador com sucesso
 
       } else {
-         ac_estatistica();
+         // ac_estatistica();
       }
    }
 
@@ -268,10 +272,10 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    ui_prova->subtemas[i].str,
+                                    ui_prova->subtemas[i],
                                     NULL );
 
-      motor_gerador_latex( pasta_tema, ui_prova->subtemas[i].str, dados );
+      motor_gerador_latex( pasta_tema, ui_prova->subtemas[i], dados );
    }
 
    if ( widget == ctx->ui_latex.btn_compilar ) {
@@ -311,7 +315,7 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
       // Criação dinâmica e 100% segura do caminho do subtema, unindo as pastas com '/'
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    ui_prova->subtemas[i].str,
+                                    ui_prova->subtemas[i],
                                     NULL );
 
       // A função retorna TRUE se o arquivo Q.c existia e foi processado

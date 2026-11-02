@@ -23,7 +23,7 @@ int quantidade_diretorios( const char *diretorio );
 
 gboolean diretorio_existe( const char *caminhodir );
 
-ItemCombo *carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( *comparadora )( const void *, const void * ) );
+gchar **carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( *comparadora )( const void *, const void * ) );
 
 void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total_questoes, const char *modo );
 

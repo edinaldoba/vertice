@@ -194,7 +194,7 @@ int comparar_item_texto_curto( const void* a, const void* b ) {
    const ItemTextoCurto *arg1 = ( const ItemTextoCurto * )a;
    const ItemTextoCurto *arg2 = ( const ItemTextoCurto * )b;
 
-   // strcoll substitui o strcmp cuidando dos acentos automaticamente
+   // strcoll substitui o g_strcmp0 cuidando dos acentos automaticamente
    return strcoll( arg1->str, arg2->str );
 }
 
@@ -202,11 +202,14 @@ int comparar_item_texto_curto( const void* a, const void* b ) {
 
 
 int comparar_item_combo( const void* a, const void* b ) {
-   const ItemCombo *arg1 = ( const ItemCombo * )a;
-   const ItemCombo *arg2 = ( const ItemCombo * )b;
+   // O qsort passa ponteiros para os elementos do array.
+   // Como nosso array é de gchar*, 'a' e 'b' são ponteiros duplos (gchar**).
+   const gchar *str1 = *( ( const gchar ** )a );
+   const gchar *str2 = *( ( const gchar ** )b );
 
-   // strcoll substitui o strcmp cuidando dos acentos automaticamente
-   return strcoll( arg1->str, arg2->str );
+   // Substituímos strcoll por g_utf8_collate, que é a versão nativa do GLib
+   // construída especificamente para ordenar strings UTF-8 na interface GTK.
+   return g_utf8_collate( str1, str2 );
 }
 
 
@@ -329,7 +332,7 @@ int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
 
    while ( ( dp = readdir( dir ) ) != NULL ) {
       // 1. Ignora os seletores de diretório pai/atual "." e ".."
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 ) {
+      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 ) {
          continue;
       }
 
@@ -343,7 +346,7 @@ int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
 
             // 4. Verifica a extensão
             const char *str = strrchr( dp->d_name, '.' );
-            if ( str != NULL && strcmp( str, ext ) == 0 ) {
+            if ( str != NULL && g_strcmp0( str, ext ) == 0 ) {
                cont++;
             }
          }
@@ -388,7 +391,7 @@ ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const cha
    while ( ( dp = readdir( dir ) ) != NULL && i < n ) {
 
       // 4. Ignora os seletores de diretório pai/atual "." e ".."
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 ) {
+      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 ) {
          continue;
       }
 
@@ -404,7 +407,7 @@ ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const cha
             // 7. Busca segura pela extensão real (de trás para frente)
             const char *str = strrchr( dp->d_name, '.' );
 
-            if ( str != NULL && strcmp( str, ext ) == 0 ) {
+            if ( str != NULL && g_strcmp0( str, ext ) == 0 ) {
                // Copia o nome do arquivo com segurança para o buffer da estrutura
                snprintf( img[i].str, sizeof( img[i].str ), "%.31s", dp->d_name );
                i++;

@@ -8,6 +8,7 @@
 #include <glib-unix.h>
 #include <locale.h>
 #include <stdlib.h>
+#include <glib.h>
 
 #include "interface.h"
 #include "layout.h"
@@ -144,84 +145,81 @@ int main( int argc, char *argv[] ) {
 
 
 //=====================================================================================================//
-// FUNÇÃO DE INICIALIZAÇÃO                                                                              //
+// FUNÇÃO DE INICIALIZAÇÃO O(1) VIA COMPOUND LITERAL C99
 //=====================================================================================================//
 void inicializacao_app_context( AppContext *ctx ) {
-   if ( !ctx ) return;
+   g_return_if_fail( ctx != NULL );
 
    *ctx = ( AppContext ) {
       .cabecalho = {
-         .anos             = NULL,
-         .escolas          = NULL,
-         .turmas           = NULL,
-         .disciplinas      = NULL,
+         .anos               = NULL,
+         .escolas            = NULL,
+         .turmas             = NULL,
+         .disciplinas        = NULL,
 
-         .handler_ano              = 0,
-         .handler_escola           = 0,
-         .handler_turma            = 0,
-         .handler_disciplina       = 0,
-
-         .foco_estilo    = 0
+         .handler_ano        = 0,
+         .handler_escola     = 0,
+         .handler_turma      = 0,
+         .handler_disciplina = 0,
+         .foco_estilo        = 0
       },
 
-      .caminho = {{""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-         .recursos_prefix = NULL
-      },
+      // 1. O Provedor CSS Global
       .provider = NULL,
 
       // 2. Inicialização do Estado Nativo da RAM (InterfaceDados)
       .dados = {
-         .ano               = "",
-         .disciplina        = "",
-         .escola            = "",
-         .turma             = "",
-         .periodo           = "",
-         .gestor            = "",
-         .professor         = "",
-         .tema              = "",
-         .prova_sequencia  = "Primeira Prova",
+         .ano                = NULL,
+         .disciplina         = NULL,
+         .escola             = NULL,
+         .turma              = NULL,
+         .periodo            = NULL,
+         .gestor             = NULL,
+         .professor          = NULL,
+         .tema               = NULL,
+         .prova_sequencia    = NULL,
 
-         .seq_prova         = 1,
-         .qtd_alunos_ativos = 0,
-         .qtd_alunos_total  = 0,
+         .seq_prova          = 1,
+         .qtd_alunos_ativos  = 0,
+         .qtd_alunos_total   = 0,
 
-         .qtd_paginas       = 1,
-         .qtd_colunas       = 2,
-         .separadores       = 1,
-         .cabecalho_tipo    = 1,
-         .fonte_latex       = 1,
+         .qtd_paginas        = 1,
+         .qtd_colunas        = 2,
+         .separadores        = 1,
+         .cabecalho_tipo     = 1,
+         .fonte_latex        = 1,
 
-         .qtd_questoes      = {0},
-         .total_questoes    = 10,
-         .temas_prova_sequencia = {
-            {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}
-         },
+         .qtd_questoes       = {0}, // Zera todo o array
+         .total_questoes     = 10,
 
-         .expor_dados       = FALSE,
-         .validar_ciclos    = FALSE,
-         .nao_presencial    = FALSE
+         // Inicializa a matriz de strings de forma limpa e compatível com C11
+         .temas_prova_sequencia = NULL,
+
+         .expor_dados        = FALSE,
+         .validar_ciclos     = FALSE,
+         .nao_presencial     = FALSE
       },
 
       .painel = {
-         .format_titulo    = NULL,
-         .format_subtitulo = NULL,
-         .format_instrucao = NULL,
+         .format_titulo      = NULL,
+         .format_subtitulo   = NULL,
+         .format_instrucao   = NULL,
          .tem_proxima_mensagem = FALSE
       },
 
       .ui_diario = {
          .responsavel = {
-            .gestor    = NULL,
-            .professor = NULL
+            .gestor          = NULL,
+            .professor       = NULL
          },
          .frequencia = {
-            .handler_combo_data = 0,
+            .handler_combo_data   = 0,
             .handler_combo_alunos = 0
          },
          .avaliacao = {
             .handler_check_desativar = 0
          },
-         .botoes_travados = FALSE
+         .botoes_travados    = FALSE
       },
 
       .ui_latex = {
@@ -229,109 +227,147 @@ void inicializacao_app_context( AppContext *ctx ) {
       },
 
       .ui_prova = {
-         .subtemas         = NULL,
-         .temas            = NULL,
+         .subtemas           = NULL,
+         .temas              = NULL,
          .handler_combo_tema = 0,
 
-         .listbox_subtemas     = NULL,
+         .listbox_subtemas   = NULL,
          .flowbox_selecionados = NULL,
-         .scrolled_window      = NULL,
+         .scrolled_window    = NULL,
 
          .montagem = {
-            .btn_menos            = NULL,
-            .btn_mais             = NULL,
-            .handlers_check       = NULL,
-            .handler_scrolled     = 0
+            .btn_menos       = NULL,
+            .btn_mais        = NULL,
+            .handlers_check  = NULL,
+            .handler_scrolled = 0
          }
       },
 
-      .diarios   = NULL,
-      .avaliacoes = NULL,
-      .fichas = NULL,
-      .path_save_avaliacao = NULL,
-      .path_save_diario = NULL,
-      .path_save_fichas = NULL
+      // 3. Ponteiros Heap Principais
+      .diarios               = NULL,
+      .avaliacoes            = NULL,
+      .fichas                = NULL,
+
+      .path_save_avaliacao   = NULL,
+      .path_save_diario      = NULL,
+      .path_save_fichas      = NULL,
+
+      // 4. Estrutura de Caminhos Dinâmicos (gchar*)
+      .caminho = {
+         .dados              = NULL,
+         .banco_questoes     = NULL,
+         .questoes_tex       = NULL,
+         .base               = NULL,
+         .externo            = NULL,
+         .externo_escola     = NULL,
+         .externo_final      = NULL,
+         .relatorios_final   = NULL,
+         .gabaritos          = NULL,
+         .relatorios         = NULL,
+         .recursos_prefix    = NULL
+      }
    };
 }
 
 
+// =========================================================================
+// FUNÇÃO AUXILIAR DE HIGIENE
+// =========================================================================
+/**
+ * Libera um array de strings alocado dinamicamente (gchar **) e todas as suas strings internas.
+ * Após a liberação, o ponteiro original é definido como NULL de forma segura.
+ */
+static void _liberar_array_strings( gchar ***array_ptr, int limite ) {
+   if ( !array_ptr || !*array_ptr ) return;
 
+   gchar **array = *array_ptr;
+
+   for ( int i = 0; i < limite; i++ ) {
+      g_clear_pointer( &array[i], g_free );
+   }
+
+   g_clear_pointer( array_ptr, g_free );
+}
+
+// =========================================================================
+// HIGIENE DE MEMÓRIA FINAL
+// =========================================================================
 void limpeza_final( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   // =========================================================================
-   // 🛡️ HIGIENE DE MEMÓRIA FINAL (O que o unref do app não limpa sozinho)
-   // =========================================================================
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
 
    parar_autosave_diario( ctx );
 
-   if ( ctx->diarios != NULL ) {
+   // 1. Textos da InterfaceDados
+   g_clear_pointer( &ctx->dados.ano, g_free );
+   g_clear_pointer( &ctx->dados.disciplina, g_free );
+   g_clear_pointer( &ctx->dados.escola, g_free );
+   g_clear_pointer( &ctx->dados.turma, g_free );
+   g_clear_pointer( &ctx->dados.periodo, g_free );
+   g_clear_pointer( &ctx->dados.gestor, g_free );
+   g_clear_pointer( &ctx->dados.professor, g_free );
+   g_clear_pointer( &ctx->dados.tema, g_free );
+   g_clear_pointer( &ctx->dados.prova_sequencia, g_free );
+
+   _liberar_array_strings( &ctx->dados.temas_prova_sequencia, NTI );
+
+   // 2. Liberação dos Caminhos de Diretórios
+   g_clear_pointer( &ctx->caminho.dados, g_free );
+   g_clear_pointer( &ctx->caminho.gabaritos, g_free );
+   g_clear_pointer( &ctx->caminho.relatorios, g_free );
+   g_clear_pointer( &ctx->caminho.externo, g_free );
+   g_clear_pointer( &ctx->caminho.relatorios_final, g_free );
+   g_clear_pointer( &ctx->caminho.externo_final, g_free );
+   g_clear_pointer( &ctx->caminho.externo_escola, g_free );
+   g_clear_pointer( &ctx->caminho.banco_questoes, g_free );
+   g_clear_pointer( &ctx->caminho.base, g_free );
+   g_clear_pointer( &ctx->caminho.questoes_tex, g_free );
+
+   // 3. Salvamento e Liberação dos GArrays de Dados
+   if ( ctx->diarios ) {
       salvar_diario( ctx, TRUE );
-      g_array_unref( ctx->diarios );
-      ctx->diarios = NULL;
+      g_clear_pointer( &ctx->diarios, g_array_unref ); // NOLINT
    }
+   g_clear_pointer( &ctx->path_save_diario, g_free );
 
-   // DESASSOCIAR PONTEIRO DE TRABALHO
-   if ( ctx->path_save_diario != NULL ) {
-      g_free( ctx->path_save_diario );
-      ctx->path_save_diario = NULL;
-   }
-
-   if ( ctx->avaliacoes != NULL ) {
+   if ( ctx->avaliacoes ) {
       salvar_avaliacoes( ctx, TRUE );
-      g_array_unref( ctx->avaliacoes );
-      ctx->avaliacoes = NULL;
+      g_clear_pointer( &ctx->avaliacoes, g_array_unref ); // NOLINT
    }
+   g_clear_pointer( &ctx->path_save_avaliacao, g_free );
 
-   // DESASSOCIAR PONTEIRO DE TRABALHO
-   if ( ctx->path_save_avaliacao != NULL ) {
-      g_free( ctx->path_save_avaliacao );
-      ctx->path_save_avaliacao = NULL;
-   }
-
-   // A. Libera o Ficha de Alunos (Heap)
-   if ( ctx->fichas != NULL ) {
+   if ( ctx->fichas ) {
       salvar_fichas( ctx, TRUE );
-      g_array_unref( ctx->fichas );
-      ctx->fichas = NULL;
+      g_clear_pointer( &ctx->fichas, g_array_unref ); // NOLINT
    }
+   g_clear_pointer( &ctx->path_save_fichas, g_free );
 
-   // DESASSOCIAR PONTEIRO DE TRABALHO
-   if ( ctx->path_save_fichas != NULL ) {
-      g_free( ctx->path_save_fichas );
-      ctx->path_save_fichas = NULL;
-   }
-
-   // B. Libera a matriz bidimensional de ponteiros do Acervo (Heap)
-   if ( ctx->ui_prova.montagem.handlers_check != NULL ) {
+   // 4. Matriz do Acervo (handlers_check)
+   // Este é um array de ponteiros genéricos (gpointer* ou gulong*), então mantemos o loop.
+   if ( ctx->ui_prova.montagem.handlers_check ) {
       for ( int i = 0; i < ctx->ui_prova.limite_temas; i++ ) {
-         if ( ctx->ui_prova.montagem.handlers_check[i] != NULL ) {
-            free( ctx->ui_prova.montagem.handlers_check[i] );
-         }
+         g_clear_pointer( &ctx->ui_prova.montagem.handlers_check[i], g_free );
       }
-      free( ctx->ui_prova.montagem.handlers_check );
-      ctx->ui_prova.montagem.handlers_check = NULL;
+      g_clear_pointer( &ctx->ui_prova.montagem.handlers_check, g_free );
    }
 
-   // C. Libera as listas de strings dinâmicas (InterfaceListas)
-   free( ctx->ui_prova.subtemas );
-   free( ctx->ui_prova.temas );
-   free( ctx->cabecalho.anos );
-   free( ctx->cabecalho.escolas );
-   free( ctx->cabecalho.turmas );
-   free( ctx->cabecalho.disciplinas );
+   // 5. Arrays Dinâmicos da Interface (Cabeçalho e Provas)
+   _liberar_array_strings( &ctx->ui_prova.subtemas, ctx->ui_prova.limite_subtemas );
+   _liberar_array_strings( &ctx->ui_prova.temas, ctx->ui_prova.limite_temas );
 
-   // D. Libera as máscaras de formatação de texto gchar* (Painel)
-   if ( ctx->painel.format_titulo != NULL )    g_free( ctx->painel.format_titulo );
-   if ( ctx->painel.format_subtitulo != NULL ) g_free( ctx->painel.format_subtitulo );
-   if ( ctx->painel.format_instrucao != NULL ) g_free( ctx->painel.format_instrucao );
+   _liberar_array_strings( &ctx->cabecalho.anos, ctx->cabecalho.limite_anos );
+   _liberar_array_strings( &ctx->cabecalho.escolas, ctx->cabecalho.limite_escolas );
+   _liberar_array_strings( &ctx->cabecalho.turmas, ctx->cabecalho.limite_turmas );
+   _liberar_array_strings( &ctx->cabecalho.disciplinas, ctx->cabecalho.limite_disciplinas );
 
-   // E. Libera o Provedor de Estilo CSS de forma segura
-   if ( ctx->provider != NULL ) {
-      g_object_unref( ctx->provider );
-      ctx->provider = NULL;
-   }
+   // 6. Máscaras de formatação de texto (Painel)
+   g_clear_pointer( &ctx->painel.format_titulo, g_free );
+   g_clear_pointer( &ctx->painel.format_subtitulo, g_free );
+   g_clear_pointer( &ctx->painel.format_instrucao, g_free );
+
+   // 7. Provedor de Estilo CSS
+   g_clear_object( &ctx->provider ); // NOLINT
 
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );
 }

@@ -36,9 +36,9 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx );
 
 void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho );
 
-void professor_da_disciplina( const char *diretorio, GtkWidget *entry_professor, char *professor );
+gchar *professor_da_disciplina( const char *diretorio, GtkWidget *box_professor );
 
-void gestor_da_escola( const char *diretorio, GtkWidget *entry_gestor, char *gestor );
+gchar *gestor_da_escola( const char *diretorio, GtkWidget *box_gestor );
 
 
 

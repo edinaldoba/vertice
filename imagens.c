@@ -104,11 +104,11 @@ static int converter_e_copiar_imagens( const char *origem, const char *destino, 
       nome_aleatorio( nome_img, sizeof( nome_img ) );
 
       const char *ext = g_strrstr( file_atual, "." );
-      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i].str ), "%s%s", nome_img, ( ext != NULL ) ? ext : "" );
+      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i] ), "%s%s", nome_img, ( ext != NULL ) ? ext : "" );
 
       // Montagem de caminhos independente para cada thread
       char *path_origem = g_build_filename( origem, file_atual, NULL );
-      char *path_destino = g_build_filename( destino, ( *imgs_orig )[i].str, NULL );
+      char *path_destino = g_build_filename( destino, ( *imgs_orig )[i], NULL );
 
       // O processamento interno pesado
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
@@ -209,7 +209,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
 
    FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
    for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
@@ -233,7 +233,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       ImagemCinza img_gray_crop   = {0};
       ImagemCinza img_gray_alloc  = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
+      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
@@ -331,7 +331,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          fclose( f[i] );
 
          // 2. Monta o caminho absoluto/relativo completo para o arquivo físico
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
 
          // 3. Verifica o tamanho lendo os metadados do disco
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
@@ -401,7 +401,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
 
    FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
    for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
@@ -426,7 +426,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       ImagemCinza img_gray_blur   = {0};
       ImagemCinza img_gray_crop   = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
+      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
@@ -555,7 +555,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    for ( int i = 0; i < qtd_bin; i++ ) {
       if ( f[i] != NULL ) {
          fclose( f[i] );
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
 
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
             if ( g_remove( arquivo ) != 0 ) {
@@ -620,7 +620,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
 
    FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
    for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
@@ -643,7 +643,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       ImagemCinza img_gray_alloc  = {0};
       ImagemCinza img_gray_crop   = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i].str, NULL );
+      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
       g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
@@ -750,7 +750,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    for ( int i = 0; i < qtd_bin; i++ ) {
       if ( f[i] != NULL ) {
          fclose( f[i] ); // O fclose garante o flush seguro de todos os fwrites pendentes
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i].str, NULL );
+         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
 
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
             if ( g_remove( arquivo ) != 0 ) {

@@ -412,7 +412,7 @@ typedef struct {
    GtkWidget *btn_compilar;   // ctx->ui_latex.btn_compilar
    GtkWidget *btn_pdflatex;      // ctx->ui_latex.btn_pdflatex
    GtkWidget *widget;
-   ItemCombo *subtemas;         // ctx->cabecalho.subtemas (typedef struct {char str[64];} ItemCombo;)
+   gchar **subtemas;         // ctx->cabecalho.subtemas (typedef struct {char str[64];} ItemCombo;)
    InterfacePainel *painel;     // ctx->painel
    char *dir_compile;           // dir_compile
    char *caminho_banco_questoes;// ctx->caminho.banco_questoes
@@ -462,7 +462,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
       int qtd_sucessos_reais = 0; // Contador paralelo
 
       for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
-         g_autofree char *nome_arquivo = g_strdup_printf( "%s.pdf", async_data->subtemas[i].str );
+         g_autofree char *nome_arquivo = g_strdup_printf( "%s.pdf", async_data->subtemas[i] );
          g_autofree char *path_teste = g_build_filename( async_data->dir_compile, nome_arquivo, NULL );
 
          // Só adiciona na lista do pdfunite se o arquivo existir!
@@ -486,7 +486,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
 
          // 4. Limpeza dos arquivos temporários
          for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
-            apagar_arquivos_temporarios_latex_nativamente( async_data->dir_compile, async_data->subtemas[i].str, 5 );
+            apagar_arquivos_temporarios_latex_nativamente( async_data->dir_compile, async_data->subtemas[i], 5 );
          }
 
          if ( async_data->widget == async_data->btn_pdflatex ) {
@@ -533,8 +533,8 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
    async_data->caminho_banco_questoes = g_strdup( ctx->caminho.banco_questoes );
 
    // Cópia absoluta do array (Blindagem contra alterações na interface durante a compilação)
-   async_data->subtemas = g_new( ItemCombo, async_data->qtd_subtemas );
-   memcpy( async_data->subtemas, ctx->ui_prova.subtemas, sizeof( ItemCombo ) * async_data->qtd_subtemas );
+   async_data->subtemas = g_new( gchar*, async_data->qtd_subtemas );
+   memcpy( async_data->subtemas, ctx->ui_prova.subtemas, sizeof( gchar* ) * async_data->qtd_subtemas );
 
    int num_cores = ( int ) g_get_num_processors();
    GError *erro = NULL;

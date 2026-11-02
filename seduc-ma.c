@@ -52,12 +52,12 @@ static uint32_t atou32_seguro( const char *num_string ) {
 static SituacaoAluno situacao_aluno( const char *sit ) {
    g_return_val_if_fail( sit, SEM_SITUACAO );
 
-   if ( strcmp( sit, "MTR" ) == 0 ) return MATRICULA_REGULAR;
-   if ( strcmp( sit, "MTE" ) == 0 ) return MATRICULA_EXTERNA;
-   if ( strcmp( sit, "MTI" ) == 0 ) return MATRICULA_INTERNA;
-   if ( strcmp( sit, "CTE" ) == 0 ) return TRANSFERENCIA_EXTERNA;
-   if ( strcmp( sit, "CTI" ) == 0 ) return TRANSFERENCIA_INTERNA;
-   if ( strcmp( sit, "CPG" ) == 0 ) return EVADIDO;
+   if ( g_strcmp0( sit, "MTR" ) == 0 ) return MATRICULA_REGULAR;
+   if ( g_strcmp0( sit, "MTE" ) == 0 ) return MATRICULA_EXTERNA;
+   if ( g_strcmp0( sit, "MTI" ) == 0 ) return MATRICULA_INTERNA;
+   if ( g_strcmp0( sit, "CTE" ) == 0 ) return TRANSFERENCIA_EXTERNA;
+   if ( g_strcmp0( sit, "CTI" ) == 0 ) return TRANSFERENCIA_INTERNA;
+   if ( g_strcmp0( sit, "CPG" ) == 0 ) return EVADIDO;
 
    return SEM_SITUACAO;
 }
@@ -470,19 +470,19 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
    // 1. Atualização dos arquivos de acesso
    for ( int i = 0; i < limite_turmas; i++ ) {
-      g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", cabecalho->turmas[i].str );
+      g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", cabecalho->turmas[i] );
       g_autofree char *acesso_bin_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
                                          "acessos", acesso_bin, NULL );
 
       // Monta o diretório base da turma, onde as disciplinas devem estar alocadas
       g_autofree char *dir_turma_base = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                        cabecalho->turmas[i].str, NULL );
+                                        cabecalho->turmas[i], NULL );
 
       g_autoptr( GError ) erro = NULL;
       g_autoptr( GDir ) dir_turma = g_dir_open( dir_turma_base, 0, &erro );
 
       if ( !dir_turma ) {
-         g_printerr( "[Aviso] Nenhuma disciplina encontrada para a turma %s: %s\n", cabecalho->turmas[i].str, erro->message );
+         g_printerr( "[Aviso] Nenhuma disciplina encontrada para a turma %s: %s\n", cabecalho->turmas[i], erro->message );
          continue; // Se a pasta da turma ainda não existir, pula para a próxima
       }
 

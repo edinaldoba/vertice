@@ -1180,7 +1180,7 @@ void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arqui
 
    char path_pdf_destino[768];
 
-   if ( strcmp( nome_arquivo_base, "Final" ) == 0 ) { // O Relatório final deve ser salvo junto as pastas dos períodos
+   if ( g_strcmp0( nome_arquivo_base, "Final" ) == 0 ) { // O Relatório final deve ser salvo junto as pastas dos períodos
       snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo_final, nome_arquivo_base );
    } else {
       snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo, nome_arquivo_base );

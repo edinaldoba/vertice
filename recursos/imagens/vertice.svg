@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente Principal: AzulProfessor -> VerdeEscola -->
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#387BCC" />
+      <stop offset="100%" stop-color="#3CB371" />
+    </linearGradient>
+    
+    <!-- Gradiente Secundário de cruzamento -->
+    <linearGradient id="secondaryGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#285A96" />
+      <stop offset="100%" stop-color="#2E8B57" />
+    </linearGradient>
+
+    <!-- Filtro de brilho sutil para os nós e linhas principais -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fundo: Preenchendo todo o viewBox, eliminando margens vazias -->
+  <rect x="0" y="0" width="512" height="512" rx="128" ry="128" fill="#1E222A" />
+  
+  <!-- Borda interna sutil -->
+  <rect x="0" y="0" width="512" height="512" rx="128" ry="128" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="4" />
+
+  <!-- O Plano Cartesiano (Grid e Eixos Realinhados com os novos nós) -->
+  <g stroke="#ffffff" stroke-width="1.5" stroke-dasharray="4 8" opacity="0.15">
+    <line x1="256" y1="0" x2="256" y2="512" /> <!-- Eixo Y Principal -->
+    <line x1="0" y1="256" x2="512" y2="256" /> <!-- Eixo X Principal -->
+  </g>
+  <g stroke="#ffffff" stroke-width="1" opacity="0.05">
+    <!-- Linhas verticais auxiliares (Guias dos vértices superiores) -->
+    <line x1="76" y1="0" x2="76" y2="512" />
+    <line x1="436" y1="0" x2="436" y2="512" />
+    <line x1="166" y1="0" x2="166" y2="512" />
+    <line x1="346" y1="0" x2="346" y2="512" />
+    
+    <!-- Linhas horizontais auxiliares -->
+    <line x1="0" y1="96" x2="512" y2="96" />
+    <line x1="0" y1="416" x2="512" y2="416" />
+  </g>
+
+  <!-- Construção Geométrica da Letra V -->
+  <g transform="translate(0, 0)">
+    
+    <!-- Linhas Estruturais da Malha (Plano de Fundo da Letra) -->
+    <path d="M 76 96 L 256 256 L 436 96" fill="none" stroke="url(#secondaryGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" />
+    <path d="M 166 96 L 256 416 L 346 96" fill="none" stroke="url(#secondaryGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" />
+    
+    <!-- Arestas Principais (O V Externo engrossado) -->
+    <path d="M 76 96 L 256 416 L 436 96" fill="none" stroke="url(#primaryGrad)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" filter="url(#neonGlow)" />
+    
+    <!-- O V Interno e preciso (engrossado) -->
+    <path d="M 166 96 L 256 256 L 346 96" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+
+    <!-- NÓS CARTESIANOS (Vértices redimensionados) -->
+    
+    <!-- Nó Externo Esquerdo -->
+    <circle cx="76" cy="96" r="16" fill="#1E222A" stroke="url(#primaryGrad)" stroke-width="8" />
+    <!-- Nó Externo Direito -->
+    <circle cx="436" cy="96" r="16" fill="#1E222A" stroke="url(#primaryGrad)" stroke-width="8" />
+    
+    <!-- Nó Interno Esquerdo -->
+    <circle cx="166" cy="96" r="12" fill="#ffffff" />
+    <!-- Nó Interno Direito -->
+    <circle cx="346" cy="96" r="12" fill="#ffffff" />
+    
+    <!-- Nó Âncora Central -->
+    <circle cx="256" cy="256" r="14" fill="#1E222A" stroke="#ffffff" stroke-width="6" />
+
+    <!-- O ÁPICE (O Grande Vértice Principal, maior e mais imponente) -->
+    <circle cx="256" cy="416" r="28" fill="#1E222A" stroke="url(#primaryGrad)" stroke-width="10" filter="url(#neonGlow)" />
+    <!-- Ponto central de máxima precisão no ápice -->
+    <circle cx="256" cy="416" r="14" fill="#ffffff" />
+  </g>
+</svg>

@@ -135,7 +135,7 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
    for ( int i = 0; i < qtd_disciplinas; i++ ) {
 
       g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                                  ctx->dados.turma, ctx->cabecalho.disciplinas[i].str, NULL );
+                                  ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
       // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
       if ( !diretorio_esta_vazio( caminho ) ) {
@@ -154,12 +154,12 @@ void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dad
 
    // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
    g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                               ctx->dados.turma, ctx->cabecalho.disciplinas[i].str, NULL );
+                               ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
    gboolean riscar = diretorio_esta_vazio( caminho );
 
    gtk_list_store_set( store, iter,
-                       0,  ctx->cabecalho.disciplinas[i].str,
+                       0,  ctx->cabecalho.disciplinas[i],
                        1, !riscar,         // Sensibilidade (TRUE = habilitado)
                        2,  riscar, -1 );   // Riscar nome
 }
@@ -186,7 +186,7 @@ int quantidade_diretorios( const char *diretorio ) {
    while ( ( dp = readdir( dir ) ) != NULL ) {
 
       // 3. Ignora os seletores virtuais do Linux ("." e "..")
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 || strcmp( dp->d_name, "alunos" ) == 0 ) {
+      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 || g_strcmp0( dp->d_name, "alunos" ) == 0 ) {
          continue;
       }
 
@@ -219,66 +219,54 @@ gboolean diretorio_existe( const char *caminhodir ) {
 
 
 
-// Nova função de comparação usando strcoll
-static int alfabetica( const void* a, const void* b ) {
-   ItemCombo *arg1 = ( ItemCombo * )a;
-   ItemCombo *arg2 = ( ItemCombo * )b;
-   return strcoll( arg1->str, arg2->str );
-}
-
-ItemCombo *carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( *comparadora )( const void *, const void * ) ) {
-   // 1. Defesa inicial: evita processamento se os parâmetros forem inválidos
+gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *comparadora )( const void *, const void * ) ) {
    if ( diretorio == NULL || qtd_dir <= 0 ) return NULL;
 
-   DIR *dir = opendir( diretorio );
-   if ( dir == NULL ) return NULL;
+   // 1. GDir (GLib Directory) é multiplataforma e já ignora "." e ".." por padrão
+   GDir *dir = g_dir_open( diretorio, 0, NULL );
+   if ( !dir ) return NULL;
 
-   // 2. Alocação direta da estrutura FINAL (Adeus ItemOrdenavel temporário!)
-   ItemCombo *tms_combo = ( ItemCombo* ) calloc( qtd_dir, sizeof( ItemCombo ) );
-   if ( tms_combo == NULL ) {
-      g_printerr( "Erro crítico: Falha de alocação de memória em carregar_diretorios_temas()\n" );
-      closedir( dir );
-      return NULL;
-   }
+   // 2. Aloca um array de ponteiros (gchar*).
+   // Adicionamos +1 para o terminador NULL, criando um formato padrão GStrv.
+   gchar **tms_combo = g_new0( gchar *, qtd_dir + 1 );
 
    int i = 0;
-   struct dirent *dp;
-   struct stat st;
-   char caminho_completo[2048];
+   const gchar *nome_arquivo;
 
-   while ( ( dp = readdir( dir ) ) != NULL && i < qtd_dir ) {
-      // 3. Filtra os seletores de diretório virtuais nativos do Linux
-      if ( strcmp( dp->d_name, "." ) == 0 || strcmp( dp->d_name, ".." ) == 0 || strcmp( dp->d_name, "alunos" ) == 0 ) {
+   // 3. Lê o diretório iterativamente
+   while ( ( nome_arquivo = g_dir_read_name( dir ) ) != NULL && i < qtd_dir ) {
+
+      // Filtra a pasta especial de alunos
+      if ( g_strcmp0( nome_arquivo, "alunos" ) == 0 ) {
          continue;
       }
 
-      // 4. Monta o caminho completo para validar com o 'stat'
-      snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
+      // Montagem de caminho 100% segura e dinâmica
+      gchar *caminho_completo = g_build_filename( diretorio, nome_arquivo, NULL );
 
-      if ( stat( caminho_completo, &st ) == 0 ) {
-         // 5. Garante que é estritamente um DIRETÓRIO
-         if ( S_ISDIR( st.st_mode ) ) {
+      // 4. g_file_test substitui a estrutura stat do POSIX de forma mais elegante
+      if ( g_file_test( caminho_completo, G_FILE_TEST_IS_DIR ) ) {
 
-            // 6. Grava diretamente no array final. Sem conversão mbstowcs!
-            snprintf( tms_combo[i].str, sizeof( tms_combo[i].str ), "%.63s", dp->d_name );
-            i++;
-         }
+         // 5. Aloca no Heap apenas os bytes exatos necessários para o nome da pasta
+         tms_combo[i] = g_strdup( nome_arquivo );
+         i++;
       }
+
+      g_free( caminho_completo );
    }
-   closedir( dir );
+   g_dir_close( dir );
 
    int num_dir = i;
 
-   // 7. Ordena o próprio array final usando a sua nova função strcoll
+   // 6. Ordenação do array de ponteiros
    if ( num_dir > 0 ) {
       if ( comparadora == NULL ) {
-         qsort( tms_combo, num_dir, sizeof( ItemCombo ), alfabetica );
+         qsort( tms_combo, num_dir, sizeof( gchar * ), comparar_item_combo );
       } else {
-         qsort( tms_combo, num_dir, sizeof( ItemCombo ), comparadora );
+         qsort( tms_combo, num_dir, sizeof( gchar * ), comparadora );
       }
    }
 
-   // O retorno agora é imediato, pois os dados já estão no lugar certo
    return tms_combo;
 }
 
@@ -311,78 +299,75 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
 
 
 
+/**
+ * @brief Libera todas as strings alocadas dinamicamente na estrutura CaminhoDiretorio
+ *        e reseta os ponteiros para NULL com segurança.
+ *
+ * @param caminho Ponteiro para a estrutura CaminhoDiretorio a ser liberada.
+ */
+static void caminho_diretorio_free( CaminhoDiretorio *caminho ) {
+   if ( !caminho ) return;
+   // 1. Liberação segura de cada campo dinâmico
+   g_clear_pointer( &caminho->dados, g_free );
+   g_clear_pointer( &caminho->gabaritos, g_free );
+   g_clear_pointer( &caminho->relatorios, g_free );
+   g_clear_pointer( &caminho->externo, g_free );
+   g_clear_pointer( &caminho->relatorios_final, g_free );
+   g_clear_pointer( &caminho->externo_final, g_free );
+   g_clear_pointer( &caminho->externo_escola, g_free );
+   g_clear_pointer( &caminho->base, g_free );
+   g_clear_pointer( &caminho->questoes_tex, g_free );
+}
+
 
 void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho ) {
+   g_return_if_fail( dados != NULL );
+   g_return_if_fail( caminho != NULL );
 
-   snprintf( caminho->base, sizeof( caminho->base ), "%s/%s/%s/%s/%s",
-             dados->ano, dados->escola, dados->turma, dados->disciplina, dados->periodo );
+   // 1. Libera qualquer alocação anterior para evitar vazamento de memória (Memory Leak)
+   caminho_diretorio_free( caminho );
 
-   /* Endereço do diretório dos dados informados, onde estão os arquivos
-    * lista.dat, conteúdos.dat, frequência.dat, avaliações.dat e média.dat */
-   snprintf( caminho->dados, sizeof( caminho->dados ), "./dados/informados/%s", caminho->base );
+   // 2. Base Completa e Base Parcial (eliminando a necessidade do strrchr)
+   // g_build_filename já aloca a string dinamicamente e coloca as barras '/' corretamente
+   caminho->base = g_build_filename( dados->ano, dados->escola, dados->turma, dados->disciplina, dados->periodo, NULL );
 
-   /* Endereço do diretório dos gabaristos e respostas, onde estão os arquivos gabaritos.dat, gabaritos1.dat,
-    * respostas1.dat e outros arquivos gravados por ocasião da correção automática das provas */
-   snprintf( caminho->gabaritos, sizeof( caminho->gabaritos ), "./dados/gabaritos/%s", caminho->base );
+   gchar *base_parcial = g_build_filename( dados->ano, dados->escola, dados->turma, dados->disciplina, NULL );
 
-   /* Endereço do diretório dos relatórios e provas em geral (arquivos em PDF) */
-   snprintf( caminho->relatorios, sizeof( caminho->relatorios ), "./relatorios/%s", caminho->base );
+   // 3. Montagem dos caminho internos
+   caminho->dados = g_build_filename( ".", "dados", "informados", caminho->base, NULL );
+   caminho->gabaritos = g_build_filename( ".", "dados", "gabaritos", caminho->base, NULL );
+   caminho->relatorios = g_build_filename( ".", "relatorios", caminho->base, NULL );
+   caminho->relatorios_final = g_build_filename( ".", "relatorios", base_parcial, NULL );
 
-   // 1. Encontra o ponteiro para a última ocorrência da barra '/'
-   const char *base = strrchr( caminho->base, '/' );
-   int comp;
-   if ( base != NULL ) {
-      comp = ( int )( base - caminho->base );
-   } else {
-      comp = ( int )strlen( caminho->base );
-   }
-   snprintf( caminho->relatorios_final, sizeof( caminho->relatorios_final ),
-             "./relatorios/%.*s", comp, caminho->base );
+   // 4. Montagem dos caminho externos (Documentos)
+   const gchar *home = g_get_home_dir(); // Função segura nativa do GLib
+   if ( !home ) home = ".";
 
+   caminho->externo = g_build_filename( home, "Documentos", caminho->base, NULL );
+   caminho->externo_final = g_build_filename( home, "Documentos", base_parcial, NULL );
+   caminho->externo_escola = g_build_filename( home, "Documentos", dados->ano, dados->escola, NULL );
 
-   /* Replica a hierarquia da pasta de relatórios e provas atraves da marcação do 'expor dados'" */
-   const char* home = getenv( "HOME" );
-   if ( home == NULL ) home = ".";
-   snprintf( caminho->externo, sizeof( caminho->externo ), "%s/Documentos/%s", home, caminho->base );
+   // Libera a string temporária que usamos apenas para montar os relatórios finais
+   g_free( base_parcial );
 
-   snprintf( caminho->externo_final, sizeof( caminho->externo_final ), "%s/Documentos/%.*s", home, comp, caminho->base );
+   // 5. Criação das estruturas de diretórios em lote
+   const gchar *pastas_para_criar[] = {
+      caminho->dados,
+      caminho->gabaritos,
+      caminho->relatorios,
+      caminho->relatorios_final,
+      caminho->externo,
+      caminho->externo_final,
+      caminho->externo_escola
+   };
 
-   snprintf( caminho->externo_escola, sizeof( caminho->externo_escola ),
-             "%s/Documentos/%s/%s", home, dados->ano, dados->escola );
-
-   if ( !diretorio_existe( caminho->dados ) )            {
-      if ( g_mkdir_with_parents( caminho->dados, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->dados );
-      }
-   }
-   if ( !diretorio_existe( caminho->gabaritos ) )        {
-      if ( g_mkdir_with_parents( caminho->gabaritos, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->gabaritos );
-      }
-   }
-   if ( !diretorio_existe( caminho->relatorios ) )       {
-      if ( g_mkdir_with_parents( caminho->relatorios, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios );
-      }
-   }
-   if ( !diretorio_existe( caminho->relatorios_final ) ) {
-      if ( g_mkdir_with_parents( caminho->relatorios_final, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->relatorios_final );
-      }
-   }
-   if ( !diretorio_existe( caminho->externo ) )          {
-      if ( g_mkdir_with_parents( caminho->externo, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo );
-      }
-   }
-   if ( !diretorio_existe( caminho->externo_final ) )    {
-      if ( g_mkdir_with_parents( caminho->externo_final, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_final );
-      }
-   }
-   if ( !diretorio_existe( caminho->externo_escola ) )   {
-      if ( g_mkdir_with_parents( caminho->externo_escola, 0755 ) != 0 ) {
-         g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", caminho->externo_escola );
+   // g_mkdir_with_parents já age como um "mkdir -p" e não falha se a pasta já existir,
+   // mas mantemos sua função diretorio_existe() por segurança arquitetural
+   for ( guint i = 0; i < G_N_ELEMENTS( pastas_para_criar ); i++ ) {
+      if ( !diretorio_existe( pastas_para_criar[i] ) ) {
+         if ( g_mkdir_with_parents( pastas_para_criar[i], 0755 ) != 0 ) {
+            g_printerr( "[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", pastas_para_criar[i] );
+         }
       }
    }
 }
@@ -672,15 +657,18 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
 // Esta função de ordenação é exclusiva para o combo das turmas
 int ordenar_turmas_novo_em( const void* a, const void* b ) {
-   // 1. Cast idêntico à sua função padrão
-   ItemCombo *arg1 = ( ItemCombo * )a;
-   ItemCombo *arg2 = ( ItemCombo * )b;
+   // 1. Cast correto para array de ponteiros (gchar **)
+   // O qsort manda ponteiros para os elementos. Se o elemento é 'gchar *', recebemos 'gchar **'.
+   const gchar *turma_a = *( ( const gchar ** )a );
+   const gchar *turma_b = *( ( const gchar ** )b );
 
-   // 2. Extrai as strings do campo correto
-   const char *turma_a = arg1->str;
-   const char *turma_b = arg2->str;
+   // Defesa contra ponteiros nulos
+   if ( !turma_a && !turma_b ) return 0;
+   if ( !turma_a ) return -1;
+   if ( !turma_b ) return 1;
 
-   // 3. Primeiro Critério: A Série (100, 200, 300)
+   // 2. Primeiro Critério: A Série (100, 200, 300)
+   // A função atoi lê os números no começo da string e ignora o texto que vem depois
    int serie_a = atoi( turma_a );
    int serie_b = atoi( turma_b );
 
@@ -688,7 +676,7 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
       return serie_a - serie_b;
    }
 
-   // 4. Segundo Critério: O Turno (Matutino vs Vespertino)
+   // 3. Segundo Critério: O Turno (Matutino vs Vespertino)
    int turno_a = 3, turno_b = 3;
 
    if ( strstr( turma_a, "mat" ) != NULL ) turno_a = 1;
@@ -701,8 +689,8 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
       return turno_a - turno_b;
    }
 
-   // 5. Terceiro Critério: Desempate usando a sua lógica local
-   return strcoll( turma_a, turma_b );
+   // 4. Terceiro Critério: Desempate alfabético usando o padrão UTF-8 do GLib
+   return g_utf8_collate( turma_a, turma_b );
 }
 
 

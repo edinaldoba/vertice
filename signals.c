@@ -201,8 +201,8 @@ static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRender
 
    // 1. Fundo da linha (Zebrado)
    GdkRGBA cor;
-   gboolean zebrado = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor );
-   _aplicar_cor_fundo( cell, zebrado, &cor );
+   // gboolean zebrado = _cor_fundo_linha_zebrada_modelo( model, iter, tema_ativo, &cor );
+   // _aplicar_cor_fundo( cell, zebrado, &cor );
 
    // 2. Identificação da coluna e aplicação condicional da fonte
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
