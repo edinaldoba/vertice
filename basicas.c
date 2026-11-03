@@ -169,12 +169,13 @@ void file_permute( FILE **pb, int nquest ) {
    }
 }
 
-void chrperm( char *str, int n ) {
-   g_return_if_fail( str && n > 0 );
+void chrperm( gchar *str, int n ) {
+   g_return_if_fail( str != NULL && n > 0 );
 
    for ( int i = 0; i < n; i++ ) {
+      // g_random_int_range(i, n) sorteia exatamente entre 'i' e 'n-1' (inclusivo)
       int j = g_random_int_range( i, n );
-      char c = str[j];
+      gchar c = str[j];
       str[j] = str[i];
       str[i] = c;
    }
@@ -186,6 +187,60 @@ void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina,
 }
 
 
+
+
+// =========================================================================
+// FUNÇÃO AUXILIAR DE HIGIENE
+// =========================================================================
+/**
+ * Libera um array de strings alocado dinamicamente (gchar **) e todas as suas strings internas.
+ * Após a liberação, o ponteiro original é definido como NULL de forma segura.
+ */
+void liberar_array_strings( gchar ***array_ptr, int limite ) {
+   if ( !array_ptr || !*array_ptr ) return;
+
+   gchar **array = *array_ptr;
+
+   for ( int i = 0; i < limite; i++ ) {
+      g_clear_pointer( &array[i], g_free );
+   }
+
+   g_clear_pointer( array_ptr, g_free );
+}
+
+
+
+// =========================================================================
+// FUNÇÃO AUXILIAR DE HIGIENE GENÉRICA
+// =========================================================================
+/**
+ * @brief Libera genericamente qualquer vetor de ponteiros alocado no Heap
+ *        (gchar**, GtkWidget**, etc.) e invoca o destrutor para cada elemento.
+ *
+ * @param array_ptr  Endereço do ponteiro do array (ex: &cabecalho->escolas).
+ * @param limite     Quantidade de elementos no vetor.
+ * @param free_func  Função de destruição para cada item (ex: g_free, g_object_unref, ou NULL).
+ */
+void liberar_vetor_ponteiros( gpointer ptr_to_array, int limite, GDestroyNotify free_func ) {
+   // O parâmetro gpointer (void *) age como um buraco negro que aceita qualquer
+   // endereço (ex: &handlers_check) sem emitir alertas -Wincompatible-pointer-types.
+   // Internamente, nós o convertemos para o ponteiro duplo necessário:
+   gpointer *array_ptr = ( gpointer * ) ptr_to_array;
+
+   if ( !array_ptr || !*array_ptr ) return;
+
+   gpointer *array = ( gpointer * ) *array_ptr;
+
+   // 1. Se foi fornecida uma função de liberação, limpa elemento por elemento
+   if ( free_func != NULL ) {
+      for ( int i = 0; i < limite; i++ ) {
+         g_clear_pointer( &array[i], free_func );
+      }
+   }
+
+   // 2. Libera o vetor principal e reseta o ponteiro original para NULL
+   g_clear_pointer( array_ptr, g_free );
+}
 
 
 
@@ -252,6 +307,8 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
 
    return -1; // Não encontrado
 }
+
+
 
 
 

@@ -236,8 +236,8 @@ gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *c
    // 3. Lê o diretório iterativamente
    while ( ( nome_arquivo = g_dir_read_name( dir ) ) != NULL && i < qtd_dir ) {
 
-      // Filtra a pasta especial de alunos
-      if ( g_strcmp0( nome_arquivo, "alunos" ) == 0 ) {
+      // Filtra a pasta especial de alunos e qualquer pasta/ficheiro oculto
+      if ( g_strcmp0( nome_arquivo, "alunos" ) == 0 || nome_arquivo[0] == '.' ) {
          continue;
       }
 
@@ -249,6 +249,7 @@ gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *c
 
          // 5. Aloca no Heap apenas os bytes exatos necessários para o nome da pasta
          tms_combo[i] = g_strdup( nome_arquivo );
+         // g_free( nome_arquivo );
          i++;
       }
 
@@ -380,11 +381,12 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
 
 
 
-void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total_questoes, const char *modo ) {
-   if ( !arquivo || !modo ) return;
+void gerar_gabaritos( const gchar *arquivo, const int adicionados, const InterfaceDados *dados, const gchar *modo ) {
+   g_return_if_fail( arquivo && dados && modo );
 
-   if ( total_questoes != NTI ) {
-      g_printerr( "Erro: Quantidade de questões (%d) inválida.\n", total_questoes );
+   // Proteção contra estouro de buffer (Corrigido para barrar se for MAIOR que o máximo)
+   if ( dados->total_quest_prova <= 0 || dados->total_quest_prova > dados->max_quest_prova ) {
+      g_printerr( "Erro: Quantidade de questões (%d) inválida.\n", dados->total_quest_prova );
       return;
    }
 
@@ -394,31 +396,36 @@ void gerar_gabaritos( const char *arquivo, const int qtd_linhas, const int total
       return;
    }
 
-   // CONDIÇÃO 3: Alocação de um bloco contíguo na RAM para todos os alunos
-   // g_new0 já zera a memória, garantindo que o espaço não usado dos 32 bytes seja '\0' limpo.
-   ItemTextoCurto *bloco = g_new0( ItemTextoCurto, qtd_linhas );
+   // CONDIÇÃO 3: Alocação na RAM. g_autofree limpa automaticamente ao sair da função.
+   g_autofree ItemTextoCurto *bloco = g_new0( ItemTextoCurto, adicionados );
 
-   const char *alternativas = "AABBCCDDEE";
+   // Processamento ultra-rápido isolado na RAM
+   for ( int i = 0; i < adicionados; i++ ) {
 
-   // Processamento ultra-rápido isolado na RAM (sem tocar no HD)
-   for ( int i = 0; i < qtd_linhas; i++ ) {
+      // DISTRIBUIÇÃO UNIFORME DINÂMICA
+      // O 'offset' sorteia a letra inicial (0=A, 1=B, 2=C...).
+      // Isso impede vícios estatísticos caso total_quest_prova não seja múltiplo de 5.
+      int offset = g_random_int_range( 0, 5 );
 
-      g_strlcpy( bloco[i].str, alternativas, sizeof( bloco[i].str ) );
-      bloco[i].str[total_questoes] = '\0';
+      for ( int q = 0; q < dados->total_quest_prova; q++ ) {
+         bloco[i].str[q] = 'A' + ( ( q + offset ) % 5 );
+      }
 
-      chrperm( bloco[i].str, total_questoes );
+      // Fecha a string com segurança baseada no tamanho da prova do usuário
+      bloco[i].str[dados->total_quest_prova] = '\0';
+
+      // EMBARALHAMENTO (A string base perfeita agora é bagunçada para o aluno)
+      chrperm( bloco[i].str, dados->total_quest_prova );
    }
 
    // CONDIÇÃO 4: A Gravação em Lote (Zero Latência)
-   // Descarrega todo o array de estruturas de uma única vez para o disco
-   size_t blocos_gravados = fwrite( bloco, sizeof( ItemTextoCurto ), qtd_linhas, p );
+   size_t blocos_gravados = fwrite( bloco, sizeof( ItemTextoCurto ), adicionados, p );
 
-   if ( blocos_gravados != ( size_t )qtd_linhas ) {
-      g_printerr( "Erro crítico de I/O: Apenas %zu de %d registros foram salvos.\n", blocos_gravados, qtd_linhas );
+   if ( blocos_gravados != ( size_t )adicionados ) {
+      g_printerr( "Erro crítico de I/O: Apenas %zu de %d registros foram salvos.\n", blocos_gravados, adicionados );
    }
 
-   // Limpeza cirúrgica
-   g_free( bloco );
+   // A liberação da RAM (g_free) não é mais necessária manualmente graças ao g_autofree(bloco).
    fclose( p );
 }
 

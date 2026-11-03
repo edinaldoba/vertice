@@ -3,10 +3,8 @@
 
 #include <gtk/gtk.h>
 
-
 #include "comum.h"
 
-#define NTI 10
 
 
 /* ==========================================================================
@@ -317,7 +315,7 @@ gboolean detectar_ubuntu( void );
 
 gboolean carregar_estado_aplicativo( AppContext *ctx );
 
-void atualizar_tema( AppContext *ctx, const char *tema );
+void atualizar_tema( AppContext *ctx, char *tema );
 
 void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx );
 
@@ -333,11 +331,11 @@ gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index );
 void atualizar_dados_e_alunos_ativos( AppContext *ctx );
 void inicializar_estado_do_aplicativo( AppContext *ctx );
 
-gboolean atualizar_ano_interface( AppContext *ctx, const gchar *novo_ano, gboolean forcar_atualizacao );
-gboolean atualizar_escola_interface( AppContext *ctx, const gchar *nova_escola, gboolean forcar_atualizacao );
-gboolean atualizar_turma_interface( AppContext *ctx, const gchar *nova_turma, gboolean forcar_atualizacao );
+gboolean atualizar_ano_interface( AppContext *ctx, gchar *novo_ano, gboolean forcar_atualizacao );
+gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboolean forcar_atualizacao );
+gboolean atualizar_turma_interface( AppContext *ctx, gchar *nova_turma, gboolean forcar_atualizacao );
 void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gboolean forcar_atualizacao );
-void atualizar_periodo_interface( AppContext *ctx, const gchar *novo_periodo );
+void atualizar_periodo_interface( AppContext *ctx, gchar *novo_periodo );
 
 
 #endif

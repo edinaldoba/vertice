@@ -322,24 +322,27 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
 
    g_free( dir_destino );
    g_object_unref( layout );
+   g_object_unref( font_map );
    g_object_unref( context );
 }
 
 static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
    g_return_val_if_fail( arquivo_xls, FALSE );
 
-   // 1. Extrai o diretório base (onde o .xls foi encontrado na hierarquia)
+   // 1. Extrai o diretório base
    g_autofree gchar *diretorio = g_path_get_dirname( arquivo_xls );
 
    // Prepara o nome do CSV temporário
    g_autofree gchar *arquivo_csv = g_strdup( arquivo_xls );
-   gchar *extensao = strrchr( arquivo_csv, '.' );
-   if ( extensao ) strcpy( extensao, ".csv" );
+   // CORREÇÃO CRÍTICA 1: strrchr retorna um ponteiro para o meio da string 'arquivo_csv'.
+   // Aplicar g_autofree aqui causaria um 'Invalid Free' e derrubaria o sistema.
+   gchar *extensao_csv = strrchr( arquivo_csv, '.' );
+   if ( extensao_csv ) strcpy( extensao_csv, ".csv" );
 
    // Prepara o nome do DAT original
    g_autofree gchar *arquivo_dat = g_strdup( arquivo_xls );
-   extensao = strrchr( arquivo_dat, '.' );
-   if ( extensao ) strcpy( extensao, ".dat" );
+   gchar *extensao_dat = strrchr( arquivo_dat, '.' ); // Sem g_autofree!
+   if ( extensao_dat ) strcpy( extensao_dat, ".dat" );
 
    // 2. Executa a conversão via ssconvert
    g_autofree gchar *comando = g_strdup_printf( "ssconvert \"%s\" \"%s\"", arquivo_xls, arquivo_csv );
@@ -349,7 +352,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
       return FALSE;
    }
 
-   // 3. Carrega o CSV na memória e aplica a limpeza (sed nativo)
+   // 3. Carrega o CSV na memória e aplica a limpeza
    g_autofree gchar *conteudo_csv = NULL;
    if ( !g_file_get_contents( arquivo_csv, &conteudo_csv, NULL, &erro ) ) {
       g_printerr( "Erro ao ler CSV: %s\n", erro->message );
@@ -358,7 +361,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
 
    aplicar_sed_nativo( conteudo_csv );
 
-   // 4. Cria as subpastas dinamicamente DENTRO do diretório de origem atual
+   // 4. Cria as subpastas dinamicamente
    g_autofree gchar *dir_acesso = g_build_filename( diretorio, "acessos", NULL );
    g_autofree gchar *dir_alunos = g_build_filename( diretorio, "alunos", NULL );
    g_mkdir_with_parents( dir_acesso, 0755 );
@@ -371,7 +374,9 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
    FILE *f_acesso = NULL;
    AcessoTurmas turmas = {0};
    gboolean cabecalho_escrito = FALSE;
-   gchar *nome_turma_padrao = NULL;
+
+   // CORREÇÃO 2: Declarando como g_autofree para não vazar caso o laço sofra 'break'
+   g_autofree gchar *nome_turma_padrao = NULL;
 
    g_auto( GStrv ) linhas = g_strsplit( conteudo_csv, "\n", -1 );
 
@@ -385,8 +390,8 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
 
       // Identificação da turma
       if ( g_ascii_strncasecmp( colunas[0], "TURMA: ", 7 ) == 0 && num_colunas > 0 ) {
-
-         // Conforme a sua arquitetura: a padronização e o acesso não recebem o parâmetro diretorio
+         // CORREÇÃO 3: Previne vazamento se, por anomalia do arquivo, houver múltiplas tags "TURMA:"
+         g_clear_pointer( &nome_turma_padrao, g_free );
          nome_turma_padrao = padronizar_nome_turma( colunas[0], &f_acesso, diretorio );
 
          if ( !nome_turma_padrao || !f_acesso ) {
@@ -401,22 +406,21 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
          continue;
       }
 
-      // Processamento dos Alunos
+      // Processamento dos Alunos do SIAEP
       if ( cabecalho_escrito && num_colunas > 16 ) {
          if ( strlen( colunas[7] ) < 2 ) continue;
          if ( strstr( colunas[1], "Total" ) || strstr( colunas[0], "Legenda" ) ) break;
 
-         // Gravação no arquivo .dat
          fprintf( saida, "%s;%s;%s;%s;%s\n",
                   colunas[2], colunas[7], colunas[11], colunas[14], colunas[16] );
 
-         // Gravação do Binário de Origem (FichaSiaep)
          FichaSiaep siaep = {0};
          snprintf( siaep.aluno, sizeof( siaep.aluno ), "%s", colunas[7] );
          siaep.sexo = colunas[11][0];
          snprintf( siaep.nasc, sizeof( siaep.nasc ), "%s", colunas[14] );
 
-         // Monta o caminho do binário do aluno vinculando à subpasta dinâmica
+         // O g_autofree aqui está seguro pois está dentro do bloco 'if'.
+         // A memória será liberada a cada iteração ao encontrar a chave '}' abaixo.
          g_autofree gchar *arquivo_bin = g_strdup_printf( "%s/%s.bin", dir_alunos, colunas[2] );
 
          #pragma omp critical(escreve_aluno)
@@ -428,7 +432,6 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
             }
          }
 
-         // Gravação do Binário de Acesso da Turma (AcessoTurmas)
          if ( f_acesso ) {
             turmas.cod_aluno = atou32_seguro( colunas[2] );
             snprintf( turmas.sit, sizeof( turmas.sit ), "%s", colunas[16] );
@@ -440,22 +443,20 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
    fclose( saida );
    if ( f_acesso ) fclose( f_acesso );
 
-   // 6. Chamada para a função que espelha os dados transformados para ./dados/listas
+   // 6. Chamada para a função que espelha os dados transformados
    salvar_ficha_aluno_inicial( nome_turma_padrao, fonte, diretorio );
 
    // 7. Limpeza e Renomeio Seguro
-   g_remove( arquivo_csv ); // Remove o CSV temporário
+   g_remove( arquivo_csv );
 
    if ( nome_turma_padrao ) {
-      // Monta os novos caminhos vinculando o nome extraído ao diretório de origem
       g_autofree gchar *novo_xls = g_strdup_printf( "%s/%s.xls", diretorio, nome_turma_padrao );
       g_autofree gchar *novo_dat = g_strdup_printf( "%s/%s.dat", diretorio, nome_turma_padrao );
 
-      // Renomeia o .xls original e o .dat recém-criado
       g_rename( arquivo_xls, novo_xls );
       g_rename( arquivo_dat, novo_dat );
-
-      g_free( nome_turma_padrao );
+      // CORREÇÃO 4: g_free( nome_turma_padrao ); removido.
+      // O GLib cuidará disso ao final da função graças à mudança na declaração.
    }
 
    return TRUE;

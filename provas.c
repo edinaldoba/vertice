@@ -578,9 +578,9 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
    gerar_tex_lista_frequencia( "./dados/temporarios/frequencia.tex", titulo_prova, fichas, dados, data );
 
    // 1. Pré-compilação do Banco de Questões
-   for ( int i = 0; i < NTI; i++ ) {
-      if ( dados->qtd_questoes[i] > 0 ) {
-         g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i], NULL );
+   for ( int i = 0; i < dados->total_quest_prova; i++ ) {
+      if ( dados->qtd_quest_subtema[i] > 0 ) {
+         g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->selecao_quest_prova[i], NULL );
          executar_gerador_c_de_questoes_nativamente( pasta_tema );
       }
    }
@@ -592,17 +592,17 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, jj );
       if ( !ficha->ativo ) continue;
 
-      FILE **pb = g_new0( FILE*, dados->total_questoes );
+      FILE **pb = g_new0( FILE*, dados->total_quest_prova );
       int q = 0;
 
       // Localiza e carrega os arquivos base de questões para o aluno
-      for ( int i = 0; i < NTI; i++ ) {
-         if ( dados->qtd_questoes[i] != 0 ) {
-            g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->temas_prova_sequencia[i], NULL );
+      for ( int i = 0; i < dados->total_quest_prova; i++ ) {
+         if ( dados->qtd_quest_subtema[i] != 0 ) {
+            g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes, dados->selecao_quest_prova[i], NULL );
             int narq = quantidade_arquivos_por_extensao( pasta_tema, ".tex" );
             g_autofree int *N = randperm( narq );
 
-            for ( int j = 0; j < dados->qtd_questoes[i]; j++ ) {
+            for ( int j = 0; j < dados->qtd_quest_subtema[i]; j++ ) {
                g_autofree char *questao_path = g_strdup_printf( "%s/Q%d.tex", pasta_tema, N[j] + 1 );
                pb[q] = fopen( questao_path, "r" );
                q++;
@@ -610,7 +610,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
          }
       }
 
-      file_permute( pb, dados->total_questoes );
+      file_permute( pb, dados->total_quest_prova );
 
       if ( dados->nao_presencial ) {
          imagens_para_prova( num_ativo, jj + 1, fichas, dados, cabecalho );
@@ -635,7 +635,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       g_string_append( tex_corpo, "\\begin{enumerate}[\\hspace{-1.8mm}]\n" );
 
       // Insere o miolo embaralhado de questões
-      for ( int qi = 0; qi < dados->total_questoes; qi++ ) {
+      for ( int qi = 0; qi < dados->total_quest_prova; qi++ ) {
          if ( qi == 5 && dados->qtd_paginas == 2 ) {
             g_string_append( tex_corpo, "\\end{enumerate}\n\\end{multicols}\n\\newpage\n\\noindent\n\\begin{tikzpicture}\n" );
             anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, FALSE );
@@ -672,7 +672,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       }
 
       // Cleanup do laço interno
-      for ( int x = 0; x < dados->total_questoes; x++ ) if ( pb[x] ) fclose( pb[x] );
+      for ( int x = 0; x < dados->total_quest_prova; x++ ) if ( pb[x] ) fclose( pb[x] );
       g_free( pb );
 
       num_ativo++;

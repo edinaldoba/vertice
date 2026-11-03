@@ -15,6 +15,10 @@ void file_permute( FILE **pb, int nquest );
 void chrperm( char *str, int n );
 void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina, int periodo, int prova );
 
+void liberar_array_strings( gchar ***array_ptr, int limite );
+
+// Macro para chamadas limpas sem necessidade de cast manual no código
+void liberar_vetor_ponteiros( gpointer ptr_to_array, int limite, GDestroyNotify free_func );
 
 int comparar_item_texto_curto( const void* a, const void* b );
 

@@ -33,11 +33,14 @@ void on_entry_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_
    ctx->cabecalho.foco_ano = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_ano ) );
    if ( ctx->cabecalho.foco_ano < 0 || ctx->cabecalho.anos == NULL ) return;
 
-   const gchar *ano_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_ano ) );
+   GtkComboBoxText *combo_ano = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_ano );
+   gchar *ano_selecionado = gtk_combo_box_text_get_active_text( combo_ano );
    if ( !ano_selecionado ) return;
 
    gboolean clique_real = ( widget != NULL );
    gboolean ano_mudou = atualizar_ano_interface( ctx, ano_selecionado, !clique_real );
+
+   g_free( ano_selecionado );
 
    if ( !ano_mudou ) return;
 
@@ -55,11 +58,14 @@ void on_entry_atualizar_escola_interface_changed( GtkWidget *widget, gpointer us
    ctx->cabecalho.foco_escola = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_escola ) );
    if ( ctx->cabecalho.foco_escola < 0 || ctx->cabecalho.escolas == NULL ) return;
 
-   const gchar *escola_selecionada = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_escola ) );
+   GtkComboBoxText *combo_escola = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_escola );
+   gchar *escola_selecionada = gtk_combo_box_text_get_active_text( combo_escola );
    if ( !escola_selecionada ) return;
 
    gboolean clique_real = ( widget != NULL );
    gboolean escola_mudou = atualizar_escola_interface( ctx, escola_selecionada, !clique_real );
+
+   g_free( escola_selecionada );
 
    if ( !escola_mudou ) return;
 
@@ -77,12 +83,15 @@ void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
    ctx->cabecalho.foco_turma = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_turma ) );
    if ( ctx->cabecalho.foco_turma < 0 || ctx->cabecalho.turmas == NULL ) return;
 
-   const gchar *turma_selecionada = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_turma ) );
+   GtkComboBoxText *combo_turma = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_turma );
+   gchar *turma_selecionada = gtk_combo_box_text_get_active_text( combo_turma );
    if ( !turma_selecionada ) return;
 
    // 3. Passa a responsabilidade para a função embrulhada
    gboolean clique_real = ( widget != NULL );
    gboolean turma_mudou = atualizar_turma_interface( ctx, turma_selecionada, !clique_real );
+
+   g_free( turma_selecionada );
 
    if ( !turma_mudou ) return;
 
@@ -95,20 +104,20 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
 
-   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_disciplina );
+   GtkComboBox *combo_disciplina = GTK_COMBO_BOX( ctx->cabecalho.combo_disciplina );
 
    // 1. Atualiza o foco numérico
-   ctx->cabecalho.foco_disciplina = gtk_combo_box_get_active( combo );
+   ctx->cabecalho.foco_disciplina = gtk_combo_box_get_active( combo_disciplina );
    if ( ctx->cabecalho.foco_disciplina < 0 || ctx->cabecalho.disciplinas == NULL ) return;
 
    // 2. Obtém o modelo e o iterador da linha atualmente selecionada no GtkComboBox
-   GtkTreeModel *model = gtk_combo_box_get_model( combo );
+   GtkTreeModel *model = gtk_combo_box_get_model( combo_disciplina );
    GtkTreeIter iter;
 
-   if ( !gtk_combo_box_get_active_iter( combo, &iter ) ) return;
+   if ( !gtk_combo_box_get_active_iter( combo_disciplina, &iter ) ) return;
 
    // 3. Extrai a string da Coluna 0 (Nome da disciplina)
-   g_autofree gchar *disciplina_selecionada = NULL;
+   gchar *disciplina_selecionada = NULL;
    gtk_tree_model_get( model, &iter, 0, &disciplina_selecionada, -1 );
 
    if ( !disciplina_selecionada ) return;
@@ -116,6 +125,8 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
    // 4. Executa a atualização da interface
    gboolean clique_real = ( widget != NULL );
    atualizar_disciplina_interface( ctx, disciplina_selecionada, !clique_real );
+
+   g_free( disciplina_selecionada );
 }
 
 
@@ -157,10 +168,12 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
       gtk_widget_set_sensitive( ctx->ui_diario.btn_avaliacao, TRUE );
    }
 
-   const gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_periodo ) );
+   gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_periodo ) );
    if ( !periodo_selecionado ) return;
 
    atualizar_periodo_interface( ctx, periodo_selecionado );
+
+   g_free( periodo_selecionado );
 }
 
 
@@ -1476,6 +1489,7 @@ void on_combo_sequencia_prova_changed( GtkWidget *widget, gpointer user_data ) {
 
    ctx->dados.seq_prova = ctx->ui_prova.foco_seq_prova + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
 
+   g_clear_pointer( &ctx->dados.prova_sequencia, g_free );
    ctx->dados.prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
 
 }
@@ -1635,10 +1649,11 @@ void on_entry_atualizar_tema_changed( GtkWidget *widget, gpointer user_data ) {
       g_signal_handler_unblock( ctx->ui_prova.combo_tema, ctx->ui_prova.handler_combo_tema );
    }
 
-   const gchar *tema = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
+   gchar *tema = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
 
    if ( tema != NULL ) {
       atualizar_tema( ctx, tema );
+      g_free( tema );
    }
 }
 

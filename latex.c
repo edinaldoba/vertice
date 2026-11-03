@@ -149,7 +149,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
    g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->seq_prova );
 
    // Matriz principal de questões e alternativas
-   for ( int i = 0; i < NTI; i++ ) { // NTI=10 questões
+   for ( int i = 0; i < dados->total_quest_prova; i++ ) { // NTI=10 questões
 
       // Insere o número das questões
       g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (3.5+%d,-1.5) {\\small\\bf%.2d};\n", i, i + 1 );
@@ -279,7 +279,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    int nota = 0;
 
    // Assumindo que NTI (Número Total de Itens) seja uma macro definida no escopo superior
-   for ( int j = 0; j < NTI; j++ ) {
+   for ( int j = 0; j < dados->total_quest_prova; j++ ) {
       double linha  = ( map->direcao == 'h' ) ? -4.5 - gab[j] + 65 : -5.5 - j;
       double coluna = ( map->direcao == 'h' ) ?  5.5 + j : 4.5 + gab[j] - 65;
       double x      = ( map->direcao == 'h' ) ?  5.5 + j : 2.5;

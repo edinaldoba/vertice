@@ -48,15 +48,18 @@ COMMON_LDFLAGS = -fopenmp
 LDLIBS = $(PKG_LIBS) -lssl -lcrypto -llapacke -llapack -lblas -lm
 
 # =====================================================================
-# 4. CONTROLE DE MODO (Desempenho vs Depuração)
+# 4. CONTROLE DE MODO (Desempenho vs Depuração vs Valgrind)
 # =====================================================================
-# Para compilar em depuração, execute: make MODE=debug
-# O padrão é o modo de desempenho.
 ifeq ($(MODE),debug)
     # Flags de Diagnóstico e AddressSanitizer
     SPECIFIC_CFLAGS = -O1 -g -fsanitize=address -fno-omit-frame-pointer
     SPECIFIC_LDFLAGS = -rdynamic -g -fsanitize=address
     MODE_MSG = "🛠️ Compilando em modo DIAGNÓSTICO (AddressSanitizer)..."
+else ifeq ($(MODE),valgrind)
+    # Valgrind é incompatível com ASan; removemos -fsanitize e forçamos -O0
+    SPECIFIC_CFLAGS = -O0 -g -fno-omit-frame-pointer
+    SPECIFIC_LDFLAGS = -rdynamic -g
+    MODE_MSG = "🕵️ Compilando em modo VALGRIND (Rastreamento rigoroso de Heap)..."
 else
     # Flags de Alto Desempenho e Segurança
     SPECIFIC_CFLAGS = -O3 -flto=auto -fno-plt
@@ -70,7 +73,7 @@ LDFLAGS = $(COMMON_LDFLAGS) $(SPECIFIC_LDFLAGS)
 # =====================================================================
 # 5. REGRAS DE COMPILAÇÃO E LINKAGEM
 # =====================================================================
-.PHONY: all clean run debug release install uninstall
+.PHONY: all clean run debug release install uninstall valgrind
 
 all: $(APP_NAME)
 
@@ -101,9 +104,24 @@ else
 	./$(APP_NAME)
 endif
 
+# Nova regra dedicada ao Valgrind
+valgrind:
+	@$(MAKE) MODE=valgrind
+	@echo "🕵️ Iniciando Valgrind com filtros para GTK3 e GLib..."
+	G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind \
+		--leak-check=full \
+		--show-leak-kinds=definite \
+		--errors-for-leak-kinds=definite \
+		--track-origins=yes \
+		--suppressions=/usr/share/glib-2.0/valgrind/glib.supp \
+		--suppressions=/usr/share/gtk-3.0/valgrind/gtk.supp \
+		--log-file=relatorio_valgrind.txt \
+		./$(APP_NAME)
+	@echo "📄 Análise concluída! O arquivo relatorio_valgrind.txt focará exclusivamente no código do Vértice."
+
 clean:
 	@echo "🧹 Limpando arquivos de objeto e binários antigos..."
-	rm -f $(OBJECTS) $(APP_NAME) $(RESOURCES_C)
+	rm -f $(OBJECTS) $(APP_NAME) $(RESOURCES_C) relatorio_valgrind.txt
 	@echo "✨ Limpeza concluída."
 
 # =====================================================================

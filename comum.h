@@ -7,8 +7,6 @@
 
 
 
-#define NTI 10
-
 // MEXER NESTA MACRO VAI CORROMPER AS FICHAS DOS ALUNOS
 #define QTD_DISC 2
 
@@ -121,9 +119,9 @@ typedef struct {
    uint8_t r, g, b;
 } PixelRGB;
 
-typedef struct {
-   char str[64];
-} ItemCombo;
+// typedef struct {
+//    char str[64];
+// } ItemCombo;
 
 typedef struct {
    int dia, mes, ano;
@@ -159,28 +157,36 @@ typedef struct {
    int foco_cor_serie, foco_decoracao;
 
    // 5. Matriz do Acervo
-   int  qtd_questoes[NTI];
-   int total_questoes; // Total de questões da prova (padrão: 10 questões)
+   gint  *qtd_quest_subtema; // Quantidade de questões disponíveis por tema/subtema selecionado para prova
+   int total_quest_prova; // Total de questões da prova (padrão: 10 questões)
+   int max_quest_prova;
 
-   gchar **temas_prova_sequencia;
+   gchar **selecao_quest_prova;
 
    // 6. Flags de Controle
    gboolean expor_dados, validar_ciclos, nao_presencial;
 
 } InterfaceDados;
 //=========================================================================================================//
+// Sub-estrutura que une os dois arrays paralelos em um só objeto por questão
 typedef struct {
-   // 2. Configurações de Layout do LaTeX
-   int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
+   int qtd;
+   char str[128];
+} QuestaoRascunho;
 
-   // 3. O Miolo da Avaliação: Matriz do Acervo
-   int  qtd_questoes[NTI];
-   struct {
-      char str[128];
-   } temas_prova_sequencia[NTI];
+// O pacote principal
+typedef struct {
+   // 1. Configurações Numéricas Básicas
+   int qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
 
-   // 4. Flags de Controle Estéticas
+   // 2. Flags de Controle Estéticas
    gboolean expor_dados, nao_presencial;
+
+   // 3. Opcional, mas recomendado: Guardar a quantidade dentro do arquivo facilita auditorias binárias
+   int total_quest_prova;
+
+   // 4. O Flexible Array Member (Deve OBRIGATORIAMENTE ser o último elemento e usar [])
+   QuestaoRascunho questoes[];
 } DadosRascunho;
 //=========================================================================================================//
 

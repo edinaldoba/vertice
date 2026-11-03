@@ -189,11 +189,10 @@ void inicializacao_app_context( AppContext *ctx ) {
          .cabecalho_tipo     = 1,
          .fonte_latex        = 1,
 
-         .qtd_questoes       = {0}, // Zera todo o array
-         .total_questoes     = 10,
+         .qtd_quest_subtema       = NULL,
 
          // Inicializa a matriz de strings de forma limpa e compatível com C11
-         .temas_prova_sequencia = NULL,
+         .selecao_quest_prova = NULL,
 
          .expor_dados        = FALSE,
          .validar_ciclos     = FALSE,
@@ -270,24 +269,6 @@ void inicializacao_app_context( AppContext *ctx ) {
 }
 
 
-// =========================================================================
-// FUNÇÃO AUXILIAR DE HIGIENE
-// =========================================================================
-/**
- * Libera um array de strings alocado dinamicamente (gchar **) e todas as suas strings internas.
- * Após a liberação, o ponteiro original é definido como NULL de forma segura.
- */
-static void _liberar_array_strings( gchar ***array_ptr, int limite ) {
-   if ( !array_ptr || !*array_ptr ) return;
-
-   gchar **array = *array_ptr;
-
-   for ( int i = 0; i < limite; i++ ) {
-      g_clear_pointer( &array[i], g_free );
-   }
-
-   g_clear_pointer( array_ptr, g_free );
-}
 
 // =========================================================================
 // HIGIENE DE MEMÓRIA FINAL
@@ -298,6 +279,8 @@ void limpeza_final( AppContext *ctx ) {
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
 
    parar_autosave_diario( ctx );
+
+   g_rand_free( ctx->rand );
 
    // 1. Textos da InterfaceDados
    g_clear_pointer( &ctx->dados.ano, g_free );
@@ -310,7 +293,8 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->dados.tema, g_free );
    g_clear_pointer( &ctx->dados.prova_sequencia, g_free );
 
-   _liberar_array_strings( &ctx->dados.temas_prova_sequencia, NTI );
+   g_clear_pointer( &ctx->dados.qtd_quest_subtema, g_free );
+   g_clear_pointer( &ctx->dados.selecao_quest_prova, g_strfreev );
 
    // 2. Liberação dos Caminhos de Diretórios
    g_clear_pointer( &ctx->caminho.dados, g_free );
@@ -327,39 +311,33 @@ void limpeza_final( AppContext *ctx ) {
    // 3. Salvamento e Liberação dos GArrays de Dados
    if ( ctx->diarios ) {
       salvar_diario( ctx, TRUE );
-      g_clear_pointer( &ctx->diarios, g_array_unref ); // NOLINT
+      g_clear_pointer( ( gpointer * ) &ctx->diarios, g_array_unref );
    }
    g_clear_pointer( &ctx->path_save_diario, g_free );
 
    if ( ctx->avaliacoes ) {
       salvar_avaliacoes( ctx, TRUE );
-      g_clear_pointer( &ctx->avaliacoes, g_array_unref ); // NOLINT
+      g_clear_pointer( ( gpointer * ) &ctx->avaliacoes, g_array_unref );
    }
    g_clear_pointer( &ctx->path_save_avaliacao, g_free );
 
    if ( ctx->fichas ) {
       salvar_fichas( ctx, TRUE );
-      g_clear_pointer( &ctx->fichas, g_array_unref ); // NOLINT
+      g_clear_pointer( ( gpointer * ) &ctx->fichas, g_array_unref );
    }
    g_clear_pointer( &ctx->path_save_fichas, g_free );
 
    // 4. Matriz do Acervo (handlers_check)
-   // Este é um array de ponteiros genéricos (gpointer* ou gulong*), então mantemos o loop.
-   if ( ctx->ui_prova.montagem.handlers_check ) {
-      for ( int i = 0; i < ctx->ui_prova.limite_temas; i++ ) {
-         g_clear_pointer( &ctx->ui_prova.montagem.handlers_check[i], g_free );
-      }
-      g_clear_pointer( &ctx->ui_prova.montagem.handlers_check, g_free );
-   }
+   g_clear_pointer( ( gpointer * ) &ctx->ui_prova.montagem.handlers_check, g_strfreev );
 
    // 5. Arrays Dinâmicos da Interface (Cabeçalho e Provas)
-   _liberar_array_strings( &ctx->ui_prova.subtemas, ctx->ui_prova.limite_subtemas );
-   _liberar_array_strings( &ctx->ui_prova.temas, ctx->ui_prova.limite_temas );
+   g_clear_pointer( &ctx->ui_prova.subtemas, g_strfreev );
+   g_clear_pointer( &ctx->ui_prova.temas, g_strfreev );
 
-   _liberar_array_strings( &ctx->cabecalho.anos, ctx->cabecalho.limite_anos );
-   _liberar_array_strings( &ctx->cabecalho.escolas, ctx->cabecalho.limite_escolas );
-   _liberar_array_strings( &ctx->cabecalho.turmas, ctx->cabecalho.limite_turmas );
-   _liberar_array_strings( &ctx->cabecalho.disciplinas, ctx->cabecalho.limite_disciplinas );
+   g_clear_pointer( &ctx->cabecalho.anos, g_strfreev );
+   g_clear_pointer( &ctx->cabecalho.escolas, g_strfreev );
+   g_clear_pointer( &ctx->cabecalho.turmas, g_strfreev );
+   g_clear_pointer( &ctx->cabecalho.disciplinas, g_strfreev );
 
    // 6. Máscaras de formatação de texto (Painel)
    g_clear_pointer( &ctx->painel.format_titulo, g_free );
@@ -367,7 +345,7 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->painel.format_instrucao, g_free );
 
    // 7. Provedor de Estilo CSS
-   g_clear_object( &ctx->provider ); // NOLINT
+   g_clear_object( ( gpointer * ) &ctx->provider );
 
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );
 }

@@ -857,15 +857,14 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
       const char *fonte_numerica = "Monospace 19px";
-      g_autofree gchar *texto_cod_aluno = NULL;
 
-      texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
+      g_autofree gchar *texto_cod_aluno_inicial = _cod_aluno_formatado( ficha->cod_aluno );
 
       gtk_list_store_append( store_view, &iter_view );
       gtk_list_store_set( store_view, &iter_view,
                           0, idx_aluno + 1,
                           1, ficha->aluno,
-                          2, texto_cod_aluno,
+                          2, texto_cod_aluno_inicial,
                           3, nasc,
                           4, str_status,
                           5, !ficha->ativo,
@@ -884,7 +883,7 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
 
          g_autofree gchar *nasc_inativo = _formatar_data_extenso( ficha->nasc );
 
-         texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
+         g_autofree gchar *texto_cod_aluno = _cod_aluno_formatado( ficha->cod_aluno );
 
          GtkTreeIter iter_inativo;
          gtk_list_store_append( store_view, &iter_inativo );

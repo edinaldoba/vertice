@@ -72,7 +72,8 @@ void g_xdg_open( const char *caminho ) {
 
    if ( g_file_test( caminho, G_FILE_TEST_EXISTS ) ) {
 
-      GError *erro = NULL;
+      // O g_autoptr gerencia o GError de forma automática.
+      g_autoptr( GError ) erro = NULL;
 
       // Usa GFile para aceitar caminhos relativos ou absolutos com segurança total
       g_autoptr( GFile ) arquivo = g_file_new_for_path( caminho );
@@ -85,7 +86,8 @@ void g_xdg_open( const char *caminho ) {
 
       if ( !g_app_info_launch_default_for_uri( uri, NULL, &erro ) ) {
          g_printerr( "Erro ao abrir o arquivo: %s\n", erro->message );
-         g_clear_error( &erro );
+         // g_clear_error( &erro ) foi removido; o g_autoptr fará a liberação
+         // automaticamente ao final do bloco 'if', de forma segura.
       }
 
    } else {
