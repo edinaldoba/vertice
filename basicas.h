@@ -38,7 +38,7 @@ int contar_registros_binarios( const char *filepath, size_t tam );
 void display_tempo( const char *descricao, GTimer *cronometro );
 
 int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext );
-ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int n );
+GPtrArray *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int limite_n );
 int atoi_seguro( const char *num_string );
 
 void ajustar_nomes( const char *arquivo, AppContext *ctx );

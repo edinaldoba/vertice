@@ -25,109 +25,102 @@
 
 
 
+// =========================================================================
+// FUNÇÕES UTILITÁRIAS REFATORADAS
+// =========================================================================
+// Retorna uma nova string alocada dinamicamente, liberada depois com g_autofree
 static char* trocar_extensao( const char *caminho_orig, const char *nova_ext ) {
-   if ( !caminho_orig ) return NULL;
+   if ( !caminho_orig || !nova_ext ) return NULL;
 
-   // Procura o ÚLTIMO ponto no caminho
    const char *ponto = g_strrstr( caminho_orig, "." );
-
    if ( ponto ) {
-      // Calcula o tamanho do nome do arquivo sem a extensão
-      size_t tam_base = ponto - caminho_orig;
-
-      // Cria a nova string alocada automaticamente no heap
-      return g_strdup_printf( "%.*s.%s", ( int )tam_base, caminho_orig, nova_ext );
+      return g_strdup_printf( "%.*s.%s", ( int )( ponto - caminho_orig ), caminho_orig, nova_ext );
    }
-
-   // Se o arquivo não tinha extensão (ex: "imagem"), apenas anexa a nova
    return g_strdup_printf( "%s.%s", caminho_orig, nova_ext );
 }
 
-
-//========================================================================================================//
-static void nome_aleatorio( char *nome, size_t tam ) {
+// Em vez de preencher um buffer estático, retorna a string na Heap.
+static char* gerar_nome_aleatorio( size_t tam ) {
    const char alfanumerico[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-   size_t len = tam - 1;
+   char *nome = g_malloc( tam + 1 );
 
-   for ( size_t j = 0; j < len; j++ ) {
-      int i = g_random_int_range( 0, 36 );
-      nome[j] = alfanumerico[i];
+   for ( size_t j = 0; j < tam; j++ ) {
+      nome[j] = alfanumerico[g_random_int_range( 0, 36 )];
    }
-   nome[len] = '\0';
+   nome[tam] = '\0';
+
+   return nome;
 }
 
-static int converter_e_copiar_imagens( const char *origem, const char *destino, ItemTextoCurto **imgs_orig ) {
-   if ( !origem || !destino || !imgs_orig ) return 0;
+// Wrapper OBRIGATÓRIO para ordernar ou buscar strings em GPtrArray / bsearch
+static gint cmp_str_ptr( gconstpointer a, gconstpointer b ) {
+   return g_strcmp0( *(const char**)a, *(const char**)b );
+}
 
-   GError *error = NULL;
+// =========================================================================
+// ROTINAS DE PROCESSAMENTO
+// =========================================================================
 
-   GDir *dir = g_dir_open( origem, 0, &error );
+// Novo protótipo: Retorna um GPtrArray contendo os nomes finais das imagens.
+static GPtrArray* converter_e_copiar_imagens( const char *origem, const char *destino ) {
+   if ( !origem || !destino ) return NULL;
+
+   g_autoptr(GError) error = NULL;
+   g_autoptr(GDir) dir = g_dir_open( origem, 0, &error );
    if ( dir == NULL ) {
       g_printerr( "Aviso: Não foi possível abrir a pasta de origem: %s (%s)\n", origem, error->message );
-      g_clear_error( &error );
-      return 0;
+      return NULL;
    }
 
-   // 1. FASE DE COLETA: Vetor dinâmico da GLib para guardar os nomes válidos
-   GPtrArray *arquivos_validos = g_ptr_array_new_with_free_func( g_free );
+   // 1. FASE DE COLETA
+   g_autoptr(GPtrArray) arquivos_validos = g_ptr_array_new_with_free_func( g_free );
    const char *filename;
 
    while ( ( filename = g_dir_read_name( dir ) ) != NULL ) {
-      char *filename_lc = g_utf8_strdown( filename, -1 );
+      g_autofree char *filename_lc = g_utf8_strdown( filename, -1 );
 
-      gboolean e_imagem = ( g_str_has_suffix( filename_lc, ".png" )  ||
-                            g_str_has_suffix( filename_lc, ".jpg" )  ||
-                            g_str_has_suffix( filename_lc, ".jpeg" ) ||
-                            g_str_has_suffix( filename_lc, ".bmp" ) );
-      g_free( filename_lc );
-
-      if ( e_imagem ) {
-         // Guarda uma cópia da string no vetor
+      if ( g_str_has_suffix( filename_lc, ".png" )  ||
+           g_str_has_suffix( filename_lc, ".jpg" )  ||
+           g_str_has_suffix( filename_lc, ".jpeg" ) ||
+           g_str_has_suffix( filename_lc, ".bmp" ) ) {
          g_ptr_array_add( arquivos_validos, g_strdup( filename ) );
       }
    }
-   g_dir_close( dir );
 
-   *imgs_orig = g_new0( ItemTextoCurto, arquivos_validos->len );
+   if ( arquivos_validos->len == 0 ) {
+      return NULL;
+   }
 
-   // 2. FASE DE PROCESSAMENTO PARALELO
-   // OTIMIZAÇÃO: Usamos 'schedule(dynamic)' em vez de 'static'.
-   // Como arquivos de imagem têm tamanhos diferentes, algumas conversões demoram mais que outras.
-   // O 'dynamic' garante que threads rápidas peguem novos arquivos, evitando tempo ocioso.
+   // 2. FASE DE PREPARAÇÃO PARALELA
+   // Criamos o array de retorno e pré-alocamos o tamanho exato.
+   // Isso previne reallocs e permite acesso thread-safe direto pelo índice (pdata[i]).
+   GPtrArray *arquivos_gerados = g_ptr_array_new_with_free_func( g_free );
+   g_ptr_array_set_size( arquivos_gerados, arquivos_validos->len );
+
+   // 3. FASE DE PROCESSAMENTO PARALELO (Dynamic mantido para carga balanceada)
    #pragma omp parallel for schedule(dynamic)
    for ( guint i = 0; i < arquivos_validos->len; i++ ) {
-
-      // Resgata o nome do arquivo da lista
       const char *file_atual = ( const char * ) g_ptr_array_index( arquivos_validos, i );
 
-      char nome_img[20];
-      nome_aleatorio( nome_img, sizeof( nome_img ) );
-
+      g_autofree char *nome_img = gerar_nome_aleatorio( 20 );
       const char *ext = g_strrstr( file_atual, "." );
-      snprintf( ( *imgs_orig )[i].str, sizeof( ( *imgs_orig )[i] ), "%s%s", nome_img, ( ext != NULL ) ? ext : "" );
 
-      // Montagem de caminhos independente para cada thread
-      char *path_origem = g_build_filename( origem, file_atual, NULL );
-      char *path_destino = g_build_filename( destino, ( *imgs_orig )[i], NULL );
+      // Cria a nova string do arquivo destino final e salva diretamente no slot pré-alocado
+      char *nome_final = g_strdup_printf( "%s%s", nome_img, ( ext != NULL ) ? ext : "" );
+      arquivos_gerados->pdata[i] = nome_final;
 
-      // O processamento interno pesado
+      g_autofree char *path_origem = g_build_filename( origem, file_atual, NULL );
+      g_autofree char *path_destino = g_build_filename( destino, nome_final, NULL );
+
       if ( gio_copiar_arquivo( path_origem, path_destino ) ) {
          g_remove( path_origem );
       } else {
-         // g_printerr é thread-safe no Linux, não corrompe o terminal
          g_printerr( "Falha no processamento da imagem: %s\n", file_atual );
       }
-
-      g_free( path_origem );
-      g_free( path_destino );
    }
 
-   // 3. LIMPEZA FINAL
-   // Libera o vetor e, automaticamente, todas as strings copiadas lá dentro
-   int qtd_img = arquivos_validos->len;
-   g_ptr_array_unref( arquivos_validos );
-
-   return qtd_img;
+   // O vetor 'arquivos_validos' será destruído automaticamente pelo g_autoptr ao sair do escopo
+   return arquivos_gerados;
 }
 //========================================================================================================//
 
@@ -167,12 +160,12 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
  * Função principal de processamento em lote.
  * Executa a visão computacional multithread, cortes e leitura do payload/respostas.
  */
+// =========================================================================
+// FUNÇÃO: gas_processar_imagens (Visão Computacional Evolutiva - GAS)
+// =========================================================================
 int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
    if ( !dados || !cabecalho ) return -1;
 
-   // =========================================================================
-   // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
-   // =========================================================================
    const char *home = g_get_home_dir();
    if ( home == NULL ) home = ".";
 
@@ -182,8 +175,8 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -196,20 +189,21 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       return -1;
    }
 
-   ItemTextoCurto *imgs_orig = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+   // --- Transição para GLib GPtrArray ---
+   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
-   if ( qtd_img == 0 ) {
+   if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] Nenhuma imagem de respostas foi encontrada em %s.\n", origem );
       return -2;
    }
 
-   ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
+   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr ); // Usando nosso wrapper seguro
 
-   FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
-   for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
+   g_autofree FILE **f = g_new0( FILE *, resp_bin->len );
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
+      const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+      g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
@@ -219,9 +213,9 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
    // =========================================================================
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
-   for ( int i = 0; i < qtd_img; i++ ) {
+   for ( guint i = 0; i < imgs_orig->len; i++ ) {
 
-      gboolean sucesso = FALSE; // Inicializamos FALSE e só confirmamos no payload
+      gboolean sucesso = FALSE;
       int tentativas = 0;
 
       MapeamentoGabarito map = {0};
@@ -233,22 +227,21 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       ImagemCinza img_gray_crop   = {0};
       ImagemCinza img_gray_alloc  = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
-      g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
+      const char *img_str = ( const char * ) g_ptr_array_index( imgs_orig, i );
+
+      g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
+      g_autofree char *img_png = trocar_extensao( img_str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
-      // FASE 1: Carregamento e Conversão de Cor
       carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
       g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
 
-      // FASE 2: Normalização de Resolução
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
-      // FASE 3: Visão Computacional Evolutiva (Estratégia de Dupla Passada)
+      // FASE 3: Visão Computacional Evolutiva (Dupla Passada)
       do {
-         // PROTEÇÃO: Limpa a memória do crop anterior antes de sobrescrever na 2ª tentativa
          if ( tentativas > 0 && img_gray_crop.image != NULL ) {
             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
             img_gray_crop.image = NULL;
@@ -259,51 +252,49 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          binarizar_pgm_metodo_otsu( &img_gray_crop );
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
 
-         // A prova de fogo: O Payload bateu perfeitamente?
          sucesso = decodificar_payload_matriz( &map, cabecalho );
          tentativas++;
 
       } while ( !sucesso && tentativas < 2 );
 
       if ( !sucesso ) {
-         fprintf( stderr, "[FALHA CRÍTICA] Payload inválido mesmo após resgate. Imagem: %s\n", imgs_orig[i].str );
+         fprintf( stderr, "[FALHA CRÍTICA] Payload inválido mesmo após resgate. Imagem: %s\n", img_str );
       }
 
-      // FASE 4: Processamento de Dados (Apenas se convergiu)
+      // FASE 4: Processamento de Dados (Gravação Binária)
       if ( sucesso ) {
-         ItemTextoCurto chave;
-         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
-         int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
+         g_autofree char *chave = g_malloc0( 256 );
+         nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
-         if ( j >= 0 && f[j] != NULL ) {
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+
+         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
+            int j = found - (char**)resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
 
-            // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
             #pragma omp critical(escrita_binario)
             {
                if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
-                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
+                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", img_str );
                }
-               fflush( f[j] ); // Força I/O imediato para evitar corrupção de cache
+               // O fflush foi removido por otimização thread-safe. fclose faz isso.
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
-            sucesso = FALSE; // Rebaixa o status para forçar quarentena
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
+            sucesso = FALSE;
          }
       }
 
-      // FASE 5: Renderização do Crop Colorido ou Quarentena
+      // FASE 5: Renderização do Crop Colorido
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
 
-         // --- NOVO FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
-         filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 ); // raio de 15px
+         filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 );
 
-         // Salva a imagem tratada com fundo 100% branco
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
 
          liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
@@ -314,7 +305,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          n_rejeitadas++;
       }
 
-      // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
+      // FASE 6: Limpeza Segura de Memória
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
@@ -325,17 +316,13 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    // =========================================================================
    // FINALIZAÇÃO GLOBAL
    // =========================================================================
-   for ( int i = 0; i < qtd_bin; i++ ) {
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
       if ( f[i] != NULL ) {
-         // 1. Fecha o stream para liberar o lock do sistema operacional sobre o arquivo
          fclose( f[i] );
+         const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+         g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
 
-         // 2. Monta o caminho absoluto/relativo completo para o arquivo físico
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
-
-         // 3. Verifica o tamanho lendo os metadados do disco
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
-            // CORREÇÃO: Usar o caminho completo ('arquivo') ao invés de apenas o nome
             if ( g_remove( arquivo ) != 0 ) {
                g_printerr( "[ERRO] Falha ao tentar remover o arquivo vazio: %s\n", arquivo );
             }
@@ -343,28 +330,17 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
    }
 
-   g_free( f );
-   g_free( imgs_orig );
-   free( resp_bin );
-
-   puts( "Processamento das imagens concluído com sucesso!" );
-
+   puts( "Processamento das imagens GAS concluído com sucesso!" );
    return n_rejeitadas;
 }
-//========================================================================================================//
 
 
-
-
-
-
-
+// =========================================================================
+// FUNÇÃO: omr_processar_imagens (Pipeline Determinístico)
+// =========================================================================
 int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
    if ( !dados || !cabecalho ) return -1;
 
-   // =========================================================================
-   // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
-   // =========================================================================
    const char *home = g_get_home_dir();
    if ( home == NULL ) home = ".";
 
@@ -374,8 +350,8 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -388,20 +364,21 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       return -1;
    }
 
-   ItemTextoCurto *imgs_orig = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+   // --- Transição para GLib GPtrArray ---
+   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
-   if ( qtd_img == 0 ) {
+   if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
       return -2;
    }
 
-   ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
+   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr );
 
-   FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
-   for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
+   g_autofree FILE **f = g_new0( FILE *, resp_bin->len );
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
+      const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+      g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
@@ -411,13 +388,12 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
    // =========================================================================
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
-   for ( int i = 0; i < qtd_img; i++ ) {
+   for ( guint i = 0; i < imgs_orig->len; i++ ) {
 
       gboolean sucesso = FALSE;
       MapeamentoGabarito map = {0};
       IndiceMatriz ancora[4] = {0};
 
-      // Inicialização das Estruturas de Imagem
       ImagemColorida img_rgb_orig = {0};
       ImagemColorida img_rgb_crop = {0};
       ImagemCinza img_gray_bin    = {0};
@@ -426,112 +402,86 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       ImagemCinza img_gray_blur   = {0};
       ImagemCinza img_gray_crop   = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
-      g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
+      const char *img_str = ( const char * ) g_ptr_array_index( imgs_orig, i );
+
+      g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
+      g_autofree char *img_png = trocar_extensao( img_str, "png" );
       g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
 
-      // FASE 1: Carregamento e Conversão de Cor
       carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
       g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
 
-      // FASE 2: Normalização de Resolução (Bilinear)
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
-      // FASE 3: PIPELINE DETERMINÍSTICO OMR (Optical Mark Recognition)
-      // 3.1 - Fundo Mágico (Isola o contraste do papel)
-      filtrar_fundo_magico_cinza( &img_gray_alloc, &img_gray_fundo, 30 ); // Raio calibrável
-
-      // 3.2 - Filtro Gaussiano Isotrópico (Limpa ruídos antes da binarização)
-      aplicar_filtro_gaussiano_2d( &img_gray_fundo, &img_gray_blur, 1.0f ); // Sigma calibrável
-
-      // 3.3 - Binarização de Otsu (In-place)
+      // FASE 3: PIPELINE DETERMINÍSTICO OMR
+      filtrar_fundo_magico_cinza( &img_gray_alloc, &img_gray_fundo, 30 );
+      aplicar_filtro_gaussiano_2d( &img_gray_fundo, &img_gray_blur, 1.0f );
       binarizar_pgm_metodo_otsu( &img_gray_blur );
-
-      // 3.4 - Detecção de Âncoras OMR (Caminho Rápido)
       sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao, FALSE );
 
       if ( sucesso ) {
-         // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
          transformada_homografica( &img_gray_blur, &img_gray_crop, ancora, map.direcao );
-
-         // 3.6 - Leitura e Decodificação do Payload
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
          sucesso = decodificar_payload_matriz( &map, cabecalho );
       }
 
-      // ======================================================================
-      // PROTEÇÃO DE MEMÓRIA E RESGATE (Slow Path)
-      // ======================================================================
+      // RESGATE
       if ( !sucesso ) {
-         // Se o payload falhou na 1ª tentativa, 'img_gray_crop' contém matriz alocada.
-         // Precisamos libertá-la antes de tentar o recorte novamente para evitar memory leak!
          if ( img_gray_crop.image ) {
             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
             img_gray_crop.image = NULL;
-            img_gray_crop.nrow = 0;
-            img_gray_crop.ncol = 0;
+            img_gray_crop.nrow = 0; img_gray_crop.ncol = 0;
          }
 
-         // Tenta detectar âncoras forçando algoritmos de resgate
          sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao, TRUE );
-
          if ( sucesso ) {
-            // 3.5 - Transformada Homográfica do Resgate
             transformada_homografica( &img_gray_blur, &img_gray_crop, ancora, map.direcao );
-            // salvar_imagem_pgm( &img_gray_crop, "./dados/erro.ppm" );
-
-            // 3.6 - Leitura e Decodificação do Payload do Resgate
             map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
             sucesso = decodificar_payload_matriz( &map, cabecalho );
          }
       }
 
       if ( !sucesso ) {
-         fprintf( stderr, "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", imgs_orig[i].str );
+         fprintf( stderr, "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", img_str );
       }
 
-      // FASE 4: Processamento de Dados (Apenas se convergiu e decodificou)
+      // FASE 4: Processamento de Dados (Gravação Binária)
       if ( sucesso ) {
-         ItemTextoCurto chave;
-         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
-         int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
+         g_autofree char *chave = g_malloc0( 256 );
+         nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
-         if ( j >= 0 && f[j] != NULL ) {
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+
+         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
+            int j = found - (char**)resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
 
-            // PROTEÇÃO CRÍTICA: Thread Safety ao escrever no arquivo binário
             #pragma omp critical(escrita_binario)
             {
                if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
-                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
+                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", img_str );
                }
-               fflush( f[j] );
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
-            sucesso = FALSE; // Rebaixa o status para forçar quarentena
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
+            sucesso = FALSE;
          }
       }
 
-      // FASE 5: Renderização do Crop Colorido ou Quarentena
+      // FASE 5: Renderização do Crop Colorido
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
 
-         // --- FILTRO DE LIMPEZA PARA O PDF ---
          ImagemColorida img_rgb_limpa = {0};
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 30 );
-
-         // --- REALCE DE CORES (Vibrância e Contraste) ---
          realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
 
-         // Salva a imagem tratada com fundo 100% branco e cores vivas
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
-
          liberar_matriz_pixels_colorida( img_rgb_limpa.image, img_rgb_limpa.nrow );
       } else {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
@@ -539,23 +489,24 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          n_rejeitadas++;
       }
 
-      // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
-      if ( img_gray_fundo.image ) liberar_matriz_pixels( img_gray_fundo.image, img_gray_fundo.nrow );
-      if ( img_gray_blur.image )  liberar_matriz_pixels( img_gray_blur.image, img_gray_blur.nrow );
-      if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
-      if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
-      if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
-      if ( img_rgb_crop.image )   liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
-      if ( img_rgb_orig.image )   liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
+      // FASE 6: Limpeza Segura de Memória
+      if ( img_gray_fundo.image )  liberar_matriz_pixels( img_gray_fundo.image, img_gray_fundo.nrow );
+      if ( img_gray_blur.image )   liberar_matriz_pixels( img_gray_blur.image, img_gray_blur.nrow );
+      if ( img_gray_crop.image )   liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
+      if ( img_gray_bin.image )    liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
+      if ( img_gray_alloc.image )  liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
+      if ( img_rgb_crop.image )    liberar_matriz_pixels_colorida( img_rgb_crop.image, img_rgb_crop.nrow );
+      if ( img_rgb_orig.image )    liberar_matriz_pixels_colorida( img_rgb_orig.image, img_rgb_orig.nrow );
    }
 
    // =========================================================================
    // FINALIZAÇÃO GLOBAL
    // =========================================================================
-   for ( int i = 0; i < qtd_bin; i++ ) {
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
       if ( f[i] != NULL ) {
          fclose( f[i] );
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
+         const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+         g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
 
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
             if ( g_remove( arquivo ) != 0 ) {
@@ -565,12 +516,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
    }
 
-   g_free( f );
-   g_free( imgs_orig );
-   free( resp_bin );
-
-   puts( "Processamento das imagens OMR concluído com sucesso!" );
-
+   puts( "Processamento das imagens OMR (Determinístico) concluído com sucesso!" );
    return n_rejeitadas;
 }
 
@@ -581,20 +527,17 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
 int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
    if ( !dados || !cabecalho ) return -1;
 
-   // =========================================================================
-   // PREPARAÇÃO DE DIRETÓRIOS E ARQUIVOS (I/O)
-   // =========================================================================
    const char *home = g_get_home_dir();
    if ( home == NULL ) home = ".";
 
-   g_autofree char *origem = g_build_filename( home, "Downloads", "imagens", NULL );
-   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
-   g_autofree char *respostas = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+   g_autofree char *origem         = g_build_filename( home, "Downloads", "imagens", NULL );
+   g_autofree char *destino        = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+   g_autofree char *respostas      = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -607,85 +550,73 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       return -1;
    }
 
-   ItemTextoCurto *imgs_orig = NULL;
-   int qtd_img = converter_e_copiar_imagens( origem, destino, &imgs_orig );
+   // === MUDANÇA: O array de strings final é trazido diretamente, sem ItemTextoCurto ===
+   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
-   if ( qtd_img == 0 ) {
+   if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
       return -2;
    }
 
-   ItemTextoCurto *resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   qsort( resp_bin, qtd_bin, sizeof( ItemTextoCurto ), comparar_item_texto_curto );
+   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr );
 
-   FILE **f = ( FILE ** ) g_malloc0( qtd_bin * sizeof( FILE * ) );
-   for ( int i = 0; i < qtd_bin; i++ ) {
-      g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
+   // Vetor dinâmico para os arquivos binários (gerenciado por autofree)
+   g_autofree FILE **f = g_new0( FILE *, resp_bin->len );
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
+      const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+      g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
       f[i] = fopen( arquivo, "ab" );
    }
 
    int n_rejeitadas = 0;
 
    // =========================================================================
-   // PROCESSAMENTO PARALELO DAS IMAGENS (OpenMP)
+   // PROCESSAMENTO PARALELO (OpenMP)
    // =========================================================================
    #pragma omp parallel for schedule(dynamic) reduction(+:n_rejeitadas)
-   for ( int i = 0; i < qtd_img; i++ ) {
+   for ( guint i = 0; i < imgs_orig->len; i++ ) {
 
       gboolean sucesso = FALSE;
-      MapeamentoGabarito map = {0};
+      MapeamentoGabarito map = {0}; // Necessário por conta da gravação binária
       IndiceMatriz ancora[4] = {0};
 
-      // Inicialização das Estruturas de Imagem (Limpas das versões anteriores)
       ImagemColorida img_rgb_orig = {0};
       ImagemColorida img_rgb_crop = {0};
       ImagemCinza img_gray_bin    = {0};
       ImagemCinza img_gray_alloc  = {0};
       ImagemCinza img_gray_crop   = {0};
 
-      g_autofree char *path_orig = g_build_filename( destino, imgs_orig[i], NULL );
-      g_autofree char *img_png = trocar_extensao( imgs_orig[i].str, "png" );
-      g_autofree char *path_png = g_build_filename( destino, img_png, NULL );
+      // Resgatamos o nome do GPtrArray (já é thread-safe via leitura iterada em guint i)
+      const char *img_str = ( const char * ) g_ptr_array_index( imgs_orig, i );
 
-      // FASE 1: Carregamento e Conversão de Cor
+      g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
+      g_autofree char *img_png   = trocar_extensao( img_str, "png" );
+      g_autofree char *path_png  = g_build_filename( destino, img_png, NULL );
+
       carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig );
-      g_remove( path_orig ); // Operação "consume": remove original para poupar disco
+      g_remove( path_orig );
       rgb2gray( &img_rgb_orig, &img_gray_bin );
 
-      // FASE 2: Normalização de Resolução (Bilinear)
       int dim = 960;
       redimensionar_imagem_bilinear( &img_gray_bin, &img_gray_alloc, dim );
 
-      // 3.3 - Binarização de Otsu (In-place)
       binarizar_pgm_metodo_otsu( &img_gray_alloc );
-
-      // 3.4 - Detecção de Âncoras OMR (Caminho Rápido)
       sucesso = detectar_ancoras_omr( &img_gray_alloc, ancora, &map.direcao, FALSE );
 
       if ( sucesso ) {
-         // 3.5 - Transformada Homográfica (Recorte Geométrico Perfeito)
          transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
-
-         // 3.6 - Leitura e Decodificação do Payload
          map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
          sucesso = decodificar_payload_matriz( &map, cabecalho );
       }
 
-      // ======================================================================
-      // PROTEÇÃO DE MEMÓRIA E RESGATE (Slow Path)
-      // ======================================================================
       if ( !sucesso ) {
-         // Libera matriz previamente alocada antes de tentar o recorte novamente
          if ( img_gray_crop.image ) {
             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
             img_gray_crop.image = NULL;
-            img_gray_crop.nrow = 0;
-            img_gray_crop.ncol = 0;
+            img_gray_crop.nrow = 0; img_gray_crop.ncol = 0;
          }
-
-         // Tenta detectar âncoras forçando algoritmos de resgate
          sucesso = detectar_ancoras_omr( &img_gray_alloc, ancora, &map.direcao, TRUE );
-
          if ( sucesso ) {
             transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
             map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );
@@ -694,49 +625,49 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       }
 
       if ( !sucesso ) {
-         g_printerr( "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", imgs_orig[i].str );
+         g_printerr( "[FALHA CRÍTICA] OMR rejeitou a imagem ou Payload inválido: %s\n", img_str );
       }
 
-      // FASE 4: Processamento de Dados (Apenas se convergiu e decodificou)
       if ( sucesso ) {
-         ItemTextoCurto chave;
-         nome_base_gabaritos_bin( chave.str, sizeof( chave.str ), map.turma, map.disc, map.per, map.seq );
-         int j = buscar_indice_bsearch( &chave, resp_bin, qtd_bin, sizeof( chave ), comparar_item_texto_curto );
+         // Eliminamos o ItemTextoCurto. Se nome_base_gabaritos_bin ainda requer preencher
+         // um ponteiro fornecido pelo usuário, fornecemos memória da heap usando g_malloc0.
+         g_autofree char *chave = g_malloc0( 256 );
+         nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
-         if ( j >= 0 && f[j] != NULL ) {
+         // Busca rápida via bsearch usando nosso novo wrapper
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+
+         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
+            int j = found - (char**)resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
+
+            // Salvando dentro da struct persistente
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
 
-            // PROTEÇÃO CRÍTICA: Thread Safety sem gargalo de I/O de disco
             #pragma omp critical(escrita_binario)
             {
                if ( fwrite( &map, sizeof( MapeamentoGabarito ), 1, f[j] ) != 1 ) {
-                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", imgs_orig[i].str );
+                  g_printerr( "[ERRO] O registro da imagem %s não foi salvo.\n", img_str );
                }
-               // fflush removido daqui para evitar travamento de threads. O fclose final cuidará disso.
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave.str, imgs_orig[i].str );
-            sucesso = FALSE; // Rebaixa o status para forçar quarentena
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
+            sucesso = FALSE;
          }
       }
 
-      // FASE 5: Renderização do Crop Colorido ou Quarentena
       if ( sucesso ) {
          normalizar_ancora( &img_rgb_orig, &img_gray_alloc, ancora );
          transformada_homografica_colorida( &img_rgb_orig, &img_rgb_crop, ancora, map.direcao );
-
-         // Salva a imagem tratada com fundo 100% branco e cores vivas
          salvar_imagem_png_nativa( path_png, &img_rgb_crop );
-
       } else {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
          n_rejeitadas++;
       }
 
-      // FASE 6: Limpeza Segura de Memória (Final do ciclo da Thread)
+      // Limpezas locais que não usam GLib
       if ( img_gray_crop.image )  liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
       if ( img_gray_bin.image )   liberar_matriz_pixels( img_gray_bin.image, img_gray_bin.nrow );
       if ( img_gray_alloc.image ) liberar_matriz_pixels( img_gray_alloc.image, img_gray_alloc.nrow );
@@ -747,10 +678,11 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    // =========================================================================
    // FINALIZAÇÃO GLOBAL
    // =========================================================================
-   for ( int i = 0; i < qtd_bin; i++ ) {
+   for ( guint i = 0; i < resp_bin->len; i++ ) {
       if ( f[i] != NULL ) {
-         fclose( f[i] ); // O fclose garante o flush seguro de todos os fwrites pendentes
-         g_autofree char *arquivo = g_build_filename( respostas, resp_bin[i], NULL );
+         fclose( f[i] );
+         const char *nome_bin = ( const char * ) g_ptr_array_index( resp_bin, i );
+         g_autofree char *arquivo = g_build_filename( respostas, nome_bin, NULL );
 
          if ( verificar_arquivo( arquivo ) == ARQUIVO_VAZIO ) {
             if ( g_remove( arquivo ) != 0 ) {
@@ -760,12 +692,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       }
    }
 
-   g_free( f );
-   g_free( imgs_orig );
-   free( resp_bin );
-
    g_print( "Processamento das imagens OMR concluído com sucesso!\n" );
-
    return n_rejeitadas;
 }
 

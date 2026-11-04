@@ -328,7 +328,7 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->path_save_fichas, g_free );
 
    // 4. Matriz do Acervo (handlers_check)
-   g_clear_pointer( ( gpointer * ) &ctx->ui_prova.montagem.handlers_check, g_strfreev );
+   g_clear_pointer( &ctx->ui_prova.montagem.handlers_check, g_free );
 
    // 5. Arrays Dinâmicos da Interface (Cabeçalho e Provas)
    g_clear_pointer( &ctx->ui_prova.subtemas, g_strfreev );

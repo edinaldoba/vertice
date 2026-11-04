@@ -713,9 +713,6 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
       montagem->cont_add = 0;
    }
 
-   // 2. Limpeza profunda de arrays dinâmicos
-   g_clear_pointer( ( gpointer * ) &montagem->handlers_check, g_strfreev );
-
    // Usa a nova função auxiliar de gerenciamento seguro de strings
    g_clear_pointer( &ui_prova->subtemas, g_strfreev );
    g_clear_pointer( &ui_prova->temas, g_strfreev );
@@ -735,9 +732,6 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
    // 5. Bifurcação de Estado (Carga ou Fallback)
    if ( ui_prova->limite_temas > 0 ) {
-
-      // O g_new0 aloca a memória e já preenche o array todo com NULL. (Adeus calloc + for)
-      montagem->handlers_check = g_new0( gulong*, ui_prova->limite_temas + 1 );
 
       ui_prova->temas = carregar_diretorios_temas( ui_prova->limite_temas, caminho->banco_questoes, NULL );
 

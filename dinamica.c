@@ -96,14 +96,12 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
 
    limpar_container( ui_prova->listbox_subtemas );
 
-   int f = ui_prova->foco_tema;
+   // 1. Libera a alocação anterior com segurança
+   g_clear_pointer( &montagem->handlers_check, g_free );
 
-   if ( montagem->handlers_check != NULL ) {
-      g_clear_pointer( &montagem->handlers_check[f], g_free );
-   }
-
-   if ( ui_prova->limite_subtemas > 0 && montagem->handlers_check != NULL ) {
-      montagem->handlers_check[f] = g_new0( gulong, ui_prova->limite_subtemas );
+   // 2. Aloca o novo vetor simples para os subtemas visíveis
+   if ( ui_prova->limite_subtemas > 0 ) {
+      montagem->handlers_check = g_new0( gulong, ui_prova->limite_subtemas );
    }
 
    for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
@@ -123,8 +121,8 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
 
       gulong handler_id = g_signal_connect( check, "toggled", G_CALLBACK( on_subtema_check_toggled ), ctx );
 
-      if ( ui_prova->limite_subtemas > 0 && montagem->handlers_check != NULL && montagem->handlers_check[f] != NULL ) {
-         montagem->handlers_check[f][i] = handler_id;
+      if ( ui_prova->limite_subtemas > 0 && montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+         montagem->handlers_check[i] = handler_id;
       }
 
       gtk_list_box_insert( GTK_LIST_BOX( ui_prova->listbox_subtemas ), check, -1 );
@@ -325,13 +323,12 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
          GtkWidget *check_box = buscar_widget_por_nome_interno( ui_prova->listbox_subtemas, subtema_alvo );
 
          if ( check_box && GTK_IS_TOGGLE_BUTTON( check_box ) ) {
-            int f = ui_prova->foco_tema;
             int id_widget = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( check_box ), "id_widget" ) );
 
-            if ( montagem->handlers_check != NULL && montagem->handlers_check[f] != NULL ) {
-               g_signal_handler_block( check_box, montagem->handlers_check[f][id_widget] );
+            if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+               g_signal_handler_block( check_box, montagem->handlers_check[id_widget] );
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check_box ), FALSE );
-               g_signal_handler_unblock( check_box, montagem->handlers_check[f][id_widget] );
+               g_signal_handler_unblock( check_box, montagem->handlers_check[id_widget] );
             } else {
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check_box ), FALSE );
             }
@@ -368,16 +365,15 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
    InterfaceDados    *dados    = &ctx->dados;
    InterfacePainel   *painel   = &ctx->painel;
 
-   int f = ui_prova->foco_tema;
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
    const char *subtema = gtk_button_get_label( GTK_BUTTON( widget ) );
    int id_widget = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "id_widget" ) );
 
    if ( estado && montagem->cont_add == dados->total_quest_prova ) {
-      if ( montagem->handlers_check != NULL && montagem->handlers_check[f] != NULL ) {
-         g_signal_handler_block( widget, montagem->handlers_check[f][id_widget] );
+      if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+         g_signal_handler_block( widget, montagem->handlers_check[id_widget] );
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
-         g_signal_handler_unblock( widget, montagem->handlers_check[f][id_widget] );
+         g_signal_handler_unblock( widget, montagem->handlers_check[id_widget] );
       } else {
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
       }
@@ -406,10 +402,10 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
          int qtd_tex = quantidade_arquivos_por_extensao( caminho->questoes_tex, ".tex" );
 
          if ( qtd_tex == 0 ) {
-            if ( montagem->handlers_check != NULL && montagem->handlers_check[f] != NULL ) {
-               g_signal_handler_block( widget, montagem->handlers_check[f][id_widget] );
+            if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+               g_signal_handler_block( widget, montagem->handlers_check[id_widget] );
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
-               g_signal_handler_unblock( widget, montagem->handlers_check[f][id_widget] );
+               g_signal_handler_unblock( widget, montagem->handlers_check[id_widget] );
             } else {
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
             }

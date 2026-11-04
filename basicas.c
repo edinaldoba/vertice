@@ -424,57 +424,56 @@ int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
  * @brief Escaneia o diretório e carrega uma lista com os nomes dos arquivos regulares
  * que possuem a extensão informada, ordenados ou limitados a 'n' elementos.
  */
-ItemTextoCurto *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int n ) {
-   // 1. Defesa inicial: evita processamento se os parâmetros forem inválidos ou se n for inválido
-   if ( diretorio == NULL || ext == NULL || n <= 0 ) return NULL;
+GPtrArray *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int limite_n ) {
+   // 1. Defesa inicial: agora apenas diretório e extensão são obrigatórios.
+   // Se limite_n <= 0, podemos ignorar o limite e ler tudo.
+   if ( diretorio == NULL || ext == NULL ) return NULL;
 
-   DIR *dir = opendir( diretorio );
-   if ( dir == NULL ) return NULL;
+   g_autoptr(GError) error = NULL;
+   g_autoptr(GDir) dir = g_dir_open( diretorio, 0, &error );
 
-   // 2. Alocação dinâmica segura com calloc (zera toda a memória automaticamente)
-   ItemTextoCurto *img = ( ItemTextoCurto* ) calloc( n, sizeof( ItemTextoCurto ) );
-   if ( img == NULL ) {
-      g_printerr( "Erro crítico: Falha de alocação de memória em carregar_arquivos_por_extensao()\n" );
-      closedir( dir );
+   if ( dir == NULL ) {
+      g_printerr( "Erro crítico: Falha ao abrir diretório '%s' - %s\n", diretorio, error->message );
       return NULL;
    }
 
+   // 2. Alocação dinâmica do vetor de strings da GLib
+   GPtrArray *arquivos = g_ptr_array_new_with_free_func( g_free );
+
+   const char *nome_arquivo;
    int i = 0;
-   struct dirent *dp;
-   struct stat st;
-   char caminho_completo[1024];
 
-   // 3. Loop de leitura respeitando estritamente o limite máximo 'n' alocado
-   while ( ( dp = readdir( dir ) ) != NULL && i < n ) {
+   // 3. Leitura do diretório. g_dir_read_name já ignora automaticamente "." e ".."!
+   while ( ( nome_arquivo = g_dir_read_name( dir ) ) != NULL ) {
 
-      // 4. Ignora os seletores de diretório pai/atual "." e ".."
-      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 ) {
-         continue;
+      // Respeita o limite alocado (se um limite tiver sido passado > 0)
+      if ( limite_n > 0 && i >= limite_n ) {
+         break;
       }
 
-      // 5. Monta o caminho completo necessário para o 'stat' funcionar corretamente
-      snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
+      // 4. Concatenação segura de caminhos multi-plataforma
+      g_autofree char *caminho_completo = g_build_filename( diretorio, nome_arquivo, NULL );
 
-      // 6. Lê os metadados do arquivo/diretório
-      if ( stat( caminho_completo, &st ) == 0 ) {
+      // 5. Verifica se é estritamente um arquivo regular
+      if ( g_file_test( caminho_completo, G_FILE_TEST_IS_REGULAR ) ) {
 
-         // Garante que é estritamente um ARQUIVO REGULAR (ignora pastas, links, etc.)
-         if ( S_ISREG( st.st_mode ) ) {
+         // 6. Verificação elegante de sufixo (extensão), case-sensitive
+         if ( g_str_has_suffix( nome_arquivo, ext ) ) {
 
-            // 7. Busca segura pela extensão real (de trás para frente)
-            const char *str = strrchr( dp->d_name, '.' );
-
-            if ( str != NULL && g_strcmp0( str, ext ) == 0 ) {
-               // Copia o nome do arquivo com segurança para o buffer da estrutura
-               snprintf( img[i].str, sizeof( img[i].str ), "%.31s", dp->d_name );
-               i++;
-            }
+            // Adiciona uma cópia da string na Heap. O tamanho do nome agora é ilimitado.
+            g_ptr_array_add( arquivos, g_strdup( nome_arquivo ) );
+            i++;
          }
       }
    }
 
-   closedir( dir );
-   return img;
+   // 7. Retorna NULL se não encontrou nada, liberando a estrutura vazia
+   if ( arquivos->len == 0 ) {
+      g_ptr_array_free( arquivos, TRUE );
+      return NULL;
+   }
+
+   return arquivos;
 }
 //=========================================================================================================//
 

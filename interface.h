@@ -191,7 +191,7 @@ typedef struct {
 typedef struct {
    GtkWidget *btn_menos;         // Criado dinâmicamente fora do Glade
    GtkWidget *btn_mais;          // Criado dinâmicamente fora do Glade
-   gulong **handlers_check;
+   gulong *handlers_check;
    gulong handler_scrolled;
    gboolean importar;
    int cont_add;
