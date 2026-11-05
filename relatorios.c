@@ -118,7 +118,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    g_string_append( tex,
                     "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
+                    "\\usepackage[left=0.5cm,right=0.5cm,top=0.5cm,bottom=0.5cm]{geometry}\n"
                     "\\usepackage[table]{xcolor}\n"
                     "\\usepackage{tikz}\n"
                     "\\usepackage{multicol}\n"
@@ -218,7 +218,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
                                ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
    g_string_append_printf( tex,
-                           "\\multicolumn{13}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{./dados/informados/.assinatura.png}} \\hspace{3cm}  Data: %s } \\\\\\hline\n"
+                           "\\multicolumn{13}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
                            "\\end{tabular}\n"
                            "\\end{spacing}\n"
                            "\\end{document}\n",
@@ -230,54 +230,27 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    }
 }
 //---------------------------------------------------------------------------------------------
-static int obter_avaliacoes_validas( GtkComboBox *combo, gboolean validas[5] ) {
-   g_return_val_if_fail( GTK_IS_COMBO_BOX( combo ), 0 );
 
-   // Inicializa o vetor de segurança (todas desativadas por padrão)
-   for ( int i = 0; i < 5; i++ ) validas[i] = FALSE;
 
-   GtkTreeModel *model = gtk_combo_box_get_model( combo );
-   if ( !model ) return 0;
-
-   GtkTreeIter iter;
-   int qtd_validas = 0;
-   int idx = 0;
-
-   if ( gtk_tree_model_get_iter_first( model, &iter ) ) {
-      do {
-         if ( idx >= 5 ) break; // Proteção estrita contra estouro de limite
-
-         gboolean desativada = FALSE;
-         gtk_tree_model_get( model, &iter, 1, &desativada, -1 );
-
-         if ( !desativada ) {
-            validas[idx] = TRUE;
-            qtd_validas++;
-         }
-         idx++;
-      } while ( gtk_tree_model_iter_next( model, &iter ) );
-   }
-
-   return qtd_validas;
-}
 // ============================================================================
 // CORE: LÓGICA DE CÁLCULO DE NOTAS
 // ============================================================================
 
 /**
  * Calcula a média de um ÚNICO PERÍODO com base nas avaliações marcadas como válidas.
- * Atualiza: ficha->disciplina[disciplina].relatorio.notas_periodos[periodo] e ficha_modificada
  */
-static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int periodo,
-                                       const gboolean validas[5], int qtd_validas ) {
+static void _calcular_media_do_periodo( FichaAluno *ficha, const InterfaceAvaliacao *avaliacao,
+                                        const InterfaceCabecalho *cabecalho ) {
    float soma_notas = 0.0f;
    gboolean tem_nota_valida = FALSE;
-   float divisor = ( qtd_validas > 0 ) ? ( float )qtd_validas : 1.0f;
+   float divisor = ( avaliacao->qtd_validas > 0 ) ? ( float )avaliacao->qtd_validas : 1.0f;
+   int foco_disciplina = cabecalho->foco_disciplina;
+   int foco_periodo = cabecalho->foco_periodo;
 
-   const PeriodoLetivo *p_letivo = &ficha->disciplina[disciplina].periodo[periodo];
+   const PeriodoLetivo *p_letivo = &ficha->disciplina[ foco_disciplina ].periodo[ foco_periodo ];
 
-   for ( int j = 0; j < 5; j++ ) {
-      if ( !validas[j] ) continue;
+   for ( int j = 0; j < MAX_AVALIACOES; j++ ) {
+      if ( !avaliacao->validas[j] ) continue;
 
       float av  = p_letivo->avaliacoes[j].av;
       float rec = p_letivo->avaliacoes[j].rec;
@@ -289,12 +262,12 @@ static void calcular_media_do_periodo( FichaAluno *ficha, int disciplina, int pe
       }
    }
 
-   RelatorioAnual *rel = &ficha->disciplina[disciplina].relatorio;
+   RelatorioAnual *rel = &ficha->disciplina[ foco_disciplina ].relatorio;
 
-   if ( !tem_nota_valida || qtd_validas == 0 ) {
-      rel->notas_periodos[periodo] = -1.0f;
+   if ( !tem_nota_valida || avaliacao->qtd_validas == 0 ) {
+      rel->notas_periodos[ foco_periodo ] = -1.0f;
    } else {
-      rel->notas_periodos[periodo] = soma_notas / divisor;
+      rel->notas_periodos[ foco_periodo ] = soma_notas / divisor;
       ficha->ficha_modificada = TRUE;
    }
 }
@@ -304,68 +277,27 @@ void calcular_nota_periodo( const AppContext *ctx ) {
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
-   // 1. Obtém o mapa de configurações da UI
-   gboolean validas[5];
-   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( avaliacao->combo_avaliacao ), validas );
-
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ctx->fichas->len; i++ ) {
       FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_media_do_periodo( ficha, cabecalho->foco_disciplina, cabecalho->foco_periodo, validas, qtd_validas );
+      _calcular_media_do_periodo( ficha, avaliacao, cabecalho );
    }
 }
 
-/**
- * Calcula a SOMA ANUAL e a MÉDIA FINAL consolidando os 4 períodos.
- * Atualiza: ficha->disciplina[disciplina].relatorio.soma, media_anual e ficha_modificada
- */
-void calcular_consolidado_anual( FichaAluno *ficha, int disciplina ) {
-   if ( !ficha->ativo ) return;
 
-   RelatorioAnual *rel = &ficha->disciplina[disciplina].relatorio;
-   rel->soma = 0.0f;
-   gboolean possui_dados = FALSE;
-
-   // Soma apenas os períodos que já possuem médias processadas
-   for ( int p = 0; p < 4; p++ ) {
-      if ( rel->notas_periodos[p] >= 0.0f ) {
-         rel->soma += rel->notas_periodos[p];
-         possui_dados = TRUE;
-      }
-   }
-
-   // Mantém a correção do bug (preserva aluno com soma 0.0 legítima)
-   if ( !possui_dados ) {
-      rel->soma        = -1.0f;
-      rel->media_anual = -1.0f;
-   } else {
-      rel->media_anual = rel->soma / 4.0f;
-      ficha->ficha_modificada = TRUE;
-   }
-}
 
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
 
    const InterfaceDados   *dados   = &ctx->dados;
-   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const CaminhoDiretorio *caminho = &ctx->caminho;
    const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
+   // 1. Não precisamos da nota do período, precisamos somente das parciais
    gerar_arquivo_siaep_notas( ctx );
 
-   // 1. Obtém o mapa de configurações da UI
-   gboolean validas[5];
-   int qtd_validas = obter_avaliacoes_validas( GTK_COMBO_BOX( avaliacao->combo_avaliacao ), validas );
-
-   // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_media_do_periodo( ficha, cabecalho->foco_disciplina, cabecalho->foco_periodo, validas, qtd_validas );
-   }
-
-   // 3. Exporta para LaTeX
-   gerar_tex_avaliacoes( "avaliações", ctx, validas );
+   // 2. Exporta para LaTeX
+   gerar_tex_avaliacoes( "avaliações", ctx, avaliacao->validas );
    disparar_latex( "avaliações", caminho->relatorios, dados, caminho );
 }
 //==================================================================================================
@@ -375,102 +307,231 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 //===================================================================================================
-// ESTRUTURA AUXILIAR: Encapsula as strings formatadas de uma linha do relatório LaTeX
+// FUNÇÃO AUXILIAR 1: Calcula globalmente quantos bimestres inteiros ainda não possuem nenhuma nota
+// lançada para nenhum aluno da turma naquela disciplina.
+// Otimizada com early-exit (break) assim que descobre que o período já iniciou.
 //===================================================================================================
-typedef struct {
-   char nome[128];
-   char notas[4][32];
-   char soma[32];
-   char media[32];
-   char rec[32];
-   char cons[32];
-   char obs[128];
-} LinhaRelatorioTeX;
+static int _numero_de_periodos_sem_notas_registradas( GArray *fichas, int foco_disc ) {
+   gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
+
+   for ( guint i = 0; i < fichas->len; i++ ) {
+      const FichaAluno *f = &g_array_index( fichas, FichaAluno, i );
+      const RelatorioAnual *r = &f->disciplina[foco_disc].relatorio;
+
+      for ( int j = 0; j < 4; j++ ) {
+         // Se já sabemos que o período iniciou, pula verificação (Otimização O(1))
+         if ( !periodo_iniciado[j] && r->notas_periodos[j] >= 0.0f ) {
+            periodo_iniciado[j] = TRUE;
+         }
+      }
+
+      // Early-exit global: se todos os 4 períodos já iniciaram, não precisa checar o resto da turma.
+      if ( periodo_iniciado[0] && periodo_iniciado[1] &&
+           periodo_iniciado[2] && periodo_iniciado[3] ) {
+         break;
+      }
+   }
+
+   int faltantes_globais = 0;
+   for ( int j = 0; j < 4; j++ ) {
+      if ( !periodo_iniciado[j] ) faltantes_globais++;
+   }
+
+   return faltantes_globais;
+}
+
+//---------------------------------------------------------------------------------------------------
+// FUNÇÃO AUXILIAR 2: Classifica o status de aprovação de acordo com o regimento (Conselho, Rec Final)
+//---------------------------------------------------------------------------------------------------
+static void _atribuir_observacao_aluno( RelatorioAnual *rel, int faltantes_globais ) {
+   if ( rel->soma < 0.0f ) return;
+
+   // Lógica de projeção matemática para o fim do ano:
+   // "Se o aluno tirar 10 em todos os períodos restantes, ele alcança os 22.2 necessários?"
+   float max_futuro = rel->soma + ( ( float )faltantes_globais * 10.0f );
+
+   if ( rel->conselho >= 0.0f ) {
+      rel->obs = ( rel->conselho >= 6.0f ) ? OBS_ALUNO_APROVADO_NO_CONSELHO : OBS_ALUNO_REPROVADO;
+   }
+   else if ( rel->rec_final >= 0.0f ) {
+      rel->obs = ( rel->rec_final >= 6.0f ) ? OBS_ALUNO_APROVADO_NA_FINAL : OBS_ALUNO_EM_CONSELHO_CLASSE;
+   }
+   else if ( rel->soma > 22.2f ) {
+      // 22.2 = 6.0 * 4 (média ponderada/soma aproximada na SEDUC, ou tolerância a arredondamento)
+      rel->obs = OBS_ALUNO_APROVADO_DIRETO;
+   }
+   // Se a pontuação máxima possível no futuro ainda é menor ou igual a 22.2 e
+   // o ano já começou (faltantes_globais < 4), decreta Recuperação Final antecipada.
+   else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
+      rel->obs = OBS_ALUNO_EM_RECUPERACAO_FINAL;
+   }
+   else {
+      rel->obs = OBS_ALUNO_CURSANDO;
+   }
+}
+
+//---------------------------------------------------------------------------------------------------
+// FUNÇÃO AUXILIAR 3: Varre um único aluno e calcula a sua soma total de pontos
+//---------------------------------------------------------------------------------------------------
+static void _calcular_consolidado_anual_individual( FichaAluno *ficha, int foco_disciplina, int faltantes_globais ) {
+   if ( !ficha || !ficha->ativo ) return;
+
+   RelatorioAnual *rel = &ficha->disciplina[foco_disciplina].relatorio;
+
+   float acumulador_soma = 0.0f;
+   gboolean possui_dados = FALSE;
+
+   for ( int p = 0; p < 4; p++ ) {
+      if ( rel->notas_periodos[p] >= 0.0f ) {
+         acumulador_soma += rel->notas_periodos[p];
+         possui_dados = TRUE;
+      }
+   }
+
+   // Preservando o Zero legítimo vs Ausência de Dados (-1.0)
+   if ( !possui_dados ) {
+      rel->soma        = -1.0f;
+      rel->media_anual = -1.0f;
+   } else {
+      // Atualiza apenas se houve mudança real para poupar IO desnecessário
+      if ( rel->soma != acumulador_soma ) {
+         rel->soma        = acumulador_soma;
+         rel->media_anual = acumulador_soma / 4.0f;
+
+         _atribuir_observacao_aluno( rel, faltantes_globais );
+         ficha->ficha_modificada = TRUE;
+      }
+   }
+}
+
+//---------------------------------------------------------------------------------------------------
+// FUNÇÃO PRINCIPAL EXPORTADA: Engatilha o recálculo anual de toda a turma
+//---------------------------------------------------------------------------------------------------
+void calcular_consolidado_anual( GArray *fichas, int foco_disciplina ) {
+   // Correção do Bug de Lógica: || em vez de && (se nulo OU vazio, retorne).
+   if ( !fichas || fichas->len == 0 ) return;
+
+   int faltantes_globais = _numero_de_periodos_sem_notas_registradas( fichas, foco_disciplina );
+
+   for ( guint i = 0; i < fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( fichas, FichaAluno, i );
+      _calcular_consolidado_anual_individual( ficha, foco_disciplina, faltantes_globais );
+   }
+}
+//===================================================================================================
+
+
+
+
 
 //===================================================================================================
-// FUNÇÃO AUXILIAR: Processa as regras de negócio e preenche a estrutura da linha TeX
+typedef struct {
+   gchar *nome;
+   gchar *notas[4];
+   gchar *soma;
+   gchar *media;
+   gchar *rec;
+   gchar *cons;
+   gchar *obs;
+} LinhaRelatorioTeX;
+
+//---------------------------------------------------------------------------------------------------
+// FUNÇÃO DE LIMPEZA: Desaloca os ponteiros dinâmicos da linha
+//---------------------------------------------------------------------------------------------------
+static void _linha_relatorio_tex_limpar( LinhaRelatorioTeX *linha ) {
+   if ( !linha ) return;
+   g_free( linha->nome );
+   for ( int i = 0; i < 4; i++ ) g_free( linha->notas[i] );
+   g_free( linha->soma );
+   g_free( linha->media );
+   g_free( linha->rec );
+   g_free( linha->cons );
+   g_free( linha->obs );
+   memset( linha, 0, sizeof( LinhaRelatorioTeX ) );
+}
+
 //===================================================================================================
-static void preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
-   // Zera toda a estrutura de uma vez para garantir strings limpas
+// FUNÇÃO AUXILIAR: Extrai os dados da FichaAluno (Memória) e aloca dinamicamente os campos TeX
+//===================================================================================================
+static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
+   // Zera e garante que não há lixo de memória
    memset( linha, 0, sizeof( LinhaRelatorioTeX ) );
 
    const RelatorioAnual *rel = &ficha->disciplina[disc].relatorio;
 
    // --- PASSO A: Nome do Aluno ---
    if ( ficha->ativo ) {
-      g_snprintf( linha->nome, sizeof( linha->nome ), "%.*s", ficha->limite_corte, ficha->aluno );
+      linha->nome = g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno );
    } else {
-      g_snprintf( linha->nome, sizeof( linha->nome ), "\\textcolor{gray!50}{%.*s}", ficha->limite_corte, ficha->aluno );
+      linha->nome = g_strdup_printf( "\\textcolor{gray!50}{%.*s}", ficha->limite_corte, ficha->aluno );
    }
 
-   // --- PASSO B: Notas dos 4 Períodos e Contagem ---
-   int qtd_periodos = 0;
+   // --- PASSO B: Notas dos 4 Períodos ---
    for ( int k = 0; k < 4; k++ ) {
       float med = rel->notas_periodos[k];
       if ( med >= 0.0f ) {
          const char *cor = ficha->ativo ? ( ( med < 6.0f ) ? "red" : "black" ) : "gray!50";
-         g_snprintf( linha->notas[k], sizeof( linha->notas[k] ), "\\textcolor{%s}{%.2f}", cor, med );
-         qtd_periodos++;
-      }
-   }
-
-   // --- PASSO C: Soma, Média, Final e Conselho ---
-   float soma  = rel->soma;
-   float media = rel->media_anual;
-   float rec   = rel->rec_final;
-   float cons  = rel->conselho;
-
-   if ( soma >= 0.0f ) {
-      if ( ficha->ativo ) {
-         g_snprintf( linha->soma, sizeof( linha->soma ), "{\\bf %.2f}", soma );
-
-         // Aplicação da regra de nota vermelha também na média anual
-         const char *cor_media = ( media < 6.0f ) ? "red" : "black";
-         g_snprintf( linha->media, sizeof( linha->media ), "\\textcolor{%s}{%.2f}", cor_media, media );
+         linha->notas[k] = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, med );
       } else {
-         g_snprintf( linha->soma, sizeof( linha->soma ), "\\textcolor{gray!50}{\\bf %.2f}", soma );
-         g_snprintf( linha->media, sizeof( linha->media ), "\\textcolor{gray!50}{%.2f}", media );
+         linha->notas[k] = g_strdup( "" ); // Mantém seguro para não quebrar a concatenação
       }
    }
 
-   if ( rec >= 0.0f ) {
-      const char *cor = ficha->ativo ? ( ( rec < 6.0f ) ? "red" : "black" ) : "gray!50";
-      g_snprintf( linha->rec, sizeof( linha->rec ), "\\textcolor{%s}{%.2f}", cor, rec );
-   }
+   // --- PASSO C: Soma, Média, Recuperação e Conselho ---
+   linha->soma  = g_strdup( "" );
+   linha->media = g_strdup( "" );
+   linha->rec   = g_strdup( "" );
+   linha->cons  = g_strdup( "" );
 
-   if ( cons >= 0.0f ) {
-      const char *cor = ficha->ativo ? ( ( cons < 6.0f ) ? "red" : "black" ) : "gray!50";
-      g_snprintf( linha->cons, sizeof( linha->cons ), "\\textcolor{%s}{%.2f}", cor, cons );
-   }
-
-   // --- PASSO D: Lógica de Status de Aprovação ---
-   if ( soma >= 0.0f ) {
-      char temp_obs[128] = {0};
-
-      if ( cons >= 0.0f ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
-         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. Final", sizeof( temp_obs ) );
-         else if ( cons >= 6.0f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{Aprov Cons}", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "Reprovado", sizeof( temp_obs ) );
-
-      } else if ( rec >= 0.0f ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
-         else if ( rec >= 6.0f ) g_strlcpy( temp_obs, "Aprov. Final", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Conselho}", sizeof( temp_obs ) );
-
-      } else if ( qtd_periodos == 4 ) {
-         if ( soma >= 22.2f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
-         else g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Rec. Final}", sizeof( temp_obs ) );
-
-      } else if ( qtd_periodos == 3 ) {
-         if ( soma >= 24.0f ) g_strlcpy( temp_obs, "Aprov. Direto", sizeof( temp_obs ) );
-         else if ( soma < 12.2f ) g_strlcpy( temp_obs, "\\resizebox{29mm}{8pt}{\\it Rec. Final}", sizeof( temp_obs ) );
-      }
+   if ( rel->soma >= 0.0f ) {
+      g_free( linha->soma );
+      g_free( linha->media );
 
       if ( ficha->ativo ) {
-         g_snprintf( linha->obs, sizeof( linha->obs ), "%s", temp_obs );
+         linha->soma = g_strdup_printf( "{\\bf %.2f}", rel->soma );
+         const char *cor_media = ( rel->media_anual < 6.0f ) ? "red" : "black";
+         linha->media = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor_media, rel->media_anual );
       } else {
-         g_snprintf( linha->obs, sizeof( linha->obs ), "\\textcolor{gray!50}{%s}", temp_obs );
+         linha->soma = g_strdup_printf( "\\textcolor{gray!50}{\\bf %.2f}", rel->soma );
+         linha->media = g_strdup_printf( "\\textcolor{gray!50}{%.2f}", rel->media_anual );
+      }
+   }
+
+   if ( rel->rec_final >= 0.0f ) {
+      g_free( linha->rec );
+      const char *cor = ficha->ativo ? ( ( rel->rec_final < 6.0f ) ? "red" : "black" ) : "gray!50";
+      linha->rec = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, rel->rec_final );
+   }
+
+   if ( rel->conselho >= 0.0f ) {
+      g_free( linha->cons );
+      const char *cor = ficha->ativo ? ( ( rel->conselho < 6.0f ) ? "red" : "black" ) : "gray!50";
+      linha->cons = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, rel->conselho );
+   }
+
+   // --- PASSO D: Observação baseada no Enum já calculado na memória ---
+   linha->obs = g_strdup( "" );
+
+   if ( rel->soma >= 0.0f ) {
+      const char *obs_tex = "Cursando"; // Fallback padrão
+
+      // Traduz diretamente o Enum (Single Source of Truth)
+      switch ( rel->obs ) {
+         case OBS_ALUNO_APROVADO_NO_CONSELHO: obs_tex = "\\resizebox{20mm}{8pt}{Aprov Cons}"; break;
+         case OBS_ALUNO_REPROVADO:            obs_tex = "Reprovado"; break;
+         case OBS_ALUNO_APROVADO_NA_FINAL:    obs_tex = "Aprov. Final"; break;
+         case OBS_ALUNO_EM_CONSELHO_CLASSE:   obs_tex = "\\resizebox{20mm}{8pt}{\\it Conselho}"; break;
+         case OBS_ALUNO_APROVADO_DIRETO:      obs_tex = "Aprov. Direto"; break;
+         case OBS_ALUNO_EM_RECUPERACAO_FINAL: obs_tex = "\\resizebox{20mm}{8pt}{\\it Rec. Final}"; break;
+         case OBS_ALUNO_CURSANDO:
+         default:                             obs_tex = "Cursando"; break;
+      }
+
+      g_free( linha->obs );
+      if ( ficha->ativo ) {
+         linha->obs = g_strdup( obs_tex );
+      } else {
+         linha->obs = g_strdup_printf( "\\textcolor{gray!50}{%s}", obs_tex );
       }
    }
 }
@@ -481,12 +542,12 @@ static void preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, Li
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
    g_return_if_fail( ctx && ctx->fichas );
    const InterfaceDados *dados = &( ctx->dados );
-   int disc = ctx->cabecalho.foco_disciplina;
+   int foco_disciplina = ctx->cabecalho.foco_disciplina;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
 
-   g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
 
    // 1. Escrita do Preâmbulo
    g_string_append( tex,
@@ -519,7 +580,6 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    g_string_append_printf( tex, "\\begin{spacing}{%.4f}\n", spacing );
 
    // 3. Cabeçalho da Tabela
-   // A mágica de centralização horizontal (c|) e vertical (\rule expandido) aplicada a cada coluna
    g_string_append_printf( tex,
                            "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
                            "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
@@ -536,14 +596,14 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
                            "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
                            dados->escola, dados->turma, dados->disciplina, dados->ano );
 
-   // 4. Loop dos Alunos com delegação para a função auxiliar
+   // Dentro de gerar_tex_relatorio_final():
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
       LinhaRelatorioTeX linha;
 
-      preencher_linha_relatorio_tex( ficha, disc, &linha );
+      _preencher_linha_relatorio_tex( ficha, foco_disciplina, &linha );
 
-      // Troca imediata de ponto para vírgula
+      // Troca imediata de ponto para vírgula in-place
       for ( int k = 0; k < 4; k++ ) {
          g_strdelimit( linha.notas[k], ".", ',' );
       }
@@ -556,6 +616,8 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
                               j + 1, linha.nome,
                               linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
                               linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
+
+      _linha_relatorio_tex_limpar( &linha );
    }
 
    // 5. Rodapé Seguro e Encerramento
@@ -563,7 +625,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
                                ctx->data.dia, ctx->data.mes, ctx->data.ano );
 
    g_string_append_printf( tex,
-                           "\\multicolumn{11}{|c|}{\\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} \\hspace{3cm}  Data: %s}\\\\\\hline\n"
+                           "\\multicolumn{11}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
                            "\\end{tabular}\n"
                            "\\end{spacing}\n"
                            "\\end{document}\n",
@@ -575,7 +637,6 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
       g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
    }
 }
-//===================================================================================================
 
 //===================================================================================================
 // FUNÇÃO PRINCIPAL: Relatório Final
@@ -585,19 +646,8 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
-   int d = ctx->cabecalho.foco_disciplina;
 
-   // 1. GARANTIA DE DADOS: Processa os cálculos de soma e média de todos os alunos
-   // antes de gerar o PDF, blindando o sistema contra inconsistências.
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_consolidado_anual( ficha, d );
-   }
-
-   // 2. Chamada do Gerador LaTeX com os dados validados
    gerar_tex_relatorio_final( "Final", ctx );
-
-   // 3. Dispara a compilação
    disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
 }
 
@@ -800,7 +850,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          meses_acumulados[num_meses - 1] = i + 1;
       }
 
-      int ch = r->qtd_aulas;
+      int ch = r->ch;
       ap += ch;
 
       g_autofree gchar *tema_upper = NULL;
@@ -948,7 +998,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
       if ( k == 0 || k == 1 ) {
          g_string_append_printf( conteudo_siaep, " (ERRO: DATA DE SÁBADO OU DOMINGO %02d/%02d/%d)\n", dia, mes, ano );
       } else {
-         for ( int j = 0; j < d->qtd_aulas; j++ ) {
+         for ( int j = 0; j < d->ch; j++ ) {
             int num_aux = 0;
             if ( i > 0 ) {
                RegistroDiario *anterior = &g_array_index( registros, RegistroDiario, i - 1 );
@@ -1002,16 +1052,16 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
          }
       }
 
-      somach += d->qtd_aulas;
+      somach += d->ch;
 
       // Atualiza automaticamente o limite inferior (cumulativo) do mês atual
       if ( num_meses > 0 && num_meses <= 12 ) {
          meses_acumulados[num_meses - 1] = somach;
       }
 
-      if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += d->qtd_aulas; // Aulas Dadas
-      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) ad += d->qtd_aulas;  // Aulas Dadas
-      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO ) ap += d->qtd_aulas;     // Aulas Previstas
+      if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += d->ch; // Aulas Dadas
+      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) ad += d->ch;  // Aulas Dadas
+      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO ) ap += d->ch;     // Aulas Previstas
    }
 
    // =========================================================================
@@ -1070,7 +1120,7 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
          sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
 
          h_acumulado_prev = h_acumulado_curr;
-         h_acumulado_curr += d->qtd_aulas;
+         h_acumulado_curr += d->ch;
 
          // Coordenadas Y calculadas diretamente em C
          double y_centro = -1.0 - ( 3.0 + 0.5 * ( h_acumulado_prev + h_acumulado_curr ) ) * p;
@@ -1206,40 +1256,36 @@ void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arqui
 
 void disparar_latex( const char *nome_base, const char *pasta_destino,
                      const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
-   char comando[2048];
-   char path_pdf_temp[512];
-   char path_pdf_final[768];
-   const char *pasta_temp = "./dados/temporarios";
+    g_return_if_fail( nome_base != NULL && pasta_destino != NULL && dados != NULL );
 
-   // 1. pdflatex ainda precisa do system
-   snprintf( comando, sizeof( comando ),
-             "pdflatex -synctex=1 -interaction=nonstopmode -output-directory='%s' '%s/%s.tex'",
-             pasta_temp, pasta_temp, nome_base );
+    // Constrói os caminhos e nomes de arquivo de forma segura e com alocação dinâmica O(1)
+    g_autofree gchar *dir_temp = g_build_filename( ".", "dados", "temporarios", NULL );
+    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+    g_autofree gchar *nome_pdf = g_strdup_printf( "%s.pdf", nome_base );
 
-   if ( system( comando ) != 0 ) {
-      fprintf( stderr, "Erro na compilação.\n" );
-      return;
-   }
+    // 1. Compilação Segura: g_pdflatex_serial entra em dir_temp e compila apenas o nome_tex.
+    // O .pdf será gerado nativamente lá dentro.
+    g_pdflatex_serial( dir_temp, nome_tex );
 
-   snprintf( path_pdf_temp, sizeof( path_pdf_temp ), "%s/%s.pdf", pasta_temp, nome_base );
+    // Monta os caminhos absolutos/relativos completos para o GIO
+    g_autofree gchar *path_pdf_temp  = g_build_filename( dir_temp, nome_pdf, NULL );
+    g_autofree gchar *path_pdf_final = g_build_filename( pasta_destino, nome_pdf, NULL );
 
-   if ( dados->expor_dados ) {
-      expor_relatorio_escola( path_pdf_temp, nome_base, dados, caminho );
-   }
+    // Exportação condicional
+    if ( dados->expor_dados ) {
+        expor_relatorio_escola( path_pdf_temp, nome_base, dados, caminho );
+    }
 
-   snprintf( path_pdf_final, sizeof( path_pdf_final ), "%s/%s.pdf", pasta_destino, nome_base );
+    // 2. Mover nativamente com a API do GIO
+    if ( !gio_mover_arquivo( path_pdf_temp, path_pdf_final ) ) {
+        g_printerr( "Falha ao mover o PDF final de '%s' para '%s'.\n", path_pdf_temp, path_pdf_final );
+    }
 
-   // 2. Mover nativamente
-   if ( !gio_mover_arquivo( path_pdf_temp, path_pdf_final ) ) {
-      perror( "Erro ao mover PDF" );
-   }
+    // 3. Limpeza seletiva e nativa
+    // apagar_arquivos_temporarios_latex_nativamente( dir_temp, nome_base, 4 );
 
-   // 3. Limpeza seletiva e nativa
-   apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", nome_base, 4 );
-
-
-   g_xdg_open( path_pdf_final );
-
+    // 4. Abertura do documento usando a função assíncrona xdg-open wrapper
+    g_xdg_open( path_pdf_final );
 }
 
 

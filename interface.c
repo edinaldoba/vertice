@@ -773,6 +773,7 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 
 
+
 //===============================================================================================
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
@@ -780,6 +781,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    InterfaceDados      *dados      = &ctx->dados;
    InterfaceConteudo   *conteudo   = &ctx->ui_diario.conteudo;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
+   InterfaceAvaliacao  *avaliacao = &ctx->ui_diario.avaliacao;
 
    ui_restaurar_registros_de_aula( ctx, TRUE );
    conteudo->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
@@ -810,6 +812,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
       salvar_avaliacoes( ctx, FALSE );
       carregar_avaliacoes( ctx );
+      obter_avaliacoes_validas( avaliacao );
       sincronizar_registro_diario_com_turma_siaep( ctx );
    }
 
@@ -837,20 +840,21 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
 
 
-
 //==================================================================================================
 void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   InterfaceDados      *dados    = &ctx->dados;
-   CalendarioData      *data     = &ctx->data;
-   InterfaceConteudo   *conteudo = &ctx->ui_diario.conteudo;
+   InterfaceDados     *dados    = &ctx->dados;
+   CalendarioData     *data     = &ctx->data;
+   InterfaceConteudo  *conteudo = &ctx->ui_diario.conteudo;
+   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    dados->max_quest_prova = 20;
    dados->total_quest_prova = 10; // Esse valor deverá ser escolhido na interface em breve.
    dados->selecao_quest_prova = g_new0( gchar*, dados->total_quest_prova + 1 );
    dados->qtd_quest_subtema = g_new0( gint, dados->total_quest_prova );
+   avaliacao->validas = g_new0( gboolean, MAX_AVALIACOES );
 
    gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
 
@@ -860,7 +864,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
 
    g_autofree char *str_qtd_aulas = g_strdup_printf( "%d h", 1 );
-   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), str_qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), str_qtd_aulas );
 
    int qtd_caracteres = 10;
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );

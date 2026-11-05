@@ -14,7 +14,7 @@ typedef struct {
 } GrupoHorario;
 
 void calcular_nota_periodo( const AppContext *ctx );
-void calcular_consolidado_anual( FichaAluno *ficha, int disciplina );
+void calcular_consolidado_anual( GArray *fichas, int foco_disciplina );
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx );
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx );

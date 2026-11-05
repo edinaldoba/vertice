@@ -27,6 +27,7 @@ gboolean on_entry_validar_data_focus_out_event( GtkWidget *widget, GdkEventFocus
 void on_entry_tema_activate( GtkWidget *widget, gpointer user_data );
 gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data );
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
+void on_label_carga_horaria_notify_label( GtkWidget *widget, GParamSpec *pspec, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 
 void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data );

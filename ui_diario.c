@@ -102,7 +102,7 @@ static void _mapear_datas_frequencia( GtkListStore *store, GtkTreeIter *iter, co
 
    gtk_list_store_set( store, iter,
                        0, diario->data,
-                       1, ( guint )diario->qtd_aulas,
+                       1, ( guint )diario->ch,
                        2, eh_aula_extra,
                        3, !tem_chamada,   // FALSE (risca nome/desativa) se for Feriado/Pedagógico
                        4, tem_chamada,  // TRUE (trava seleção visual) se for Feriado/Pedagógico
@@ -305,7 +305,7 @@ static void _inserir_linha_conteudo_ui( GtkListStore *store, GtkTreeIter *iter, 
 
    gtk_list_store_set( store, iter,
                        0, reg->data,
-                       1, reg->qtd_aulas,
+                       1, reg->ch,
                        2, reg->tema,
                        3, reg->descricao,
                        4, reg->tipo_registro,
@@ -337,7 +337,7 @@ static void _extrair_linha_liststore_para_ram( GtkListStore *store, GtkTreeIter 
       g_free( desc );
    }
 
-   reg->qtd_aulas = qtd;
+   reg->ch = qtd;
    reg->tipo_registro = tipo;
 }
 
@@ -416,7 +416,7 @@ void registrar_aula( AppContext *ctx ) {
    GtkTreeIter iter_temp;
 
    int temp_qtd = 0;
-   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->qtd_aulas ) );
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->label_ch ) );
    if ( str_ch ) sscanf( str_ch, "%d", &temp_qtd );
 
    // =====================================================================
@@ -504,7 +504,7 @@ void modificar_registro_aula( AppContext *ctx ) {
    }
 
    int temp_qtd = 0;
-   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->qtd_aulas ) );
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->label_ch ) );
    if ( str_ch ) sscanf( str_ch, "%d", &temp_qtd );
 
    // 1. INJETA AS ALTERAÇÕES DIRETAMENTE NA LINHA DO LISTSTORE
@@ -662,11 +662,12 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    // 3. Popula a interface visual rapidamente
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), diario_edicao->data );
 
-   g_autofree gchar *str_ch = g_strdup_printf( "%d h", diario_edicao->qtd_aulas );
-   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), str_ch );
-
    gtk_combo_box_set_active( GTK_COMBO_BOX( conteudo->tipo_registro ), diario_edicao->tipo_registro );
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), diario_edicao->tema );
+
+   g_autofree gchar *str_ch = g_strdup_printf( "%d h", diario_edicao->ch );
+   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), str_ch ); // Dispara sinal notify::label (precisa tema setado)
+
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), diario_edicao->descricao );
 
    // 4. Atualiza o estado da aplicação
@@ -1373,7 +1374,7 @@ static void mapper_avaliacao_diario( GtkListStore *store, GtkTreeIter *iter, con
 
 static void _visibilidade_avaliacoes( const AppContext *ctx, GtkTreeView *treeview ) {
    // 3. Atualiza a visibilidade dos 5 pares de colunas (Av/Rec)
-   for ( int i = 0; i < 5; i++ ) {
+   for ( int i = 0; i < MAX_AVALIACOES; i++ ) {
       gboolean visivel = FALSE;
 
       // Verifica se o índice existe no GArray e se a avaliação está ativa
@@ -1438,6 +1439,7 @@ void carregar_avaliacoes( AppContext *ctx ) {
 
    GtkWidget *check = avaliacao->check_desativar_avaliacao;
    gulong handler = avaliacao->handler_check_desativar;
+   int foco_inicial = 0;
 
    if ( handler > 0 ) {
       g_signal_handler_block( check, handler );
@@ -1450,14 +1452,14 @@ void carregar_avaliacoes( AppContext *ctx ) {
       if ( ctx->avaliacoes && ctx->avaliacoes->len > 0 ) {
          popular_combo_box_generico(
             avaliacao->combo_avaliacao,
-            ctx->avaliacoes->data,                    // Bloco contíguo das structs
-            ctx->avaliacoes->len,                     // Quantidade exata de itens
-            0,                                        // Foco padrão
+            ctx->avaliacoes->data,               // Bloco contíguo das structs
+            ctx->avaliacoes->len,                // Quantidade exata de itens
+            foco_inicial,                        // Foco padrão
             avaliacao->handler_combo_avaliacao,  // Silencia o sinal durante o processo
             mapper_avaliacao_diario
          );
 
-         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, 0 );
+         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, foco_inicial );
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), !meta->ativa );
       }
       _marcar_dados_modificado( ctx );
@@ -1526,6 +1528,35 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    // Assumindo que o ponteiro do seu TreeView está no contexto
    GtkTreeView *treeview = GTK_TREE_VIEW( avaliacao->treeview );
    _visibilidade_avaliacoes( ctx, treeview );
+}
+
+
+void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
+   g_return_if_fail( avaliacao );
+
+   GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( avaliacao->combo_avaliacao ) );
+   if ( !model ) return;
+
+   for ( int i = 0; i < MAX_AVALIACOES; i++ ) avaliacao->validas[i] = FALSE;
+
+   GtkTreeIter iter;
+   avaliacao->qtd_validas = 0;
+   int idx = 0;
+
+   if ( gtk_tree_model_get_iter_first( model, &iter ) ) {
+      do {
+         if ( idx >= MAX_AVALIACOES ) break; // Proteção estrita contra estouro de limite
+
+         gboolean desativada = FALSE;
+         gtk_tree_model_get( model, &iter, 1, &desativada, -1 );
+
+         if ( !desativada ) {
+            avaliacao->validas[idx] = TRUE;
+            avaliacao->qtd_validas++;
+         }
+         idx++;
+      } while ( gtk_tree_model_iter_next( model, &iter ) );
+   }
 }
 
 
@@ -1648,6 +1679,7 @@ static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes,
 //===================================================================================================
 gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    g_return_val_if_fail( ctx, FALSE );
+   InterfaceDados *dados = &ctx->dados;
 
    gboolean salvou_algo = FALSE;
 
@@ -1673,13 +1705,59 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    // Atualização do diretório de salvamento
    if ( !final_save ) {
       g_free( ctx->path_save_fichas );
-      ctx->path_save_fichas = g_build_filename( ".", "dados", "informados",
-                              ctx->dados.ano, ctx->dados.escola, "alunos", NULL );
+      ctx->path_save_fichas = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL );
    }
    return salvou_algo;
 }
 
-// EDINALDO! NÃO APAGUE ESTA FUNÇÃO COMENTADA!
+
+
+
+// // NÃO APAGUE ESTA FUNÇÃO COMENTADA!
+// static void copiar_ficha_aluno( const FichaAluno *origem, FichaAlunoAux *destino ) {
+//    if ( !origem || !destino ) return;
+//
+//    // 1. Identificação e Dados Pessoais (Cópia segura de strings limitadas)
+//    destino->cod_aluno = origem->cod_aluno;
+//    g_strlcpy( destino->aluno, origem->aluno, sizeof( destino->aluno ) );
+//    g_strlcpy( destino->sexo, origem->sexo, sizeof( destino->sexo ) );
+//    g_strlcpy( destino->nasc, origem->nasc, sizeof( destino->nasc ) );
+//
+//    // 2 e 3. Condições Curriculares e Status
+//    destino->atipico = origem->atipico;
+//    destino->sit     = origem->sit;
+//    destino->ativo   = origem->ativo;
+//
+//    // 4. Parâmetros de Exibição
+//    destino->limite_corte = origem->limite_corte;
+//    destino->idx_siaep    = origem->idx_siaep;
+//
+//    // 5. Iteração e cópia do histórico de disciplinas
+//    for ( int i = 0; i < QTD_DISC; i++ ) {
+//
+//       // O bloco dos 4 períodos letivos é idêntico e em sequência, aceita cópia direta em bloco
+//       memcpy( destino->disciplina[i].periodo,
+//               origem->disciplina[i].periodo,
+//               sizeof( origem->disciplina[i].periodo ) );
+//
+//       // Mapeamento explícito do RelatorioAnual para o RelatorioAnualAux
+//       memcpy( destino->disciplina[i].relatorio.notas_periodos,
+//               origem->disciplina[i].relatorio.notas_periodos,
+//               sizeof( origem->disciplina[i].relatorio.notas_periodos ) );
+//
+//       destino->disciplina[i].relatorio.soma        = origem->disciplina[i].relatorio.soma;
+//       destino->disciplina[i].relatorio.media_anual = origem->disciplina[i].relatorio.media_anual;
+//       destino->disciplina[i].relatorio.rec_final   = origem->disciplina[i].relatorio.rec_final;
+//       destino->disciplina[i].relatorio.conselho    = origem->disciplina[i].relatorio.conselho;
+//
+//       // Inicializa o novo campo 'obs' com zeros para evitar que o GTK3 leia lixo de memória ao renderizar
+//       memset( &destino->disciplina[i].relatorio.obs, 0, sizeof( destino->disciplina[i].relatorio.obs ) );
+//    }
+//
+//    // 6. Estado do registro
+//    destino->ficha_modificada = origem->ficha_modificada;
+// }
+// //----------------------------------------------------------------------------------------
 // gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    g_return_val_if_fail( ctx, FALSE );
 //
@@ -1687,73 +1765,32 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    if ( ctx->fichas != NULL ) {
 //       for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-//          // Aponta para a ficha antiga (arquitetura velha) na memória
+//          // Aponta para a ficha específica do aluno na memória (estrutura original)
 //          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
 //
-//          // Zera completamente a nova estrutura garantindo que não haja lixo de memória
-//          FichaAlunoAux ficha_aux = {0};
-//
-//          // =====================================================================
-//          // 1. CÓPIA DOS DADOS BÁSICOS (Mapeamento Direto 1:1)
-//          // =====================================================================
-//          ficha_aux.cod_aluno = ficha->cod_aluno;
-//          g_strlcpy( ficha_aux.aluno, ficha->aluno, sizeof( ficha_aux.aluno ) );
-//          g_strlcpy( ficha_aux.sexo, ficha->sexo, sizeof( ficha_aux.sexo ) );
-//          g_strlcpy( ficha_aux.nasc, ficha->nasc, sizeof( ficha_aux.nasc ) );
-//          ficha_aux.atipico = ficha->atipico; // Seguro, pois FichaAtipicidade manteve os 8 bytes
-//          ficha_aux.sit = ficha->sit;
-//          ficha_aux.ativo = ficha->ativo;
-//          ficha_aux.limite_corte = ficha->limite_corte;
-//          ficha_aux.idx_siaep = ficha->idx;
-//
-//          // =====================================================================
-//          // 2. MIGRAÇÃO DA ARQUITETURA DE DADOS (O fim do memcpy perigoso)
-//          // =====================================================================
-//          for ( int d = 0; d < QTD_DISC; d++ ) {
-//
-//             // Migra os 4 Períodos Letivos
-//             for ( int p = 0; p < 4; p++ ) {
-//                // Frequência
-//                ficha_aux.disciplina[d].periodo[p].presencas = ficha->presencas[d][p];
-//                ficha_aux.disciplina[d].periodo[p].ausencias = ficha->ausencias[d][p];
-//
-//                // Avaliações (AV e REC)
-//                for ( int k = 0; k < 5; k++ ) {
-//                   ficha_aux.disciplina[d].periodo[p].avaliacoes[k].av  = ficha->nota[d][p][k].av;
-//                   ficha_aux.disciplina[d].periodo[p].avaliacoes[k].rec = ficha->nota[d][p][k].rec;
-//                }
-//
-//                // Média do período (Antigo relatorio[0 a 3])
-//                ficha_aux.disciplina[d].relatorio.notas_periodos[p] = ficha->relatorio[d][p];
-//             }
-//
-//             // Migra o Consolidado Anual
-//             ficha_aux.disciplina[d].relatorio.soma = ficha->soma[d];
-//             ficha_aux.disciplina[d].relatorio.media_anual = ficha->media[d];
-//
-//             // Notas finais (Antigo relatorio[4] e relatorio[5])
-//             // *Nota: Se no seu código antigo rec_final e conselho eram vetores separados
-//             // (ex: ficha->rec_final[d]), basta trocar a atribuição aqui!
-//             ficha_aux.disciplina[d].relatorio.rec_final = ficha->relatorio[d][4];
-//             ficha_aux.disciplina[d].relatorio.conselho  = ficha->relatorio[d][5];
-//          }
-//
-//          // Reseta a flag para que o sistema considere que o disco está sincronizado
-//          ficha_aux.ficha_modificada = FALSE;
-//
-//          // =====================================================================
-//          // 3. GRAVAÇÃO DO NOVO BLOCO (Estrutura Nova)
-//          // =====================================================================
 //          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
 //          g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
 //
-//          // Salva a estrutura convertida FichaAlunoAux no arquivo .bin
-//          _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
+//          // 1. Cria a estrutura expandida temporária no stack
+//          FichaAlunoAux ficha_aux;
+//
+//          // 2. Copia e mapeia os dados da ficha antiga para a nova com o campo 'obs' zerado
+//          copiar_ficha_aluno( ficha, &ficha_aux );
+//
+//          // 3. Salva a NOVA estrutura no disco, passando o ponteiro e o tamanho corretos
+//          gboolean sucesso_neste_arquivo = _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
+//
+//          // Se conseguiu salvar este arquivo, registra que a operação geral teve sucesso
+//          if ( sucesso_neste_arquivo ) {
+//             salvou_algo = TRUE;
+//          }
+//
+//          // Desmarca a flag de modificação apenas se o arquivo correspondente foi salvo com sucesso
+//          ficha->ficha_modificada = !sucesso_neste_arquivo;
 //       }
-//       salvou_algo = TRUE;
 //    }
 //
-//    // Atualização do diretório de salvamento após a conclusão
+//    // Atualização do diretório de salvamento
 //    if ( !final_save ) {
 //       g_free( ctx->path_save_fichas );
 //       ctx->path_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
@@ -1761,6 +1798,8 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    return salvou_algo;
 // }
+
+
 
 
 
@@ -2248,29 +2287,46 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 }
 
 
-static int numero_de_periodos_sem_notas_registradas( GArray *fichas, int d ) {
-   // =========================================================================
-   // PRE-LOAD 1: Descobre quais períodos já possuem notas lançadas na turma
-   // =========================================================================
-   gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
 
-   for ( guint i = 0; i < fichas->len; i++ ) {
-      FichaAluno *f = &g_array_index( fichas, FichaAluno, i );
-      const RelatorioAnual *r = &f->disciplina[d].relatorio;
-      for ( int j = 0; j < 4; j++ ) {
-         if ( r->notas_periodos[j] >= 0.0f ) {
-            periodo_iniciado[j] = TRUE;
-         }
-      }
+
+
+//===================================================================================================
+// FUNÇÃO AUXILIAR: Transforma o status pré-calculado em texto para a UI e ativa as permissões (View)
+//===================================================================================================
+static const char *_avaliar_status_aprovacao_e_pendencias( const RelatorioAnual *rel, int *mascara_pendencias) {
+
+   // Se o aluno ainda não possui pontuação base no ano, sai silenciosamente
+   if ( rel->soma < 0.0f ) return NULL;
+
+   // Traduz o estado matemático para a string da interface e destrava edições (Rec/Cons)
+   switch ( rel->obs ) {
+      case OBS_ALUNO_APROVADO_NO_CONSELHO:
+         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
+         return "Aprov Cons";
+
+      case OBS_ALUNO_REPROVADO:
+         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
+         return "Reprovado";
+
+      case OBS_ALUNO_APROVADO_NA_FINAL:
+         *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+         return "Aprov Final";
+
+      case OBS_ALUNO_EM_CONSELHO_CLASSE:
+         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
+         return "Conselho";
+
+      case OBS_ALUNO_APROVADO_DIRETO:
+         return "Aprov Dir"; // Não destrava Rec/Cons pois passou direto
+
+      case OBS_ALUNO_EM_RECUPERACAO_FINAL:
+         *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+         return "Rec Final";
+
+      case OBS_ALUNO_CURSANDO:
+      default:
+         return "Cursando";
    }
-
-   // Calcula a quantidade de períodos (bimestres) verdadeiramente pendentes globais
-   int faltantes_globais = 0;
-   for ( int j = 0; j < 4; j++ ) {
-      if ( !periodo_iniciado[j] ) faltantes_globais++;
-   }
-
-   return faltantes_globais;
 }
 
 //===================================================================================================
@@ -2291,8 +2347,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    int d = ctx->cabecalho.foco_disciplina;
    gboolean eh_rec = ( ctx->cabecalho.foco_periodo_vigente == RECUPERACAO_FINAL );
    int foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foco_periodo_vigente; // 0 (1ºP) a 3 (4ºP)
-
-   int faltantes_globais = numero_de_periodos_sem_notas_registradas( ctx->fichas, d );
 
    // =========================================================================
    // PRE-LOAD 2: Carregando acesso.bin em Tabelas Hash O(1)
@@ -2336,7 +2390,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       GtkTreeIter iter;
       char str_cols[8][16] = {{0}};
-      char obs[160] = {0};
 
       // --- PASSO NOVO: Busca do status ativo do aluno no período atual em O(1) ---
       gpointer ptr_ativo = NULL;
@@ -2349,7 +2402,6 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // Separação dos domínios em variáveis distintas
       int mascara_pendencias = 0;
-      int mascara_observacao = 0;
 
       if ( presente_no_foco ) {
          for ( int p = 0; p < foco_periodo; p++ ) {
@@ -2381,51 +2433,14 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       }
 
       // --- PASSO C: Lógica de Status & Destravamento de Edição Final ---
-      if ( rel->soma >= 0.0f ) {
-         float max_futuro = rel->soma + ( faltantes_globais * 10.0f );
-
-         if ( rel->conselho >= 0.0f ) {
-            if ( rel->conselho >= 6.0f ) {
-               g_strlcpy( obs, "Aprov Cons", sizeof( obs ) );
-               mascara_observacao |= OBS_ALUNO_APROVADO_NO_CONSELHO;
-            } else {
-               g_strlcpy( obs, "Reprovado", sizeof( obs ) );
-               mascara_observacao |= OBS_ALUNO_REPROVADO;
-            }
-            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
-            mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
-
-         } else if ( rel->rec_final >= 0.0f ) {
-            if ( rel->rec_final >= 6.0f ) {
-               g_strlcpy( obs, "Aprov Final", sizeof( obs ) );
-               mascara_observacao |= OBS_ALUNO_APROVADO_NA_FINAL;
-            } else {
-               g_strlcpy( obs, "Conselho", sizeof( obs ) );
-               mascara_observacao |= OBS_ALUNO_EM_CONSELHO_CLASSE;
-               mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
-            }
-            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
-
-         } else if ( rel->soma > 22.2f ) {
-            g_strlcpy( obs, "Aprov Dir", sizeof( obs ) );
-            mascara_observacao |= OBS_ALUNO_APROVADO_DIRETO;
-
-         } else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
-            g_strlcpy( obs, "Rec Final", sizeof( obs ) );
-            mascara_observacao |= OBS_ALUNO_EM_RECUPERACAO_FINAL;
-            mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
-
-         } else {
-            g_strlcpy( obs, "Cursando", sizeof( obs ) );
-            mascara_observacao |= OBS_ALUNO_CURSANDO;
-         }
-      }
+      const char *obs = "";
+      obs = _avaliar_status_aprovacao_e_pendencias( rel, &mascara_pendencias );
 
       // --- PASSO D: Filtro Visual para Alunos Inativos ---
       if ( !ficha->ativo ) {
          str_cols[6][0] = '\0';
          str_cols[7][0] = '\0';
-         obs[0] = '\0';
+         obs = "";
       }
 
       // ----------------------------------------------------------------------
@@ -2433,7 +2448,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       // Se o aluno está inativo (ou sequer existia) no período focado, oculta a OBS.
       // ----------------------------------------------------------------------
       if ( !ativo_no_foco ) {
-         obs[0] = '\0';
+         obs = "";
       }
 
       for ( int j = 0; j < 8; j++ ) {
@@ -2456,7 +2471,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           10, obs,
                           11, !ficha->ativo,
                           12, mascara_pendencias, // Coluna 12 exclusiva de permissões
-                          13, mascara_observacao, // Coluna 13 exclusiva de estado (renderização)
+                          13, rel->obs,           // Coluna 13 exclusiva de estado (renderização)
                           -1 );
    }
 

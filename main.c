@@ -216,7 +216,8 @@ void inicializacao_app_context( AppContext *ctx ) {
             .handler_combo_alunos = 0
          },
          .avaliacao = {
-            .handler_check_desativar = 0
+            .handler_check_desativar = 0,
+            .validas = NULL
          },
          .botoes_travados    = FALSE
       },
@@ -344,7 +345,10 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->painel.format_subtitulo, g_free );
    g_clear_pointer( &ctx->painel.format_instrucao, g_free );
 
-   // 7. Provedor de Estilo CSS
+   // 7. Limpar gboolean
+   g_clear_pointer( &ctx->ui_diario.avaliacao.validas, g_free );
+
+   // 8. Provedor de Estilo CSS
    g_clear_object( ( gpointer * ) &ctx->provider );
 
    g_print( "✔ [Sucesso] Toda a memória Heap foi devolvida ao sistema operacional.\n\n" );

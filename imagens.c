@@ -54,7 +54,7 @@ static char* gerar_nome_aleatorio( size_t tam ) {
 
 // Wrapper OBRIGATÓRIO para ordernar ou buscar strings em GPtrArray / bsearch
 static gint cmp_str_ptr( gconstpointer a, gconstpointer b ) {
-   return g_strcmp0( *(const char**)a, *(const char**)b );
+   return g_strcmp0( *( const char** )a, *( const char** )b );
 }
 
 // =========================================================================
@@ -65,24 +65,24 @@ static gint cmp_str_ptr( gconstpointer a, gconstpointer b ) {
 static GPtrArray* converter_e_copiar_imagens( const char *origem, const char *destino ) {
    if ( !origem || !destino ) return NULL;
 
-   g_autoptr(GError) error = NULL;
-   g_autoptr(GDir) dir = g_dir_open( origem, 0, &error );
+   g_autoptr( GError ) error = NULL;
+   g_autoptr( GDir ) dir = g_dir_open( origem, 0, &error );
    if ( dir == NULL ) {
       g_printerr( "Aviso: Não foi possível abrir a pasta de origem: %s (%s)\n", origem, error->message );
       return NULL;
    }
 
    // 1. FASE DE COLETA
-   g_autoptr(GPtrArray) arquivos_validos = g_ptr_array_new_with_free_func( g_free );
+   g_autoptr( GPtrArray ) arquivos_validos = g_ptr_array_new_with_free_func( g_free );
    const char *filename;
 
    while ( ( filename = g_dir_read_name( dir ) ) != NULL ) {
       g_autofree char *filename_lc = g_utf8_strdown( filename, -1 );
 
       if ( g_str_has_suffix( filename_lc, ".png" )  ||
-           g_str_has_suffix( filename_lc, ".jpg" )  ||
-           g_str_has_suffix( filename_lc, ".jpeg" ) ||
-           g_str_has_suffix( filename_lc, ".bmp" ) ) {
+            g_str_has_suffix( filename_lc, ".jpg" )  ||
+            g_str_has_suffix( filename_lc, ".jpeg" ) ||
+            g_str_has_suffix( filename_lc, ".bmp" ) ) {
          g_ptr_array_add( arquivos_validos, g_strdup( filename ) );
       }
    }
@@ -175,8 +175,8 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -190,14 +190,14 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    }
 
    // --- Transição para GLib GPtrArray ---
-   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
+   g_autoptr( GPtrArray ) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
    if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] Nenhuma imagem de respostas foi encontrada em %s.\n", origem );
       return -2;
    }
 
-   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    g_ptr_array_sort( resp_bin, cmp_str_ptr ); // Usando nosso wrapper seguro
 
    g_autofree FILE **f = g_new0( FILE *, resp_bin->len );
@@ -266,10 +266,10 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          g_autofree char *chave = g_malloc0( 256 );
          nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
-         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
-         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
-            int j = found - (char**)resp_bin->pdata;
+         if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
+            int j = found - ( char** )resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
@@ -350,8 +350,8 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -365,14 +365,14 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    }
 
    // --- Transição para GLib GPtrArray ---
-   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
+   g_autoptr( GPtrArray ) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
    if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
       return -2;
    }
 
-   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    g_ptr_array_sort( resp_bin, cmp_str_ptr );
 
    g_autofree FILE **f = g_new0( FILE *, resp_bin->len );
@@ -432,7 +432,8 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          if ( img_gray_crop.image ) {
             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
             img_gray_crop.image = NULL;
-            img_gray_crop.nrow = 0; img_gray_crop.ncol = 0;
+            img_gray_crop.nrow = 0;
+            img_gray_crop.ncol = 0;
          }
 
          sucesso = detectar_ancoras_omr( &img_gray_blur, ancora, &map.direcao, TRUE );
@@ -452,10 +453,10 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          g_autofree char *chave = g_malloc0( 256 );
          nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
-         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
-         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
-            int j = found - (char**)resp_bin->pdata;
+         if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
+            int j = found - ( char** )resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
@@ -536,8 +537,8 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
-        g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
-        g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
+         g_mkdir_with_parents( dir_rejeitadas, 0755 ) != 0 ||
+         g_mkdir_with_parents( respostas, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino.\n" );
       return -1;
    }
@@ -551,14 +552,14 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    }
 
    // === MUDANÇA: O array de strings final é trazido diretamente, sem ItemTextoCurto ===
-   g_autoptr(GPtrArray) imgs_orig = converter_e_copiar_imagens( origem, destino );
+   g_autoptr( GPtrArray ) imgs_orig = converter_e_copiar_imagens( origem, destino );
 
    if ( !imgs_orig || imgs_orig->len == 0 ) {
       g_printerr( "[AVISO] O sistema não encontrou fotografias ou digitalizações de respostas na pasta %s.\n", origem );
       return -2;
    }
 
-   g_autoptr(GPtrArray) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
+   g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
    g_ptr_array_sort( resp_bin, cmp_str_ptr );
 
    // Vetor dinâmico para os arquivos binários (gerenciado por autofree)
@@ -614,7 +615,8 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
          if ( img_gray_crop.image ) {
             liberar_matriz_pixels( img_gray_crop.image, img_gray_crop.nrow );
             img_gray_crop.image = NULL;
-            img_gray_crop.nrow = 0; img_gray_crop.ncol = 0;
+            img_gray_crop.nrow = 0;
+            img_gray_crop.ncol = 0;
          }
          sucesso = detectar_ancoras_omr( &img_gray_alloc, ancora, &map.direcao, TRUE );
          if ( sucesso ) {
@@ -635,10 +637,10 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
          nome_base_gabaritos_bin( chave, 256, map.turma, map.disc, map.per, map.seq );
 
          // Busca rápida via bsearch usando nosso novo wrapper
-         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof(char*), cmp_str_ptr );
+         char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
-         if ( found && f[found - (char**)resp_bin->pdata] != NULL ) {
-            int j = found - (char**)resp_bin->pdata;
+         if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
+            int j = found - ( char** )resp_bin->pdata;
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
 

@@ -154,6 +154,30 @@ void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arq
 
 
 
+void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
+   g_return_if_fail( dir_compile != NULL && arquivo_tex != NULL );
+
+   GError *erro = NULL;
+   int status_saida = 0;
+
+   // 1. O comando agora é direcionado única e exclusivamente ao arquivo alvo.
+   g_autofree char *comando_interno = g_strdup_printf(
+      "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
+
+   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+
+   // 2. A MÁGICA: O 3º parâmetro (dir_compile) garante o "cd" seguro antes da execução.
+   if ( !g_spawn_sync( dir_compile, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status_saida, &erro ) ) {
+      g_printerr( "[ERRO FATAL] Falha ao iniciar a compilação serial de '%s': %s\n", arquivo_tex, erro->message );
+      g_clear_error( &erro );
+   } else if ( status_saida != 0 ) {
+      // Como o pdflatex emite códigos de erro para referências não resolvidas ou bad boxes,
+      // registramos o status como aviso, mas não interrompemos a aplicação.
+      g_printerr( "[AVISO] Compilação de '%s' em '%s' concluída com status %d.\n", arquivo_tex, dir_compile, status_saida );
+   }
+}
+
+
 
 
 void g_pdflatex_parallel( const char *dir_compile ) {

@@ -312,17 +312,22 @@ gboolean on_entry_validar_data_focus_out_event( GtkWidget *widget, GdkEventFocus
 
 //========================================================================
 static int _obter_qtd_aulas( GtkLabel *label_qtd ) {
-   const char *str_qtd_aulas = gtk_label_get_text( label_qtd );
-   int qtd = 1;
-   if ( str_qtd_aulas ) sscanf( str_qtd_aulas, "%d", &qtd );
-   return qtd;
+   const char *str_ch = gtk_label_get_text( label_qtd );
+   int ch = 1;
+
+   if ( str_ch != NULL ) {
+      sscanf( str_ch, "%d", &ch );
+   }
+
+   // Prevenção lógica: garante que nunca retorne 0 ou número negativo
+   return ( ch > 0 ) ? ch : 1;
 }
 //------------------------------------------------------------------------
 static void _reavaliar_limite_tema_e_descricao( InterfaceConteudo *conteudo ) {
    g_return_if_fail( conteudo != NULL );
 
-   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
-   atualizar_limite_descricao_por_aulas( conteudo, qtd_aulas );
+   int ch = _obter_qtd_aulas( GTK_LABEL( conteudo->label_ch ) );
+   atualizar_limite_descricao_por_aulas( conteudo, ch );
 }
 //------------------------------------------------------------------------
 void on_entry_tema_activate( GtkWidget *widget, gpointer user_data ) {
@@ -338,51 +343,59 @@ gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event,
 
    _reavaliar_limite_tema_e_descricao( &ctx->ui_diario.conteudo );
 
-   return FALSE;
+   return FALSE; // FALSE propaga o evento para que o GTK feche o foco visual
 }
-//========================================================================
+//=========================================================================================
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
-   if ( qtd_aulas <= 1 ) return; // Trava no limite inferior
+   int ch = _obter_qtd_aulas( GTK_LABEL( conteudo->label_ch ) );
+   if ( ch <= 1 ) return; // Trava no limite inferior
 
-   qtd_aulas--;
+   ch--;
 
-   g_autofree char *label_novo = g_strdup_printf( "%d h", qtd_aulas );
-   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), label_novo );
-
-   // === ATUALIZA O LIMITE E A SINALIZAÇÃO NA ENTRY DE DESCRIÇÃO ===
-   atualizar_limite_descricao_por_aulas( &ctx->ui_diario.conteudo, qtd_aulas );
+   g_autofree char *label_novo = g_strdup_printf( "%d h", ch );
+   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), label_novo );
 }
-//========================================================================
+//-----------------------------------------------------------------------------------------
+void on_label_carga_horaria_notify_label( GtkWidget *widget, GParamSpec *pspec, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( pspec && GTK_IS_LABEL( widget ) && ctx );
+
+   _reavaliar_limite_tema_e_descricao( &ctx->ui_diario.conteudo );
+}
+//-----------------------------------------------------------------------------------------
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx );
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
-   int qtd_aulas = _obter_qtd_aulas( GTK_LABEL( conteudo->qtd_aulas ) );
+   int ch = _obter_qtd_aulas( GTK_LABEL( conteudo->label_ch ) );
 
    // Carga horária igual a 3h é o máximo de aulas admitidas por registro
-   if ( qtd_aulas >= 3 ) {
+   if ( ch >= 3 ) {
+      // 1. PREVENÇÃO DE VAZAMENTO: Limpar ponteiros alocados anteriormente
+      // antes de criar novas strings na memória (Heap).
+      g_clear_pointer( &ctx->painel.format_titulo, g_free );
+      g_clear_pointer( &ctx->painel.format_subtitulo, g_free );
+      g_clear_pointer( &ctx->painel.format_instrucao, g_free );
+
       ctx->painel.format_titulo    = meu_gerador_variadico( "⚠ Carga Horária Excedida" );
-      ctx->painel.format_subtitulo = meu_gerador_variadico( "O limite máximo permitido por registro é de %d horas / aula.", 3 );
+      ctx->painel.format_subtitulo = meu_gerador_variadico( "O limite máximo permitido por registro é de 3 horas / aula." );
       ctx->painel.format_instrucao = meu_gerador_variadico( "%s", "Para cargas horárias diárias maiores, divida o conteúdo e faça múltiplos registros." );
+
       criar_mensagem_painel( AVISO, &ctx->painel );
       return; // Trava o incremento após emitir o aviso
    }
 
-   qtd_aulas++;
+   ch++;
 
-   g_autofree char *label_novo = g_strdup_printf( "%d h", qtd_aulas );
-   gtk_label_set_text( GTK_LABEL( conteudo->qtd_aulas ), label_novo );
-
-   // === ATUALIZA O LIMITE E A SINALIZAÇÃO NA ENTRY DE DESCRIÇÃO ===
-   atualizar_limite_descricao_por_aulas( &ctx->ui_diario.conteudo, qtd_aulas );
+   g_autofree char *label_novo = g_strdup_printf( "%d h", ch );
+   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), label_novo );
 }
-
+//=========================================================================================
 
 
 
@@ -723,10 +736,13 @@ void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data
    g_return_if_fail( GTK_IS_TOGGLE_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return;
+   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
 
    desativar_avaliacao( ctx, estado );
+
+   obter_avaliacoes_validas( avaliacao );
 }
 
 
@@ -1044,13 +1060,10 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
       gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
    }
 
-   int d = ctx->cabecalho.foco_disciplina;
+   int foco_disciplina = ctx->cabecalho.foco_disciplina;
 
-   // Varredura e Cálculo limpo
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
-      calcular_consolidado_anual( ficha, d );
-   }
+   // Consolidação anual
+   calcular_consolidado_anual( ctx->fichas, foco_disciplina );
 
    // Atualiza a Interface
    carregar_relatorio_ui( ctx );
@@ -1363,30 +1376,42 @@ void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user
 }
 
 void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   if ( !ctx ) return;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
+
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
       _configurar_transicao_aba( ctx, widget, "page_avaliacoes", avaliacao->combo_avaliacao );
    } else {
       g_print( "Gerando PDF de Avaliações...\n" );
+
+      // 1. Salva os dados pendentes da avaliação na memória/disco
+      gtk_button_clicked( GTK_BUTTON( avaliacao->btn_salvar ) );
+
+      // 2. Gera o documento TeX/PDF a partir da memória atualizada
       relatorio_de_avaliacoes( &ctx->painel, ctx );
-      carregar_relatorio_ui( ctx ); // Recarrega a UI após gerar o PDF
+
+      // 3. Atualiza os componentes visuais da UI
+      carregar_relatorio_ui( ctx );
    }
 }
 
 void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) {
-   g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   if ( !ctx ) return;
+   g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
+
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    if ( !ctx->ui_diario.botoes_travados || ctx->ui_diario.botao_ativo != widget ) {
       _configurar_transicao_aba( ctx, widget, "page_relatorio", relatorio->btn_consolidar );
    } else {
       g_print( "Gerando PDF de Relatório Final...\n" );
+
+      // 1. Força a consolidação síncrona dos cálculos anuais na TreeView/Memória
+      gtk_button_clicked( GTK_BUTTON( relatorio->btn_consolidar ) );
+
+      // 2. Gera o PDF do relatório final
       relatorio_final( &ctx->painel, ctx );
    }
 }

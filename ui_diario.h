@@ -34,9 +34,10 @@ void carregar_avaliacoes( AppContext *ctx );
 void salvar_diario( AppContext *ctx, gboolean final_save );
 void salvar_avaliacoes( AppContext *ctx, gboolean final_save );
 
-void desativar_avaliacao( AppContext *ctx, gboolean estado );
-
 // AVALIAÇÕES
+void desativar_avaliacao( AppContext *ctx, gboolean estado );
+void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao );
+
 void popover_adicionar_avaliacao( AppContext *ctx, const char *texto );
 void popover_editar_avaliacao( AppContext *ctx, const char *texto );
 

@@ -69,7 +69,7 @@ typedef struct {
 
    GtkWidget *stepper_menos;
    GtkWidget *stepper_mais;
-   GtkWidget *qtd_aulas;
+   GtkWidget *label_ch;
 
    GtkWidget *treeview;          // Tabela principal de conteúdos
 
@@ -110,6 +110,8 @@ typedef struct {
    GtkWidget *combo_avaliacao;   // Seleciona a coluna ativa (0=Av1, 1=Rec1... 9=Rec5)
    GtkWidget *btn_nova_avaliacao;
    GtkWidget *btn_editar_avaliacao;
+   gboolean  *validas;
+   int qtd_validas;
 
    // Popover de nomenclatura da avaliação
    GtkWidget *popover_nomear_avaliacao;

@@ -9,6 +9,7 @@
 
 // MEXER NESTA MACRO VAI CORROMPER AS FICHAS DOS ALUNOS
 #define QTD_DISC 2
+#define MAX_AVALIACOES 5
 
 
 
@@ -270,7 +271,6 @@ typedef enum {
 typedef struct {
    uint32_t cod_aluno; // Código único do aluno
    SituacaoAluno sit;  // Situação do aluno
-   // ObservacaoAluno obs; // Observação sobre o aluno no relatório final
    gboolean ativo;     // Status de matrícula global
 } __attribute__( ( packed ) ) AcessoFicha;
 
@@ -336,7 +336,7 @@ typedef enum {
 
 typedef struct {
    char data[16];
-   int qtd_aulas;
+   int ch;
    char tema[50];
    char descricao[300];
    TipoRegistroDiario tipo_registro; // Guarda 0, 1, 2 ou 3 (TipoRegistroDiario)
@@ -369,6 +369,7 @@ typedef struct {
    float media_anual;       // Média final (Soma / Qtd Períodos Válidos)
    float rec_final;         // Nota da Recuperação Final (-1.0f se não fez)
    float conselho;          // Nota do Conselho de Classe (-1.0f se não fez)
+   ObservacaoAluno obs; // Observação sobre o aluno no relatório final
 } __attribute__( ( packed ) ) RelatorioAnual;
 
 // ============================================================================

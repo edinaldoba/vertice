@@ -14,6 +14,8 @@ void g_system_async( const char *comando );
 
 void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arquivos, const char *saida );
 
+void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex );
+
 void g_pdflatex_parallel( const char *dir_compile );
 
 GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos );

@@ -340,7 +340,12 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
    gboolean eh_inativo = FALSE;
    int mascara_pendencias = 0, mascara_observacao = 0;
 
-   gtk_tree_model_get( model, iter, 11, &eh_inativo, 12, &mascara_pendencias, 13, &mascara_observacao, -1 );
+   gtk_tree_model_get( model, iter,
+                       11, &eh_inativo,
+                       12, &mascara_pendencias,
+                       13, &mascara_observacao,
+                       -1 );
+
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
    gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.relatorio.check_pendencias ) );
@@ -477,6 +482,7 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
    g_signal_connect( conteudo->entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out_event ), ctx );
 
    g_signal_connect( conteudo->stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
+   g_signal_connect( conteudo->label_ch, "notify::label", G_CALLBACK( on_label_carga_horaria_notify_label ), ctx );
    g_signal_connect( conteudo->stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
 
    g_signal_connect( conteudo->entry_tema, "focus-out-event", G_CALLBACK( on_entry_tema_focus_out_event ), ctx );

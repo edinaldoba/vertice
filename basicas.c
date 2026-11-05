@@ -429,8 +429,8 @@ GPtrArray *carregar_arquivos_por_extensao( const char *diretorio, const char *ex
    // Se limite_n <= 0, podemos ignorar o limite e ler tudo.
    if ( diretorio == NULL || ext == NULL ) return NULL;
 
-   g_autoptr(GError) error = NULL;
-   g_autoptr(GDir) dir = g_dir_open( diretorio, 0, &error );
+   g_autoptr( GError ) error = NULL;
+   g_autoptr( GDir ) dir = g_dir_open( diretorio, 0, &error );
 
    if ( dir == NULL ) {
       g_printerr( "Erro crítico: Falha ao abrir diretório '%s' - %s\n", diretorio, error->message );

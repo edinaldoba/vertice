@@ -303,7 +303,7 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
       const char *label_tema = gtk_widget_get_name( st.tag_box );
       if ( !label_tema ) return;
 
-      g_auto(GStrv) pedacos = g_strsplit( label_tema, "/", 2 );
+      g_auto( GStrv ) pedacos = g_strsplit( label_tema, "/", 2 );
       if ( !pedacos || !pedacos[0] || !pedacos[1] ) return;
 
       const char *tema_alvo    = pedacos[0];
@@ -477,7 +477,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    for ( int i = 0; i < dados->total_quest_prova; i++ ) {
       if ( rascunho->questoes[i].str[0] == '\0' ) continue;
 
-      g_auto(GStrv) pedacos = g_strsplit( rascunho->questoes[i].str, "/", -1 );
+      g_auto( GStrv ) pedacos = g_strsplit( rascunho->questoes[i].str, "/", -1 );
       char *tema_salvo    = pedacos[0];
       char *subtema_salvo = pedacos[1];
 
@@ -485,7 +485,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
 
       // Busca rápida sem alocações extras no Heap
       int t = buscar_indice_bsearch( &tema_salvo, ui_prova->temas, ui_prova->limite_temas,
-                                     sizeof(tema_salvo), comparar_item_combo );
+                                     sizeof( tema_salvo ), comparar_item_combo );
       if ( t >= 0 ) {
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_prova.combo_tema ), t );
       }

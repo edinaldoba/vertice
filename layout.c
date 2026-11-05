@@ -241,7 +241,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    conteudo->popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
    conteudo->calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
    conteudo->stepper_menos      = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
-   conteudo->qtd_aulas          = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
+   conteudo->label_ch           = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
    conteudo->stepper_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
    conteudo->tipo_registro      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
    conteudo->entry_tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
