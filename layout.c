@@ -5,53 +5,11 @@
  */
 
 #include "layout.h"
-#include "comum.h"
-#include "basicas.h"
-#include "interface.h"
-#include <stdio.h>
-#include <pango/pango.h>
 
 
 // ======================================================================================
 // 1. FUNÇÕES AUXILIARES DE ESTILIZAÇÃO E ALINHAMENTO
 // ======================================================================================
-
-/**
- * @brief Aplica espaçamento uniforme intercalando Hair Spaces (\u200A)
- *        diretamente no texto de um GtkLabel.
- */
-static void _ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos ) {
-   g_return_if_fail( GTK_IS_LABEL( label_widget ) );
-
-   const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
-   if ( !texto_original || *texto_original == '\0' ) return;
-
-   GString *resultado = g_string_new( "" );
-   const gchar *p = texto_original;
-
-   while ( *p != '\0' ) {
-      gunichar c = g_utf8_get_char( p );
-      const gchar *proximo = g_utf8_next_char( p );
-
-      if ( c == 0x200A ) {
-         p = proximo;
-         continue;
-      }
-
-      g_string_append_unichar( resultado, c );
-      gunichar proximo_c = g_utf8_get_char( proximo );
-
-      if ( *proximo != '\0' && proximo_c != 0x200A ) {
-         for ( gint i = 0; i < quantidade_espacos; i++ ) {
-            g_string_append( resultado, "\u200A" );
-         }
-      }
-      p = proximo;
-   }
-
-   gtk_label_set_text( GTK_LABEL( label_widget ), resultado->str );
-   g_string_free( resultado, TRUE );
-}
 
 /**
  * @brief Extrai o GtkLabel interno de um botão configurado pelo Glade e aplica o espaçamento.
@@ -60,7 +18,7 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
    g_return_if_fail( GTK_IS_BUTTON( button_widget ) );
    GtkWidget *label_interno = gtk_bin_get_child( GTK_BIN( button_widget ) );
    if ( GTK_IS_LABEL( label_interno ) ) {
-      _ui_label_aplicar_espacamento_manual( label_interno, quantidade_espacos );
+      ui_label_aplicar_espacamento_manual( label_interno, quantidade_espacos );
    }
 }
 
@@ -225,7 +183,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceRelatorio  *relatorio  = &ctx->ui_diario.relatorio;
 
    // --- RAIZ DA ABA DIÁRIOS ---
-   diario->stack_pages            = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages" ) );
+   diario->stack_pages            = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages_diarios" ) );
    diario->check_modo_edicao      = GTK_WIDGET( gtk_builder_get_object( builder, "check_modo_edicao" ) );
    diario->check_expor_dados      = GTK_WIDGET( gtk_builder_get_object( builder, "check_expor_dados" ) );
    diario->responsavel.gestor     = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
@@ -308,6 +266,13 @@ static void _mapear_aba_latex( AppContext *ctx, GtkBuilder *builder ) {
    latex->combo_tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
    latex->listbox_subtemas   = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
 
+   latex->stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages_latex" ) );
+
+   latex->btn_config         = GTK_WIDGET( gtk_builder_get_object( builder, "button_config_acervo" ) );
+   GtkWidget *icone_config = gtk_image_new_from_icon_name( "emblem-system-symbolic", GTK_ICON_SIZE_BUTTON );
+   gtk_button_set_image( GTK_BUTTON( latex->btn_config ), icone_config );
+   gtk_widget_set_tooltip_text( latex->btn_config, "Configurar Acervo de Questões" );
+
    latex->combo_cor_serie    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
    latex->combo_decoracao    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
 
@@ -381,20 +346,24 @@ static void _mapear_painel_feedback( AppContext *ctx, GtkBuilder *builder ) {
 
 static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builder ) {
    // Acesso direto aos domínios perfeitamente estruturados
-   InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceLatex  *ui_latex  = &ctx->ui_latex;
    InterfaceProva  *ui_prova  = &ctx->ui_prova;
 
    // Espaçamento nos Labels Soltos
    const gchar *labels[8] = {
       "label_conteudo", "label_frequencia", "label_avaliacoes", "label_relatorio",
-      "label_tema_acervo", "label_diagramacao_latex", "label_tema_prova", "label_montagem_da_prova"
+      "label_tema_latex", "label_config_diagramacao", "label_tema_provas", "label_montagem_da_prova"
    };
 
    for ( int i = 0; i < 8; i++ ) {
       GtkWidget *label = GTK_WIDGET( gtk_builder_get_object( builder, labels[i] ) );
       if ( label ) {
-         _ui_label_aplicar_espacamento_manual( label, 2 );
+         ui_label_aplicar_espacamento_manual( label, 2 );
+      }
+
+      if ( g_strcmp0( labels[i], "label_config_diagramacao" ) == 0 ) {
+         ui_latex->label_diag_acervo = label;
       }
    }
 

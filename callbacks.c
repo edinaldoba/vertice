@@ -428,7 +428,7 @@ static gboolean _treeview_remover_registro_diario_selecionado( AppContext *ctx, 
 void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   if ( !ctx || !ctx->diarios ) return;
+   if ( !ctx ) return;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( conteudo->treeview ) );
@@ -439,7 +439,7 @@ void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, g
 gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_val_if_fail( ctx && ctx->diarios, FALSE );
+   g_return_val_if_fail( ctx, FALSE );
 
    // Verifica se a tecla pressionada foi o DELETE
    if ( event->keyval == GDK_KEY_Delete ) {
@@ -574,7 +574,7 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
    // 1. Validação inicial reforçada
    g_return_val_if_fail( GTK_IS_WIDGET( widget ) && event && ctx, FALSE );
 
-   InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    g_return_val_if_fail( ctx->ui_diario.stack_pages, FALSE );
 
    // 2. TRAVA DE NAVEGAÇÃO CORRIGIDA: Exige estar estritamente no Aba de Relatórios (0) E na Frequência
@@ -682,7 +682,7 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    // Validações de segurança iniciais
-   g_return_if_fail( ctx != NULL && ctx->diarios != NULL );
+   g_return_if_fail( ctx );
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
 
    GtkTreeView *treeview = GTK_TREE_VIEW( widget );
@@ -994,7 +994,7 @@ void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointe
 //---------------------------------------------------------------------------------------------------
 void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( ctx );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
    calcular_nota_periodo( ctx );
@@ -1038,7 +1038,7 @@ void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditab
 //===================================================================================================
 void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( ctx );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
    if ( ctx->cabecalho.foco_periodo != ctx->cabecalho.foco_periodo_vigente ) {
@@ -1063,7 +1063,7 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
    int foco_disciplina = ctx->cabecalho.foco_disciplina;
 
    // Consolidação anual
-   calcular_consolidado_anual( ctx->fichas, foco_disciplina );
+   calcular_consolidado_anual( ctx->ui_diario.fichas, foco_disciplina );
 
    // Atualiza a Interface
    carregar_relatorio_ui( ctx );
@@ -1450,6 +1450,40 @@ void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_
 
 
 
+// ABA LATEX
+
+void on_button_config_acervo_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) return;
+
+   InterfaceLatex *ui_latex = &ctx->ui_latex;
+
+   // 1. Tenta voltar para a aba de diagramação
+   if ( _ui_diario_mudar_aba( ui_latex->stack_pages, "page_diagramacao" ) ) {
+
+      gtk_label_set_text( GTK_LABEL( ui_latex->label_diag_acervo ), "DIAGRAMAÇÃO" );
+      ui_label_aplicar_espacamento_manual( ui_latex->label_diag_acervo, 2 );
+
+      // Sucesso: Atualiza o botão para indicar a ação de "Configurar"
+      GtkWidget *icone_config = gtk_image_new_from_icon_name( "emblem-system-symbolic", GTK_ICON_SIZE_BUTTON );
+      gtk_button_set_image( GTK_BUTTON( widget ), icone_config );
+      gtk_widget_set_tooltip_text( widget, "Configurar Acervo de Questões" );
+
+   }
+   // 2. Se já estava na diagramação, avança para a aba de configuração
+   else if ( _ui_diario_mudar_aba( ui_latex->stack_pages, "page_configuracao" ) ) {
+
+      gtk_label_set_text( GTK_LABEL( ui_latex->label_diag_acervo ), "ACERVO DE QUESTÕES" );
+      ui_label_aplicar_espacamento_manual( ui_latex->label_diag_acervo, 2 );
+
+      // Sucesso: Atualiza o botão para indicar a ação de "Voltar"
+      GtkWidget *icone_voltar = gtk_image_new_from_icon_name( "go-previous-symbolic", GTK_ICON_SIZE_BUTTON );
+      gtk_button_set_image( GTK_BUTTON( widget ), icone_voltar );
+      gtk_widget_set_tooltip_text( widget, "Voltar para Diagramação" );
+
+   }
+}
 
 
 void on_button_abrir_tema_clicked( GtkWidget *widget, gpointer user_data ) {

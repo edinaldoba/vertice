@@ -187,6 +187,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
 int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx, const char *nome_base ) {
 
    if ( !gab || !map || !ctx ) return -1;
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
 
    const char *LATEX_PREAMBLE_TEMPLATE =
       "\\documentclass[11pt]{report}\n"
@@ -217,7 +218,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
       "\\pagecolor{yellow!20}\n";
 
    const InterfaceDados *dados  = &ctx->dados;
-   const CalendarioData *data   = &ctx->data;
+   const CalendarioData *hoje   = &ctx->hoje;
 
    // 1. BLINDAGEM DE MEMÓRIA: Previne acesso negativo ou além do limite na struct 'diario'
    if ( map->num < 1 || map->num > dados->qtd_alunos_total ) {
@@ -231,7 +232,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    };
 
    // Caminho do arquivo seguro com g_strdup_printf
-   g_autofree char *arquivo = g_strdup_printf( "./dados/temporarios/%s.tex", nome_base );
+   g_autofree char *arquivo = g_strdup_printf( "%s/dados/temporarios/%s.tex", ctx->caminho.raiz, nome_base );
 
    // Pré-alocação otimizada (16KB) na RAM
    g_autoptr( GString ) tex = g_string_sized_new( 16384 );
@@ -297,7 +298,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // 5. INJEÇÃO DOS METADADOS E TEXTOS INSTITUCIONAIS
    g_string_append_printf( tex, "\\node[left] at (%d,-0.4) {\\Large São Luís, %d de %s de %d};\n",
-                           largura, data->dia, meses[data->mes - 1], data->ano );
+                           largura, hoje->dia, meses[hoje->mes - 1], hoje->ano );
    g_string_append_printf( tex, "\\node[left] at (%d,-1.3) {\\Large IDENTIFICADOR $\\to$ \\bf\\Huge %d};\n", largura, map->id );
 
    g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-0.4) {\\Large\\bf %s};\n", dados->escola );
@@ -318,7 +319,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
 
    // Uso seguro de memória com g_autofree para a string em UpperCase
-   const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, map->num - 1 );
+   const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, map->num - 1 );
    g_autofree gchar *nome_aluno = g_utf8_strup( ficha->aluno, -1 );
    g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, map->num );
 
@@ -362,71 +363,6 @@ void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const 
                          );
 }
 
-
-
-
-
-
-
-// //=======================================================================================================
-// void anexar_tema_pagina_quadrados( GString *tex, gint k ) {
-//    double largura_barra = 17.5 + 1.5 * k;
-//    int num_elementos = 45 + 4 * k;
-//    double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
-//
-//    g_string_append_printf( tex,
-//       "\\begin{tikzpicture}[remember picture, overlay]\n"
-//       "  \\draw[line width=0.8pt, color=CorSerie] (0,0) -- (%.4f,0) (0,-0.28) -- (%.4f,-0.28);\n"
-//       "  \\draw[line width=0.8pt, color=CorSerie] (0,-1) -- (%.4f,-1) (0,-1.28) -- (%.4f,-1.28);\n",
-//       largura_barra, largura_barra, largura_barra, largura_barra
-//    );
-//
-//    for ( int i = 0; i <= num_elementos; i++ ) {
-//       double pos_x = 0.12 + (i * espacamento_x);
-//
-//       // Quadrados preenchidos, sem bordas, perfeitamente centralizados entre as linhas
-//       g_string_append_printf( tex,
-//          "  \\fill[CorSerie!30] (%.4f, -0.08) rectangle (%.4f, -0.20);\n"
-//          "  \\fill[CorSerie!30] (%.4f, -1.08) rectangle (%.4f, -1.20);\n",
-//          pos_x - 0.06, pos_x + 0.06,
-//          pos_x - 0.06, pos_x + 0.06
-//       );
-//    }
-//    g_string_append( tex, "\\end{tikzpicture}\n" );
-// }
-//
-// //-------------------------------------------------------------------------------------------------------
-// void anexar_cabecalho_questao_quadrados( GString *tex, const gchar *cor_texto, gint k, gint num_questao ) {
-//    double largura_barra = 3.2 + 3.25 * k;
-//    int num_elementos = 8 + 8 * k;
-//    double espacamento_x = ( largura_barra - 0.24 ) / num_elementos;
-//    double offset_pilula = 2.8; // Deslocamento padronizado para as linhas começarem após a pílula
-//
-//    g_string_append( tex, "\\item{\\noindent\\tikz[baseline=(char.base)]{\n" );
-//
-//    // Caixa Principal (A "Pílula") ancorada à esquerda (west) para alinhar perfeitamente com os outros temas
-//    g_string_append_printf( tex,
-//       "  \\node[shape=rectangle, rounded corners, draw=CorSerie, fill=CorSerie!10, align=center, inner xsep=4pt, inner ysep=2pt, line width=0.8pt, font=\\bf\\small, text=%s, anchor=west] (char) at (0,0) {\\resizebox{2.5cm}{0.32cm}{\\bf Quest\\~ao %.2d}};\n",
-//       cor_texto, num_questao
-//    );
-//
-//    // Linhas Superior e Inferior do trilho direito
-//    g_string_append_printf( tex,
-//       "  \\draw[line width=0.8pt, color=CorSerie] (%.4f, -0.14) -- (%.4f, -0.14) (%.4f, 0.14) -- (%.4f, 0.14);\n",
-//       offset_pilula, offset_pilula + largura_barra,
-//       offset_pilula, offset_pilula + largura_barra
-//    );
-//
-//    // Mini-Quadrados da Direita flutuando no centro do trilho
-//    for ( int i = 0; i <= num_elementos; i++ ) {
-//       double pos_x = offset_pilula + 0.12 + (i * espacamento_x);
-//       g_string_append_printf( tex, "\\fill[CorSerie!30] (%.4f, -0.06) rectangle (%.4f, 0.06);\n",
-//                               pos_x - 0.06, pos_x + 0.06 );
-//    }
-//
-//    g_string_append( tex, "}}\\\\\n" );
-// }
-// //=======================================================================================================
 
 
 

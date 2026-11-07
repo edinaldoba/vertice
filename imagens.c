@@ -170,8 +170,8 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    if ( home == NULL ) home = ".";
 
    g_autofree char *origem = g_build_filename( home, "Downloads", "imagens", NULL );
-   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
-   g_autofree char *respostas = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+   g_autofree char *destino = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+   g_autofree char *respostas = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
@@ -181,7 +181,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       return -1;
    }
 
-   g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   g_autofree char *gabaritos = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
    int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
 
    if ( qtd_bin == 0 ) {
@@ -345,8 +345,8 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    if ( home == NULL ) home = ".";
 
    g_autofree char *origem = g_build_filename( home, "Downloads", "imagens", NULL );
-   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
-   g_autofree char *respostas = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+   g_autofree char *destino = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+   g_autofree char *respostas = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
@@ -356,7 +356,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       return -1;
    }
 
-   g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   g_autofree char *gabaritos = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
    int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
 
    if ( qtd_bin <= 0 ) {
@@ -532,8 +532,8 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    if ( home == NULL ) home = ".";
 
    g_autofree char *origem         = g_build_filename( home, "Downloads", "imagens", NULL );
-   g_autofree char *destino        = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
-   g_autofree char *respostas      = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
+   g_autofree char *destino        = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "imagens", NULL );
+   g_autofree char *respostas      = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "respostas", NULL );
    g_autofree char *dir_rejeitadas = g_build_filename( destino, "rejeitadas", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ||
@@ -543,7 +543,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       return -1;
    }
 
-   g_autofree char *gabaritos = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   g_autofree char *gabaritos = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
    int qtd_bin = quantidade_arquivos_por_extensao( gabaritos, ".bin" );
 
    if ( qtd_bin <= 0 ) {
@@ -707,6 +707,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
 //------------------------------------------------------------------------------------------------------
 static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, const AppContext *ctx ) {
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados *dados = &ctx->dados;
 
    // 1º TESTE (Crítico): O número da folha protege o array 'diario'
@@ -719,7 +720,7 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, 
       return ERRO_ID_GABARITO_INVALIDO;
    }
 
-   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, map->num - 1 );
+   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, map->num - 1 );
 
    // 3º TESTE (Regra de Negócio): Se chegou aqui, a memória está segura!
    if ( ficha->ativo == FALSE ) {
@@ -741,6 +742,7 @@ static gint comparar_por_cod_aluno( gconstpointer a, gconstpointer b ) {
 void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    if ( !painel || !ctx ) return;
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados   *dados   = &ctx->dados;
    const InterfaceCabecalho  *cabecalho    = &ctx->cabecalho;
    // const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -748,10 +750,10 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    char nome_bin[64];
    nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->seq_prova );
 
-   g_autofree char *path_resp = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
+   g_autofree char *path_resp = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola,
                                 "respostas", nome_bin, NULL );
 
-   g_autofree char *path_gab  = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
+   g_autofree char *path_gab  = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola,
                                 "gabaritos", nome_bin, NULL );
 
    // ====================================================================================
@@ -817,15 +819,15 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
       int idx_esperado = map->num - 1;
 
-      if ( ctx->fichas && idx_esperado >= 0 && ( guint )idx_esperado < ctx->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_esperado );
+      if ( ui_diario->fichas && idx_esperado >= 0 && ( guint )idx_esperado < ui_diario->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_esperado );
 
          if ( map->cod_aluno == 0 || map->cod_aluno == ficha->cod_aluno ) {
             map->cod_aluno = ficha->cod_aluno;
 
          } else {
-            for ( guint j = 0; j < ctx->fichas->len; j++ ) {
-               FichaAluno *f_busca = &g_array_index( ctx->fichas, FichaAluno, j );
+            for ( guint j = 0; j < ui_diario->fichas->len; j++ ) {
+               FichaAluno *f_busca = &g_array_index( ui_diario->fichas, FichaAluno, j );
                if ( f_busca->cod_aluno == map->cod_aluno ) {
                   map->num = j + 1;
                   break;
@@ -848,7 +850,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
          if ( atual->cod_aluno > 0 && atual->cod_aluno == anterior->cod_aluno ) {
             MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i - 1 );
 
-            g_autofree char *imagem = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola,
+            g_autofree char *imagem = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola,
                                       "imagens", map->nome_img, NULL );
             g_remove( imagem );
             g_array_remove_index( map_array, i - 1 );
@@ -880,8 +882,8 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
          int idx_aluno = map->num - 1;
 
-         if ( ctx->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ctx->fichas->len ) {
-            FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+         if ( ui_diario->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ui_diario->fichas->len ) {
+            FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
             int periodo = map->per;
             int seq_prova = map->seq;
 

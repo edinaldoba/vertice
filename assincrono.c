@@ -51,8 +51,8 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->snap.dados     = ctx->dados;
    args->snap.cabecalho = ctx->cabecalho;
    args->snap.caminho   = ctx->caminho;
-   args->snap.data      = ctx->data;
-   args->snap.fichas    = clonar_diario_alunos( ctx->fichas );
+   args->snap.hoje      = ctx->hoje;
+   args->snap.fichas    = clonar_diario_alunos( ctx->ui_diario.fichas );
 
    // 2. Referências Mestre para a Main Thread
    args->ctx         = ctx;
@@ -178,7 +178,7 @@ void* thread_gerar_prova_background( void *data ) {
    args->sucesso = TRUE;
    g_print( "[Thread] Iniciando compilação com contexto clonado...\n" );
 
-   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL );
+   g_autofree char *destino = g_build_filename( snap->caminho.raiz, "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL );
 
    char nome[32] = {0};
    nome_base_gabaritos_bin( nome, sizeof( nome ), snap->cabecalho.foco_turma, snap->cabecalho.foco_disciplina,
@@ -635,9 +635,9 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
 
       if ( map[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
          int num_aluno = map[i].num;
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, num_aluno - 1 );
+         FichaAluno *ficha = &g_array_index( ctx->ui_diario.fichas, FichaAluno, num_aluno - 1 );
 
-         g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/%.2d.pdf", num_aluno );
+         g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/dados/temporarios/%.2d.pdf", caminho->raiz, num_aluno );
          g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
          g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
@@ -762,7 +762,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    async_data->map_array  = map_array; // Transferência da posse da memória
    async_data->ctx         = ctx;
    async_data->painel      = painel;
-   async_data->dir_compile = g_strdup( "./dados/temporarios" );
+   async_data->dir_compile = g_strdup_printf( "%s/dados/temporarios", ctx->caminho.raiz );
    async_data->cronometro = g_timer_new();
 
    int num_cores = ( int ) g_get_num_processors();

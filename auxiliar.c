@@ -21,18 +21,21 @@
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
 
+void obter_data_hoje( CalendarioData *hoje ) {
+   // Obtém a data e hora local atual
+   GDateTime *agora = g_date_time_new_now_local();
 
+   if ( agora ) {
+      hoje->ano = g_date_time_get_year( agora );
+      hoje->mes = g_date_time_get_month( agora );
+      hoje->dia = g_date_time_get_day_of_month( agora );
 
-CalendarioData data_de_hoje( void ) {
-   time_t mytime;
-   mytime = time( NULL );
-   struct tm tm = *localtime( &mytime );
-   CalendarioData data;
-   data.dia = tm.tm_mday;
-   data.mes = tm.tm_mon + 1;
-   data.ano = tm.tm_year + 1900;
-   return data;
+      // Liberta o objeto GDateTime alocado
+      g_date_time_unref( agora );
+   }
 }
+
+
 
 /**
  * @brief Transforma uma data (dia, mes, ano) em um único número inteiro exclusivo (w).
@@ -97,9 +100,10 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 int obter_foco_inicial( const int limite, const AppContext *ctx ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    int i;
    for ( i = 0; i < limite; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       if ( ficha->ativo ) {
          break;
       }
@@ -134,11 +138,11 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
 
    for ( int i = 0; i < qtd_disciplinas; i++ ) {
 
-      g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
+      g_autofree gchar *dir = g_build_filename( ctx->caminho.raiz, "dados", "informados", ctx->dados.ano, ctx->dados.escola,
                                   ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
       // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
-      if ( !diretorio_esta_vazio( caminho ) ) {
+      if ( !diretorio_esta_vazio( dir ) ) {
          return i;
       }
    }
@@ -153,10 +157,10 @@ void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dad
    const AppContext *ctx = ( const AppContext * )dados;
 
    // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
-   g_autofree gchar *caminho = g_build_filename( ".", "dados", "informados", ctx->dados.ano, ctx->dados.escola,
+   g_autofree gchar *dir = g_build_filename( ctx->caminho.raiz, "dados", "informados", ctx->dados.ano, ctx->dados.escola,
                                ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
-   gboolean riscar = diretorio_esta_vazio( caminho );
+   gboolean riscar = diretorio_esta_vazio( dir );
 
    gtk_list_store_set( store, iter,
                        0,  ctx->cabecalho.disciplinas[i],
@@ -185,8 +189,8 @@ int quantidade_diretorios( const char *diretorio ) {
    // 2. Varre o diretório inspecionando cada item
    while ( ( dp = readdir( dir ) ) != NULL ) {
 
-      // 3. Ignora os seletores virtuais do Linux ("." e "..")
-      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 || g_strcmp0( dp->d_name, "alunos" ) == 0 ) {
+      // 3. Ignora os seletores virtuais do Linux (caminho->raiz e "..")
+      if ( g_strcmp0( dp->d_name, "." ) == 0 || g_strcmp0( dp->d_name, ".." ) == 0 || g_strcmp0( dp->d_name, "fichas" ) == 0 ) {
          continue;
       }
 
@@ -222,7 +226,7 @@ gboolean diretorio_existe( const char *caminhodir ) {
 gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *comparadora )( const void *, const void * ) ) {
    if ( diretorio == NULL || qtd_dir <= 0 ) return NULL;
 
-   // 1. GDir (GLib Directory) é multiplataforma e já ignora "." e ".." por padrão
+   // 1. GDir (GLib Directory) é multiplataforma e já ignora caminho->raiz e ".." por padrão
    GDir *dir = g_dir_open( diretorio, 0, NULL );
    if ( !dir ) return NULL;
 
@@ -237,7 +241,7 @@ gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *c
    while ( ( nome_arquivo = g_dir_read_name( dir ) ) != NULL && i < qtd_dir ) {
 
       // Filtra a pasta especial de alunos e qualquer pasta/ficheiro oculto
-      if ( g_strcmp0( nome_arquivo, "alunos" ) == 0 || nome_arquivo[0] == '.' ) {
+      if ( g_strcmp0( nome_arquivo, "fichas" ) == 0 || nome_arquivo[0] == '.' ) {
          continue;
       }
 
@@ -306,7 +310,7 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
  *
  * @param caminho Ponteiro para a estrutura CaminhoDiretorio a ser liberada.
  */
-static void caminho_diretorio_free( CaminhoDiretorio *caminho ) {
+static void _caminho_diretorio_free( CaminhoDiretorio *caminho ) {
    if ( !caminho ) return;
    // 1. Liberação segura de cada campo dinâmico
    g_clear_pointer( &caminho->dados, g_free );
@@ -321,12 +325,14 @@ static void caminho_diretorio_free( CaminhoDiretorio *caminho ) {
 }
 
 
-void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho ) {
+void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *caminho ) {
    g_return_if_fail( dados != NULL );
    g_return_if_fail( caminho != NULL );
 
    // 1. Libera qualquer alocação anterior para evitar vazamento de memória (Memory Leak)
-   caminho_diretorio_free( caminho );
+   _caminho_diretorio_free( caminho );
+
+   const gchar *home = g_get_home_dir();
 
    // 2. Base Completa e Base Parcial (eliminando a necessidade do strrchr)
    // g_build_filename já aloca a string dinamicamente e coloca as barras '/' corretamente
@@ -335,14 +341,10 @@ void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio
    gchar *base_parcial = g_build_filename( dados->ano, dados->escola, dados->turma, dados->disciplina, NULL );
 
    // 3. Montagem dos caminho internos
-   caminho->dados = g_build_filename( ".", "dados", "informados", caminho->base, NULL );
-   caminho->gabaritos = g_build_filename( ".", "dados", "gabaritos", caminho->base, NULL );
-   caminho->relatorios = g_build_filename( ".", "relatorios", caminho->base, NULL );
-   caminho->relatorios_final = g_build_filename( ".", "relatorios", base_parcial, NULL );
-
-   // 4. Montagem dos caminho externos (Documentos)
-   const gchar *home = g_get_home_dir(); // Função segura nativa do GLib
-   if ( !home ) home = ".";
+   caminho->dados = g_build_filename( caminho->raiz, "dados", "informados", caminho->base, NULL );
+   caminho->gabaritos = g_build_filename( caminho->raiz, "dados", "gabaritos", caminho->base, NULL );
+   caminho->relatorios = g_build_filename( caminho->raiz, "relatorios", caminho->base, NULL );
+   caminho->relatorios_final = g_build_filename( caminho->raiz, "relatorios", base_parcial, NULL );
 
    caminho->externo = g_build_filename( home, "Documentos", caminho->base, NULL );
    caminho->externo_final = g_build_filename( home, "Documentos", base_parcial, NULL );
@@ -436,12 +438,13 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
 //==================================================================================================
 void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
 
    // 1. Aborta se não houver registros carregados na memória
-   if ( !ctx->diarios || ctx->diarios->len == 0 ) return;
+   if ( !ui_diario->diarios || ui_diario->diarios->len == 0 ) return;
 
    // 2. Acessa o primeiro registro diretamente do GArray em O(1)
-   RegistroDiario *primeiro_registro = &g_array_index( ctx->diarios, RegistroDiario, 0 );
+   RegistroDiario *primeiro_registro = &g_array_index( ui_diario->diarios, RegistroDiario, 0 );
 
    // 3. Conta os alunos presentes no primeiro registro salvo na RAM
    int qtd_fichas = 0;
@@ -455,7 +458,7 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
    if ( !precisa_sincronizar ) {
       for ( int k = 0; k < qtd_fichas; k++ ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, k );
          if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
             precisa_sincronizar = TRUE;
             break;
@@ -473,8 +476,8 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // Aloca a Hash Table uma única vez fora do laço para não estressar o alocador de memória
    GHashTable *hash_status = g_hash_table_new( g_direct_hash, g_direct_equal );
 
-   for ( guint r = 0; r < ctx->diarios->len; r++ ) {
-      RegistroDiario *registro = &g_array_index( ctx->diarios, RegistroDiario, r );
+   for ( guint r = 0; r < ui_diario->diarios->len; r++ ) {
+      RegistroDiario *registro = &g_array_index( ui_diario->diarios, RegistroDiario, r );
       RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
 
       // Limpa as chaves do dia anterior sem destruir a Hash Table
@@ -487,9 +490,9 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
                               GINT_TO_POINTER( registro->chamada[j].status ) );
       }
 
-      // B) Reconstrói a chamada do zero, espelhando a ordem oficial de ctx->fichas
+      // B) Reconstrói a chamada do zero, espelhando a ordem oficial de ui_diario->fichas
       for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, k );
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, k );
          uint32_t cod_alvo = ficha->cod_aluno;
          nova_chamada[k].cod_aluno = cod_alvo;
 
@@ -528,7 +531,7 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
       g_autofree gchar *nome_periodo = combo_box_text_get_text_at( combo, p );
       if ( !nome_periodo ) continue;
 
-      g_autofree gchar *dir_periodo = g_build_filename( ".", "dados", "informados",
+      g_autofree gchar *dir_periodo = g_build_filename( ctx->caminho.raiz, "dados", "informados",
                                       dados->ano, dados->escola,
                                       dados->turma, dados->disciplina,
                                       nome_periodo, NULL );
@@ -554,7 +557,7 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    g_autofree gchar *nome_target = combo_box_text_get_text_at( combo, target_periodo );
    if ( !nome_target ) return;
 
-   g_autofree gchar *dir_target = g_build_filename( ".", "dados", "informados",
+   g_autofree gchar *dir_target = g_build_filename( ctx->caminho.raiz, "dados", "informados",
                                   dados->ano, dados->escola,
                                   dados->turma, dados->disciplina,
                                   nome_target, NULL );
@@ -566,11 +569,12 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
 //--------------------------------------------------------------------------------------------------
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
 
    // 1. Limpeza segura do GArray anterior
-   if ( ctx->fichas ) {
-      g_array_unref( ctx->fichas );
-      ctx->fichas = NULL;
+   if ( ui_diario->fichas ) {
+      g_array_unref( ui_diario->fichas );
+      ui_diario->fichas = NULL;
    }
 
    InterfaceDados   *dados   = &ctx->dados;
@@ -603,10 +607,10 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    if ( dados->qtd_alunos_total == 0 ) return;
 
    // 4. Inicialização do GArray já com o tamanho exato pré-alocado
-   ctx->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
+   ui_diario->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
 
-   g_autofree gchar *dir_base_alunos = g_build_filename( ".", "dados", "informados",
-                                       dados->ano, dados->escola, "alunos", NULL );
+   g_autofree gchar *dir_base_alunos = g_build_filename( caminho->raiz, "dados", "informados",
+                                       dados->ano, dados->escola, "fichas", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];
@@ -639,7 +643,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
             }
 
             // Anexa a cópia da ficha direto no GArray
-            g_array_append_val( ctx->fichas, temp_ficha );
+            g_array_append_val( ui_diario->fichas, temp_ficha );
          } else {
             g_printerr( "[Aviso] Tamanho corrompido para o aluno %" PRIu32 "\n", acesso->cod_aluno );
          }
@@ -653,7 +657,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    }
 
    // 6. Ordenação Alfabética nativa do GArray
-   g_array_sort( ctx->fichas, alfabetica_lista_de_alunos );
+   g_array_sort( ui_diario->fichas, alfabetica_lista_de_alunos );
 }
 //----------------------------------------------------------------------------------------------------
 

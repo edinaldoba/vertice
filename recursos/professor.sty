@@ -3,25 +3,49 @@
 %  modificá-lo sob os termos da Licença Pública Geral GNU...
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{professor}[2026/04/20 Pacote de Estilização do Prof. Edinaldo Barbosa de Alencar]
+\ProvidesPackage{professor}[2026/11/06 v1.1 Pacote de Estilizacao do Prof. Edinaldo Barbosa de Alencar]
 
-% Carrega as dependências que o seu código já usa
+% --- DEPENDÊNCIAS ESSENCIAIS ---
+% Agora o professor.sty centraliza a importação de todos os pacotes utilitários do Projeto Vértice
+\RequirePackage[dvipsnames,table]{xcolor}
+\RequirePackage{amsmath,amssymb}
+\RequirePackage{multicol}
+\RequirePackage{enumerate}
+\RequirePackage[nointegrals]{wasysym}
+\RequirePackage{bm}
+\RequirePackage{array,multirow,graphicx}
+\RequirePackage{setspace}
+\RequirePackage{ulem}
+\RequirePackage{type1cm}
+\RequirePackage{fp} % Dependência para fixedpointarithmetic do TikZ
 \RequirePackage{tikz}
-\usetikzlibrary{shapes.geometric, graphs, calc, curves, type1cm, arrows.meta, intersections, angles, decorations.markings, decorations.pathreplacing, decorations.pathmorphing, fixedpointarithmetic}
+
+% --- BIBLIOTECAS TIKZ ---
+\usetikzlibrary{%
+  shapes.geometric,%
+  graphs,%
+  calc,%
+  arrows.meta,%
+  intersections,%
+  angles,%
+  decorations.markings,%
+  decorations.pathreplacing,%
+  decorations.pathmorphing,%
+  fixedpointarithmetic%
+}
 
 % --- DEFINIÇÃO DE CORES (ENSINO FUNDAMENTAL II) ---
 \definecolor{LaranjaSexto}{cmyk}{0,0.60,1,0}   % 6º ANO
 \definecolor{TurquesaSetimo}{HTML}{16A085}     % 7º ANO
-\definecolor{RoxoOitavo}{HTML}{8E44AD}         % 8° ANO
-\definecolor{GrafiteNono}{HTML}{2C3E50}        % 9° ANO
+\definecolor{RoxoOitavo}{HTML}{8E44AD}         % 8º ANO
+\definecolor{GrafiteNono}{HTML}{2C3E50}        % 9º ANO
 
 % --- DEFINIÇÃO DE CORES (ENSINO MÉDIO) ---
 \definecolor{AzulProfessor}{HTML}{0055AA}      % 1º ANO
 \definecolor{VerdeEscola}{HTML}{008844}        % 2º ANO
-\definecolor{VinhoDestaque}{cmyk}{0,1,1,0.18}  % 3° ANO
+\definecolor{VinhoDestaque}{cmyk}{0,1,1,0.18}  % 3º ANO
 
-% --- LÓGICA DE OPÇÕES (A MÁGICA) ---
-% Isso permite usar \usepackage[sexto]{professor}
+% --- LÓGICA DE OPÇÕES DA SÉRIE ---
 \DeclareOption{sexto}{\colorlet{CorSerie}{LaranjaSexto}}
 \DeclareOption{setimo}{\colorlet{CorSerie}{TurquesaSetimo}}
 \DeclareOption{oitavo}{\colorlet{CorSerie}{RoxoOitavo}}
@@ -30,7 +54,7 @@
 \DeclareOption{segundo}{\colorlet{CorSerie}{VerdeEscola}}
 \DeclareOption{terceiro}{\colorlet{CorSerie}{VinhoDestaque}}
 
-\ExecuteOptions{primeiro} % Define um padrão caso você não especifique
+\ExecuteOptions{primeiro} % Define "primeiro ano" como padrão de segurança
 \ProcessOptions\relax
 
 % --- PALETA DE CORES HARMONIZADA ---
@@ -40,3 +64,23 @@
 \definecolor{VerdeSucesso}{RGB}{0,120,60}
 \definecolor{LaranjaAlerta}{cmyk}{0,0.65,1,0.10}
 \definecolor{RoxoElegante}{RGB}{100,50,150}
+\definecolor{CinzaLinha}{rgb}{0.4,0.4,0.4}
+
+% --- MACROS DE FORMATAÇÃO DE TABELAS (Migradas do Vértice em C) ---
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcommand*{\vtext}[2]{\parbox[t]{9pt}{\multirow{#1}{*}{\rotatebox[origin=c]{90}{#2}}}}
+
+% --- MACROS TRIGONOMÉTRICAS SEGURAS ---
+% ... (Mantenha as existentes) ...
+
+% --- MACROS TRIGONOMÉTRICAS SEGURAS ---
+% A abordagem de \providecommand seguida de \renewcommand blinda o pacote contra
+% redefinições silenciosas feitas pelo babel (portuges).
+\providecommand{\sen}{} \renewcommand{\sen}{\operatorname{sen}}
+\providecommand{\cossec}{} \renewcommand{\cossec}{\operatorname{cossec}}
+\providecommand{\tg}{} \renewcommand{\tg}{\operatorname{tg}}
+\providecommand{\cotg}{} \renewcommand{\cotg}{\operatorname{cotg}}
+
+\endinput

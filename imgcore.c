@@ -444,7 +444,6 @@ int pdf_para_png_multiplo( const char *caminho_pdf, const char *pasta_destino, c
       cairo_scale( cr, escala, escala );
       poppler_page_render( pagina, cr );
 
-      // Monta o nome do arquivo dinamicamente (ex: "./dados/prova_001.png")
       g_autofree char *caminho_png = g_strdup_printf( "%s/%s_%03d.png", pasta_destino, prefixo_arquivo, i + 1 );
 
       cairo_status_t status = cairo_surface_write_to_png( superficie, caminho_png );

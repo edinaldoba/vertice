@@ -4,6 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "comum.h"
@@ -32,6 +33,7 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceDados  *dados   = &ctx->dados;
    const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -45,7 +47,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       int idx = ficha->idx_siaep;
       if ( idx >= 0 && idx < qtd_alunos ) {
          ordem_original[idx] = ficha;
@@ -98,13 +100,14 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 //===================================================================================================
 // BLOCO que gera o relatório de médias das avaliações
 //===================================================================================================
-static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, const gboolean validas[5] ) {
-   g_return_if_fail( ctx && ctx->fichas );
+static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, gboolean *validas ) {
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados  *dados = &( ctx->dados );
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
-   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
+   g_autofree gchar *arquivo_tex = g_build_filename( dados->raiz, "dados", "temporarios", nome_tex, NULL );
 
    g_autoptr( GString ) tex = g_string_sized_new( 16384 ); // Resumo alocado na memória
 
@@ -158,7 +161,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa e com Autoclean da Memória)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
 
       // PASSO A: Nome do Aluno
       g_autofree gchar *s_nome = ficha->ativo
@@ -168,7 +171,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
       g_string_append_printf( tex, "%.2d & %s", j + 1, s_nome );
 
       // PASSO B: Extração e formatação das 5 avaliações
-      for ( int k = 0; k < 5; k++ ) {
+      for ( int k = 0; k < MAX_AVALIACOES; k++ ) {
          if ( !validas[k] ) {
             g_string_append( tex, " & &" );
             continue;
@@ -215,7 +218,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    // 5. Rodapé Seguro e Encerramento
    g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-                               ctx->data.dia, ctx->data.mes, ctx->data.ano );
+                               ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
 
    g_string_append_printf( tex,
                            "\\multicolumn{13}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
@@ -274,12 +277,13 @@ static void _calcular_media_do_periodo( FichaAluno *ficha, const InterfaceAvalia
 
 // Embrulhada de ctx->ui_diario.btn_salvar_avaliacoes
 void calcular_nota_periodo( const AppContext *ctx ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+   for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       _calcular_media_do_periodo( ficha, avaliacao, cabecalho );
    }
 }
@@ -287,7 +291,7 @@ void calcular_nota_periodo( const AppContext *ctx ) {
 
 
 void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( painel && ctx );
 
    const InterfaceDados   *dados   = &ctx->dados;
    const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -327,7 +331,7 @@ static int _numero_de_periodos_sem_notas_registradas( GArray *fichas, int foco_d
 
       // Early-exit global: se todos os 4 períodos já iniciaram, não precisa checar o resto da turma.
       if ( periodo_iniciado[0] && periodo_iniciado[1] &&
-           periodo_iniciado[2] && periodo_iniciado[3] ) {
+            periodo_iniciado[2] && periodo_iniciado[3] ) {
          break;
       }
    }
@@ -352,11 +356,9 @@ static void _atribuir_observacao_aluno( RelatorioAnual *rel, int faltantes_globa
 
    if ( rel->conselho >= 0.0f ) {
       rel->obs = ( rel->conselho >= 6.0f ) ? OBS_ALUNO_APROVADO_NO_CONSELHO : OBS_ALUNO_REPROVADO;
-   }
-   else if ( rel->rec_final >= 0.0f ) {
+   } else if ( rel->rec_final >= 0.0f ) {
       rel->obs = ( rel->rec_final >= 6.0f ) ? OBS_ALUNO_APROVADO_NA_FINAL : OBS_ALUNO_EM_CONSELHO_CLASSE;
-   }
-   else if ( rel->soma > 22.2f ) {
+   } else if ( rel->soma > 22.2f ) {
       // 22.2 = 6.0 * 4 (média ponderada/soma aproximada na SEDUC, ou tolerância a arredondamento)
       rel->obs = OBS_ALUNO_APROVADO_DIRETO;
    }
@@ -364,8 +366,7 @@ static void _atribuir_observacao_aluno( RelatorioAnual *rel, int faltantes_globa
    // o ano já começou (faltantes_globais < 4), decreta Recuperação Final antecipada.
    else if ( max_futuro <= 22.2f && faltantes_globais < 4 ) {
       rel->obs = OBS_ALUNO_EM_RECUPERACAO_FINAL;
-   }
-   else {
+   } else {
       rel->obs = OBS_ALUNO_CURSANDO;
    }
 }
@@ -392,15 +393,13 @@ static void _calcular_consolidado_anual_individual( FichaAluno *ficha, int foco_
    if ( !possui_dados ) {
       rel->soma        = -1.0f;
       rel->media_anual = -1.0f;
-   } else {
-      // Atualiza apenas se houve mudança real para poupar IO desnecessário
-      if ( rel->soma != acumulador_soma ) {
-         rel->soma        = acumulador_soma;
-         rel->media_anual = acumulador_soma / 4.0f;
 
-         _atribuir_observacao_aluno( rel, faltantes_globais );
-         ficha->ficha_modificada = TRUE;
-      }
+   } else {
+      rel->soma        = acumulador_soma;
+      rel->media_anual = acumulador_soma / 4.0f;
+
+      _atribuir_observacao_aluno( rel, faltantes_globais );
+      ficha->ficha_modificada = TRUE;
    }
 }
 
@@ -513,18 +512,32 @@ static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, L
    linha->obs = g_strdup( "" );
 
    if ( rel->soma >= 0.0f ) {
-      const char *obs_tex = "Cursando"; // Fallback padrão
+      const char *obs_tex = ficha->ativo ? "Cursando" : ""; // Fallback padrão
 
       // Traduz diretamente o Enum (Single Source of Truth)
       switch ( rel->obs ) {
-         case OBS_ALUNO_APROVADO_NO_CONSELHO: obs_tex = "\\resizebox{20mm}{8pt}{Aprov Cons}"; break;
-         case OBS_ALUNO_REPROVADO:            obs_tex = "Reprovado"; break;
-         case OBS_ALUNO_APROVADO_NA_FINAL:    obs_tex = "Aprov. Final"; break;
-         case OBS_ALUNO_EM_CONSELHO_CLASSE:   obs_tex = "\\resizebox{20mm}{8pt}{\\it Conselho}"; break;
-         case OBS_ALUNO_APROVADO_DIRETO:      obs_tex = "Aprov. Direto"; break;
-         case OBS_ALUNO_EM_RECUPERACAO_FINAL: obs_tex = "\\resizebox{20mm}{8pt}{\\it Rec. Final}"; break;
-         case OBS_ALUNO_CURSANDO:
-         default:                             obs_tex = "Cursando"; break;
+      case OBS_ALUNO_APROVADO_NO_CONSELHO:
+         obs_tex = "\\textcolor{RoyalBlue}{\\small\\bf Aprov Cons}";
+         break;
+      case OBS_ALUNO_REPROVADO:
+         obs_tex = "\\textcolor{BrickRed}{\\small\\bf Reprovado}";
+         break;
+      case OBS_ALUNO_APROVADO_NA_FINAL:
+         obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Final}";
+         break;
+      case OBS_ALUNO_EM_CONSELHO_CLASSE:
+         obs_tex = "\\textcolor{BurntOrange}{\\small\\bf Conselho}";
+         break;
+      case OBS_ALUNO_APROVADO_DIRETO:
+         obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Direto}";
+         break;
+      case OBS_ALUNO_EM_RECUPERACAO_FINAL:
+         obs_tex = "\\textcolor{BrickRed}{\\small\\bf Rec. Final}"; // Destaque forte em vermelho tijolo
+         break;
+      case OBS_ALUNO_CURSANDO:
+      default:
+         obs_tex = ficha->ativo ? "Cursando" : "";
+         break;
       }
 
       g_free( linha->obs );
@@ -540,12 +553,13 @@ static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, L
 // FUNÇÃO SECUNDÁRIA: Gera o arquivo LaTeX do Relatório Final diretamente na memória
 //===================================================================================================
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->fichas );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados *dados = &( ctx->dados );
    int foco_disciplina = ctx->cabecalho.foco_disciplina;
 
    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
-   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", nome_tex, NULL );
+   g_autofree gchar *arquivo_tex = g_build_filename( dados->raiz, "dados", "temporarios", nome_tex, NULL );
 
    g_autoptr( GString ) tex = g_string_sized_new( 16384 );
 
@@ -562,7 +576,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    g_string_append( tex,
                     "\\usepackage[brazil]{babel}\n"
                     "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
-                    "\\usepackage{xcolor}\n"
+                    "\\usepackage[dvipsnames]{xcolor}\n"
                     "\\usepackage{tikz}\n"
                     "\\usepackage{multicol}\n"
                     "\\usepackage{array,multirow,graphicx}\n"
@@ -598,7 +612,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 
    // Dentro de gerar_tex_relatorio_final():
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
       LinhaRelatorioTeX linha;
 
       _preencher_linha_relatorio_tex( ficha, foco_disciplina, &linha );
@@ -622,7 +636,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 
    // 5. Rodapé Seguro e Encerramento
    g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-                               ctx->data.dia, ctx->data.mes, ctx->data.ano );
+                               ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
 
    g_string_append_printf( tex,
                            "\\multicolumn{11}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
@@ -642,7 +656,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 // FUNÇÃO PRINCIPAL: Relatório Final
 //===================================================================================================
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel != NULL && ctx != NULL && ctx->fichas != NULL );
+   g_return_if_fail( painel && ctx );
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
@@ -680,10 +694,11 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
    int end = ( pagina == 1 ) ? 27 : 54;
    int offset = ( pagina == 1 ) ? 0 : 27;
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados *dados = &ctx->dados;
    gboolean eh_recuperacao = ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL );
    int nal = dados->qtd_alunos_total;
-   int nn = ctx->diarios->len;
+   int nn = ctx->ui_diario.diarios->len;
    double p = 199.0 / 330.0;
 
    g_string_append( tex, "\\noindent\\begin{tikzpicture}\n\\fill (0,0) circle (0pt);\n\\draw (1,-1) rectangle (28.7,-20);\n" );
@@ -714,7 +729,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
    // Topo (Datas)
    for ( int i = 0; i < nn; i++ ) {
-      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
       int dia = 0;
       sscanf( r->data, "%d", &dia );
       g_string_append_printf( tex, "\\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n", 7.0 + p * ( i + 0.5 ), -1.2 - 2.5 * p, dia );
@@ -749,7 +764,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
       double y_name   = -1.2 - p * ( i - offset + 2.52 );
 
       if ( i <= nal ) {
-         const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+         const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
 
          if ( ficha->ativo ) {
             g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%02d};\n", y_center, i );
@@ -795,10 +810,10 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
    // Rodapé
    if ( nn > 0 ) {
-      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\,%d\\,} \\qquad Aulas previstas: \\underline{\\,%d\\,} \\qquad Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n",
-                              ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,} \\hspace{2cm} Aulas dadas: \\underline{\\,%d\\,} \\hspace{2cm} Aulas previstas: \\underline{\\,%d\\,} \\hspace{2cm} Professor(a): \\underline{\\includegraphics[width=0.2\\linewidth]{../informados/.assinatura.png}}};\n",
+                              ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano, ad, ap );
    } else {
-      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{\\,%d\\,} \\qquad Aulas dadas: \\underline{\\qquad} \\qquad Aulas previstas: \\underline{\\qquad} \\qquad Professor(a): \\underline{\\hspace{11cm}}};\n", ctx->data.ano );
+      g_string_append_printf( tex, "\\node[inner sep=0pt,above] at (14.85,-19.97) {Data: \\underline{\\hspace{2cm}}/\\underline{\\hspace{2cm}}/\\underline{\\,%d\\,} \\hspace{2cm} Aulas dadas: \\underline{\\hspace{2cm}} \\hspace{2cm} Aulas previstas: \\underline{\\hspace{2cm}} \\hspace{2cm} Professor(a): \\underline{\\hspace{11cm}}};\n", ctx->hoje.ano );
    }
 
    // Injeta os blocos processados no código chamador
@@ -809,7 +824,8 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
 //------------------------------------------------------------------------------------------------------------------
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( painel && ctx && ctx->diarios );
+   g_return_if_fail( painel && ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
@@ -830,8 +846,8 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    double sqrt3_6 = 0.28867513459; // sqrt(3)/6 pré-calculado
 
    // 1. Processamento direto do GArray em RAM
-   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
-      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
 
       int dia, mes, ano;
       sscanf( r->data, "%d/%d/%d", &dia, &mes, &ano );
@@ -874,7 +890,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          ad += ch;
 
          for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-            const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, j );
+            const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
             if ( !ficha->ativo ) continue;
 
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
@@ -914,10 +930,10 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
                g_string_append_printf( target, "\\draw[Aquamarine,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FJ};\n", x_col, y_row );
                break;
             case DISPENSADO:
-               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {D};\n", x_col, y_row );
+               g_string_append_printf( target, "\\draw[BurntOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {D};\n", x_col, y_row );
                break;
             case FORA_DE_SALA:
-               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FS};\n", x_col, y_row );
+               g_string_append_printf( target, "\\draw[BurntOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {\\scriptsize\\bf FS};\n", x_col, y_row );
                break;
             case CABULOU_AULA:
                falt[j] += ch;
@@ -932,7 +948,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
                break;
             case DORMINDO:
                falt[j] += ch;
-               g_string_append_printf( target, "\\draw[YellowOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {Z};\n", x_col, y_row );
+               g_string_append_printf( target, "\\draw[BurntOrange,text=black,thick] (%.4f,%.4f) circle (0.23) node {Z};\n", x_col, y_row );
                break;
             case NOVO_ALUNO:
                g_string_append_printf( target, "\\draw[gray,thick] (%.4f,%.4f) circle (0.23) node {N};\n", x_col, y_row );
@@ -961,7 +977,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    g_string_append( tex, "\n\\end{landscape}\n\\end{document}\n" );
 
    // 4. Salvamento e Disparo Atômico
-   g_autofree gchar *arquivo_tex = g_build_filename( ".", "dados", "temporarios", "Frequência.tex", NULL );
+   g_autofree gchar *arquivo_tex = g_build_filename( dados->raiz, "dados", "temporarios", "Frequência.tex", NULL );
    g_file_set_contents( arquivo_tex, tex->str, tex->len, NULL );
 
    disparar_latex( "Frequência", caminho->relatorios, dados, caminho );
@@ -1185,7 +1201,7 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
                            -1.0 - 3.0 * p / 2.0, dados->escola,
                            -1.0 - 5.0 * p / 2.0, dados->turma,
                            -1.0 - p, dados->disciplina, ( eh_recuperacao ? 'a' : 'o' ), dados->periodo, dados->ano,
-                           ctx->data.dia, ctx->data.mes, ctx->data.ano, ad, ap );
+                           ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano, ad, ap );
 
    g_file_set_contents( caminho_saida, tex->str, -1, NULL );
 }
@@ -1194,23 +1210,24 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel && ctx );
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    // 1. Valida diretamente o GArray em memória em vez de checar o arquivo
-   if ( !ctx->diarios || ctx->diarios->len == 0 ) {
+   if ( !ui_diario->diarios || ui_diario->diarios->len == 0 ) {
       g_print( "⚠ Nenhum registro de diário disponível na memória.\n" );
       // Opcional: Você pode acionar um criar_mensagem_painel() aqui se quiser notificar a UI
       return;
    }
 
-   // 2. Chama a geração do arquivo para o Script Java passando ctx->diarios
+   // 2. Chama a geração do arquivo para o Script Java passando ui_diario->diarios
    g_autofree gchar *arquivo_siaep = g_build_filename( caminho->relatorios, "siaep_cont.dat", NULL );
-   gerar_arquivo_siaep_cont( ctx, ctx->diarios, arquivo_siaep );
+   gerar_arquivo_siaep_cont( ctx, ui_diario->diarios, arquivo_siaep );
 
    // 3. Chama a geração do arquivo LaTeX substituindo o template descontinuado
-   g_autofree gchar *arquivo_latex = g_build_filename( ".", "dados", "temporarios", "Conteúdos.tex", NULL );
-   gerar_latex_conteudos( ctx, ctx->diarios, arquivo_latex );
+   g_autofree gchar *arquivo_latex = g_build_filename( dados->raiz, "dados", "temporarios", "Conteúdos.tex", NULL );
+   gerar_latex_conteudos( ctx, ui_diario->diarios, arquivo_latex );
 
    // 4. Dispara o compilador
    disparar_latex( "Conteúdos", caminho->relatorios, dados, caminho );
@@ -1256,36 +1273,36 @@ void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arqui
 
 void disparar_latex( const char *nome_base, const char *pasta_destino,
                      const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
-    g_return_if_fail( nome_base != NULL && pasta_destino != NULL && dados != NULL );
+   g_return_if_fail( nome_base != NULL && pasta_destino != NULL && dados != NULL );
 
-    // Constrói os caminhos e nomes de arquivo de forma segura e com alocação dinâmica O(1)
-    g_autofree gchar *dir_temp = g_build_filename( ".", "dados", "temporarios", NULL );
-    g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
-    g_autofree gchar *nome_pdf = g_strdup_printf( "%s.pdf", nome_base );
+   // Constrói os caminhos e nomes de arquivo de forma segura e com alocação dinâmica O(1)
+   g_autofree gchar *dir_temp = g_build_filename( dados->raiz, "dados", "temporarios", NULL );
+   g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+   g_autofree gchar *nome_pdf = g_strdup_printf( "%s.pdf", nome_base );
 
-    // 1. Compilação Segura: g_pdflatex_serial entra em dir_temp e compila apenas o nome_tex.
-    // O .pdf será gerado nativamente lá dentro.
-    g_pdflatex_serial( dir_temp, nome_tex );
+   // 1. Compilação Segura: g_pdflatex_serial entra em dir_temp e compila apenas o nome_tex.
+   // O .pdf será gerado nativamente lá dentro.
+   g_pdflatex_serial( dir_temp, nome_tex );
 
-    // Monta os caminhos absolutos/relativos completos para o GIO
-    g_autofree gchar *path_pdf_temp  = g_build_filename( dir_temp, nome_pdf, NULL );
-    g_autofree gchar *path_pdf_final = g_build_filename( pasta_destino, nome_pdf, NULL );
+   // Monta os caminhos absolutos/relativos completos para o GIO
+   g_autofree gchar *path_pdf_temp  = g_build_filename( dir_temp, nome_pdf, NULL );
+   g_autofree gchar *path_pdf_final = g_build_filename( pasta_destino, nome_pdf, NULL );
 
-    // Exportação condicional
-    if ( dados->expor_dados ) {
-        expor_relatorio_escola( path_pdf_temp, nome_base, dados, caminho );
-    }
+   // Exportação condicional
+   if ( dados->expor_dados ) {
+      expor_relatorio_escola( path_pdf_temp, nome_base, dados, caminho );
+   }
 
-    // 2. Mover nativamente com a API do GIO
-    if ( !gio_mover_arquivo( path_pdf_temp, path_pdf_final ) ) {
-        g_printerr( "Falha ao mover o PDF final de '%s' para '%s'.\n", path_pdf_temp, path_pdf_final );
-    }
+   // 2. Mover nativamente com a API do GIO
+   if ( !gio_mover_arquivo( path_pdf_temp, path_pdf_final ) ) {
+      g_printerr( "Falha ao mover o PDF final de '%s' para '%s'.\n", path_pdf_temp, path_pdf_final );
+   }
 
-    // 3. Limpeza seletiva e nativa
-    // apagar_arquivos_temporarios_latex_nativamente( dir_temp, nome_base, 4 );
+   // 3. Limpeza seletiva e nativa
+   apagar_arquivos_temporarios_latex_nativamente( dir_temp, nome_base, 4 );
 
-    // 4. Abertura do documento usando a função assíncrona xdg-open wrapper
-    g_xdg_open( path_pdf_final );
+   // 4. Abertura do documento usando a função assíncrona xdg-open wrapper
+   g_xdg_open( path_pdf_final );
 }
 
 

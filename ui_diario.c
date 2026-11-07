@@ -24,24 +24,26 @@ static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return G_SOURCE_REMOVE;
 
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
+
    // Se nada foi alterado, apenas mantém o timer ativo sem gastar I/O
-   if ( !ctx->dados_modificados ) {
+   if ( !ui_diario->dados_modificados ) {
       return G_SOURCE_CONTINUE;
    }
 
    // 1. Grava o diário se houver dados e caminho válido
-   gboolean salvou_algo = salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
+   gboolean salvou_algo = salvar_garray_binario( ui_diario->diarios, sizeof( RegistroDiario ), ui_diario->path_save_diarios );
 
    // 2. Grava as avaliações se houver dados e caminho válido
    if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
-      salvou_algo = salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+      salvou_algo = salvar_garray_binario( ui_diario->metas_avs, sizeof( MetaAvaliacao ), ui_diario->path_save_metas_avs );
    }
 
    salvou_algo = salvar_fichas( ctx, TRUE );
 
    // 3. Reseta a flag global APENAS se alguma gravação foi realizada
    if ( salvou_algo ) {
-      ctx->dados_modificados = FALSE;
+      ui_diario->dados_modificados = FALSE;
       g_print( "[Autosave] Dados sincronizados no disco com sucesso.\n" );
    }
 
@@ -51,16 +53,18 @@ static gboolean _autosave_dados_binarios_cb( gpointer user_data ) {
 // Interrompe o temporizador da GLib com segurança
 void parar_autosave_diario( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
 
-   if ( ctx->autosave_timer_id > 0 ) {
-      g_source_remove( ctx->autosave_timer_id );
-      ctx->autosave_timer_id = 0;
+   if ( ui_diario->autosave_timer_id > 0 ) {
+      g_source_remove( ui_diario->autosave_timer_id );
+      ui_diario->autosave_timer_id = 0;
    }
 }
 
 // Inicia a contagem regressiva do Autosave (ex: a cada 5 minutos)
 void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
 
    // Cancela um temporizador anterior se já estiver rodando
    parar_autosave_diario( ctx );
@@ -69,14 +73,14 @@ void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos ) {
    guint intervalo_ms = intervalo_minutos * 60 * 1000;
 
    // Registra a callback no Main Loop da GLib
-   ctx->autosave_timer_id = g_timeout_add( intervalo_ms, _autosave_dados_binarios_cb, ctx );
-   ctx->dados_modificados = FALSE;
+   ui_diario->autosave_timer_id = g_timeout_add( intervalo_ms, _autosave_dados_binarios_cb, ctx );
+   ui_diario->dados_modificados = FALSE;
 }
 
 // Função centralizada para marcar a RAM como alterada
 static void _marcar_dados_modificado( AppContext *ctx ) {
    if ( ctx ) {
-      ctx->dados_modificados = TRUE;
+      ctx->ui_diario.dados_modificados = TRUE;
    }
 }
 
@@ -211,14 +215,15 @@ gchar* validar_data( const gchar *texto ) {
  * @return gboolean TRUE se a remoção foi confirmada e executada; FALSE se foi cancelada ou falhou.
  */
 gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
-   g_return_val_if_fail( ctx && ctx->diarios && model && iter, FALSE );
+   g_return_val_if_fail( ctx && model && iter, FALSE );
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    // 1. Proteção de limites da memória
-   if ( indice_remocao < 0 || ( guint )indice_remocao >= ctx->diarios->len ) return FALSE;
+   if ( indice_remocao < 0 || ( guint )indice_remocao >= ui_diario->diarios->len ) return FALSE;
 
-   RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, indice_remocao );
+   RegistroDiario *d = &g_array_index( ui_diario->diarios, RegistroDiario, indice_remocao );
 
    // =========================================================================
    // 2. TRAVA DE SEGURANÇA: Verifica se já existe chamada lançada nesta aula
@@ -277,7 +282,7 @@ gboolean remover_registro_diario_selecionado( AppContext *ctx, int indice_remoca
    // =========================================================================
    // 4. REMOÇÃO ATÔMICA: RAM E AUTOSAVE
    // =========================================================================
-   g_array_remove_index( ctx->diarios, indice_remocao );
+   g_array_remove_index( ui_diario->diarios, indice_remocao );
    _marcar_dados_modificado( ctx );
 
    // =========================================================================
@@ -345,6 +350,7 @@ static void _extrair_linha_liststore_para_ram( GtkListStore *store, GtkTreeIter 
 // RE-RENDERIZADOR GLOBAL: Redesenha toda a UI com múltiplas chamadas à função de linha
 //===================================================================================================
 static void _reconstruir_ui_conteudos_da_ram( AppContext *ctx ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
@@ -356,8 +362,8 @@ static void _reconstruir_ui_conteudos_da_ram( AppContext *ctx ) {
    gtk_list_store_clear( store );
 
    GtkTreeIter iter;
-   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
-      RegistroDiario *reg = &g_array_index( ctx->diarios, RegistroDiario, i );
+   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
+      RegistroDiario *reg = &g_array_index( ui_diario->diarios, RegistroDiario, i );
       _inserir_linha_conteudo_ui( store, &iter, -1, reg );
    }
 
@@ -401,7 +407,8 @@ static gboolean _validar_campos_conteudo_diario( InterfacePainel *painel, const 
 }
 
 void registrar_aula( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->diarios );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
@@ -439,12 +446,12 @@ void registrar_aula( AppContext *ctx ) {
 
    // Popula a frequência dos alunos antes de salvar
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       nova_aula.chamada[i].cod_aluno = ficha->cod_aluno;
    }
 
-   g_array_append_val( ctx->diarios, nova_aula );
-   g_array_sort( ctx->diarios, _comparar_datas_diario );
+   g_array_append_val( ui_diario->diarios, nova_aula );
+   g_array_sort( ui_diario->diarios, _comparar_datas_diario );
    _marcar_dados_modificado( ctx );
 
    // =====================================================================
@@ -453,9 +460,9 @@ void registrar_aula( AppContext *ctx ) {
    _reconstruir_ui_conteudos_da_ram( ctx );
 
    // Acha o índice final da aula para dar o scroll
-   int novo_indice = ctx->diarios->len - 1;
-   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
-      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+   int novo_indice = ui_diario->diarios->len - 1;
+   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
       if ( g_strcmp0( r->data, nova_aula.data ) == 0 && g_strcmp0( r->tema, nova_aula.tema ) == 0 ) {
          novo_indice = ( int )i;
          break;
@@ -469,7 +476,7 @@ void registrar_aula( AppContext *ctx ) {
    }
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( tree_view ) );
 
-   RegistroDiario *d = &g_array_index( ctx->diarios, RegistroDiario, novo_indice );
+   RegistroDiario *d = &g_array_index( ui_diario->diarios, RegistroDiario, novo_indice );
    if ( d->tipo_registro == TIPO_REGISTRO_FERIADO || d->tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
       gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), "" );
       gtk_widget_grab_focus( conteudo->entry_tema );
@@ -481,7 +488,8 @@ void registrar_aula( AppContext *ctx ) {
 
 
 void modificar_registro_aula( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->diarios );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
@@ -492,9 +500,9 @@ void modificar_registro_aula( AppContext *ctx ) {
    if ( !path_antigo ) return;
 
    int idx = gtk_tree_path_get_indices( path_antigo )[0];
-   if ( idx < 0 || ( guint )idx >= ctx->diarios->len ) return;
+   if ( idx < 0 || ( guint )idx >= ui_diario->diarios->len ) return;
 
-   RegistroDiario *reg = &g_array_index( ctx->diarios, RegistroDiario, idx );
+   RegistroDiario *reg = &g_array_index( ui_diario->diarios, RegistroDiario, idx );
 
    const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
    const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
@@ -522,7 +530,7 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    // 3. ATUALIZA A RAM GLOBAL E ORDENA
    *reg = reg_clone;
-   g_array_sort( ctx->diarios, _comparar_datas_diario );
+   g_array_sort( ui_diario->diarios, _comparar_datas_diario );
    _marcar_dados_modificado( ctx );
 
    // 4. RE-RENDERIZA TUDO (Garante que se a data mudou, ele reposicione visualmente a linha)
@@ -530,8 +538,8 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    // Encontra o novo índice pós-ordenação para o scroll
    int novo_indice = 0;
-   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
-      RegistroDiario *r = &g_array_index( ctx->diarios, RegistroDiario, i );
+   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
+      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
       if ( g_strcmp0( r->data, reg_clone.data ) == 0 && g_strcmp0( r->tema, reg_clone.tema ) == 0 ) {
          novo_indice = ( int )i;
          break;
@@ -639,8 +647,9 @@ void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem ) {
 
 // 1. A FUNÇÃO MODULAR (Pode ir para um arquivo .c separado, como diario_ui.c)
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
-   g_return_if_fail( ctx && ctx->diarios && iter );
+   g_return_if_fail( ctx && iter );
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceConteudo *conteudo = &ctx->ui_diario.conteudo;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
@@ -654,10 +663,10 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    gtk_tree_path_free( path );
 
    // Proteção de limites de segurança
-   if ( indice < 0 || ( guint )indice >= ctx->diarios->len ) return;
+   if ( indice < 0 || ( guint )indice >= ui_diario->diarios->len ) return;
 
    // 2. Busca a aula completa direto na memória RAM em O(1)
-   RegistroDiario *diario_edicao = &g_array_index( ctx->diarios, RegistroDiario, indice );
+   RegistroDiario *diario_edicao = &g_array_index( ui_diario->diarios, RegistroDiario, indice );
 
    // 3. Popula a interface visual rapidamente
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), diario_edicao->data );
@@ -684,16 +693,17 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
 // FREQUÊNCIA
 
 void popular_datas( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->diarios );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
-   int qtd_itens = ( int )ctx->diarios->len;
+   int qtd_itens = ( int )ui_diario->diarios->len;
    int foco = -1; // -1 indica que nenhuma data válida foi encontrada ainda
 
    // Busca retroativa (do último para o primeiro) usando um laço 'for' limpo e seguro
    RegistroDiario *diario = NULL;
    for ( int i = qtd_itens - 1; i >= 0; i-- ) {
-      diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+      diario = &g_array_index( ui_diario->diarios, RegistroDiario, i );
 
       if ( diario->tipo_registro != TIPO_REGISTRO_FERIADO &&
             diario->tipo_registro != TIPO_REGISTRO_PEDAGOGICO ) {
@@ -703,7 +713,7 @@ void popular_datas( AppContext *ctx ) {
    }
 
    if ( qtd_itens > 0 && foco >= 0 ) {
-      popular_combo_box_generico( frequencia->combo_data, ctx->diarios, qtd_itens, foco,
+      popular_combo_box_generico( frequencia->combo_data, ui_diario->diarios, qtd_itens, foco,
                                   frequencia->handler_combo_data, _mapear_datas_frequencia );
 
       GtkTreeIter iter;
@@ -758,13 +768,14 @@ static int _indexar_liststore_modo_por_aluno( const GArray *diarios, int idx_aul
 }
 
 static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char *str_status, int status_num ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
-   int idx_linha_liststore = _indexar_liststore_modo_por_aluno( ctx->diarios, idx_aula );
+   int idx_linha_liststore = _indexar_liststore_modo_por_aluno( ui_diario->diarios, idx_aula );
    g_autoptr( GtkTreePath ) path = gtk_tree_path_new_from_indices( idx_linha_liststore, -1 );
    GtkTreeIter iter;
 
@@ -776,15 +787,15 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
                           -1 );
    }
 
-   for ( idx_aula = idx_aula + 1; ( guint )idx_aula < ctx->diarios->len; idx_aula++ ) {
-      const RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
+   for ( idx_aula = idx_aula + 1; ( guint )idx_aula < ui_diario->diarios->len; idx_aula++ ) {
+      const RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, idx_aula );
       if ( diario->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ||
             diario->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) {
          break;
       }
    }
 
-   if ( ( guint )idx_aula < ctx->diarios->len ) {
+   if ( ( guint )idx_aula < ui_diario->diarios->len ) {
       gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), idx_aula );
    }
 }
@@ -822,6 +833,7 @@ static gchar *_cod_aluno_formatado( uint32_t cod_aluno ) {
 
 static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int idx_aluno,
                                     const char *str_status, int status_num ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
@@ -850,12 +862,12 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
          if ( ficha->ativo ) break;
       }
 
    } else {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
       const char *fonte_numerica = "Monospace 19px";
 
@@ -874,7 +886,7 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
-         ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+         ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
          if ( ficha->ativo ) break;
 
          diario->chamada[idx_aluno].status = SEM_STATUS;
@@ -911,16 +923,17 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
 }
 
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status ) {
-   g_return_if_fail( ctx && ctx->diarios && painel );
+   g_return_if_fail( ctx && painel );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
    if ( idx_aluno < 0 || idx_aluno >= ctx->dados.qtd_alunos_total ) return;
 
    int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
-   if ( idx_aula < 0 || ( guint )idx_aula >= ctx->diarios->len ) return;
+   if ( idx_aula < 0 || ( guint )idx_aula >= ui_diario->diarios->len ) return;
 
-   RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
+   RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, idx_aula );
    diario->chamada[idx_aluno].status = status;
    _marcar_dados_modificado( ctx );
 
@@ -938,12 +951,13 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 
 void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
-   if ( foco < 0 || ( guint )foco >= ctx->diarios->len ) return;
+   if ( foco < 0 || ( guint )foco >= ui_diario->diarios->len ) return;
 
-   RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, foco );
+   RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, foco );
 
    if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) ) ) return;
 
@@ -959,7 +973,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    int linhas_renderizadas = 0;
 
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       int status_atual = diario->chamada[i].status;
 
       if ( ficha->ativo && status_atual == SEM_STATUS ) break;
@@ -1004,7 +1018,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    }
 
    for ( int i = frequencia->limite_combo_alunos - 1; i >= 0; i-- ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       if ( ficha->ativo ) {
          frequencia->foco_combo_alunos = i;
          gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), i );
@@ -1014,7 +1028,8 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
 }
 
 void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->diarios );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
@@ -1028,12 +1043,12 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store_view );
 
-   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_aluno );
+   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
    int proxima_data_pendente = 0;
    gboolean achou_pendente = FALSE;
 
-   for ( guint i = 0; i < ctx->diarios->len; i++ ) {
-      RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
+      RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, i );
 
       gboolean tipo_feriado    = ( diario->tipo_registro == TIPO_REGISTRO_FERIADO );
       gboolean tipo_pedagogico = ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
@@ -1067,7 +1082,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
    gtk_tree_view_set_model( tree_view, model_view );
    g_object_unref( store_view );
 
-   if ( ctx->diarios->len > 0 ) {
+   if ( ui_diario->diarios->len > 0 ) {
       gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), proxima_data_pendente );
    }
 }
@@ -1079,14 +1094,15 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
 
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha ) {
    g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    int linha_atual = 0;
    int indice_real_diario = -1;
-   guint total_diarios = ctx->diarios->len;
+   guint total_diarios = ui_diario->diarios->len;
 
    for ( guint i = 0; i < total_diarios; i++ ) {
-      RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, i );
+      RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, i );
 
       gboolean tipo_feriado    = ( diario->tipo_registro == TIPO_REGISTRO_FERIADO );
       gboolean tipo_pedagogico = ( diario->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
@@ -1108,6 +1124,7 @@ void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indi
 
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha ) {
    g_return_if_fail( ctx && treeview );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    if ( indice_linha < 0 && indice_linha >= ctx->dados.qtd_alunos_total ) {
@@ -1115,7 +1132,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    }
 
    FichaAluno *ficha = NULL;
-   ficha = &g_array_index( ctx->fichas, FichaAluno, indice_linha );
+   ficha = &g_array_index( ui_diario->fichas, FichaAluno, indice_linha );
 
    if ( ficha->ativo ) {
       g_object_set_data( G_OBJECT( frequencia->combo_alunos ), "programatico", GINT_TO_POINTER( TRUE ) );
@@ -1131,7 +1148,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    if ( indice_linha > foco_anterior ) {
       // Descendo (seta para baixo ou clique abaixo)
       for ( int i = indice_linha + 1; i < ctx->dados.qtd_alunos_total; i++ ) {
-         ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+         ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
          if ( ficha->ativo ) {
             target = i;
             break;
@@ -1140,7 +1157,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    } else if ( indice_linha < foco_anterior ) {
       // Subindo (seta para cima ou clique acima)
       for ( int i = indice_linha - 1; i >= 0; i-- ) {
-         ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+         ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
          if ( ficha->ativo ) {
             target = i;
             break;
@@ -1164,6 +1181,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
 
 void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
    g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    GtkTreeView *treeview = GTK_TREE_VIEW( frequencia->treeview );
@@ -1184,7 +1202,7 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
    // === TRADUÇÃO DE ÍNDICE ===
    // Converte o índice absoluto de memória (combo_data) para o índice visual (ListStore filtrado)
    if ( modo_por_aluno ) {
-      ativo = _indexar_liststore_modo_por_aluno( ctx->diarios, ativo );
+      ativo = _indexar_liststore_modo_por_aluno( ui_diario->diarios, ativo );
    }
 
    int linhas = gtk_tree_model_iter_n_children( model, NULL );
@@ -1226,6 +1244,7 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
  */
 void selecionar_combo_status( const AppContext *ctx ) {
    g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    const InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
 
    int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
@@ -1233,8 +1252,8 @@ void selecionar_combo_status( const AppContext *ctx ) {
 
    int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
 
-   if ( idx_aula >= 0 && ( guint )idx_aula < ctx->diarios->len ) {
-      const RegistroDiario *diario = &g_array_index( ctx->diarios, RegistroDiario, idx_aula );
+   if ( idx_aula >= 0 && ( guint )idx_aula < ui_diario->diarios->len ) {
+      const RegistroDiario *diario = &g_array_index( ui_diario->diarios, RegistroDiario, idx_aula );
       int status_atual = diario->chamada[ativo].status;
 
       // O índice do combo de status corresponde exatamente ao valor do enum (StatusAssiduidade)
@@ -1289,7 +1308,7 @@ static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, co
 // =====================================================================
 void carregar_diario( AppContext *ctx ) {
    g_return_if_fail( ctx );
-   if ( carregar_garray_binario( &ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario ) ) {
+   if ( carregar_garray_binario( &ctx->ui_diario.diarios, sizeof( RegistroDiario ), ctx->ui_diario.path_save_diarios ) ) {
       _marcar_dados_modificado( ctx );
    }
 }
@@ -1298,7 +1317,7 @@ void carregar_diario( AppContext *ctx ) {
 /**
  * @brief Cria um novo GArray de RegistroDiarioAux a partir das fichas antigas (RegistroDiario).
  *
- * @param fichas_antigas GArray original contendo RegistroDiario (ctx->fichas).
+ * @param fichas_antigas GArray original contendo RegistroDiario (ui_diario->fichas).
  * @return GArray* Novo GArray alocado contendo RegistroDiarioAux, ou NULL em caso de erro.
  */
 // static GArray *copiar_fichas_para_aux( const GArray *fichas_antigas ) {
@@ -1338,14 +1357,15 @@ void carregar_diario( AppContext *ctx ) {
 
 void salvar_diario( AppContext *ctx, gboolean final_save ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
 
-   salvar_garray_binario( ctx->diarios, sizeof( RegistroDiario ), ctx->path_save_diario );
+   salvar_garray_binario( ui_diario->diarios, sizeof( RegistroDiario ), ui_diario->path_save_diarios );
    // GArray *diarios_novos = copiar_fichas_para_aux( ctx->diarios );
-   // salvar_garray_binario( diarios_novos, sizeof( RegistroDiarioAux ), ctx->path_save_diario );
+   // salvar_garray_binario( diarios_novos, sizeof( RegistroDiarioAux ), ctx->path_save_diarios );
 
    if ( !final_save ) {
-      g_free( ctx->path_save_diario );
-      ctx->path_save_diario = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
+      g_free( ui_diario->path_save_diarios );
+      ui_diario->path_save_diarios = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
    }
 }
 
@@ -1373,13 +1393,14 @@ static void mapper_avaliacao_diario( GtkListStore *store, GtkTreeIter *iter, con
 
 
 static void _visibilidade_avaliacoes( const AppContext *ctx, GtkTreeView *treeview ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    // 3. Atualiza a visibilidade dos 5 pares de colunas (Av/Rec)
    for ( int i = 0; i < MAX_AVALIACOES; i++ ) {
       gboolean visivel = FALSE;
 
       // Verifica se o índice existe no GArray e se a avaliação está ativa
-      if ( ctx->avaliacoes && ( guint )i < ctx->avaliacoes->len ) {
-         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, i );
+      if ( ui_diario->metas_avs && ( guint )i < ui_diario->metas_avs->len ) {
+         MetaAvaliacao *meta = &g_array_index( ui_diario->metas_avs, MetaAvaliacao, i );
          visivel = meta->ativa;
       }
 
@@ -1435,6 +1456,7 @@ void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo )
 
 void carregar_avaliacoes( AppContext *ctx ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkWidget *check = avaliacao->check_desativar_avaliacao;
@@ -1446,26 +1468,26 @@ void carregar_avaliacoes( AppContext *ctx ) {
    }
 
    // 1. Carrega o binário para a memória RAM (GArray)
-   if ( carregar_garray_binario( &ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao ) ) {
+   if ( carregar_garray_binario( &ui_diario->metas_avs, sizeof( MetaAvaliacao ), ui_diario->path_save_metas_avs ) ) {
 
       // 2. Se houver dados, repassa o ponteiro interno do GArray para popular o UI
-      if ( ctx->avaliacoes && ctx->avaliacoes->len > 0 ) {
+      if ( ui_diario->metas_avs && ui_diario->metas_avs->len > 0 ) {
          popular_combo_box_generico(
             avaliacao->combo_avaliacao,
-            ctx->avaliacoes->data,               // Bloco contíguo das structs
-            ctx->avaliacoes->len,                // Quantidade exata de itens
+            ui_diario->metas_avs->data,               // Bloco contíguo das structs
+            ui_diario->metas_avs->len,                // Quantidade exata de itens
             foco_inicial,                        // Foco padrão
             avaliacao->handler_combo_avaliacao,  // Silencia o sinal durante o processo
             mapper_avaliacao_diario
          );
 
-         MetaAvaliacao *meta = &g_array_index( ctx->avaliacoes, MetaAvaliacao, foco_inicial );
+         MetaAvaliacao *meta = &g_array_index( ui_diario->metas_avs, MetaAvaliacao, foco_inicial );
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), !meta->ativa );
       }
       _marcar_dados_modificado( ctx );
 
    } else {
-      popular_combo_box_generico( avaliacao->combo_avaliacao, ctx->avaliacoes->data, 0, 0,
+      popular_combo_box_generico( avaliacao->combo_avaliacao, ui_diario->metas_avs->data, 0, 0,
                                   avaliacao->handler_combo_avaliacao, mapper_avaliacao_diario );
 
       gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), FALSE );
@@ -1484,17 +1506,19 @@ void carregar_avaliacoes( AppContext *ctx ) {
 
 void salvar_avaliacoes( AppContext *ctx, gboolean final_save ) {
    g_return_if_fail( ctx );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
 
-   salvar_garray_binario( ctx->avaliacoes, sizeof( MetaAvaliacao ), ctx->path_save_avaliacao );
+   salvar_garray_binario( ui_diario->metas_avs, sizeof( MetaAvaliacao ), ui_diario->path_save_metas_avs );
 
    if ( !final_save ) {
-      g_free( ctx->path_save_avaliacao );
-      ctx->path_save_avaliacao = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
+      g_free( ui_diario->path_save_metas_avs );
+      ui_diario->path_save_metas_avs = g_build_filename( ctx->caminho.dados, "avaliacoes.bin", NULL );
    }
 }
 
-
+//===================================================================================
 void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
@@ -1504,9 +1528,9 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    if ( ativo < 0 ) return;
 
    // 2. Atualiza o estado lógico na memória RAM (GArray)
-   if ( ctx->avaliacoes && ativo < ( int )ctx->avaliacoes->len ) {
+   if ( ui_diario->metas_avs && ativo < ( int )ui_diario->metas_avs->len ) {
       // Se 'estado' (riscar) for TRUE, a avaliação fica INATIVA (ativa = FALSE)
-      g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ).ativa = !estado;
+      g_array_index( ui_diario->metas_avs, MetaAvaliacao, ativo ).ativa = !estado;
    } else {
       g_print( "⚠ Erro: Índice selecionado está fora dos limites do GArray.\n" );
       return;
@@ -1529,15 +1553,16 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    GtkTreeView *treeview = GTK_TREE_VIEW( avaliacao->treeview );
    _visibilidade_avaliacoes( ctx, treeview );
 }
-
-
+//-----------------------------------------------------------------------------------
 void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
    g_return_if_fail( avaliacao );
 
    GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( avaliacao->combo_avaliacao ) );
    if ( !model ) return;
 
-   for ( int i = 0; i < MAX_AVALIACOES; i++ ) avaliacao->validas[i] = FALSE;
+   for ( int i = 0; i < MAX_AVALIACOES; i++ ) {
+      avaliacao->validas[i] = FALSE;
+   }
 
    GtkTreeIter iter;
    avaliacao->qtd_validas = 0;
@@ -1558,11 +1583,12 @@ void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
       } while ( gtk_tree_model_iter_next( model, &iter ) );
    }
 }
-
+//===================================================================================
 
 void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    g_return_if_fail( ctx != NULL );
    g_return_if_fail( texto != NULL );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
@@ -1582,8 +1608,8 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    }
 
    // Garante que a estrutura na RAM esteja pronta
-   if ( !ctx->avaliacoes ) {
-      ctx->avaliacoes = g_array_new( FALSE, FALSE, sizeof( MetaAvaliacao ) );
+   if ( !ui_diario->metas_avs ) {
+      ui_diario->metas_avs = g_array_new( FALSE, FALSE, sizeof( MetaAvaliacao ) );
    }
 
    MetaAvaliacao meta = {0};
@@ -1593,7 +1619,7 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    gboolean riscar = !meta.ativa;
 
    // 2. Manipulação Direta na Memória RAM
-   g_array_append_val( ctx->avaliacoes, meta );
+   g_array_append_val( ui_diario->metas_avs, meta );
 
    // 3. Atualiza a Interface Gráfica
    GtkTreeIter iter;
@@ -1613,6 +1639,7 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
 void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
    g_return_if_fail( ctx != NULL );
    g_return_if_fail( texto != NULL );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
@@ -1623,7 +1650,7 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
       return;
    }
 
-   if ( !ctx->avaliacoes ) return; // Prevenção de falha
+   if ( !ui_diario->metas_avs ) return; // Prevenção de falha
 
    GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
@@ -1641,8 +1668,8 @@ void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
       meta.ativa = !riscado;
 
       // 2. Manipulação Direta na Memória RAM (Substituição in-place)
-      if ( ativo < ( int )ctx->avaliacoes->len ) {
-         g_array_index( ctx->avaliacoes, MetaAvaliacao, ativo ) = meta;
+      if ( ativo < ( int )ui_diario->metas_avs->len ) {
+         g_array_index( ui_diario->metas_avs, MetaAvaliacao, ativo ) = meta;
       } else {
          g_print( "⚠ Erro de sincronia: índice de edição fora dos limites do array em memória.\n" );
          return;
@@ -1679,21 +1706,22 @@ static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes,
 //===================================================================================================
 gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    g_return_val_if_fail( ctx, FALSE );
+   InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceDados *dados = &ctx->dados;
 
    gboolean salvou_algo = FALSE;
 
-   if ( ctx->fichas != NULL ) {
-      for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+   if ( ui_diario->fichas != NULL ) {
+      for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
          // Aponta para a ficha específica do aluno na memória
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
 
          if ( !ficha->ativo || !ficha->ficha_modificada ) {
             continue;
          }
 
          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
-         g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
+         g_autofree char *path_ficha_bin = g_build_filename( ui_diario->path_save_fichas, ficha_bin, NULL );
 
          // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
          salvou_algo = _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
@@ -1704,8 +1732,8 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 
    // Atualização do diretório de salvamento
    if ( !final_save ) {
-      g_free( ctx->path_save_fichas );
-      ctx->path_save_fichas = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, "alunos", NULL );
+      g_free( ui_diario->path_save_fichas );
+      ui_diario->path_save_fichas = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, "fichas", NULL );
    }
    return salvou_algo;
 }
@@ -1763,10 +1791,10 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    gboolean salvou_algo = FALSE;
 //
-//    if ( ctx->fichas != NULL ) {
-//       for ( guint i = 0; i < ctx->fichas->len; i++ ) {
+//    if ( ui_diario->fichas != NULL ) {
+//       for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
 //          // Aponta para a ficha específica do aluno na memória (estrutura original)
-//          FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+//          FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
 //
 //          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
 //          g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
@@ -1793,7 +1821,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    // Atualização do diretório de salvamento
 //    if ( !final_save ) {
 //       g_free( ctx->path_save_fichas );
-//       ctx->path_save_fichas = g_build_filename( ".", "dados", "alunos", NULL );
+//       ctx->path_save_fichas = g_build_filename( dados->raiz, "dados", "fichas", NULL );
 //    }
 //
 //    return salvou_algo;
@@ -2031,6 +2059,7 @@ static void _formatar_nota_com_espaco_tabular( float nota, char *buffer, size_t 
  */
 void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
                               const gchar *path_string, const gchar *new_text ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
@@ -2046,7 +2075,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    if ( !gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) return;
 
    int index_aluno = atoi( path_string );
-   FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, index_aluno );
+   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, index_aluno );
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
    int foco = ctx->cabecalho.foco_disciplina;
 
@@ -2123,6 +2152,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
 // FUNÇÃO AUXILIAR: Cola múltiplas notas na coluna a partir da célula atual
 //===================================================================================================
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkClipboard *clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
@@ -2160,8 +2190,8 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 
       // Captura a correspondência absoluta do aluno pela interface
       gint *indices = gtk_tree_path_get_indices( current_path );
-      if ( indices && ( guint )indices[0] < ctx->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, indices[0] );
+      if ( indices && ( guint )indices[0] < ui_diario->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, indices[0] );
 
          if ( ficha->ativo ) {
             gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
@@ -2194,8 +2224,8 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
       gint *indices = gtk_tree_path_get_indices( current_path );
 
       // Verifica o aluno correspondente à linha do GTK iterada, e NÃO pela variável 'i'
-      if ( indices && ( guint )indices[0] < ctx->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, indices[0] );
+      if ( indices && ( guint )indices[0] < ui_diario->fichas->len ) {
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, indices[0] );
 
          if ( ficha->ativo ) {
             processar_gravacao_nota( ctx, GTK_CELL_RENDERER( renderer ), path_str, nota_str );
@@ -2223,7 +2253,8 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 
 //--------------------------------------------------------------------------------------------------
 void carregar_notas_ui_por_periodo( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->fichas );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
@@ -2238,8 +2269,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    int foco = ctx->cabecalho.foco_disciplina;
 
    // 2. Percorre o GArray reconstruindo as linhas do zero
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+   for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       GtkTreeIter iter;
 
       // Buffer estático na Stack: 10 strings de até 8 caracteres (Ex: "10.00\0")
@@ -2293,39 +2324,39 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Transforma o status pré-calculado em texto para a UI e ativa as permissões (View)
 //===================================================================================================
-static const char *_avaliar_status_aprovacao_e_pendencias( const RelatorioAnual *rel, int *mascara_pendencias) {
+static const char *_avaliar_status_aprovacao_e_pendencias( const RelatorioAnual *rel, int *mascara_pendencias ) {
 
    // Se o aluno ainda não possui pontuação base no ano, sai silenciosamente
    if ( rel->soma < 0.0f ) return NULL;
 
    // Traduz o estado matemático para a string da interface e destrava edições (Rec/Cons)
    switch ( rel->obs ) {
-      case OBS_ALUNO_APROVADO_NO_CONSELHO:
-         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
-         return "Aprov Cons";
+   case OBS_ALUNO_APROVADO_NO_CONSELHO:
+      *mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
+      return "Aprov Cons";
 
-      case OBS_ALUNO_REPROVADO:
-         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
-         return "Reprovado";
+   case OBS_ALUNO_REPROVADO:
+      *mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
+      return "Reprovado";
 
-      case OBS_ALUNO_APROVADO_NA_FINAL:
-         *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
-         return "Aprov Final";
+   case OBS_ALUNO_APROVADO_NA_FINAL:
+      *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+      return "Aprov Final";
 
-      case OBS_ALUNO_EM_CONSELHO_CLASSE:
-         *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
-         return "Conselho";
+   case OBS_ALUNO_EM_CONSELHO_CLASSE:
+      *mascara_pendencias |= ( MASK_DESTRAVA_REC_FINAL | MASK_DESTRAVA_CONSELHO );
+      return "Conselho";
 
-      case OBS_ALUNO_APROVADO_DIRETO:
-         return "Aprov Dir"; // Não destrava Rec/Cons pois passou direto
+   case OBS_ALUNO_APROVADO_DIRETO:
+      return "Aprov Dir"; // Não destrava Rec/Cons pois passou direto
 
-      case OBS_ALUNO_EM_RECUPERACAO_FINAL:
-         *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
-         return "Rec Final";
+   case OBS_ALUNO_EM_RECUPERACAO_FINAL:
+      *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
+      return "Rec Final";
 
-      case OBS_ALUNO_CURSANDO:
-      default:
-         return "Cursando";
+   case OBS_ALUNO_CURSANDO:
+   default:
+      return "Cursando";
    }
 }
 
@@ -2333,7 +2364,8 @@ static const char *_avaliar_status_aprovacao_e_pendencias( const RelatorioAnual 
 // FUNÇÃO PRINCIPAL: Carrega e calcula os dados no TreeView do Relatório
 //===================================================================================================
 void carregar_relatorio_ui( AppContext *ctx ) {
-   g_return_if_fail( ctx && ctx->fichas );
+   g_return_if_fail( ctx );
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceRelatorio *relatorio = &ctx->ui_diario.relatorio;
 
    GtkTreeView *tree_view = GTK_TREE_VIEW( relatorio->treeview );
@@ -2359,7 +2391,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, p );
 
-      g_autofree gchar *acesso_bin = g_build_filename( ".", "dados", "informados", ctx->dados.ano,
+      g_autofree gchar *acesso_bin = g_build_filename( ctx->dados.raiz, "dados", "informados", ctx->dados.ano,
                                      ctx->dados.escola, ctx->dados.turma,
                                      ctx->dados.disciplina, texto_periodo,
                                      "acesso.bin", NULL );
@@ -2384,8 +2416,8 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // =========================================================================
    // LAÇO PRINCIPAL DOS ALUNOS
    // =========================================================================
-   for ( guint i = 0; i < ctx->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, i );
+   for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
+      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
       const RelatorioAnual *rel = &ficha->disciplina[d].relatorio;
 
       GtkTreeIter iter;
@@ -2495,6 +2527,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
 
 void gerar_acesso_recuperacao_final( AppContext *ctx ) {
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceDados *dados = &ctx->dados;
    GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
 
@@ -2504,11 +2537,11 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
    if ( !nome_p4 || !nome_rec ) return;
 
    // 2. Construção dos caminhos absolutos (adicionando "acesso.bin" ao final do diretório)
-   g_autofree gchar *dir_p4 = g_build_filename( ".", "dados", "informados",
+   g_autofree gchar *dir_p4 = g_build_filename( dados->raiz, "dados", "informados",
                               dados->ano, dados->escola, dados->turma, dados->disciplina, nome_p4, NULL );
    g_autofree gchar *arq_p4 = g_build_filename( dir_p4, "acesso.bin", NULL );
 
-   g_autofree gchar *dir_rec = g_build_filename( ".", "dados", "informados",
+   g_autofree gchar *dir_rec = g_build_filename( dados->raiz, "dados", "informados",
                                dados->ano, dados->escola, dados->turma, dados->disciplina, nome_rec, NULL );
    g_autofree gchar *arq_rec = g_build_filename( dir_rec, "acesso.bin", NULL );
 
@@ -2544,7 +2577,7 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
       // Se o aluno está de Recuperação Final
       if ( g_strcmp0( obs, "Rec Final" ) == 0 ) {
          // Resgata a ficha que espelha essa linha
-         FichaAluno *ficha = &g_array_index( ctx->fichas, FichaAluno, idx_ficha );
+         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_ficha );
 
          // Procura esse aluno no buffer binário e marca como ativo
          for ( int i = 0; i < qtd_acessos; i++ ) {

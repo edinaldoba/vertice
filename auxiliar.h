@@ -8,8 +8,8 @@
 
 /* ESTE ARQUIVO É EXCLUSIVO PARA DEPENDÊNCIAS DE INTERFACE.C */
 
+void obter_data_hoje( CalendarioData *hoje );
 
-CalendarioData data_de_hoje( void );
 long int mapear_data_para_id( int dia, int mes, int ano );
 void mapear_id_para_data( long int w, int *dia, int *mes, int *ano );
 int foco_periodo_corrente( int escalar_hoje );
@@ -29,7 +29,7 @@ void gerar_gabaritos( const char *arquivo, const int adicionados, const Interfac
 
 void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres );
 
-void caminhos_uteis_de_diretorios( const InterfaceDados *dados, CaminhoDiretorio *caminho );
+void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *caminho );
 
 void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx );
 

@@ -96,6 +96,7 @@ void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_
 // 3. CURADORIA E COMPILAÇÃO DE Acervo
 // =========================================================================
 // Manipulam o banco de dados pedagógico de temas e tópicos específicos
+void on_button_config_acervo_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_abrir_tema_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data );

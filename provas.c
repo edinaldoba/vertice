@@ -35,7 +35,7 @@ void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados )
 
 
 void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GArray *fichas,
-                                 const InterfaceDados *dados, const CalendarioData *data ) {
+                                 const InterfaceDados *dados, const CalendarioData *hoje ) {
 
    definir_titulo_documento( titulo_prova, dados );
 
@@ -68,8 +68,6 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
                            "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
                            "\\usepackage[dvipsnames,table]{xcolor}\n"
                            "\\usepackage[%s]{professor}\n"
-                           "\\usepackage{tikz,ifthen,ulem}\n"
-                           "\\usetikzlibrary{calc}\n"
                            "\\pagestyle{empty}\n\n"
                            "\\begin{document}\n"
                            "\\noindent\\begin{tikzpicture}\n", cor_serie_nome[dados->foco_cor_serie] );
@@ -91,7 +89,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
    // Cabeçalho do Documento
    g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (1.2,-1.6) {\\bf\\resizebox{5.5cm}{0.44cm}{%s}};\n", dados->escola );
    g_string_append_printf( tex, "\\node[inner sep=0pt,right,color=CorSerie] at (1.2,{-1.9-0.5*\\p}) {\\large{\\bf Turma:} \\textcolor{black}{%s}};\n", dados->turma );
-   g_string_append_printf( tex, "\\node[inner sep=0pt,left] at (17.8,{-2-0.5*\\p}) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{%d}};\n", data->ano );
+   g_string_append_printf( tex, "\\node[inner sep=0pt,left] at (17.8,{-2-0.5*\\p}) {Data: \\underline{\\qquad}/\\underline{\\qquad}/\\underline{%d}};\n", hoje->ano );
    g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (7.2,{-2-0.5*\\p}) {\\underline{Frequência}};\n" );
    g_string_append_printf( tex, "\\node[inner sep=0pt,color=CorSerie] at (13.5,-1.6) {\\bf\\resizebox{12.5cm}{0.6cm}{%s}};\n", titulo_prova );
 
@@ -127,7 +125,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
    // Rodapé e Fechamento do Documento
    g_string_append_printf( tex, "\n\\node[inner sep=0pt] at (10.5,{-2.07-\\p*(%d+1.5)}) {SEDUC $-$ São Luis, \\underline{\\qquad} de \\underline{\\hspace{1.2cm}} de %d \\,/\\, Professor: \\underline{\\hspace{8.8cm}}};\n",
-                           dados->qtd_alunos_total, data->ano );
+                           dados->qtd_alunos_total, hoje->ano );
 
    g_string_append_printf( tex, "\n\\end{tikzpicture}\n%s\\end{document}\n", dados->qtd_paginas == 2 ? "\\newpage\\," : "" );
 
@@ -151,7 +149,7 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 
    // 1. Caminho seguro com g_strdup_printf (substitui sprintf e o buffer fixo de 256)
    // O g_autofree cuida de liberar a memória automaticamente no fim da função
-   g_autofree char *arquivo = g_strdup_printf( "./dados/temporarios/img%02d.tex", i );
+   g_autofree char *arquivo = g_strdup_printf( "%s/dados/temporarios/img%02d.tex", dados->raiz, i );
 
    // 2. Pré-aloca a GString (1KB é o suficiente para o preâmbulo e um quadro TikZ)
    GString *tex = g_string_sized_new( 1024 );
@@ -202,51 +200,33 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 
 //========================================================================================================//
 static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) {
+   g_return_if_fail( tex != NULL && dados != NULL );
+
+   // 1. Estrutura base do documento e codificação
    g_string_append( tex,
                     "\\documentclass[11pt,a4paper]{report}\n"
                     "\\usepackage[utf8]{inputenc}\n"
                     "\\usepackage[T1]{fontenc}\n"
                     "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" // Margens fixas de 1cm
-                    "\\usepackage[dvipsnames,table]{xcolor}\n"
-                    "\\usepackage{multicol}\n"
-                    "\\usepackage{enumerate}\n"
-                    "\\usepackage[nointegrals]{wasysym}\n"
-                    "\\usepackage{bm}\n"
-                    "\\usepackage{array,multirow,graphicx}\n"
-                    "\\usepackage{amsmath,amssymb}\n"
-                    "\\usepackage{setspace}\n"
-                    "\\usepackage{ulem}\n"
-                    "\\onehalfspacing\n"
-                    "\\pagestyle{empty}\n"
-                  );
+                    "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   // Definição da cor principal (CorSerie) configurada no GTK
+   // 2. Injeta o pacote do professor (que agora carrega o TikZ, tabelas, matemática e macros)
    const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foco_cor_serie] );
 
-   // Macros globais de formatação e trigonometria
+   // 3. Configurações de layout específicas deste documento
    g_string_append( tex,
-                    "\\definecolor{cinza}{rgb}{0.4,0.4,0.4}\n"
-                    "\\newcommand{\\linhas}[1]{\\tikz[cinza!40,line width=1pt]{\\fill (0,{0.8*(#1+0.8)}) circle (0pt);\\foreach \\i in {1,...,#1}{\\draw (0,0.8*\\i) -- (\\linewidth,0.8*\\i);}}}\n"
-                    "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n"
-                    "\\newcommand{\\sen}{\\mathrm{sen}\\hspace{2pt}}\n"
-                    "\\newcommand{\\cossec}{\\mathrm{cossec}\\hspace{2pt}}\n"
-                    "\\newcommand{\\tg}{\\mathrm{tg}\\hspace{2pt}}\n"
-                    "\\newcommand{\\cotg}{\\mathrm{cotg}\\hspace{2pt}}\n"
-                    "\\newcolumntype{L}[1]{>{\\raggedright\\arraybackslash}p{#1}}\n"
-                    "\\newcolumntype{C}[1]{>{\\centering\\arraybackslash}p{#1}}\n"
-                    "\\newcolumntype{R}[1]{>{\\raggedleft\\arraybackslash}p{#1}}\n\n"
-                  );
+                    "\\onehalfspacing\n"
+                    "\\pagestyle{empty}\n" );
 }
 
 //--------------------------------------------------------------------------------------------------------
 static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dados, const FichaAluno *ficha,
-      int num_chamada, const CalendarioData *data, const char *titulo_prova, gboolean is_page1 ) {
+      int num_chamada, const CalendarioData *hoje, const char *titulo_prova, gboolean is_page1 ) {
 
    // A injeção do cabeçalho de identificação ocorre exclusivamente na primeira página.
    // Toda a lógica das margens e linhas separadoras migrou limpa para 'anexar_colunas_separadoras_latex'.
@@ -303,9 +283,9 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (7.3,-2.25) {{\\color{CorSerie!80}\\small\\bfseries Professor:} {\\color{black!80} %s}};\n", dados->professor );
 
       // Coluna 3: Data e Turma
-      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-1.75) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-1.75) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", hoje->ano );
       if ( dados->nao_presencial ) {
-         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black!80] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
+         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=black!80] at (14.55,-1.71) {%.2d\\hspace{4mm}%.2d};\n", hoje->dia, hoje->mes );
       }
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (13.3,-2.25) {{\\color{CorSerie!80}\\small\\bfseries Turma:} {\\color{black!80} %s}};\n", dados->turma );
 
@@ -347,10 +327,10 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-3.5) {{\\color{CorSerie!80}\\small\\bfseries Professor:} {\\color{black!80} %s}};\n", dados->professor );
 
       g_string_append( tex, "\\filldraw[fill=CorSerie!4, draw=CorSerie!80, line width=0.8pt, rounded corners=3pt] (0,-3.88) rectangle (3.8,-5.5);\n" );
-      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.185) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", data->ano );
+      g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.185) {{\\color{CorSerie!80}\\small\\bfseries Data:} {\\color{CorSerie!40}\\underline{\\hspace{6mm}}/\\underline{\\hspace{6mm}}/}{\\color{black!80}\\underline{%d}}};\n", hoje->ano );
 
       if ( dados->nao_presencial ) {
-         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (1.34,-4.145) {\\small\\bfseries %.2d\\hspace{4mm}%.2d};\n", data->dia, data->mes );
+         g_string_append_printf( tex, "\\node[inner sep=0pt, right, color=CorSerie!90] at (1.34,-4.145) {\\small\\bfseries %.2d\\hspace{4mm}%.2d};\n", hoje->dia, hoje->mes );
       }
       g_string_append_printf( tex, "\\node[inner sep=0pt, right] at (0.09,-4.69) {{\\color{CorSerie!80}\\small\\bfseries Série:} {\\color{black!80}%c\\textsuperscript{o} Ano}};\n", dados->turma[0] );
 
@@ -502,7 +482,7 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
 
       } else if ( strncmp( str, "% ALTERNATIVAS", 14 ) == 0 ) {
          g_string_append( tex, str );
-         g_string_append( tex, "\\vspace{-2mm}\n\\begin{enumerate}[\\hspace{0.42cm}]\n" );
+         g_string_append( tex, "\\vspace{-2mm}\n\\begin{enumerate}[\\hspace{0.45cm}]\n" );
 
          g_autofree int *rnd = randperm( 5 );
          int indice_g = 0;
@@ -572,10 +552,11 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
    const InterfaceCabecalho *cabecalho = &snap->cabecalho;
    const GArray *fichas = snap->fichas;
    const CaminhoDiretorio *caminho = &snap->caminho;
-   const CalendarioData *data = &snap->data;
+   const CalendarioData *hoje = &snap->hoje;
 
    char titulo_prova[512];
-   gerar_tex_lista_frequencia( "./dados/temporarios/frequencia.tex", titulo_prova, fichas, dados, data );
+   g_autofree gchar *freq_tex = g_strdup_printf( "%s/dados/temporarios/frequencia.tex", caminho->raiz );
+   gerar_tex_lista_frequencia( freq_tex, titulo_prova, fichas, dados, hoje );
 
    // 1. Pré-compilação do Banco de Questões
    for ( int i = 0; i < dados->total_quest_prova; i++ ) {
@@ -617,7 +598,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       }
 
       // 3. Montagem Atômica do Arquivo .tex via GLib (Puramente em RAM)
-      g_autofree char *caminho_tex = g_strdup_printf( "./dados/temporarios/prova%.2d.tex", num_ativo );
+      g_autofree char *caminho_tex = g_strdup_printf( "%s/dados/temporarios/prova%.2d.tex", caminho->raiz, num_ativo );
 
       // Buffer otimizado pré-alocado (16kb)
       g_autoptr( GString ) tex_corpo = g_string_sized_new( 16384 );
@@ -625,7 +606,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       anexar_preambulo_latex( tex_corpo, dados );
 
       g_string_append( tex_corpo, "\\begin{document}\n\\noindent\n\\begin{tikzpicture}\n" );
-      anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, TRUE );
+      anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, hoje, titulo_prova, TRUE );
       anexar_colunas_separadoras_latex( tex_corpo, dados, FALSE );
       g_string_append( tex_corpo, "\\end{tikzpicture}\n\n" );
 
@@ -638,7 +619,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       for ( int qi = 0; qi < dados->total_quest_prova; qi++ ) {
          if ( qi == 5 && dados->qtd_paginas == 2 ) {
             g_string_append( tex_corpo, "\\end{enumerate}\n\\end{multicols}\n\\newpage\n\\noindent\n\\begin{tikzpicture}\n" );
-            anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, data, titulo_prova, FALSE );
+            anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, hoje, titulo_prova, FALSE );
             anexar_colunas_separadoras_latex( tex_corpo, dados, TRUE );
             g_string_append_printf( tex_corpo, "\\end{tikzpicture}\n\n\\vspace{-27.85cm}\n\\begin{multicols}{%d}\n\\begin{enumerate}[\\hspace{-1.8mm}]\n", dados->qtd_colunas );
          }
@@ -755,7 +736,7 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
       const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, aluno_idx );
 
       // Exportação do PDF da Prova
-      g_autofree char *thread_origem = g_strdup_printf( "./dados/temporarios/prova%.2d.pdf", i );
+      g_autofree char *thread_origem = g_strdup_printf( "%s/dados/temporarios/prova%.2d.pdf", caminho->raiz, i );
       g_autofree char *nome_arquivo_pdf = g_strdup_printf( "%.2d - %s.pdf", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_destino = g_build_filename( diretorio_provas, nome_arquivo_pdf, NULL );
 
@@ -764,7 +745,7 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
       }
 
       // Conversão e exportação da Imagem (A conversão consome CPU, por isso brilha no OpenMP)
-      g_autofree char *thread_caminho_pdf = g_strdup_printf( "./dados/temporarios/img%.2d.pdf", i );
+      g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/dados/temporarios/img%.2d.pdf", caminho->raiz, i );
       g_autofree char *nome_arquivo_png = g_strdup_printf( "%.2d - %s.png", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
@@ -774,7 +755,8 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
 
       // Limpeza imediata do temporário individual da imagem (economiza espaço em disco na hora)
       g_autofree char *thread_nome_base = g_strdup_printf( "img%.2d", i );
-      apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", thread_nome_base, 5 );
+      g_autofree char *temp = g_strdup_printf( "%s/dados/temporarios", caminho->raiz );
+      apagar_arquivos_temporarios_latex_nativamente( temp, thread_nome_base, 5 );
    }
 
 }
@@ -789,7 +771,8 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
       const CaminhoDiretorio *caminho ) {
 
    // 1. Compilação paralela do LaTeX
-   g_pdflatex_parallel( "./dados/temporarios" );
+   g_autofree char *temp = g_strdup_printf( "%s/dados/temporarios", caminho->raiz );
+   g_pdflatex_parallel( temp, "" );
 
    if ( dados->nao_presencial ) {
       copiar_arquivos_prova_nao_presencial( fichas, dados, caminho );
@@ -822,12 +805,12 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
    g_remove( destino_relatorio );
 
    // Geração unificada direto na pasta Relatórios (Elimina o gio_mover_arquivo)
-   g_pdfunite( "./dados/temporarios/", ( const char ** )arquivos_pdf, qtd_pdfs, destino_relatorio );
+   g_pdfunite( temp, ( const char ** )arquivos_pdf, qtd_pdfs, destino_relatorio );
 
    // =========================================================================
    // LIMPEZA PARALELA DE ARQUIVOS NATIVOS
    // =========================================================================
-   apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", "frequencia", 5 );
+   apagar_arquivos_temporarios_latex_nativamente( temp, "frequencia", 5 );
    // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < dados->qtd_alunos_ativos; i++ ) {
       // if ( i==0 || i==6 || i==39 ) continue; // m100
@@ -839,7 +822,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const Int
       // if ( i==13 ) continue; // v300cns
       // if ( i==20 || i==28 ) continue; // v300ett
       g_autofree char *nome_base = g_strdup_printf( "prova%.2d", i );
-      apagar_arquivos_temporarios_latex_nativamente( "./dados/temporarios", nome_base, 5 );
+      apagar_arquivos_temporarios_latex_nativamente( temp, nome_base, 5 );
    }
 
    // =========================================================================

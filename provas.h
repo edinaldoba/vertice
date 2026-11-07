@@ -11,7 +11,7 @@ typedef struct {
    InterfaceDados     dados;
    InterfaceCabecalho cabecalho;
    CaminhoDiretorio   caminho;
-   CalendarioData     data;
+   CalendarioData     hoje;
    GArray             *fichas; // Clone na Heap
 } MotorProvaSnapshot;
 //==========================================================================
@@ -20,13 +20,13 @@ typedef struct {
 void definir_titulo_documento( char *titulo, const InterfaceDados *dados );
 
 void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GArray *fichas,
-                                 const InterfaceDados *dados, const CalendarioData *data );
+                                 const InterfaceDados *dados, const CalendarioData *hoje );
 
 void imagens_para_prova( const int i, int numero, const GArray *fichas,
                          const InterfaceDados *dados, const InterfaceCabecalho *cabecalho );
 
 void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const InterfaceDados *dados, const InterfaceCabecalho *cabecalho,
-               const GArray *fichas, const CalendarioData *data, const ItemTextoCurto *G );
+               const GArray *fichas, const CalendarioData *hoje, const ItemTextoCurto *G );
 
 void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G );
 

@@ -169,6 +169,7 @@ void inicializacao_app_context( AppContext *ctx ) {
 
       // 2. Inicialização do Estado Nativo da RAM (InterfaceDados)
       .dados = {
+         .raiz               = NULL,
          .ano                = NULL,
          .disciplina         = NULL,
          .escola             = NULL,
@@ -207,6 +208,15 @@ void inicializacao_app_context( AppContext *ctx ) {
       },
 
       .ui_diario = {
+         // 3. Ponteiros Heap Principais
+         .diarios               = NULL,
+         .metas_avs            = NULL,
+         .fichas                = NULL,
+
+         .path_save_metas_avs   = NULL,
+         .path_save_diarios      = NULL,
+         .path_save_fichas      = NULL,
+
          .responsavel = {
             .gestor          = NULL,
             .professor       = NULL
@@ -243,17 +253,9 @@ void inicializacao_app_context( AppContext *ctx ) {
          }
       },
 
-      // 3. Ponteiros Heap Principais
-      .diarios               = NULL,
-      .avaliacoes            = NULL,
-      .fichas                = NULL,
-
-      .path_save_avaliacao   = NULL,
-      .path_save_diario      = NULL,
-      .path_save_fichas      = NULL,
-
       // 4. Estrutura de Caminhos Dinâmicos (gchar*)
       .caminho = {
+         .raiz               = NULL,
          .dados              = NULL,
          .banco_questoes     = NULL,
          .questoes_tex       = NULL,
@@ -298,6 +300,7 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->dados.selecao_quest_prova, g_strfreev );
 
    // 2. Liberação dos Caminhos de Diretórios
+   g_clear_pointer( &ctx->caminho.raiz, g_free );
    g_clear_pointer( &ctx->caminho.dados, g_free );
    g_clear_pointer( &ctx->caminho.gabaritos, g_free );
    g_clear_pointer( &ctx->caminho.relatorios, g_free );
@@ -310,23 +313,23 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->caminho.questoes_tex, g_free );
 
    // 3. Salvamento e Liberação dos GArrays de Dados
-   if ( ctx->diarios ) {
+   if ( ctx->ui_diario.diarios ) {
       salvar_diario( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->diarios, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.diarios, g_array_unref );
    }
-   g_clear_pointer( &ctx->path_save_diario, g_free );
+   g_clear_pointer( &ctx->ui_diario.path_save_diarios, g_free );
 
-   if ( ctx->avaliacoes ) {
+   if ( ctx->ui_diario.metas_avs ) {
       salvar_avaliacoes( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->avaliacoes, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.metas_avs, g_array_unref );
    }
-   g_clear_pointer( &ctx->path_save_avaliacao, g_free );
+   g_clear_pointer( &ctx->ui_diario.path_save_metas_avs, g_free );
 
-   if ( ctx->fichas ) {
+   if ( ctx->ui_diario.fichas ) {
       salvar_fichas( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->fichas, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.fichas, g_array_unref );
    }
-   g_clear_pointer( &ctx->path_save_fichas, g_free );
+   g_clear_pointer( &ctx->ui_diario.path_save_fichas, g_free );
 
    // 4. Matriz do Acervo (handlers_check)
    g_clear_pointer( &ctx->ui_prova.montagem.handlers_check, g_free );

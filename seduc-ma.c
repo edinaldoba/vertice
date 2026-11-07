@@ -196,23 +196,24 @@ static gchar *padronizar_nome_turma( const gchar *coluna, FILE **f_acesso, const
 }
 
 
-static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte, const gchar *diretorio ) {
+static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte, const gchar *diretorio, char *temp ) {
    g_return_if_fail( nome_turma_padrao && diretorio );
 
    // =========================================================================
    // 1. ESPELHAMENTO DINÂMICO DE DIRETÓRIOS ( ./planilhas -> ./dados/listas )
    // =========================================================================
    gchar *dir_destino = NULL;
-   if ( g_str_has_prefix( diretorio, "./planilhas" ) ) {
+   g_autofree gchar *plan = g_strdup_printf( "%s/planilhas", temp );
+   if ( g_str_has_prefix( diretorio, plan ) ) {
       // Pula exatamente os 11 caracteres de "./planilhas" e acopla o resto do caminho
-      dir_destino = g_strdup_printf( "./dados/listas%s", diretorio + 11 );
+      dir_destino = g_strdup_printf( "%s/dados/listas%s", temp, diretorio + 11 );
    } else {
-      dir_destino = g_strdup( "./dados/listas" ); // Fallback de segurança
+      dir_destino = g_strdup_printf( "%s/dados/listas", temp ); // Fallback de segurança
    }
 
    // 2. CRIA AS SUBPASTAS DE DESTINO ESPELHADAS
    g_autofree gchar *dest_acesso = g_build_filename( dir_destino, "acessos", NULL );
-   g_autofree gchar *dest_alunos = g_build_filename( dir_destino, "alunos", NULL );
+   g_autofree gchar *dest_alunos = g_build_filename( dir_destino, "fichas", NULL );
    g_mkdir_with_parents( dest_acesso, 0755 );
    g_mkdir_with_parents( dest_alunos, 0755 );
 
@@ -326,7 +327,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
    g_object_unref( context );
 }
 
-static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
+static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, char *temp ) {
    g_return_val_if_fail( arquivo_xls, FALSE );
 
    // 1. Extrai o diretório base
@@ -363,7 +364,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
 
    // 4. Cria as subpastas dinamicamente
    g_autofree gchar *dir_acesso = g_build_filename( diretorio, "acessos", NULL );
-   g_autofree gchar *dir_alunos = g_build_filename( diretorio, "alunos", NULL );
+   g_autofree gchar *dir_alunos = g_build_filename( diretorio, "fichas", NULL );
    g_mkdir_with_parents( dir_acesso, 0755 );
    g_mkdir_with_parents( dir_alunos, 0755 );
 
@@ -444,7 +445,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte ) {
    if ( f_acesso ) fclose( f_acesso );
 
    // 6. Chamada para a função que espelha os dados transformados
-   salvar_ficha_aluno_inicial( nome_turma_padrao, fonte, diretorio );
+   salvar_ficha_aluno_inicial( nome_turma_padrao, fonte, diretorio, temp );
 
    // 7. Limpeza e Renomeio Seguro
    g_remove( arquivo_csv );
@@ -472,11 +473,11 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    // 1. Atualização dos arquivos de acesso
    for ( int i = 0; i < limite_turmas; i++ ) {
       g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", cabecalho->turmas[i] );
-      g_autofree char *acesso_bin_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
+      g_autofree char *acesso_bin_orig = g_build_filename( dados->raiz, "dados", "listas", dados->ano, dados->escola, dados->periodo,
                                          "acessos", acesso_bin, NULL );
 
       // Monta o diretório base da turma, onde as disciplinas devem estar alocadas
-      g_autofree char *dir_turma_base = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
+      g_autofree char *dir_turma_base = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola,
                                         cabecalho->turmas[i], NULL );
 
       g_autoptr( GError ) erro = NULL;
@@ -510,10 +511,10 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    }
 
    // 2. Caminhos dos alunos
-   g_autofree char *dir_alunos_orig = g_build_filename( ".", "dados", "listas", dados->ano, dados->escola, dados->periodo,
-                                      "alunos", NULL );
-   g_autofree char *dir_alunos_dest = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola,
-                                      "alunos", NULL );
+   g_autofree char *dir_alunos_orig = g_build_filename( dados->raiz, "dados", "listas", dados->ano, dados->escola, dados->periodo,
+                                      "fichas", NULL );
+   g_autofree char *dir_alunos_dest = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola,
+                                      "fichas", NULL );
 
    // Garante que a árvore de pastas de destino já exista antes de iniciar as cópias
    g_mkdir_with_parents( dir_alunos_dest, 0755 );
@@ -553,7 +554,7 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
 
    const InterfaceDados *dados   = &ctx->dados;
 
-   g_autofree gchar *dir_origem = g_build_filename( ".", "planilhas", dados->ano, dados->escola, dados->periodo, NULL );
+   g_autofree gchar *dir_origem = g_build_filename( dados->raiz, "planilhas", dados->ano, dados->escola, dados->periodo, NULL );
    g_autoptr( GPtrArray ) lista_arquivos = g_ptr_array_new_with_free_func( g_free );
 
    g_autoptr( GError ) erro = NULL;
@@ -587,7 +588,8 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
 
       g_print( "[Thread %d] Processando: %s\n", omp_get_thread_num(), arquivo_atual );
 
-      siaep_processar_arquivo( arquivo_atual, dados->fonte_latex );
+      g_autofree char *temp = g_strdup_printf( "%s/dados/temporarios", ctx->dados.raiz );
+      siaep_processar_arquivo( arquivo_atual, dados->fonte_latex, temp );
    }
 
    atualizar_acesso_e_adicionar_novos_alunos( ctx );
@@ -598,18 +600,3 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
 
 
 
-// Salva o estado atual do aluno da RAM direto para o disco
-void salvar_ficha_aluno( const FichaAluno *aluno, uint32_t cod_aluno ) {
-   g_return_if_fail( aluno && cod_aluno );
-
-   g_autofree gchar *caminho = g_strdup_printf( "./dados/alunos/%" PRIu32 ".bin", cod_aluno );
-
-   // 1. Abre, 2. Despeja a memória, 3. Fecha (Tudo em microssegundos)
-   FILE *p = fopen( caminho, "wb" );
-   if ( p ) {
-      fwrite( aluno, sizeof( FichaAluno ), 1, p );
-      fclose( p );
-   } else {
-      g_printerr( "Falha ao sincronizar o aluno %" PRIu32 " no disco.\n", cod_aluno );
-   }
-}

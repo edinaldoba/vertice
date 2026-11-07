@@ -110,8 +110,8 @@ typedef struct {
    GtkWidget *combo_avaliacao;   // Seleciona a coluna ativa (0=Av1, 1=Rec1... 9=Rec5)
    GtkWidget *btn_nova_avaliacao;
    GtkWidget *btn_editar_avaliacao;
-   gboolean  *validas;
-   int qtd_validas;
+   gboolean  *validas; // Adicionei dia 4 de novembro de 2026
+   int qtd_validas;    // Adicionei dia 4 de novembro de 2026
 
    // Popover de nomenclatura da avaliação
    GtkWidget *popover_nomear_avaliacao;
@@ -138,6 +138,21 @@ typedef struct {
 
 // Contêiner Mestre: Aba DIÁRIOS (Notebook Page)
 typedef struct {
+   // --- ARMAZENAMENTO EM MEMÓRIA RAM (Gerido pela GLib) ---
+   GArray *diarios;    // Registros cronológicos de aula
+   GArray *fichas;     // Perfil e configurações dos alunos
+   GArray *metas_avs;  // Lista de avaliações por período
+
+   // --- CONTROLE DE AUTOSAVE E DISCO ---
+   gboolean dados_modificados; // Flag "dirty" (true = precisa salvar)
+   guint autosave_timer_id;    // Timer loop em background
+
+   // Caminhos estáticos mantidos em RAM para evitar perda de referência
+   // durante a troca de contextos (ex: usuário muda de turma sem salvar)
+   gchar *path_save_diarios;
+   gchar *path_save_fichas;
+   gchar *path_save_metas_avs;
+
    GtkWidget *stack_pages;       // Gerencia a navegação entre as sub-abas
 
    gboolean botoes_travados;     // Controle de bloqueio de UI durante operações
@@ -147,7 +162,7 @@ typedef struct {
    GtkWidget *check_expor_dados; // Exporta pdfs de relatório para a pasta da escola
    GtkWidget *check_modo_edicao;
 
-   InterfaceConteudo  conteudo;
+   InterfaceConteudo   conteudo;
    InterfaceFrequencia frequencia;
    InterfaceAvaliacao  avaliacao;
    InterfaceRelatorio  relatorio;
@@ -167,6 +182,10 @@ typedef struct {
    GtkWidget *combo_tema_espelho;
    gulong handler_combo_tema_espelho;
    GtkWidget *listbox_subtemas;
+
+   GtkWidget *stack_pages;       // Gerencia a navegação entre as sub-abas
+   GtkWidget *label_diag_acervo;
+   GtkWidget *btn_config;
 
    // Parâmetros do gerador de documento (Radio buttons agrupados em vetor)
    GtkWidget *radio_fonte_latex[2];
@@ -256,21 +275,6 @@ typedef struct {
 
 // O DEUS DA APLICAÇÃO: O Contexto Mestre
 typedef struct {
-   // --- ARMAZENAMENTO EM MEMÓRIA RAM (Gerido pela GLib) ---
-   GArray *diarios;    // Registros cronológicos de aula
-   GArray *fichas;     // Perfil e configurações dos alunos
-   GArray *avaliacoes; // Lista de avaliações por período
-
-   // --- CONTROLE DE AUTOSAVE E DISCO ---
-   gboolean dados_modificados; // Flag "dirty" (true = precisa salvar)
-   guint autosave_timer_id;    // Timer loop em background
-
-   // Caminhos estáticos mantidos em RAM para evitar perda de referência
-   // durante a troca de contextos (ex: usuário muda de turma sem salvar)
-   gchar *path_save_diario;
-   gchar *path_save_avaliacao;
-   gchar *path_save_fichas;
-
    // --- ÁRVORE DE INTERFACES (VIEW) ---
    InterfaceCabecalho cabecalho;
    InterfaceDiario    ui_diario;
@@ -279,7 +283,7 @@ typedef struct {
    InterfacePainel    painel;
 
    // --- ESTRUTURAS DE APOIO E CSS ---
-   CalendarioData data;
+   CalendarioData hoje;
    CaminhoDiretorio caminho;
    InterfaceDados dados;
 
@@ -312,6 +316,8 @@ void interface_style( AppContext *ctx );
 void atualizar_booleanos_interface( const gboolean estado, const int categoria, AppContext *ctx );
 
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor );
+
+void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos );
 
 gboolean detectar_ubuntu( void );
 

@@ -162,7 +162,7 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
 
    // 1. O comando agora é direcionado única e exclusivamente ao arquivo alvo.
    g_autofree char *comando_interno = g_strdup_printf(
-      "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
+                                         "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
 
    char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
 
@@ -180,7 +180,7 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
 
 
 
-void g_pdflatex_parallel( const char *dir_compile ) {
+void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
    g_return_if_fail( dir_compile != NULL );
 
    int num_cores = ( int ) g_get_num_processors();
@@ -190,7 +190,7 @@ void g_pdflatex_parallel( const char *dir_compile ) {
    // 1. O comando volta a ser puro e limpo.
    // Sem caminhos complexos, sem -output-directory. Apenas compila o que está na pasta.
    g_autofree char *comando_interno = g_strdup_printf(
-                                         "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex", num_cores );
+                                         "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: %s*.tex", num_cores, prefixo );
 
    char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
 

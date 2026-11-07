@@ -146,6 +146,8 @@ typedef struct {
    // 1. Textos do Cabeçalho da Prova
    gchar *ano, *disciplina, *escola, *turma, *periodo, *gestor, *professor;
 
+   const gchar *raiz;
+
    // 2. Textos do Estilo Visual da Prova
    gchar *tema, *prova_sequencia;
 
@@ -425,6 +427,7 @@ typedef struct {
  * Utiliza ponteiros dinâmicos (gchar *) gerenciados via GLib/POSIX.
  */
 typedef struct {
+   gchar *raiz;             // Caminho para a pasta raiz do projeto vértice
    gchar *dados;            // Caminho para a pasta de dados da turma no período
    gchar *gabaritos;        // Caminho para a pasta de gabaritos da turma no período
    gchar *relatorios;       // Caminho para a pasta de relatórios do período da turma

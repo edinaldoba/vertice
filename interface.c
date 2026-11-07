@@ -92,7 +92,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados  *dados     = &ctx->dados;
-   InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceProva  *ui_prova  = &ctx->ui_prova;
 
    switch ( categoria ) {
@@ -177,6 +177,48 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
 
 
 
+/**
+ * @brief Aplica espaçamento uniforme intercalando Hair Spaces (\u200A)
+ *        diretamente no texto de um GtkLabel.
+ */
+void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos ) {
+   g_return_if_fail( GTK_IS_LABEL( label_widget ) );
+
+   const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
+   if ( !texto_original || *texto_original == '\0' ) return;
+
+   GString *resultado = g_string_new( "" );
+   const gchar *p = texto_original;
+
+   while ( *p != '\0' ) {
+      gunichar c = g_utf8_get_char( p );
+      const gchar *proximo = g_utf8_next_char( p );
+
+      if ( c == 0x200A ) {
+         p = proximo;
+         continue;
+      }
+
+      g_string_append_unichar( resultado, c );
+      gunichar proximo_c = g_utf8_get_char( proximo );
+
+      if ( *proximo != '\0' && proximo_c != 0x200A ) {
+         for ( gint i = 0; i < quantidade_espacos; i++ ) {
+            g_string_append( resultado, "\u200A" );
+         }
+      }
+      p = proximo;
+   }
+
+   gtk_label_set_text( GTK_LABEL( label_widget ), resultado->str );
+   g_string_free( resultado, TRUE );
+}
+
+
+
+
+
+
 
 void atualizar_tema( AppContext *ctx, char *tema ) {
    if ( !ctx ) return;
@@ -241,7 +283,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
    const InterfaceDados     *dados = &ctx->dados;
    const InterfaceCabecalho *cabecalho  = &ctx->cabecalho;
 
-   g_autofree char *destino = g_build_filename( ".", "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
+   g_autofree char *destino = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
 
    if ( g_mkdir_with_parents( destino, 0755 ) != 0 ) {
       g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino: %s\n", destino );
@@ -723,7 +765,7 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
    // 3. Define o caminho físico do Acervo para a disciplina atual
    g_clear_pointer( &caminho->banco_questoes, g_free );
-   caminho->banco_questoes = g_build_filename( ".", "acervo", dados->disciplina, NULL );
+   caminho->banco_questoes = g_build_filename( dados->raiz, "acervo", dados->disciplina, NULL );
 
    // 4. Verifica a existência e processa o diretório
    if ( diretorio_existe( caminho->banco_questoes ) ) {
@@ -778,6 +820,7 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
+   const InterfaceDiario *ui_diario = &ctx->ui_diario;
    InterfaceDados      *dados      = &ctx->dados;
    InterfaceConteudo   *conteudo   = &ctx->ui_diario.conteudo;
    InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
@@ -800,7 +843,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    int foco = obter_foco_inicial( limite, ctx );
 
-   popular_combo_box_generico( frequencia->combo_alunos, ctx->fichas, limite, foco,
+   popular_combo_box_generico( frequencia->combo_alunos, ui_diario->fichas, limite, foco,
                                frequencia->handler_combo_alunos, mapear_alunos );
 
    // Precisa que a lista de alunos já esteja populada
@@ -845,7 +888,6 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    if ( !ctx ) return;
 
    InterfaceDados     *dados    = &ctx->dados;
-   CalendarioData     *data     = &ctx->data;
    InterfaceConteudo  *conteudo = &ctx->ui_diario.conteudo;
    InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
@@ -858,9 +900,9 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
 
-   *data = data_de_hoje();
+   obter_data_hoje( &ctx->hoje );
 
-   g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", data->dia, data->mes, data->ano );
+   g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
    gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
 
    g_autofree char *str_qtd_aulas = g_strdup_printf( "%d h", 1 );
@@ -869,7 +911,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    int qtd_caracteres = 10;
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
 
-   long int escalar_hoje = mapear_data_para_id( data->dia, data->mes, data->ano );
+   long int escalar_hoje = mapear_data_para_id( ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
    cabecalho->foco_periodo_vigente = foco_periodo_corrente( escalar_hoje );
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
 
@@ -884,9 +926,13 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->ui_prova.combo_seq_prova ) );
 
-   // Varre os diretórios de anos letivos
-   cabecalho->limite_anos = quantidade_diretorios( "./dados/informados" );
-   cabecalho->anos = carregar_diretorios_temas( cabecalho->limite_anos, "./dados/informados", NULL );
+   const gchar *home = g_get_home_dir();
+   ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "LATEX", "SEDUC", NULL );
+   dados->raiz = ctx->caminho.raiz;
+
+   g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", NULL );
+   cabecalho->limite_anos = quantidade_diretorios( diretorio );
+   cabecalho->anos = carregar_diretorios_temas( cabecalho->limite_anos, diretorio, NULL );
 
    popular_combo_box_text( cabecalho->combo_ano, cabecalho->anos, cabecalho->limite_anos - 1, cabecalho->limite_anos, cabecalho->handler_ano );
    on_entry_atualizar_ano_interface_changed( NULL, ctx );
@@ -920,7 +966,7 @@ gboolean atualizar_ano_interface( AppContext *ctx, gchar *novo_ano, gboolean for
    }
 
    // 4. Montagem de diretórios e carga lógica (Ocorre na inicialização ou se o ano mudou de verdade)
-   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, NULL );
+   g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, NULL );
 
    // Gerenciamento seguro da RAM
    g_clear_pointer( &cabecalho->escolas, g_strfreev );
@@ -954,7 +1000,7 @@ gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboole
       return FALSE;
    }
 
-   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, NULL );
+   g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, NULL );
 
    ctx->cabecalho.limite_turmas = quantidade_diretorios( diretorio );
 
@@ -993,7 +1039,7 @@ gboolean atualizar_turma_interface( AppContext *ctx, gchar *nova_turma, gboolean
    }
 
    // Montagem do caminho físico: ./dados/informados/ANO/ESCOLA/TURMA
-   g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, dados->turma, NULL );
+   g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, dados->turma, NULL );
 
    // Varre o diretório para contar e carregar as disciplinas desta turma
    ctx->cabecalho.limite_disciplinas = quantidade_diretorios( diretorio );
@@ -1044,7 +1090,7 @@ void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gb
    }
 
    if ( disciplina_mudou ) {
-      g_autofree gchar *diretorio = g_build_filename( ".", "dados", "informados", dados->ano, dados->escola, dados->turma, dados->disciplina, NULL );
+      g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, dados->turma, dados->disciplina, NULL );
 
       g_clear_pointer( &dados->professor, g_free );
       dados->professor = professor_da_disciplina( diretorio, responsavel->professor );

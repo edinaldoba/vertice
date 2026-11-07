@@ -548,6 +548,11 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
 static void _conectar_sinais_aba_latex( AppContext *ctx ) {
    InterfaceLatex *latex = &ctx->ui_latex;
 
+   latex->handler_combo_tema_espelho = g_signal_connect( latex->combo_tema_espelho, "changed",
+                                       G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
+
+   g_signal_connect( latex->btn_config, "clicked", G_CALLBACK( on_button_config_acervo_clicked ), ctx );
+
    for ( int i = 0; i < 2; i++ ) {
       g_signal_connect( latex->radio_qtd_colunas[i], "toggled",
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
@@ -563,9 +568,6 @@ static void _conectar_sinais_aba_latex( AppContext *ctx ) {
 
    g_signal_connect( latex->combo_cor_serie, "changed", G_CALLBACK( on_entry_cor_serie_interface_changed ), ctx );
    g_signal_connect( latex->combo_decoracao, "changed", G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
-
-   latex->handler_combo_tema_espelho = g_signal_connect( latex->combo_tema_espelho, "changed",
-                                       G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
 
    g_signal_connect( latex->btn_pdflatex, "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
    g_signal_connect( latex->btn_compilar, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );
