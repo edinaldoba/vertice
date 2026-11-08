@@ -14,7 +14,7 @@
 # Primeiro: Bloqueia TUDO dentro de suporte/
 dados/backup/*
 suporte/*
-dados/alunos/*
+dados/fichas/*
 planilhas/*
 acervo/*
 !acervo/.gitkeep
