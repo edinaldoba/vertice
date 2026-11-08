@@ -47,7 +47,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       int idx = ficha->idx_siaep;
       if ( idx >= 0 && idx < qtd_alunos ) {
          ordem_original[idx] = ficha;
@@ -161,7 +161,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa e com Autoclean da Memória)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
+      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
 
       // PASSO A: Nome do Aluno
       g_autofree gchar *s_nome = ficha->ativo
@@ -283,7 +283,7 @@ void calcular_nota_periodo( const AppContext *ctx ) {
 
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       _calcular_media_do_periodo( ficha, avaliacao, cabecalho );
    }
 }
@@ -315,11 +315,11 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 // lançada para nenhum aluno da turma naquela disciplina.
 // Otimizada com early-exit (break) assim que descobre que o período já iniciou.
 //===================================================================================================
-static int _numero_de_periodos_sem_notas_registradas( GArray *fichas, int foco_disc ) {
+static int _numero_de_periodos_sem_notas_registradas( GPtrArray *fichas, int foco_disc ) {
    gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
 
    for ( guint i = 0; i < fichas->len; i++ ) {
-      const FichaAluno *f = &g_array_index( fichas, FichaAluno, i );
+      const FichaAluno *f = g_ptr_array_index( fichas, i );
       const RelatorioAnual *r = &f->disciplina[foco_disc].relatorio;
 
       for ( int j = 0; j < 4; j++ ) {
@@ -406,14 +406,14 @@ static void _calcular_consolidado_anual_individual( FichaAluno *ficha, int foco_
 //---------------------------------------------------------------------------------------------------
 // FUNÇÃO PRINCIPAL EXPORTADA: Engatilha o recálculo anual de toda a turma
 //---------------------------------------------------------------------------------------------------
-void calcular_consolidado_anual( GArray *fichas, int foco_disciplina ) {
+void calcular_consolidado_anual( GPtrArray *fichas, int foco_disciplina ) {
    // Correção do Bug de Lógica: || em vez de && (se nulo OU vazio, retorne).
    if ( !fichas || fichas->len == 0 ) return;
 
    int faltantes_globais = _numero_de_periodos_sem_notas_registradas( fichas, foco_disciplina );
 
    for ( guint i = 0; i < fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( fichas, i );
       _calcular_consolidado_anual_individual( ficha, foco_disciplina, faltantes_globais );
    }
 }
@@ -612,7 +612,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 
    // Dentro de gerar_tex_relatorio_final():
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
+      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
       LinhaRelatorioTeX linha;
 
       _preencher_linha_relatorio_tex( ficha, foco_disciplina, &linha );
@@ -764,7 +764,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
       double y_name   = -1.2 - p * ( i - offset + 2.52 );
 
       if ( i <= nal ) {
-         const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
+         const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
 
          if ( ficha->ativo ) {
             g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%02d};\n", y_center, i );
@@ -890,7 +890,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          ad += ch;
 
          for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-            const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, j );
+            const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
             if ( !ficha->ativo ) continue;
 
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;

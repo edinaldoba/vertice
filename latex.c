@@ -277,7 +277,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    }
 
    // 4. AVALIAÇÃO DAS RESPOSTAS E PINTURA DO GABARITO
-   int nota = 0;
+   int acertos = 0;
 
    // Assumindo que NTI (Número Total de Itens) seja uma macro definida no escopo superior
    for ( int j = 0; j < dados->total_quest_prova; j++ ) {
@@ -289,7 +289,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
       g_string_append_printf( tex, "\\coordinate (P) at (%.4f,%.4f);\n", x, y );
 
       if ( gab[j] == map->resp[j] ) {
-         nota++;
+         acertos++;
          g_string_append_printf( tex, "\\correto\n\\draw[line width=4, green] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
       } else {
          g_string_append_printf( tex, "\\incorreto\n\\draw[line width=4, red] (%.4f,%.4f) circle (0.35);\n", coluna, linha );
@@ -319,12 +319,12 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
 
    // Uso seguro de memória com g_autofree para a string em UpperCase
-   const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, map->num - 1 );
+   const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, map->num - 1 );
    g_autofree gchar *nome_aluno = g_utf8_strup( ficha->aluno, -1 );
    g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, map->num );
 
    // Resultado Final
-   g_string_append_printf( tex, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - altura, nota );
+   g_string_append_printf( tex, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - altura, acertos );
 
    // 6. FECHAMENTO DO ARQUIVO
    g_string_append( tex, "\\end{tikzpicture}}\n" );
@@ -338,7 +338,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
       return -1;
    }
 
-   return nota;
+   return acertos;
 }
 
 

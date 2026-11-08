@@ -446,7 +446,7 @@ void registrar_aula( AppContext *ctx ) {
 
    // Popula a frequência dos alunos antes de salvar
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      const FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       nova_aula.chamada[i].cod_aluno = ficha->cod_aluno;
    }
 
@@ -862,12 +862,12 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
          if ( ficha->ativo ) break;
       }
 
    } else {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
       g_autofree gchar *nasc = _formatar_data_extenso( ficha->nasc );
       const char *fonte_numerica = "Monospace 19px";
 
@@ -886,7 +886,7 @@ static void _processar_modo_normal( AppContext *ctx, RegistroDiario *diario, int
                           -1 );
 
       for ( idx_aluno = idx_aluno + 1; idx_aluno < ctx->dados.qtd_alunos_total; idx_aluno++ ) {
-         ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
+         ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
          if ( ficha->ativo ) break;
 
          diario->chamada[idx_aluno].status = SEM_STATUS;
@@ -973,7 +973,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    int linhas_renderizadas = 0;
 
    for ( int i = 0; i < ctx->dados.qtd_alunos_total; i++ ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       int status_atual = diario->chamada[i].status;
 
       if ( ficha->ativo && status_atual == SEM_STATUS ) break;
@@ -1018,7 +1018,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    }
 
    for ( int i = frequencia->limite_combo_alunos - 1; i >= 0; i-- ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       if ( ficha->ativo ) {
          frequencia->foco_combo_alunos = i;
          gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), i );
@@ -1043,7 +1043,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store_view );
 
-   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
+   FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
    int proxima_data_pendente = 0;
    gboolean achou_pendente = FALSE;
 
@@ -1132,7 +1132,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    }
 
    FichaAluno *ficha = NULL;
-   ficha = &g_array_index( ui_diario->fichas, FichaAluno, indice_linha );
+   ficha = g_ptr_array_index( ui_diario->fichas, indice_linha );
 
    if ( ficha->ativo ) {
       g_object_set_data( G_OBJECT( frequencia->combo_alunos ), "programatico", GINT_TO_POINTER( TRUE ) );
@@ -1148,7 +1148,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    if ( indice_linha > foco_anterior ) {
       // Descendo (seta para baixo ou clique abaixo)
       for ( int i = indice_linha + 1; i < ctx->dados.qtd_alunos_total; i++ ) {
-         ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+         ficha = g_ptr_array_index( ui_diario->fichas, i );
          if ( ficha->ativo ) {
             target = i;
             break;
@@ -1157,7 +1157,7 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    } else if ( indice_linha < foco_anterior ) {
       // Subindo (seta para cima ou clique acima)
       for ( int i = indice_linha - 1; i >= 0; i-- ) {
-         ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+         ficha = g_ptr_array_index( ui_diario->fichas, i );
          if ( ficha->ativo ) {
             target = i;
             break;
@@ -1714,7 +1714,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
    if ( ui_diario->fichas != NULL ) {
       for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
          // Aponta para a ficha específica do aluno na memória
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
 
          if ( !ficha->ativo || !ficha->ficha_modificada ) {
             continue;
@@ -1723,90 +1723,105 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
          g_autofree char *path_ficha_bin = g_build_filename( ui_diario->path_save_fichas, ficha_bin, NULL );
 
-         // Salva APENAS o bloco de memória desta ficha (tamanho exato da struct FichaAluno)
-         salvou_algo = _salvar_bloco_binario( ficha, sizeof( FichaAluno ), path_ficha_bin );
+         // CRÍTICO: Calcula o tamanho total (Cabeçalho da struct + Array de disciplinas dinâmico)
+         size_t tamanho_total = sizeof( FichaAluno ) + ( ficha->lim_disc * sizeof( HistoricoDisciplina ) );
 
-         ficha->ficha_modificada = !salvou_algo;
+         // Salva o bloco de memória dinâmico no disco
+         gboolean sucesso = _salvar_bloco_binario( ficha, tamanho_total, path_ficha_bin );
+
+         if ( sucesso ) {
+            salvou_algo = TRUE;
+            ficha->ficha_modificada = FALSE; // Limpa a flag apenas se a gravação foi bem-sucedida
+         }
       }
    }
 
-   // Atualização do diretório de salvamento
+   // Atualização do diretório de salvamento para a próxima operação
    if ( !final_save ) {
       g_free( ui_diario->path_save_fichas );
+      // Agora usando dados->raiz (viabilizado na refatoração anterior)
       ui_diario->path_save_fichas = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, "fichas", NULL );
    }
+
    return salvou_algo;
 }
 
 
 
 
-// // NÃO APAGUE ESTA FUNÇÃO COMENTADA!
-// static void copiar_ficha_aluno( const FichaAluno *origem, FichaAlunoAux *destino ) {
+// // ============================================================================
+// // FUNÇÃO DE MIGRAÇÃO / CÓPIA (Refatorada)
+// // ============================================================================
+// static void copiar_ficha_aluno( const FichaAluno *origem, FichaAlunoAux *destino, uint8_t lim_disc ) {
 //    if ( !origem || !destino ) return;
 //
-//    // 1. Identificação e Dados Pessoais (Cópia segura de strings limitadas)
+//    // 1. Identificação e Dados Pessoais (Cópia segura)
 //    destino->cod_aluno = origem->cod_aluno;
 //    g_strlcpy( destino->aluno, origem->aluno, sizeof( destino->aluno ) );
 //    g_strlcpy( destino->sexo, origem->sexo, sizeof( destino->sexo ) );
 //    g_strlcpy( destino->nasc, origem->nasc, sizeof( destino->nasc ) );
 //
-//    // 2 e 3. Condições Curriculares e Status
-//    destino->atipico = origem->atipico;
-//    destino->sit     = origem->sit;
-//    destino->ativo   = origem->ativo;
+//    // 2, 3, 4 e 6. Metadados, Status e Flags
+//    destino->atipico          = origem->atipico;
+//    destino->sit              = origem->sit;
+//    destino->ativo            = origem->ativo;
+//    destino->limite_corte     = origem->limite_corte;
+//    destino->idx_siaep        = origem->idx_siaep;
+//    destino->ficha_modificada = origem->ficha_modificada;
+//    destino->lim_disc         = lim_disc;
 //
-//    // 4. Parâmetros de Exibição
-//    destino->limite_corte = origem->limite_corte;
-//    destino->idx_siaep    = origem->idx_siaep;
+//    // 5. Cópia do histórico de disciplinas
+//    for ( int i = 0; i < lim_disc; i++ ) {
 //
-//    // 5. Iteração e cópia do histórico de disciplinas
-//    for ( int i = 0; i < QTD_DISC; i++ ) {
-//
-//       // O bloco dos 4 períodos letivos é idêntico e em sequência, aceita cópia direta em bloco
+//       // A cópia dos períodos letivos continua idêntica
 //       memcpy( destino->disciplina[i].periodo,
 //               origem->disciplina[i].periodo,
-//               sizeof( origem->disciplina[i].periodo ) );
+//               sizeof( destino->disciplina[i].periodo ) );
 //
-//       // Mapeamento explícito do RelatorioAnual para o RelatorioAnualAux
-//       memcpy( destino->disciplina[i].relatorio.notas_periodos,
-//               origem->disciplina[i].relatorio.notas_periodos,
-//               sizeof( origem->disciplina[i].relatorio.notas_periodos ) );
+//       // Omitimos a cópia manual de campo-a-campo do relatório. Como as
+//       // assinaturas binárias coincidem perfeitamente, o C permite atribuição direta da struct:
+//       destino->disciplina[i].relatorio = origem->disciplina[i].relatorio;
 //
-//       destino->disciplina[i].relatorio.soma        = origem->disciplina[i].relatorio.soma;
-//       destino->disciplina[i].relatorio.media_anual = origem->disciplina[i].relatorio.media_anual;
-//       destino->disciplina[i].relatorio.rec_final   = origem->disciplina[i].relatorio.rec_final;
-//       destino->disciplina[i].relatorio.conselho    = origem->disciplina[i].relatorio.conselho;
-//
-//       // Inicializa o novo campo 'obs' com zeros para evitar que o GTK3 leia lixo de memória ao renderizar
+//       // Mantida a sua lógica original de zerar a observação explicitamente
+//       // (proteção extra contra lixo de memória legado para o GTK3)
 //       memset( &destino->disciplina[i].relatorio.obs, 0, sizeof( destino->disciplina[i].relatorio.obs ) );
 //    }
-//
-//    // 6. Estado do registro
-//    destino->ficha_modificada = origem->ficha_modificada;
 // }
 // //----------------------------------------------------------------------------------------
 // gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    g_return_val_if_fail( ctx, FALSE );
 //
+//    uint8_t lim_disc = 1;
+//    if( ctx->cabecalho.foco_turma > 4 ) lim_disc = 2;
+//
 //    gboolean salvou_algo = FALSE;
 //
-//    if ( ui_diario->fichas != NULL ) {
-//       for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
+//    if ( ctx->ui_diario.fichas != NULL ) {
+//       // 1. Calcula o tamanho total da nova estrutura com base na quantidade legada de disciplinas
+//       size_t tamanho_total_aux = sizeof( FichaAlunoAux ) + ( lim_disc * sizeof( HistoricoDisciplina ) );
+//
+//       for ( guint i = 0; i < ctx->ui_diario.fichas->len; i++ ) {
 //          // Aponta para a ficha específica do aluno na memória (estrutura original)
-//          FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+//          FichaAluno *ficha = g_ptr_array_index( ctx->ui_diario.fichas, i );
+//
+//          // OTIMIZAÇÃO: Ignora a gravação no disco se a ficha não sofreu alterações
+//          // (Descomente a linha abaixo se quiser economizar I/O do disco no auto-save)
+//          // if ( !ficha->ficha_modificada && !final_save ) continue;
 //
 //          g_autofree char *ficha_bin = g_strdup_printf( "%" PRIu32 ".bin", ficha->cod_aluno );
-//          g_autofree char *path_ficha_bin = g_build_filename( ctx->path_save_fichas, ficha_bin, NULL );
+//          g_autofree char *path_ficha_bin = g_build_filename( ctx->ui_diario.path_save_fichas, ficha_bin, NULL );
 //
-//          // 1. Cria a estrutura expandida temporária no stack
-//          FichaAlunoAux ficha_aux;
+//          // 2. Aloca a estrutura expandida dinamicamente no heap (Obrigatório para array flexível)
+//          FichaAlunoAux *ficha_aux = g_malloc0( tamanho_total_aux );
 //
-//          // 2. Copia e mapeia os dados da ficha antiga para a nova com o campo 'obs' zerado
-//          copiar_ficha_aluno( ficha, &ficha_aux );
+//          // 3. Copia e mapeia os dados da ficha antiga para a nova
+//          copiar_ficha_aluno( ficha, ficha_aux, lim_disc );
 //
-//          // 3. Salva a NOVA estrutura no disco, passando o ponteiro e o tamanho corretos
-//          gboolean sucesso_neste_arquivo = _salvar_bloco_binario( &ficha_aux, sizeof( FichaAlunoAux ), path_ficha_bin );
+//          // 4. Salva a NOVA estrutura no disco, passando o ponteiro e o tamanho calculado
+//          gboolean sucesso_neste_arquivo = _salvar_bloco_binario( ficha_aux, tamanho_total_aux, path_ficha_bin );
+//
+//          // 5. Libera a memória da estrutura temporária
+//          g_free( ficha_aux );
 //
 //          // Se conseguiu salvar este arquivo, registra que a operação geral teve sucesso
 //          if ( sucesso_neste_arquivo ) {
@@ -1820,8 +1835,8 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //
 //    // Atualização do diretório de salvamento
 //    if ( !final_save ) {
-//       g_free( ctx->path_save_fichas );
-//       ctx->path_save_fichas = g_build_filename( dados->raiz, "dados", "fichas", NULL );
+//       g_free( ctx->ui_diario.path_save_fichas );
+//       ctx->ui_diario.path_save_fichas = g_build_filename( ctx->dados.raiz, "dados", "fichas", NULL );
 //    }
 //
 //    return salvou_algo;
@@ -2075,7 +2090,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    if ( !gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) return;
 
    int index_aluno = atoi( path_string );
-   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, index_aluno );
+   FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, index_aluno );
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
    int foco = ctx->cabecalho.foco_disciplina;
 
@@ -2191,7 +2206,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
       // Captura a correspondência absoluta do aluno pela interface
       gint *indices = gtk_tree_path_get_indices( current_path );
       if ( indices && ( guint )indices[0] < ui_diario->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, indices[0] );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, indices[0] );
 
          if ( ficha->ativo ) {
             gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
@@ -2225,7 +2240,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
 
       // Verifica o aluno correspondente à linha do GTK iterada, e NÃO pela variável 'i'
       if ( indices && ( guint )indices[0] < ui_diario->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, indices[0] );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, indices[0] );
 
          if ( ficha->ativo ) {
             processar_gravacao_nota( ctx, GTK_CELL_RENDERER( renderer ), path_str, nota_str );
@@ -2270,7 +2285,7 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
    // 2. Percorre o GArray reconstruindo as linhas do zero
    for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       GtkTreeIter iter;
 
       // Buffer estático na Stack: 10 strings de até 8 caracteres (Ex: "10.00\0")
@@ -2417,7 +2432,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // LAÇO PRINCIPAL DOS ALUNOS
    // =========================================================================
    for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       const RelatorioAnual *rel = &ficha->disciplina[d].relatorio;
 
       GtkTreeIter iter;
@@ -2577,7 +2592,7 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
       // Se o aluno está de Recuperação Final
       if ( g_strcmp0( obs, "Rec Final" ) == 0 ) {
          // Resgata a ficha que espelha essa linha
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_ficha );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_ficha );
 
          // Procura esse aluno no buffer binário e marca como ativo
          for ( int i = 0; i < qtd_acessos; i++ ) {

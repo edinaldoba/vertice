@@ -175,7 +175,7 @@ typedef struct {
 typedef struct {
    int qtd;
    char str[128];
-} QuestaoRascunho;
+} __attribute__( ( packed ) ) QuestaoRascunho;
 
 // O pacote principal
 typedef struct {
@@ -190,7 +190,7 @@ typedef struct {
 
    // 4. O Flexible Array Member (Deve OBRIGATORIAMENTE ser o último elemento e usar [])
    QuestaoRascunho questoes[];
-} DadosRascunho;
+} __attribute__( ( packed ) ) DadosRascunho;
 //=========================================================================================================//
 
 
@@ -351,60 +351,83 @@ typedef struct {
 // ESTRUTURAS AUXILIARES DE SUPORTE
 // ============================================================================
 
-// Encapsula o par Avaliação/Recuperação de uma avaliação específica
 typedef struct {
-   float av;  // Nota da Avaliação (-1.0f para vazia/não realizada)
-   float rec; // Nota da Recuperação da Avaliação (-1.0f para vazia)
+   float av;
+   float rec;
 } __attribute__( ( packed ) ) NotaAvaliacao;
 
-// Registro diário/periódico de desempenho e assiduidade por período
 typedef struct {
-   NotaAvaliacao avaliacoes[5]; // As 5 avaliações do período (Av1..Av5 e suas Recs)
-   uint16_t      presencas;     // Total de presenças no período
-   uint16_t      ausencias;     // Total de ausências no período
+   NotaAvaliacao avaliacoes[5];
+   uint16_t      presencas;
+   uint16_t      ausencias;
 } __attribute__( ( packed ) ) PeriodoLetivo;
 
-// Consolidação anual de resultados para o Relatório Final (LaTeX e UI)
 typedef struct {
-   float notas_periodos[4]; // Médias consolidadas do 1º, 2º, 3º e 4º Períodos
-   float soma;              // Soma das médias dos períodos decorridos
-   float media_anual;       // Média final (Soma / Qtd Períodos Válidos)
-   float rec_final;         // Nota da Recuperação Final (-1.0f se não fez)
-   float conselho;          // Nota do Conselho de Classe (-1.0f se não fez)
-   ObservacaoAluno obs; // Observação sobre o aluno no relatório final
+   float notas_periodos[4];
+   float soma;
+   float media_anual;
+   float rec_final;
+   float conselho;
+   ObservacaoAluno obs;
 } __attribute__( ( packed ) ) RelatorioAnual;
 
+
 // ============================================================================
-// ESTRUTURA PRINCIPAL DO ALUNO (Soberana e Persistida em Disco)
+// MÓDULO EXTRAÍDO E RENOMEADO PARA CLAREZA (Antigo NotasDisciplinas)
 // ============================================================================
 typedef struct {
-   // 1. Identificação e Dados Pessoais (Alinhados com o SIAEP)
-   uint32_t cod_aluno;        // Código único do aluno no SIAEP
-   char     aluno[64];        // Nome completo do aluno
-   char     sexo[16];         // Masculino / Feminino
-   char     nasc[16];         // Data de Nascimento ("DD/MM/AAAA")
+   PeriodoLetivo  periodo[4]; // Registro detalhado dos 4 períodos letivos
+   RelatorioAnual relatorio;  // Média anual, rec. final e conselho de classe
+} __attribute__( ( packed ) ) HistoricoDisciplina;
 
-   // 2. Condições Curriculares e Inclusão
-   FichaAtipicidade atipico;  // Máscara de bits e metadados de acessibilidade (8 bytes)
+// ============================================================================
+// NOVA ESTRUTURA EXPANSÍVEL (Soberana e Persistida em Disco)
+// ============================================================================
+typedef struct {
+   uint32_t cod_aluno;
+   char     aluno[64];
+   char     sexo[16];
+   char     nasc[16];
 
-   // 3. Status Acadêmico e de Matrícula
-   SituacaoAluno sit;         // Cursando, Transferido, Desistente, etc.
-   gboolean      ativo;       // TRUE = Aluno frequente na turma atual
+   FichaAtipicidade atipico;
+   SituacaoAluno sit;
+   gboolean      ativo;
 
-   // 4. Parâmetros de Exibição e Ordenação
-   uint8_t  limite_corte;     // Tamanho máximo do nome na impressão LaTeX
-   uint16_t idx_siaep;        // Índice original da ordem no diário SIAEP
+   uint8_t  limite_corte;
+   uint8_t  idx_siaep;
+   uint8_t  lim_disc;
+   gboolean ficha_modificada;
 
-   // 5. Histórico Desempenho por Disciplina (Suporta até QTD_DISC disciplinas)
-   struct {
-      PeriodoLetivo  periodo[4]; // Registro detalhado dos 4 períodos letivos
-      RelatorioAnual relatorio;  // Média anual, rec. final e conselho de classe
-   } disciplina[QTD_DISC];
-
-   // 6. Controle de Persistência I/O
-   gboolean ficha_modificada; // Indicador para Auto-Save e Persistência em Cascata
+   // Array Flexível (Flexible Array Member) - DEVE ser sempre o último campo!
+   HistoricoDisciplina disciplina[];
 
 } __attribute__( ( packed ) ) FichaAluno;
+
+
+// ============================================================================
+// ESTRUTURA PRINCIPAL DO ALUNO (LEGADO / FIXA)
+// ============================================================================
+// typedef struct {
+//    uint32_t cod_aluno;
+//    char     aluno[64];
+//    char     sexo[16];
+//    char     nasc[16];
+//
+//    FichaAtipicidade atipico;
+//    SituacaoAluno sit;
+//    gboolean      ativo;
+//    uint8_t  limite_corte;
+//    uint16_t idx_siaep;
+//
+//    // Estrutura interna legada acoplada
+//    struct {
+//       PeriodoLetivo  periodo[4];
+//       RelatorioAnual relatorio;
+//    } disciplina[QTD_DISC];
+//
+//    gboolean ficha_modificada;
+// } __attribute__( ( packed ) ) FichaAluno;
+
 
 
 // Estrutura para descrever o "Cabeçalho" de cada avaliação
@@ -470,7 +493,7 @@ typedef struct {
    uint8_t per;
    uint8_t seq;
 
-   int nota;
+   int acertos;
 
 } __attribute__( ( packed ) ) MapeamentoGabarito;
 

@@ -103,7 +103,7 @@ int obter_foco_inicial( const int limite, const AppContext *ctx ) {
    const InterfaceDiario *ui_diario = &ctx->ui_diario;
    int i;
    for ( i = 0; i < limite; i++ ) {
-      FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, i );
+      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
       if ( ficha->ativo ) {
          break;
       }
@@ -114,11 +114,11 @@ int obter_foco_inicial( const int limite, const AppContext *ctx ) {
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
    g_return_if_fail( store && iter && dados );
 
-   const GArray *fichas = ( const GArray * )dados;
+   const GPtrArray *fichas = ( const GPtrArray * )dados;
 
    if ( ( guint )i >= fichas->len ) return;
 
-   const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, i );
+   const FichaAluno *ficha = g_ptr_array_index( fichas, i );
 
    int len = calcular_len_limpo( ficha->aluno, 30 );
    char aluno[64];
@@ -458,7 +458,7 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
    if ( !precisa_sincronizar ) {
       for ( int k = 0; k < qtd_fichas; k++ ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, k );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, k );
          if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
             precisa_sincronizar = TRUE;
             break;
@@ -492,7 +492,7 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
 
       // B) Reconstrói a chamada do zero, espelhando a ordem oficial de ui_diario->fichas
       for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, k );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, k );
          uint32_t cod_alvo = ficha->cod_aluno;
          nova_chamada[k].cod_aluno = cod_alvo;
 
@@ -567,18 +567,27 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    gio_copiar_arquivo( arq_origem_valido, arq_target );
 }
 //--------------------------------------------------------------------------------------------------
+static gint _alfabetica_lista_de_alunos( gconstpointer a, gconstpointer b ) {
+   // Desempacota o ponteiro duplo
+   const FichaAluno *f1 = *( const FichaAluno ** )a;
+   const FichaAluno *f2 = *( const FichaAluno ** )b;
+
+   return g_utf8_collate( f1->aluno, f2->aluno );
+}
+//--------------------------------------------------------------------------------------------------
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
-   g_return_if_fail( ctx );
+   g_return_if_fail( ctx != NULL );
    InterfaceDiario *ui_diario = &ctx->ui_diario;
 
-   // 1. Limpeza segura do GArray anterior
-   if ( ui_diario->fichas ) {
-      g_array_unref( ui_diario->fichas );
-      ui_diario->fichas = NULL;
-   }
+   // 1. Limpeza segura (O g_ptr_array_unref agora vai liberar a lista E todas as structs internas)
+   g_clear_pointer( ( gpointer * ) &ui_diario->fichas, g_ptr_array_unref );
 
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
+
+   // Tamanho real dinâmico (Ficha Base + Histórico Flexível)
+   gsize tamanho_real_ficha = sizeof( FichaAluno ) +
+                              ( ctx->cabecalho.limite_disciplinas * sizeof( HistoricoDisciplina ) );
 
    g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
@@ -593,71 +602,71 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    gchar *conteudo_acessos = NULL;
    dados->qtd_alunos_ativos = 0;
 
-   // 3. Leitura do arquivo de acesso binário
    if ( !g_file_get_contents( arquivo_acesso, &conteudo_acessos, &tamanho_arquivo, NULL ) ) {
       g_printerr( "Falha ao ler o arquivo de acesso: %s\n", arquivo_acesso );
       dados->qtd_alunos_total = 0;
       return;
    }
 
-   // Transforma o buffer raw de chars na struct e garante a liberação automática
    g_autofree AcessoFicha *buffer_acessos = ( AcessoFicha * )conteudo_acessos;
-
    dados->qtd_alunos_total = tamanho_arquivo / sizeof( AcessoFicha );
+
    if ( dados->qtd_alunos_total == 0 ) return;
 
-   // 4. Inicialização do GArray já com o tamanho exato pré-alocado
-   ui_diario->fichas = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), dados->qtd_alunos_total );
+   // =========================================================================
+   // 4. NOVA ALOCAÇÃO: GPtrArray com Destruição Automática (g_free)
+   // =========================================================================
+   ui_diario->fichas = g_ptr_array_new_full( dados->qtd_alunos_total, g_free );
 
    g_autofree gchar *dir_base_alunos = g_build_filename( caminho->raiz, "dados", "informados",
-                                       dados->ano, dados->escola, "fichas", NULL );
+                                                         dados->ano, dados->escola, "fichas", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];
 
-      // Constrói o caminho de forma segura para o SO (evita concatenar "%s/%d.bin" na mão)
       g_autofree gchar *nome_arquivo = g_strdup_printf( "%" PRIu32 ".bin", acesso->cod_aluno );
       g_autofree gchar *ficha_aluno = g_build_filename( dir_base_alunos, nome_arquivo, NULL );
 
       gsize tamanho_ficha = 0;
       gchar *conteudo_ficha = NULL;
 
-      // 5. Carregamento binário purista sem misturar FILE* do C padrão com GLib
       if ( g_file_get_contents( ficha_aluno, &conteudo_ficha, &tamanho_ficha, NULL ) ) {
+         if ( tamanho_ficha == tamanho_real_ficha ) {
 
-         // Validação extra de segurança: a ficha em disco bate com a struct na memória?
-         if ( tamanho_ficha == sizeof( FichaAluno ) ) {
-            FichaAluno temp_ficha;
+            // 5. Aloca a Ficha dinamicamente na Heap com o tamanho exato do FAM
+            FichaAluno *ficha_ptr = g_malloc( tamanho_real_ficha );
 
-            // Hidrata a struct local a partir do buffer cru em memória
-            memcpy( &temp_ficha, conteudo_ficha, sizeof( FichaAluno ) );
+            // Copia os dados puros do disco para a nossa struct
+            memcpy( ficha_ptr, conteudo_ficha, tamanho_real_ficha );
 
-            temp_ficha.cod_aluno = acesso->cod_aluno;
-            temp_ficha.idx_siaep = i;
-            temp_ficha.sit = acesso->sit;
-            temp_ficha.ativo = acesso->ativo;
-            temp_ficha.ficha_modificada = FALSE;
+            // Hidrata as variáveis de estado de execução
+            ficha_ptr->cod_aluno = acesso->cod_aluno;
+            ficha_ptr->idx_siaep = i;
+            ficha_ptr->sit = acesso->sit;
+            ficha_ptr->ativo = acesso->ativo;
+            ficha_ptr->lim_disc = ctx->cabecalho.limite_disciplinas;
+            ficha_ptr->ficha_modificada = FALSE;
 
-            if ( temp_ficha.ativo ) {
+            if ( ficha_ptr->ativo ) {
                dados->qtd_alunos_ativos++;
             }
 
-            // Anexa a cópia da ficha direto no GArray
-            g_array_append_val( ui_diario->fichas, temp_ficha );
+            // Anexa APENAS O PONTEIRO no GPtrArray
+            g_ptr_array_add( ui_diario->fichas, ficha_ptr );
+
          } else {
             g_printerr( "[Aviso] Tamanho corrompido para o aluno %" PRIu32 "\n", acesso->cod_aluno );
          }
 
-         // Libera o buffer temporário alocado pelo g_file_get_contents
+         // Libera apenas o buffer temporário de disco (A ficha_ptr agora pertence ao GPtrArray)
          g_free( conteudo_ficha );
-
       } else {
          g_printerr( "[Aviso] Ficha não encontrada para o aluno %" PRIu32 "\n", acesso->cod_aluno );
       }
    }
 
-   // 6. Ordenação Alfabética nativa do GArray
-   g_array_sort( ui_diario->fichas, alfabetica_lista_de_alunos );
+   // 6. Ordenação Alfabética do Array de Ponteiros
+   g_ptr_array_sort( ui_diario->fichas, _alfabetica_lista_de_alunos );
 }
 //----------------------------------------------------------------------------------------------------
 

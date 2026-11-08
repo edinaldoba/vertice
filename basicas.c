@@ -270,13 +270,6 @@ int comparar_item_combo( const void* a, const void* b ) {
 
 
 
-int alfabetica_lista_de_alunos( const void *a, const void *b ) {
-   const FichaAluno *fa = ( const FichaAluno * )a;
-   const FichaAluno *fb = ( const FichaAluno * )b;
-   // strcoll respeita a localidade do sistema, ordenando acentos corretamente (Á antes de B)
-   return strcoll( fa->aluno, fb->aluno );
-}
-
 
 
 int comparar_mapeamento_gabarito( const void* a, const void* b ) {

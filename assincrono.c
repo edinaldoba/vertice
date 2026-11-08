@@ -32,11 +32,31 @@ typedef struct {
  * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
  * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha.
  */
-static GArray* clonar_diario_alunos( GArray *fichas_originais ) {
+static GPtrArray* clonar_diario_alunos( GPtrArray *fichas_originais, uint8_t lim_disc ) {
    if ( !fichas_originais || fichas_originais->len == 0 ) return NULL;
 
-   GArray *fichas_clone = g_array_sized_new( FALSE, TRUE, sizeof( FichaAluno ), fichas_originais->len );
-   g_array_append_vals( fichas_clone, fichas_originais->data, fichas_originais->len );
+   // 1. Cria o GPtrArray de destino já configurado para destruir os itens com g_free
+   GPtrArray *fichas_clone = g_ptr_array_new_full( fichas_originais->len, g_free );
+
+   // 2. Calcula o tamanho dinâmico real (Base da Ficha + Histórico Flexível)
+   gsize tamanho_real_ficha = sizeof( FichaAluno ) +
+                              ( lim_disc * sizeof( HistoricoDisciplina ) );
+
+   // 3. Itera clonando byte a byte de forma independente
+   for ( guint i = 0; i < fichas_originais->len; i++ ) {
+      FichaAluno *orig = g_ptr_array_index( fichas_originais, i );
+      if ( !orig ) continue;
+
+      // Aloca um novo bloco independente na Heap
+      FichaAluno *clone = g_malloc( tamanho_real_ficha );
+
+      // Copia toda a estrutura e o array flexível de uma só vez
+      memcpy( clone, orig, tamanho_real_ficha );
+
+      // Adiciona o ponteiro da nova cópia ao array clonado
+      g_ptr_array_add( fichas_clone, clone );
+   }
+
    return fichas_clone;
 }
 
@@ -47,18 +67,18 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    ProvaThreadArgs *args = g_malloc0( sizeof( ProvaThreadArgs ) ); // g_malloc0 zera a memória nativamente
    if ( !args ) return;
 
-   // 1. Snapshot Seguro (Deep Copy por valor e array na Heap)
+   // 1. Snapshot Seguro (Deep Copy obrigatório para isolar a thread da UI)
    args->snap.dados     = ctx->dados;
    args->snap.cabecalho = ctx->cabecalho;
    args->snap.caminho   = ctx->caminho;
    args->snap.hoje      = ctx->hoje;
-   args->snap.fichas    = clonar_diario_alunos( ctx->ui_diario.fichas );
+   args->snap.fichas    = clonar_diario_alunos( ctx->ui_diario.fichas, ctx->cabecalho.limite_disciplinas );
 
    // 2. Referências Mestre para a Main Thread
    args->ctx         = ctx;
    args->botao_gerar = widget;
 
-   // 3. Congelamento da Interface (Acessando direto do ctx)
+   // 3. Congelamento Parcial da Interface (Acessando direto do ctx)
    GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
 
    gtk_widget_set_sensitive( widget, FALSE );
@@ -80,7 +100,9 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
       gtk_widget_set_sensitive( aba_latex, TRUE );
 
       g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
-      if ( args->snap.fichas ) g_array_unref( args->snap.fichas );
+
+      // Limpeza segura da cópia profunda caso a thread falhe ao iniciar
+      if ( args->snap.fichas ) g_ptr_array_unref( args->snap.fichas );
       g_free( args );
    }
 
@@ -108,7 +130,7 @@ static gboolean ocultar_painel_e_desalocar_args_cb( gpointer user_data ) {
 
    // Limpeza blindada da memória
    if ( args->snap.fichas != NULL ) {
-      g_array_unref( args->snap.fichas );
+      g_ptr_array_unref( args->snap.fichas );
    }
    g_free( args );
 
@@ -635,7 +657,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
 
       if ( map[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
          int num_aluno = map[i].num;
-         FichaAluno *ficha = &g_array_index( ctx->ui_diario.fichas, FichaAluno, num_aluno - 1 );
+         FichaAluno *ficha = g_ptr_array_index( ctx->ui_diario.fichas, num_aluno - 1 );
 
          g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/dados/temporarios/%.2d.pdf", caminho->raiz, num_aluno );
          g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );

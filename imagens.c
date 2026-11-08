@@ -720,7 +720,7 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, 
       return ERRO_ID_GABARITO_INVALIDO;
    }
 
-   FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, map->num - 1 );
+   FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, map->num - 1 );
 
    // 3º TESTE (Regra de Negócio): Se chegou aqui, a memória está segura!
    if ( ficha->ativo == FALSE ) {
@@ -820,14 +820,14 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       int idx_esperado = map->num - 1;
 
       if ( ui_diario->fichas && idx_esperado >= 0 && ( guint )idx_esperado < ui_diario->fichas->len ) {
-         FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_esperado );
+         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_esperado );
 
          if ( map->cod_aluno == 0 || map->cod_aluno == ficha->cod_aluno ) {
             map->cod_aluno = ficha->cod_aluno;
 
          } else {
             for ( guint j = 0; j < ui_diario->fichas->len; j++ ) {
-               FichaAluno *f_busca = &g_array_index( ui_diario->fichas, FichaAluno, j );
+               FichaAluno *f_busca = g_ptr_array_index( ui_diario->fichas, j );
                if ( f_busca->cod_aluno == map->cod_aluno ) {
                   map->num = j + 1;
                   break;
@@ -877,18 +877,20 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
          g_autofree gchar *nome_base = g_strdup_printf( "%.2d", map->num );
          const char *gab = G[ map->id ].str;
 
-         int nota = imagens_corrigidas( gab, map, ctx, nome_base );
-         map->nota = nota;
+         int acertos = imagens_corrigidas( gab, map, ctx, nome_base );
+         map->acertos = acertos;
 
          int idx_aluno = map->num - 1;
 
          if ( ui_diario->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ui_diario->fichas->len ) {
-            FichaAluno *ficha = &g_array_index( ui_diario->fichas, FichaAluno, idx_aluno );
-            int periodo = map->per;
+            FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
+            int f_disc = cabecalho->foco_disciplina;
+            int f_per = map->per;
             int seq_prova = map->seq;
+            float nota = 10.0f / (float)dados->total_quest_prova * (float)acertos;
 
-            if ( periodo >= 0 && periodo <= 4 ) {
-               ficha->disciplina[cabecalho->foco_disciplina].periodo[periodo].avaliacoes[2 * seq_prova - 2].av  = ( float )nota;
+            if ( f_per >= 0 && f_per <= 4 ) {
+               ficha->disciplina[ f_disc ].periodo[ f_per ].avaliacoes[ 2 * seq_prova - 2 ].av  = nota;
                ficha->ficha_modificada = TRUE;
             }
          }

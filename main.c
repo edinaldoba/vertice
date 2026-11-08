@@ -327,7 +327,7 @@ void limpeza_final( AppContext *ctx ) {
 
    if ( ctx->ui_diario.fichas ) {
       salvar_fichas( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.fichas, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.fichas, g_ptr_array_unref );
    }
    g_clear_pointer( &ctx->ui_diario.path_save_fichas, g_free );
 

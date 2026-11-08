@@ -140,7 +140,7 @@ typedef struct {
 typedef struct {
    // --- ARMAZENAMENTO EM MEMÓRIA RAM (Gerido pela GLib) ---
    GArray *diarios;    // Registros cronológicos de aula
-   GArray *fichas;     // Perfil e configurações dos alunos
+   GPtrArray *fichas;     // Perfil e configurações dos alunos
    GArray *metas_avs;  // Lista de avaliações por período
 
    // --- CONTROLE DE AUTOSAVE E DISCO ---

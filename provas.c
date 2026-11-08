@@ -34,7 +34,7 @@ void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados )
 
 
 
-void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GArray *fichas,
+void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, const GPtrArray *fichas,
                                  const InterfaceDados *dados, const CalendarioData *hoje ) {
 
    definir_titulo_documento( titulo_prova, dados );
@@ -108,7 +108,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
    // Lista de Alunos e Status
    for ( int i = 1; i <= dados->qtd_alunos_total; i++ ) {
       int idx_aluno = i - 1;
-      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, idx_aluno );
+      const FichaAluno *ficha = g_ptr_array_index( fichas, idx_aluno );
 
       g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,{-2-\\p*(%d+0.5)}) {%02d};\n", i, i );
 
@@ -144,7 +144,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
 
 //========================================================================================================//
-void imagens_para_prova( const int i, int numero, const GArray *fichas,
+void imagens_para_prova( const int i, int numero, const GPtrArray *fichas,
                          const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
 
    // 1. Caminho seguro com g_strdup_printf (substitui sprintf e o buffer fixo de 256)
@@ -172,7 +172,7 @@ void imagens_para_prova( const int i, int numero, const GArray *fichas,
 
    g_string_append( tex, "\\begin{document}\n" );
 
-   const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, numero - 1 );
+   const FichaAluno *ficha = g_ptr_array_index( fichas, numero - 1 );
 
    // ATENÇÃO MESTRE:
    // Para que isto funcione perfeitamente, a assinatura de quadro_de_respostas
@@ -550,7 +550,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
 
    const InterfaceDados *dados = &snap->dados;
    const InterfaceCabecalho *cabecalho = &snap->cabecalho;
-   const GArray *fichas = snap->fichas;
+   GPtrArray *fichas = snap->fichas;
    const CaminhoDiretorio *caminho = &snap->caminho;
    const CalendarioData *hoje = &snap->hoje;
 
@@ -570,7 +570,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
    int num_ativo = 0; // Equivalente ao antigo iterador i
 
    for ( guint jj = 0; jj < fichas->len; jj++ ) {
-      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, jj );
+      const FichaAluno *ficha = g_ptr_array_index( fichas, jj );
       if ( !ficha->ativo ) continue;
 
       FILE **pb = g_new0( FILE*, dados->total_quest_prova );
@@ -693,7 +693,7 @@ static void copiar_arquivos_prova_externamente( const InterfaceDados *dados, con
 }
 
 //========================================================================================================//
-static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const InterfaceDados *dados,
+static void copiar_arquivos_prova_nao_presencial( const GPtrArray *fichas, const InterfaceDados *dados,
       const CaminhoDiretorio *caminho ) {
    g_autofree char *diretorio_provas  = NULL;
    g_autofree char *diretorio_imagens = NULL;
@@ -723,7 +723,7 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
    int cont_ativos = 0;
 
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, j );
+      const FichaAluno *ficha = g_ptr_array_index( fichas, j );
       if ( ficha->ativo ) {
          mapa_ativos[cont_ativos++] = j;
       }
@@ -733,7 +733,7 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < cont_ativos; i++ ) {
       int aluno_idx = mapa_ativos[i];
-      const FichaAluno *ficha = &g_array_index( fichas, FichaAluno, aluno_idx );
+      const FichaAluno *ficha = g_ptr_array_index( fichas, aluno_idx );
 
       // Exportação do PDF da Prova
       g_autofree char *thread_origem = g_strdup_printf( "%s/dados/temporarios/prova%.2d.pdf", caminho->raiz, i );
@@ -767,7 +767,7 @@ static void copiar_arquivos_prova_nao_presencial( const GArray *fichas, const In
 
 
 //========================================================================================================//
-void compilacao_latex_e_manipulacao_de_arquivos( const GArray *fichas, const InterfaceDados *dados,
+void compilacao_latex_e_manipulacao_de_arquivos( const GPtrArray *fichas, const InterfaceDados *dados,
       const CaminhoDiretorio *caminho ) {
 
    // 1. Compilação paralela do LaTeX
