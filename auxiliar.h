@@ -31,7 +31,7 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres );
 
 void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *caminho );
 
-void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx );
+void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx );
 
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx );
 

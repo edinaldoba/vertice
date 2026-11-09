@@ -18,7 +18,7 @@
 #include "interface.h"
 #include "mensagens.h"
 #include "glib_gio.h"
-#include "latex.h"
+#include "tex.h"
 #include "pds.h"
 #include "gas.h"
 #include "assincrono.h"
@@ -707,7 +707,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
 //------------------------------------------------------------------------------------------------------
 static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, const AppContext *ctx ) {
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados *dados = &ctx->dados;
 
    // 1º TESTE (Crítico): O número da folha protege o array 'diario'
@@ -720,7 +720,7 @@ static StatusMapeamento validar_prova_escaneada( const MapeamentoGabarito *map, 
       return ERRO_ID_GABARITO_INVALIDO;
    }
 
-   FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, map->num - 1 );
+   FichaAluno *ficha = g_ptr_array_index( diario->fichas, map->num - 1 );
 
    // 3º TESTE (Regra de Negócio): Se chegou aqui, a memória está segura!
    if ( ficha->ativo == FALSE ) {
@@ -742,7 +742,7 @@ static gint comparar_por_cod_aluno( gconstpointer a, gconstpointer b ) {
 void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    if ( !painel || !ctx ) return;
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados   *dados   = &ctx->dados;
    const InterfaceCabecalho  *cabecalho    = &ctx->cabecalho;
    // const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -819,15 +819,15 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
       int idx_esperado = map->num - 1;
 
-      if ( ui_diario->fichas && idx_esperado >= 0 && ( guint )idx_esperado < ui_diario->fichas->len ) {
-         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_esperado );
+      if ( diario->fichas && idx_esperado >= 0 && ( guint )idx_esperado < diario->fichas->len ) {
+         FichaAluno *ficha = g_ptr_array_index( diario->fichas, idx_esperado );
 
          if ( map->cod_aluno == 0 || map->cod_aluno == ficha->cod_aluno ) {
             map->cod_aluno = ficha->cod_aluno;
 
          } else {
-            for ( guint j = 0; j < ui_diario->fichas->len; j++ ) {
-               FichaAluno *f_busca = g_ptr_array_index( ui_diario->fichas, j );
+            for ( guint j = 0; j < diario->fichas->len; j++ ) {
+               FichaAluno *f_busca = g_ptr_array_index( diario->fichas, j );
                if ( f_busca->cod_aluno == map->cod_aluno ) {
                   map->num = j + 1;
                   break;
@@ -882,8 +882,8 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
          int idx_aluno = map->num - 1;
 
-         if ( ui_diario->fichas && idx_aluno >= 0 && ( guint )idx_aluno < ui_diario->fichas->len ) {
-            FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, idx_aluno );
+         if ( diario->fichas && idx_aluno >= 0 && ( guint )idx_aluno < diario->fichas->len ) {
+            FichaAluno *ficha = g_ptr_array_index( diario->fichas, idx_aluno );
             int f_disc = cabecalho->foco_disciplina;
             int f_per = map->per;
             int seq_prova = map->seq;
@@ -919,8 +919,8 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
    // -------------------------------------------------------------------------
    // BLOQUEIO DA INTERFACE: (Descomente a linha abaixo e insira o widget do seu botão)
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_processar, FALSE );
+   gtk_widget_set_sensitive( ctx->prova.btn_corrigir, FALSE );
+   gtk_widget_set_sensitive( ctx->prova.btn_processar, FALSE );
    // -------------------------------------------------------------------------
 
    painel->format_titulo    = meu_gerador_variadico( "⏳ Processando Provas..." );

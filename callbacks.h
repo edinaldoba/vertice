@@ -30,8 +30,8 @@ void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer u
 void on_label_carga_horaria_notify_label( GtkWidget *widget, GParamSpec *pspec, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_button_remover_registro_diario_selecionado_clicked( GtkWidget *widget, gpointer user_data );
-gboolean on_treeview_remover_registro_diario_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
+void on_button_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data );
+gboolean on_treeview_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data );
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );

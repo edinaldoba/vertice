@@ -33,28 +33,28 @@ void limpar_container( GtkWidget *container ) {
 // ==================================================================================================
 // 2. BUSCA DE WIDGETS INTERNOS E LISTBOX LATEX
 // ==================================================================================================
-static void atualizar_listbox_subtemas_latex( InterfaceLatex *ui_latex, InterfaceProva *ui_prova ) {
-   if ( !ui_latex || !ui_prova ) return;
+static void atualizar_listbox_subtemas_latex( InterfaceLatex *latex, InterfaceProva *prova ) {
+   if ( !latex || !prova ) return;
 
-   limpar_container( ui_latex->listbox_subtemas );
+   limpar_container( latex->listbox_subtemas );
 
-   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
-      if ( !ui_prova->subtemas[i] ) continue;
+   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
+      if ( !prova->subtemas[i] ) continue;
 
       GtkWidget *linha_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 8 );
 
       GtkWidget *indicador_label = gtk_label_new( "›" );
       gtk_style_context_add_class( gtk_widget_get_style_context( indicador_label ), "indicador-item-subtema" );
 
-      GtkWidget *texto_label = gtk_label_new( ui_prova->subtemas[i] );
+      GtkWidget *texto_label = gtk_label_new( prova->subtemas[i] );
 
       gtk_box_pack_start( GTK_BOX( linha_box ), indicador_label, FALSE, FALSE, 0 );
       gtk_box_pack_start( GTK_BOX( linha_box ), texto_label, FALSE, FALSE, 0 );
 
-      gtk_container_add( GTK_CONTAINER( ui_latex->listbox_subtemas ), linha_box );
+      gtk_container_add( GTK_CONTAINER( latex->listbox_subtemas ), linha_box );
    }
 
-   gtk_widget_show_all( ui_latex->listbox_subtemas );
+   gtk_widget_show_all( latex->listbox_subtemas );
 }
 
 
@@ -85,51 +85,51 @@ static GtkWidget* buscar_widget_por_nome_interno( GtkWidget *container, const ch
 void atualizar_listbox_subtemas( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   InterfaceDinamica *montagem = &ctx->ui_prova.montagem;
-   InterfaceProva    *ui_prova = &ctx->ui_prova;
+   InterfaceDinamica *montagem = &ctx->prova.montagem;
+   InterfaceProva    *prova = &ctx->prova;
 
-   g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ui_prova->combo_tema ) );
+   g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( prova->combo_tema ) );
    if ( !tema_ativo ) {
-      limpar_container( ui_prova->listbox_subtemas );
+      limpar_container( prova->listbox_subtemas );
       return;
    }
 
-   limpar_container( ui_prova->listbox_subtemas );
+   limpar_container( prova->listbox_subtemas );
 
    // 1. Libera a alocação anterior com segurança
    g_clear_pointer( &montagem->handlers_check, g_free );
 
    // 2. Aloca o novo vetor simples para os subtemas visíveis
-   if ( ui_prova->limite_subtemas > 0 ) {
-      montagem->handlers_check = g_new0( gulong, ui_prova->limite_subtemas );
+   if ( prova->limite_subtemas > 0 ) {
+      montagem->handlers_check = g_new0( gulong, prova->limite_subtemas );
    }
 
-   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
-      if ( !ui_prova->subtemas[i] ) continue;
+   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
+      if ( !prova->subtemas[i] ) continue;
 
-      GtkWidget *check = gtk_check_button_new_with_label( ui_prova->subtemas[i] );
-      gtk_widget_set_name( check, ui_prova->subtemas[i] );
+      GtkWidget *check = gtk_check_button_new_with_label( prova->subtemas[i] );
+      gtk_widget_set_name( check, prova->subtemas[i] );
       g_object_set_data( G_OBJECT( check ), "id_widget", GINT_TO_POINTER( i ) );
 
       char checa_id[256];
-      snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, ui_prova->subtemas[i] );
+      snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, prova->subtemas[i] );
 
-      GtkWidget *box_encontrado = buscar_widget_por_nome_interno( ui_prova->flowbox_selecionados, checa_id );
+      GtkWidget *box_encontrado = buscar_widget_por_nome_interno( prova->flowbox_selecionados, checa_id );
       if ( box_encontrado != NULL ) {
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), TRUE );
       }
 
       gulong handler_id = g_signal_connect( check, "toggled", G_CALLBACK( on_subtema_check_toggled ), ctx );
 
-      if ( ui_prova->limite_subtemas > 0 && montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+      if ( prova->limite_subtemas > 0 && montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
          montagem->handlers_check[i] = handler_id;
       }
 
-      gtk_list_box_insert( GTK_LIST_BOX( ui_prova->listbox_subtemas ), check, -1 );
+      gtk_list_box_insert( GTK_LIST_BOX( prova->listbox_subtemas ), check, -1 );
    }
 
-   gtk_widget_show_all( ui_prova->listbox_subtemas );
-   atualizar_listbox_subtemas_latex( &ctx->ui_latex, &ctx->ui_prova );
+   gtk_widget_show_all( prova->listbox_subtemas );
+   atualizar_listbox_subtemas_latex( &ctx->latex, &ctx->prova );
 }
 
 // ==================================================================================================
@@ -209,17 +209,17 @@ static EstadoStepper extrair_estado_stepper( GtkWidget *button ) {
 // ==================================================================================================
 // 5. SINCRONIZAÇÃO DA ESTRUTURA COM O FLOWBOX
 // ==================================================================================================
-static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const InterfaceProva *ui_prova ) {
+static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const InterfaceProva *prova ) {
    g_return_if_fail( dados != NULL );
-   g_return_if_fail( ui_prova != NULL );
-   g_return_if_fail( GTK_IS_CONTAINER( ui_prova->flowbox_selecionados ) );
+   g_return_if_fail( prova != NULL );
+   g_return_if_fail( GTK_IS_CONTAINER( prova->flowbox_selecionados ) );
 
    for ( int i = 0; i < dados->total_quest_prova; i++ ) {
       g_clear_pointer( &dados->selecao_quest_prova[i], g_free );
       dados->qtd_quest_subtema[i] = 0;
    }
 
-   g_autoptr( GList ) children = gtk_container_get_children( GTK_CONTAINER( ui_prova->flowbox_selecionados ) );
+   g_autoptr( GList ) children = gtk_container_get_children( GTK_CONTAINER( prova->flowbox_selecionados ) );
    int idx = 0;
 
    for ( GList *iter = children; iter != NULL; iter = g_list_next( iter ) ) {
@@ -261,7 +261,7 @@ void logica_stepper_mais( GtkWidget *button, AppContext *ctx ) {
          gtk_style_context_remove_class( gtk_widget_get_style_context( st.btn_menos ), "botao-remover-ifood" );
       }
 
-      sincronizar_vetor_com_flowbox( &ctx->dados, &ctx->ui_prova );
+      sincronizar_vetor_com_flowbox( &ctx->dados, &ctx->prova );
    }
 }
 
@@ -281,8 +281,8 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
    if ( !st.tag_box ) return;
 
    InterfaceDados    *dados    = &ctx->dados;
-   InterfaceProva    *ui_prova = &ctx->ui_prova;
-   InterfaceDinamica *montagem = &ctx->ui_prova.montagem;
+   InterfaceProva    *prova = &ctx->prova;
+   InterfaceDinamica *montagem = &ctx->prova.montagem;
 
    if ( st.valor_atual > 1 ) {
       st.valor_atual--;
@@ -295,7 +295,7 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
          gtk_style_context_add_class( gtk_widget_get_style_context( button ), "botao-remover-ifood" );
       }
 
-      sincronizar_vetor_com_flowbox( dados, ui_prova );
+      sincronizar_vetor_com_flowbox( dados, prova );
 
    } else {
       // 🎯 CORREÇÃO DO BOTÃO IFOOD:
@@ -310,17 +310,17 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
       const char *subtema_alvo = pedacos[1];
 
       // 1. Remove a tag do FlowBox e atualiza a estrutura de dados
-      remover_tag_no_flowbox( ui_prova->flowbox_selecionados, label_tema );
-      sincronizar_vetor_com_flowbox( dados, ui_prova );
+      remover_tag_no_flowbox( prova->flowbox_selecionados, label_tema );
+      sincronizar_vetor_com_flowbox( dados, prova );
 
       if ( montagem->cont_add > 0 ) {
          montagem->cont_add--;
       }
 
       // 2. Se o tema da tag removida for o tema ativo visível na tela, desmarca o CheckBox
-      g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ui_prova->combo_tema ) );
+      g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( prova->combo_tema ) );
       if ( tema_ativo && g_strcmp0( tema_ativo, tema_alvo ) == 0 ) {
-         GtkWidget *check_box = buscar_widget_por_nome_interno( ui_prova->listbox_subtemas, subtema_alvo );
+         GtkWidget *check_box = buscar_widget_por_nome_interno( prova->listbox_subtemas, subtema_alvo );
 
          if ( check_box && GTK_IS_TOGGLE_BUTTON( check_box ) ) {
             int id_widget = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( check_box ), "id_widget" ) );
@@ -360,8 +360,8 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
    if ( !ctx || !widget ) return;
 
    CaminhoDiretorio  *caminho  = &ctx->caminho;
-   InterfaceProva    *ui_prova = &ctx->ui_prova;
-   InterfaceDinamica *montagem = &ctx->ui_prova.montagem;
+   InterfaceProva    *prova = &ctx->prova;
+   InterfaceDinamica *montagem = &ctx->prova.montagem;
    InterfaceDados    *dados    = &ctx->dados;
    InterfacePainel   *painel   = &ctx->painel;
 
@@ -387,14 +387,14 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
       return;
    }
 
-   g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->ui_prova.combo_tema ) );
+   g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->prova.combo_tema ) );
    if ( !tema_ativo ) return;
 
    char tag_id[256];
    snprintf( tag_id, sizeof( tag_id ), "%s/%s", tema_ativo, subtema );
 
    if ( estado ) {
-      GtkWidget *box_encontrado = buscar_widget_por_nome_interno( ui_prova->flowbox_selecionados, tag_id );
+      GtkWidget *box_encontrado = buscar_widget_por_nome_interno( prova->flowbox_selecionados, tag_id );
 
       if ( box_encontrado == NULL ) {
          g_clear_pointer( &caminho->questoes_tex, g_free );
@@ -420,19 +420,19 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
             g_signal_connect( montagem->btn_mais, "clicked", G_CALLBACK( on_stepper_mais_clicked ), ctx );
          }
 
-         gtk_flow_box_insert( GTK_FLOW_BOX( ui_prova->flowbox_selecionados ), novo_card, -1 );
+         gtk_flow_box_insert( GTK_FLOW_BOX( prova->flowbox_selecionados ), novo_card, -1 );
 
          if ( montagem->handler_scrolled > 0 && montagem->importar == FALSE ) {
-            g_signal_handler_unblock( ui_prova->scrolled_window, montagem->handler_scrolled );
+            g_signal_handler_unblock( prova->scrolled_window, montagem->handler_scrolled );
          }
 
-         gtk_widget_show_all( ui_prova->flowbox_selecionados );
-         sincronizar_vetor_com_flowbox( dados, ui_prova );
+         gtk_widget_show_all( prova->flowbox_selecionados );
+         sincronizar_vetor_com_flowbox( dados, prova );
          montagem->cont_add++;
       }
    } else {
-      remover_tag_no_flowbox( ui_prova->flowbox_selecionados, tag_id );
-      sincronizar_vetor_com_flowbox( dados, ui_prova );
+      remover_tag_no_flowbox( prova->flowbox_selecionados, tag_id );
+      sincronizar_vetor_com_flowbox( dados, prova );
 
       if ( montagem->cont_add > 0 ) {
          montagem->cont_add--;
@@ -447,9 +447,9 @@ static gboolean bloquear_sinal_com_atraso( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) return G_SOURCE_REMOVE;
 
-   if ( ctx->ui_prova.montagem.handler_scrolled > 0 ) {
-      g_signal_handler_block( ctx->ui_prova.scrolled_window, ctx->ui_prova.montagem.handler_scrolled );
-      ctx->ui_prova.montagem.importar = FALSE;
+   if ( ctx->prova.montagem.handler_scrolled > 0 ) {
+      g_signal_handler_block( ctx->prova.scrolled_window, ctx->prova.montagem.handler_scrolled );
+      ctx->prova.montagem.importar = FALSE;
    }
 
    return G_SOURCE_REMOVE;
@@ -459,18 +459,18 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    if ( !ctx || !rascunho ) return;
 
    InterfaceDados *dados    = &ctx->dados;
-   InterfaceProva *ui_prova = &ctx->ui_prova;
+   InterfaceProva *prova = &ctx->prova;
 
-   if ( ui_prova->montagem.handler_scrolled > 0 ) {
-      g_signal_handler_unblock( ui_prova->scrolled_window, ui_prova->montagem.handler_scrolled );
-      ui_prova->montagem.importar = TRUE;
+   if ( prova->montagem.handler_scrolled > 0 ) {
+      g_signal_handler_unblock( prova->scrolled_window, prova->montagem.handler_scrolled );
+      prova->montagem.importar = TRUE;
    }
 
    dados->total_quest_prova = rascunho->total_quest_prova;
 
-   limpar_container( ui_prova->listbox_subtemas );
-   limpar_container( ui_prova->flowbox_selecionados );
-   ui_prova->montagem.cont_add = 0;
+   limpar_container( prova->listbox_subtemas );
+   limpar_container( prova->flowbox_selecionados );
+   prova->montagem.cont_add = 0;
 
    atualizar_listbox_subtemas( ctx );
 
@@ -484,18 +484,18 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
       if ( !tema_salvo || !subtema_salvo ) continue;
 
       // Busca rápida sem alocações extras no Heap
-      int t = buscar_indice_bsearch( &tema_salvo, ui_prova->temas, ui_prova->limite_temas,
+      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, prova->limite_temas,
                                      sizeof( tema_salvo ), comparar_item_combo );
       if ( t >= 0 ) {
-         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_prova.combo_tema ), t );
+         gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.combo_tema ), t );
       }
 
-      GtkWidget *check_box = buscar_widget_por_nome_interno( ui_prova->listbox_subtemas, subtema_salvo );
+      GtkWidget *check_box = buscar_widget_por_nome_interno( prova->listbox_subtemas, subtema_salvo );
 
       if ( check_box && GTK_IS_TOGGLE_BUTTON( check_box ) ) {
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check_box ), TRUE );
 
-         GtkWidget *tag_box = buscar_widget_por_nome_interno( ui_prova->flowbox_selecionados, rascunho->questoes[i].str );
+         GtkWidget *tag_box = buscar_widget_por_nome_interno( prova->flowbox_selecionados, rascunho->questoes[i].str );
          if ( tag_box ) {
             GtkWidget *label_qtd = g_object_get_data( G_OBJECT( tag_box ), "label_quantidade" );
             GtkWidget *btn_menos = g_object_get_data( G_OBJECT( tag_box ), "btn_menos" );
@@ -514,28 +514,28 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
       }
    }
 
-   sincronizar_vetor_com_flowbox( dados, ui_prova );
+   sincronizar_vetor_com_flowbox( dados, prova );
 
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_cor_serie ), rascunho->foco_cor_serie );
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_decoracao ), rascunho->foco_decoracao );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_cor_serie ), rascunho->foco_cor_serie );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_decoracao ), rascunho->foco_decoracao );
 
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.check_expor_dados ), rascunho->expor_dados );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_prova.check_nao_presencial ), rascunho->nao_presencial );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->diario.check_expor_dados ), rascunho->expor_dados );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->prova.check_nao_presencial ), rascunho->nao_presencial );
 
    int idx_valido = CLAMP( rascunho->separadores - 1, 0, 1 );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_separadores[ idx_valido ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_separadores[ idx_valido ] ), TRUE );
 
    idx_valido = CLAMP( rascunho->fonte_latex - 1, 0, 1 );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_fonte_latex[ idx_valido ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_fonte_latex[ idx_valido ] ), TRUE );
 
    idx_valido = CLAMP( rascunho->qtd_paginas - 1, 0, 1 );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_qtd_paginas[ idx_valido ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_qtd_paginas[ idx_valido ] ), TRUE );
 
    idx_valido = CLAMP( rascunho->qtd_colunas - 2, 0, 1 );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_qtd_colunas[ idx_valido ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_qtd_colunas[ idx_valido ] ), TRUE );
 
    idx_valido = CLAMP( rascunho->cabecalho_tipo - 1, 0, 1 );
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_cabecalho_tipo[ idx_valido ] ), TRUE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_cabecalho_tipo[ idx_valido ] ), TRUE );
 
    g_timeout_add( 30, bloquear_sinal_com_atraso, ctx );
 }

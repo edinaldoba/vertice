@@ -20,8 +20,8 @@ $(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 	glib-compile-resources $(RESOURCES_XML) --sourcedir=recursos --target=$(RESOURCES_C) --generate-source
 
 # Módulos do sistema escritos em C puro
-C_SOURCES = main.c layout.c signals.c callbacks.c ui_diario.c auxiliar.c interface.c dinamica.c \
-            assincrono.c relatorios.c imagens.c pds.c provas.c omr.c gas.c seduc-ma.c latex.c \
+C_SOURCES = main.c layout.c signals.c callbacks.c diario.c auxiliar.c interface.c dinamica.c \
+            assincrono.c relatorios.c imagens.c pds.c provas.c omr.c gas.c seduc-ma.c tex.c \
             mensagens.c acervo.c basicas.c rgba.c matriz.c glib_gio.c imgcore.c \
             $(RESOURCES_C)
 
@@ -138,7 +138,7 @@ install: release
 	@install -d $(APP_DIR)
 	@install -d $(ICON_DIR)
 	@install -m 755 $(APP_NAME) $(BIN_DIR)/vertice
-	@install -m 644 vertice.desktop $(APP_DIR)/
+	@install -m 644 recursos/vertice.desktop $(APP_DIR)/
 	@install -m 644 recursos/imagens/vertice.svg $(ICON_DIR)/vertice.svg
 	@echo "🔄 Atualizando o banco de dados de atalhos e ícones..."
 	@update-desktop-database $(APP_DIR) || true
@@ -148,7 +148,7 @@ install: release
 uninstall:
 	@echo "🗑️ Removendo o Vértice do sistema (requer sudo)..."
 	@rm -f $(BIN_DIR)/vertice
-	@rm -f $(APP_DIR)/vertice.desktop
+	@rm -f $(APP_DIR)/recursos/vertice.desktop
 	@rm -f $(ICON_DIR)/vertice.svg
 	@update-desktop-database $(APP_DIR) || true
 	@gtk-update-icon-cache -f -t $(PREFIX)/share/icons/hicolor || true

@@ -334,16 +334,16 @@ typedef enum {
    TIPO_REGISTRO_PEDAGOGICO  = 1, // Cor AZUL no PDF (Registrado no SIAEP)
    TIPO_REGISTRO_FERIADO     = 2, // Cor VERMELHA no PDF (Ignorado no SIAEP)
    TIPO_REGISTRO_AULA_EXTRA  = 3  // Cor VIOLETA no PDF (Ignorado no SIAEP)
-} __attribute__( ( packed ) ) TipoRegistroDiario;
+} __attribute__( ( packed ) ) TipoRegistroAula;
 
 typedef struct {
    char data[16];
    int ch;
    char tema[50];
    char descricao[300];
-   TipoRegistroDiario tipo_registro; // Guarda 0, 1, 2 ou 3 (TipoRegistroDiario)
+   TipoRegistroAula tipo_registro; // Guarda 0, 1, 2 ou 3 (TipoRegistroAula)
    RegistroChamada chamada[64]; // Máximo de 64 alunos por turma
-} __attribute__( ( packed ) ) RegistroDiario;
+} __attribute__( ( packed ) ) RegistroAula;
 
 
 

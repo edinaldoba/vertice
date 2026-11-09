@@ -100,10 +100,10 @@ int foco_periodo_corrente( int escalar_hoje ) {
 
 
 int obter_foco_inicial( const int limite, const AppContext *ctx ) {
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    int i;
    for ( i = 0; i < limite; i++ ) {
-      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
+      FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
       if ( ficha->ativo ) {
          break;
       }
@@ -332,8 +332,6 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
    // 1. Libera qualquer alocação anterior para evitar vazamento de memória (Memory Leak)
    _caminho_diretorio_free( caminho );
 
-   const gchar *home = g_get_home_dir();
-
    // 2. Base Completa e Base Parcial (eliminando a necessidade do strrchr)
    // g_build_filename já aloca a string dinamicamente e coloca as barras '/' corretamente
    caminho->base = g_build_filename( dados->ano, dados->escola, dados->turma, dados->disciplina, dados->periodo, NULL );
@@ -346,9 +344,9 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
    caminho->relatorios = g_build_filename( caminho->raiz, "relatorios", caminho->base, NULL );
    caminho->relatorios_final = g_build_filename( caminho->raiz, "relatorios", base_parcial, NULL );
 
-   caminho->externo = g_build_filename( home, "Documentos", caminho->base, NULL );
-   caminho->externo_final = g_build_filename( home, "Documentos", base_parcial, NULL );
-   caminho->externo_escola = g_build_filename( home, "Documentos", dados->ano, dados->escola, NULL );
+   caminho->externo = g_build_filename( caminho->raiz, "drive", caminho->base, NULL );
+   caminho->externo_final = g_build_filename( caminho->raiz, "drive", base_parcial, NULL );
+   caminho->externo_escola = g_build_filename( caminho->raiz, "drive", dados->ano, dados->escola, NULL );
 
    // Libera a string temporária que usamos apenas para montar os relatórios finais
    g_free( base_parcial );
@@ -436,15 +434,15 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
 
 
 //==================================================================================================
-void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
+void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
    g_return_if_fail( ctx );
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
 
    // 1. Aborta se não houver registros carregados na memória
-   if ( !ui_diario->diarios || ui_diario->diarios->len == 0 ) return;
+   if ( !diario->aulas || diario->aulas->len == 0 ) return;
 
    // 2. Acessa o primeiro registro diretamente do GArray em O(1)
-   RegistroDiario *primeiro_registro = &g_array_index( ui_diario->diarios, RegistroDiario, 0 );
+   RegistroAula *primeiro_registro = &g_array_index( diario->aulas, RegistroAula, 0 );
 
    // 3. Conta os alunos presentes no primeiro registro salvo na RAM
    int qtd_fichas = 0;
@@ -458,7 +456,7 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // 5. Verificação profunda: A ordem alfabética ou os IDs mudaram?
    if ( !precisa_sincronizar ) {
       for ( int k = 0; k < qtd_fichas; k++ ) {
-         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, k );
+         FichaAluno *ficha = g_ptr_array_index( diario->fichas, k );
          if ( primeiro_registro->chamada[k].cod_aluno != ficha->cod_aluno ) {
             precisa_sincronizar = TRUE;
             break;
@@ -476,8 +474,8 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
    // Aloca a Hash Table uma única vez fora do laço para não estressar o alocador de memória
    GHashTable *hash_status = g_hash_table_new( g_direct_hash, g_direct_equal );
 
-   for ( guint r = 0; r < ui_diario->diarios->len; r++ ) {
-      RegistroDiario *registro = &g_array_index( ui_diario->diarios, RegistroDiario, r );
+   for ( guint r = 0; r < diario->aulas->len; r++ ) {
+      RegistroAula *registro = &g_array_index( diario->aulas, RegistroAula, r );
       RegistroChamada nova_chamada[64] = {0}; // Zera magicamente todos os bytes
 
       // Limpa as chaves do dia anterior sem destruir a Hash Table
@@ -490,9 +488,9 @@ void sincronizar_registro_diario_com_turma_siaep( AppContext *ctx ) {
                               GINT_TO_POINTER( registro->chamada[j].status ) );
       }
 
-      // B) Reconstrói a chamada do zero, espelhando a ordem oficial de ui_diario->fichas
+      // B) Reconstrói a chamada do zero, espelhando a ordem oficial de diario->fichas
       for ( int k = 0; k < ctx->dados.qtd_alunos_total && k < 64; k++ ) {
-         FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, k );
+         FichaAluno *ficha = g_ptr_array_index( diario->fichas, k );
          uint32_t cod_alvo = ficha->cod_aluno;
          nova_chamada[k].cod_aluno = cod_alvo;
 
@@ -577,10 +575,10 @@ static gint _alfabetica_lista_de_alunos( gconstpointer a, gconstpointer b ) {
 //--------------------------------------------------------------------------------------------------
 void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   InterfaceDiario *ui_diario = &ctx->ui_diario;
+   InterfaceDiario *diario = &ctx->diario;
 
    // 1. Limpeza segura (O g_ptr_array_unref agora vai liberar a lista E todas as structs internas)
-   g_clear_pointer( ( gpointer * ) &ui_diario->fichas, g_ptr_array_unref );
+   g_clear_pointer( ( gpointer * ) &diario->fichas, g_ptr_array_unref );
 
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
@@ -616,7 +614,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    // =========================================================================
    // 4. NOVA ALOCAÇÃO: GPtrArray com Destruição Automática (g_free)
    // =========================================================================
-   ui_diario->fichas = g_ptr_array_new_full( dados->qtd_alunos_total, g_free );
+   diario->fichas = g_ptr_array_new_full( dados->qtd_alunos_total, g_free );
 
    g_autofree gchar *dir_base_alunos = g_build_filename( caminho->raiz, "dados", "informados",
                                                          dados->ano, dados->escola, "fichas", NULL );
@@ -652,7 +650,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
             }
 
             // Anexa APENAS O PONTEIRO no GPtrArray
-            g_ptr_array_add( ui_diario->fichas, ficha_ptr );
+            g_ptr_array_add( diario->fichas, ficha_ptr );
 
          } else {
             g_printerr( "[Aviso] Tamanho corrompido para o aluno %" PRIu32 "\n", acesso->cod_aluno );
@@ -666,7 +664,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    }
 
    // 6. Ordenação Alfabética do Array de Ponteiros
-   g_ptr_array_sort( ui_diario->fichas, _alfabetica_lista_de_alunos );
+   g_ptr_array_sort( diario->fichas, _alfabetica_lista_de_alunos );
 }
 //----------------------------------------------------------------------------------------------------
 

@@ -16,7 +16,7 @@
 #include "basicas.h"
 
 #include "mensagens.h"
-#include "ui_diario.h"
+#include "diario.h"
 
 
 
@@ -207,9 +207,9 @@ void inicializacao_app_context( AppContext *ctx ) {
          .tem_proxima_mensagem = FALSE
       },
 
-      .ui_diario = {
+      .diario = {
          // 3. Ponteiros Heap Principais
-         .diarios               = NULL,
+         .aulas               = NULL,
          .metas_avs            = NULL,
          .fichas                = NULL,
 
@@ -232,11 +232,11 @@ void inicializacao_app_context( AppContext *ctx ) {
          .botoes_travados    = FALSE
       },
 
-      .ui_latex = {
+      .latex = {
          .handler_combo_tema_espelho = 0
       },
 
-      .ui_prova = {
+      .prova = {
          .subtemas           = NULL,
          .temas              = NULL,
          .handler_combo_tema = 0,
@@ -313,30 +313,30 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->caminho.questoes_tex, g_free );
 
    // 3. Salvamento e Liberação dos GArrays de Dados
-   if ( ctx->ui_diario.diarios ) {
+   if ( ctx->diario.aulas ) {
       salvar_diario( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.diarios, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->diario.aulas, g_array_unref );
    }
-   g_clear_pointer( &ctx->ui_diario.path_save_diarios, g_free );
+   g_clear_pointer( &ctx->diario.path_save_diarios, g_free );
 
-   if ( ctx->ui_diario.metas_avs ) {
+   if ( ctx->diario.metas_avs ) {
       salvar_avaliacoes( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.metas_avs, g_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->diario.metas_avs, g_array_unref );
    }
-   g_clear_pointer( &ctx->ui_diario.path_save_metas_avs, g_free );
+   g_clear_pointer( &ctx->diario.path_save_metas_avs, g_free );
 
-   if ( ctx->ui_diario.fichas ) {
+   if ( ctx->diario.fichas ) {
       salvar_fichas( ctx, TRUE );
-      g_clear_pointer( ( gpointer * ) &ctx->ui_diario.fichas, g_ptr_array_unref );
+      g_clear_pointer( ( gpointer * ) &ctx->diario.fichas, g_ptr_array_unref );
    }
-   g_clear_pointer( &ctx->ui_diario.path_save_fichas, g_free );
+   g_clear_pointer( &ctx->diario.path_save_fichas, g_free );
 
    // 4. Matriz do Acervo (handlers_check)
-   g_clear_pointer( &ctx->ui_prova.montagem.handlers_check, g_free );
+   g_clear_pointer( &ctx->prova.montagem.handlers_check, g_free );
 
    // 5. Arrays Dinâmicos da Interface (Cabeçalho e Provas)
-   g_clear_pointer( &ctx->ui_prova.subtemas, g_strfreev );
-   g_clear_pointer( &ctx->ui_prova.temas, g_strfreev );
+   g_clear_pointer( &ctx->prova.subtemas, g_strfreev );
+   g_clear_pointer( &ctx->prova.temas, g_strfreev );
 
    g_clear_pointer( &ctx->cabecalho.anos, g_strfreev );
    g_clear_pointer( &ctx->cabecalho.escolas, g_strfreev );
@@ -349,7 +349,7 @@ void limpeza_final( AppContext *ctx ) {
    g_clear_pointer( &ctx->painel.format_instrucao, g_free );
 
    // 7. Limpar gboolean
-   g_clear_pointer( &ctx->ui_diario.avaliacao.validas, g_free );
+   g_clear_pointer( &ctx->diario.avaliacao.validas, g_free );
 
    // 8. Provedor de Estilo CSS
    g_clear_object( ( gpointer * ) &ctx->provider );

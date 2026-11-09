@@ -331,10 +331,6 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
 
    // 1. Configura a rede de caminhos
    EspelhamentoDiretorios *paths = criar_estrutura_diretorios(diretorio, raiz, nome_turma_padrao);
-   // puts(paths->dir_turma);
-   // puts(paths->dir_destino);
-   // puts(paths->dest_acesso);
-   // puts(paths->dest_alunos);
 
    int lim_disc = _quantidade_diretorios(paths->dir_turma);
 
@@ -721,6 +717,8 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
    const InterfaceDados *dados   = &ctx->dados;
 
    g_autofree gchar *dir_origem = g_build_filename( dados->raiz, "planilhas", dados->ano, dados->escola, dados->periodo, NULL );
+   g_mkdir_with_parents( dir_origem, 0755 );
+
    g_autoptr( GPtrArray ) lista_arquivos = g_ptr_array_new_with_free_func( g_free );
 
    g_autoptr( GError ) erro = NULL;
@@ -751,7 +749,7 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
    #pragma omp parallel for schedule( dynamic, 1 )
    for ( int i = 0; i < num_arquivos; i++ ) {
       const gchar *arquivo_atual = ( const gchar * )g_ptr_array_index( lista_arquivos, i );
-      const int th = omp_get_thread_num();
+      int th = omp_get_thread_num();
       g_print( "[Thread %d] Processando: %s\n", th, arquivo_atual );
 
       g_autofree char *raiz = g_strdup( ctx->dados.raiz );

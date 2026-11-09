@@ -18,9 +18,9 @@
  */
 static void _configurar_nomes_dos_widgets( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   InterfaceLatex  *latex  = &ctx->ui_latex;
-   InterfaceProva  *prova  = &ctx->ui_prova;
-   InterfaceDiario *diario = &ctx->ui_diario;
+   InterfaceLatex  *latex  = &ctx->latex;
+   InterfaceProva  *prova  = &ctx->prova;
+   InterfaceDiario *diario = &ctx->diario;
 
    // 1. Nomes específicos para seletores do CSS
    gtk_widget_set_name( prova->combo_tema, "tema" );
@@ -220,7 +220,7 @@ static void _on_renderizar_cores_conteudo( GtkTreeViewColumn *col, GtkCellRender
 
 static void _inicializar_renderizadores_conteudo( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.conteudo.treeview ),
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->diario.conteudo.treeview ),
                                       0, 3, _on_renderizar_cores_conteudo, ctx );
 }
 
@@ -255,7 +255,7 @@ static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRend
 
 static void _inicializar_renderizadores_frequencia( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.frequencia.treeview ),
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->diario.frequencia.treeview ),
                                       0, 4, _on_renderizar_cores_frequencia, ctx );
 }
 
@@ -323,7 +323,7 @@ static void _on_renderizar_cores_notas( GtkTreeViewColumn *col, GtkCellRenderer 
 
 static void _inicializar_renderizadores_avaliacoes( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.avaliacao.treeview ),
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->diario.avaliacao.treeview ),
                                       0, 12, _on_renderizar_cores_notas, ctx );
 }
 
@@ -348,7 +348,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
-   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->ui_diario.relatorio.check_pendencias ) );
+   gboolean modo_pendencias = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->diario.relatorio.check_pendencias ) );
 
    gboolean editavel = FALSE;
    gboolean usar_fundo = FALSE;
@@ -414,7 +414,7 @@ static void _on_renderizar_cores_relatorio( GtkTreeViewColumn *col, GtkCellRende
 
 static void _inicializar_renderizadores_relatorio( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->ui_diario.relatorio.treeview ),
+   _vincular_renderizadores_em_massa( GTK_TREE_VIEW( ctx->diario.relatorio.treeview ),
                                       0, 10, _on_renderizar_cores_relatorio, ctx );
 }
 //============================================================================================================
@@ -449,7 +449,7 @@ static void _conectar_sinais_cabecalho( AppContext *ctx ) {
 
 
 static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
-   InterfaceDiario     *diario     = &ctx->ui_diario;
+   InterfaceDiario     *diario     = &ctx->diario;
    InterfaceConteudo   *conteudo   = &diario->conteudo;
    InterfaceFrequencia *frequencia = &diario->frequencia;
    InterfaceAvaliacao  *avaliacao  = &diario->avaliacao;
@@ -490,9 +490,9 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
    g_signal_connect( conteudo->entry_descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
    g_signal_connect( conteudo->btn_salvar, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
    g_signal_connect( conteudo->remover_registro, "clicked",
-                     G_CALLBACK( on_button_remover_registro_diario_selecionado_clicked ), ctx );
+                     G_CALLBACK( on_button_remover_registro_aula_selecionado_clicked ), ctx );
 
-   g_signal_connect( conteudo->treeview, "key-press-event", G_CALLBACK( on_treeview_remover_registro_diario_selecionado_key_press_event ), ctx );
+   g_signal_connect( conteudo->treeview, "key-press-event", G_CALLBACK( on_treeview_remover_registro_aula_selecionado_key_press_event ), ctx );
    g_signal_connect( conteudo->treeview, "row-activated",
                      G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
 
@@ -546,7 +546,7 @@ static void _conectar_sinais_aba_diarios( AppContext *ctx ) {
 
 
 static void _conectar_sinais_aba_latex( AppContext *ctx ) {
-   InterfaceLatex *latex = &ctx->ui_latex;
+   InterfaceLatex *latex = &ctx->latex;
 
    latex->handler_combo_tema_espelho = g_signal_connect( latex->combo_tema_espelho, "changed",
                                        G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
@@ -576,7 +576,7 @@ static void _conectar_sinais_aba_latex( AppContext *ctx ) {
 
 
 static void _conectar_sinais_aba_provas( AppContext *ctx ) {
-   InterfaceProva *prova = &ctx->ui_prova;
+   InterfaceProva *prova = &ctx->prova;
 
    g_signal_connect( prova->check_validar_ciclos, "toggled",
                      G_CALLBACK( on_check_atualizar_booleanos_interface_toggled ), ctx );

@@ -33,7 +33,7 @@ GrupoHorario id_horarios[QTD_GRUPOS] = {
 static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    g_return_if_fail( ctx );
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceDados  *dados   = &ctx->dados;
    const CaminhoDiretorio *caminho = &ctx->caminho;
@@ -47,7 +47,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    // 2. Mapeamento por ponteiros para restaurar a ordem original (SIAEP)
    g_autofree const FichaAluno **ordem_original = g_new0( const FichaAluno *, qtd_alunos );
    for ( int i = 0; i < qtd_alunos; i++ ) {
-      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
+      const FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
       int idx = ficha->idx_siaep;
       if ( idx >= 0 && idx < qtd_alunos ) {
          ordem_original[idx] = ficha;
@@ -102,7 +102,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
 //===================================================================================================
 static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, gboolean *validas ) {
    g_return_if_fail( ctx );
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados  *dados = &( ctx->dados );
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
@@ -161,7 +161,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 
    // 4. Loop da Lista de Alunos (Formatação On-the-Fly Limpa e com Autoclean da Memória)
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
+      const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
 
       // PASSO A: Nome do Aluno
       g_autofree gchar *s_nome = ficha->ativo
@@ -275,15 +275,15 @@ static void _calcular_media_do_periodo( FichaAluno *ficha, const InterfaceAvalia
    }
 }
 
-// Embrulhada de ctx->ui_diario.btn_salvar_avaliacoes
+// Embrulhada de ctx->diario.btn_salvar_avaliacoes
 void calcular_nota_periodo( const AppContext *ctx ) {
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
-   const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
+   const InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
 
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
-   for ( guint i = 0; i < ui_diario->fichas->len; i++ ) {
-      FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, i );
+   for ( guint i = 0; i < diario->fichas->len; i++ ) {
+      FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
       _calcular_media_do_periodo( ficha, avaliacao, cabecalho );
    }
 }
@@ -295,7 +295,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados   *dados   = &ctx->dados;
    const CaminhoDiretorio *caminho = &ctx->caminho;
-   const InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
+   const InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
 
    // 1. Não precisamos da nota do período, precisamos somente das parciais
    gerar_arquivo_siaep_notas( ctx );
@@ -554,7 +554,7 @@ static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, L
 //===================================================================================================
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
    g_return_if_fail( ctx );
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados *dados = &( ctx->dados );
    int foco_disciplina = ctx->cabecalho.foco_disciplina;
 
@@ -612,7 +612,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
 
    // Dentro de gerar_tex_relatorio_final():
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
+      const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
       LinhaRelatorioTeX linha;
 
       _preencher_linha_relatorio_tex( ficha, foco_disciplina, &linha );
@@ -694,11 +694,11 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
    int end = ( pagina == 1 ) ? 27 : 54;
    int offset = ( pagina == 1 ) ? 0 : 27;
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados *dados = &ctx->dados;
    gboolean eh_recuperacao = ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL );
    int nal = dados->qtd_alunos_total;
-   int nn = ctx->ui_diario.diarios->len;
+   int nn = ctx->diario.aulas->len;
    double p = 199.0 / 330.0;
 
    g_string_append( tex, "\\noindent\\begin{tikzpicture}\n\\fill (0,0) circle (0pt);\n\\draw (1,-1) rectangle (28.7,-20);\n" );
@@ -729,7 +729,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 
    // Topo (Datas)
    for ( int i = 0; i < nn; i++ ) {
-      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
+      RegistroAula *r = &g_array_index( diario->aulas, RegistroAula, i );
       int dia = 0;
       sscanf( r->data, "%d", &dia );
       g_string_append_printf( tex, "\\node[inner sep=0pt] at (%.4f,%.4f) {%02d};\n", 7.0 + p * ( i + 0.5 ), -1.2 - 2.5 * p, dia );
@@ -764,7 +764,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
       double y_name   = -1.2 - p * ( i - offset + 2.52 );
 
       if ( i <= nal ) {
-         const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
+         const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
 
          if ( ficha->ativo ) {
             g_string_append_printf( tex, "\\node[inner sep=0pt] at (1.3,%.4f) {%02d};\n", y_center, i );
@@ -825,7 +825,7 @@ static void gerar_pagina_frequencia( GString *tex, int pagina, const AppContext 
 //------------------------------------------------------------------------------------------------------------------
 void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel && ctx );
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
@@ -846,8 +846,8 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
    double sqrt3_6 = 0.28867513459; // sqrt(3)/6 pré-calculado
 
    // 1. Processamento direto do GArray em RAM
-   for ( guint i = 0; i < ui_diario->diarios->len; i++ ) {
-      RegistroDiario *r = &g_array_index( ui_diario->diarios, RegistroDiario, i );
+   for ( guint i = 0; i < diario->aulas->len; i++ ) {
+      RegistroAula *r = &g_array_index( diario->aulas, RegistroAula, i );
 
       int dia, mes, ano;
       sscanf( r->data, "%d/%d/%d", &dia, &mes, &ano );
@@ -890,7 +890,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
          ad += ch;
 
          for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-            const FichaAluno *ficha = g_ptr_array_index( ui_diario->fichas, j );
+            const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
             if ( !ficha->ativo ) continue;
 
             GString *target = ( j < 27 ) ? marcacoes_pg1 : marcacoes_pg2;
@@ -988,7 +988,7 @@ void relatorio_de_frequencia( InterfacePainel *painel, const AppContext *ctx ) {
 
 
 
-static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
+static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *aulas, const char *caminho_saida ) {
    g_autoptr( GString ) conteudo_siaep = g_string_new( "" );
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
@@ -1001,23 +1001,23 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
 
    long int ( *id_h )[4] = id_horarios[index].ids;
 
-   for ( guint i = 0; i < registros->len; i++ ) {
-      RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
+   for ( guint i = 0; i < aulas->len; i++ ) {
+      RegistroAula *aula = &g_array_index( aulas, RegistroAula, i );
 
-      if ( d->tipo_registro == TIPO_REGISTRO_FERIADO || d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) continue;
+      if ( aula->tipo_registro == TIPO_REGISTRO_FERIADO || aula->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) continue;
 
       int dia = 0, mes = 0, ano = 0;
-      sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
+      sscanf( aula->data, "%d/%d/%d", &dia, &mes, &ano );
 
       int k = dia_da_semana( dia, mes, ano );
 
       if ( k == 0 || k == 1 ) {
          g_string_append_printf( conteudo_siaep, " (ERRO: DATA DE SÁBADO OU DOMINGO %02d/%02d/%d)\n", dia, mes, ano );
       } else {
-         for ( int j = 0; j < d->ch; j++ ) {
+         for ( int j = 0; j < aula->ch; j++ ) {
             int num_aux = 0;
             if ( i > 0 ) {
-               RegistroDiario *anterior = &g_array_index( registros, RegistroDiario, i - 1 );
+               RegistroAula *anterior = &g_array_index( aulas, RegistroAula, i - 1 );
                int dia_ant = 0;
                sscanf( anterior->data, "%d/", &dia_ant );
                if ( dia == dia_ant ) num_aux = 1;
@@ -1028,7 +1028,7 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
                                     dia, mes, ano,
                                     id_h[k - 2][j + num_aux],
                                     cabecalho->foco_periodo + 1,
-                                    d->tema, d->descricao );
+                                    aula->tema, aula->descricao );
          }
       }
    }
@@ -1037,12 +1037,12 @@ static void gerar_arquivo_siaep_cont( const AppContext *ctx, GArray *registros, 
 }
 
 
-static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, const char *caminho_saida ) {
+static void gerar_latex_conteudos( const AppContext *ctx, GArray *aulas, const char *caminho_saida ) {
    g_autoptr( GString ) tex = g_string_new( "" );
    const InterfaceDados *dados = &( ctx->dados );
    gboolean eh_recuperacao = ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL );
 
-   int nn = registros->len;
+   int nn = aulas->len;
    int somach = 0, ad = 0, ap = 0;
 
    // Arrays para o mapeamento dinâmico dos meses (suporta até 12 meses no mesmo período)
@@ -1056,9 +1056,9 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
    // PASSO 1: MAPEAMENTO DINÂMICO E CÁLCULO DOS TOTAIS
    // =========================================================================
    for ( int i = 0; i < nn; i++ ) {
-      RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
+      RegistroAula *aula = &g_array_index( aulas, RegistroAula, i );
       int dia = 0, mes = 0, ano = 0;
-      sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
+      sscanf( aula->data, "%d/%d/%d", &dia, &mes, &ano );
 
       // Verifica se é um mês novo (assume que 'registros' está em ordem cronológica)
       if ( num_meses == 0 || meses_id[num_meses - 1] != mes ) {
@@ -1068,16 +1068,16 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
          }
       }
 
-      somach += d->ch;
+      somach += aula->ch;
 
       // Atualiza automaticamente o limite inferior (cumulativo) do mês atual
       if ( num_meses > 0 && num_meses <= 12 ) {
          meses_acumulados[num_meses - 1] = somach;
       }
 
-      if ( d->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += d->ch; // Aulas Dadas
-      if ( d->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) ad += d->ch;  // Aulas Dadas
-      if ( d->tipo_registro != TIPO_REGISTRO_FERIADO ) ap += d->ch;     // Aulas Previstas
+      if ( aula->tipo_registro == TIPO_REGISTRO_AULA_NORMAL ) ad += aula->ch; // Aulas Dadas
+      if ( aula->tipo_registro == TIPO_REGISTRO_AULA_EXTRA ) ad += aula->ch;  // Aulas Dadas
+      if ( aula->tipo_registro != TIPO_REGISTRO_FERIADO ) ap += aula->ch;     // Aulas Previstas
    }
 
    // =========================================================================
@@ -1131,26 +1131,26 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
       int h_acumulado_curr = 0;
 
       for ( int i = 0; i < nn; i++ ) {
-         RegistroDiario *d = &g_array_index( registros, RegistroDiario, i );
+         RegistroAula *aula = &g_array_index( aulas, RegistroAula, i );
          int dia = 0, mes = 0, ano = 0;
-         sscanf( d->data, "%d/%d/%d", &dia, &mes, &ano );
+         sscanf( aula->data, "%d/%d/%d", &dia, &mes, &ano );
 
          h_acumulado_prev = h_acumulado_curr;
-         h_acumulado_curr += d->ch;
+         h_acumulado_curr += aula->ch;
 
          // Coordenadas Y calculadas diretamente em C
          double y_centro = -1.0 - ( 3.0 + 0.5 * ( h_acumulado_prev + h_acumulado_curr ) ) * p;
          double y_base   = -1.0 - p * ( h_acumulado_curr + 3.0 );
 
          g_autofree gchar *str_conteudo = NULL;
-         if ( d->tipo_registro == 1 ) {
-            str_conteudo = g_strdup_printf( "{\\color{blue}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
-         } else if ( d->tipo_registro == 2 ) {
-            str_conteudo = g_strdup_printf( "{\\color{red}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
-         } else if ( d->tipo_registro == 3 ) {
-            str_conteudo = g_strdup_printf( "{\\color{olive}\\textbf{%s} $-$ %s}", d->tema, d->descricao );
+         if ( aula->tipo_registro == 1 ) {
+            str_conteudo = g_strdup_printf( "{\\color{blue}\\textbf{%s} $-$ %s}", aula->tema, aula->descricao );
+         } else if ( aula->tipo_registro == 2 ) {
+            str_conteudo = g_strdup_printf( "{\\color{red}\\textbf{%s} $-$ %s}", aula->tema, aula->descricao );
+         } else if ( aula->tipo_registro == 3 ) {
+            str_conteudo = g_strdup_printf( "{\\color{olive}\\textbf{%s} $-$ %s}", aula->tema, aula->descricao );
          } else {
-            str_conteudo = g_strdup_printf( "\\textbf{%s} $-$ %s", d->tema, d->descricao );
+            str_conteudo = g_strdup_printf( "\\textbf{%s} $-$ %s", aula->tema, aula->descricao );
          }
 
          g_string_append_printf( tex,
@@ -1210,24 +1210,24 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *registros, con
 void relatorio_de_conteudos( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel && ctx );
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
 
    // 1. Valida diretamente o GArray em memória em vez de checar o arquivo
-   if ( !ui_diario->diarios || ui_diario->diarios->len == 0 ) {
+   if ( !diario->aulas || diario->aulas->len == 0 ) {
       g_print( "⚠ Nenhum registro de diário disponível na memória.\n" );
       // Opcional: Você pode acionar um criar_mensagem_painel() aqui se quiser notificar a UI
       return;
    }
 
-   // 2. Chama a geração do arquivo para o Script Java passando ui_diario->diarios
+   // 2. Chama a geração do arquivo para o Script Java passando diario->aulas
    g_autofree gchar *arquivo_siaep = g_build_filename( caminho->relatorios, "siaep_cont.dat", NULL );
-   gerar_arquivo_siaep_cont( ctx, ui_diario->diarios, arquivo_siaep );
+   gerar_arquivo_siaep_cont( ctx, diario->aulas, arquivo_siaep );
 
    // 3. Chama a geração do arquivo LaTeX substituindo o template descontinuado
    g_autofree gchar *arquivo_latex = g_build_filename( dados->raiz, "dados", "temporarios", "Conteúdos.tex", NULL );
-   gerar_latex_conteudos( ctx, ui_diario->diarios, arquivo_latex );
+   gerar_latex_conteudos( ctx, diario->aulas, arquivo_latex );
 
    // 4. Dispara o compilador
    disparar_latex( "Conteúdos", caminho->relatorios, dados, caminho );

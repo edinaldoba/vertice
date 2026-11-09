@@ -11,7 +11,7 @@
 #include "mensagens.h"
 #include "interface.h"
 #include "assincrono.h"
-#include "latex.h"
+#include "tex.h"
 // #include "./acervo/estatistica.h"
 
 // Caso ainda não tenha no seu header
@@ -264,21 +264,21 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
-   const InterfaceProva *ui_prova = &ctx->ui_prova;
+   const InterfaceProva *prova = &ctx->prova;
 
-   if ( ui_prova->subtemas == NULL ) return;
+   if ( prova->subtemas == NULL ) return;
 
    // 1. Delega a construção dos arquivos .tex para o Motor LaTeX
-   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
+   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    ui_prova->subtemas[i],
+                                    prova->subtemas[i],
                                     NULL );
 
-      motor_gerador_latex( pasta_tema, ui_prova->subtemas[i], dados );
+      motor_gerador_latex( pasta_tema, prova->subtemas[i], dados );
    }
 
-   if ( widget == ctx->ui_latex.btn_compilar ) {
+   if ( widget == ctx->latex.btn_compilar ) {
       painel->format_titulo    = meu_gerador_variadico( "⏳ Compilação em Andamento" );
       painel->format_subtitulo = meu_gerador_variadico( "O documento PDF deste acervo ainda não foi gerado." );
       painel->format_instrucao = meu_gerador_variadico( "Processando as questões de %s. Aguarde a conclusão para visualizar o material.", dados->tema );
@@ -303,19 +303,19 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
 
    const InterfaceDados *dados = &( ctx->dados );
    const CaminhoDiretorio *caminho = &( ctx->caminho );
-   const InterfaceProva *ui_prova = &ctx->ui_prova;
+   const InterfaceProva *prova = &ctx->prova;
 
-   if ( ui_prova->subtemas == NULL ) return;
+   if ( prova->subtemas == NULL ) return;
 
    gboolean mecanismo_executado = FALSE;
 
    // Declaração do iterador dentro do for (padrão moderno C99+)
-   for ( int i = 0; i < ui_prova->limite_subtemas; i++ ) {
+   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
 
       // Criação dinâmica e 100% segura do caminho do subtema, unindo as pastas com '/'
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
-                                    ui_prova->subtemas[i],
+                                    prova->subtemas[i],
                                     NULL );
 
       // A função retorna TRUE se o arquivo Q.c existia e foi processado

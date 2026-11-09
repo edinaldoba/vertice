@@ -139,7 +139,7 @@ typedef struct {
 // Contêiner Mestre: Aba DIÁRIOS (Notebook Page)
 typedef struct {
    // --- ARMAZENAMENTO EM MEMÓRIA RAM (Gerido pela GLib) ---
-   GArray *diarios;    // Registros cronológicos de aula
+   GArray *aulas;    // Registros cronológicos de aula
    GPtrArray *fichas;     // Perfil e configurações dos alunos
    GArray *metas_avs;  // Lista de avaliações por período
 
@@ -277,9 +277,9 @@ typedef struct {
 typedef struct {
    // --- ÁRVORE DE INTERFACES (VIEW) ---
    InterfaceCabecalho cabecalho;
-   InterfaceDiario    ui_diario;
-   InterfaceLatex     ui_latex;
-   InterfaceProva     ui_prova;
+   InterfaceDiario    diario;
+   InterfaceLatex     latex;
+   InterfaceProva     prova;
    InterfacePainel    painel;
 
    // --- ESTRUTURAS DE APOIO E CSS ---

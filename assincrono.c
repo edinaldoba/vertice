@@ -72,7 +72,7 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->snap.cabecalho = ctx->cabecalho;
    args->snap.caminho   = ctx->caminho;
    args->snap.hoje      = ctx->hoje;
-   args->snap.fichas    = clonar_diario_alunos( ctx->ui_diario.fichas, ctx->cabecalho.limite_disciplinas );
+   args->snap.fichas    = clonar_diario_alunos( ctx->diario.fichas, ctx->cabecalho.limite_disciplinas );
 
    // 2. Referências Mestre para a Main Thread
    args->ctx         = ctx;
@@ -82,8 +82,8 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
 
    gtk_widget_set_sensitive( widget, FALSE );
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, FALSE );
+   gtk_widget_set_sensitive( ctx->prova.btn_corrigir, FALSE );
+   gtk_widget_set_sensitive( ctx->prova.btn_importar, FALSE );
    gtk_widget_set_sensitive( aba_latex, FALSE );
 
    // 4. Criação da Thread Detached
@@ -95,8 +95,8 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       // Rollback imediato em caso de erro na alocação da thread
       gtk_widget_set_sensitive( widget, TRUE );
-      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
-      gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
+      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
+      gtk_widget_set_sensitive( ctx->prova.btn_importar, TRUE );
       gtk_widget_set_sensitive( aba_latex, TRUE );
 
       g_printerr( "ERRO: Falha ao criar a thread de geração de prova.\n" );
@@ -150,8 +150,8 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
 
    // Reativa a UI acessando os ponteiros mestre armazenados no AppContext
    if ( args->botao_gerar )          gtk_widget_set_sensitive( args->botao_gerar, TRUE );
-   if ( ctx->ui_prova.btn_corrigir ) gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
-   if ( ctx->ui_prova.btn_importar ) gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
+   if ( ctx->prova.btn_corrigir ) gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
+   if ( ctx->prova.btn_importar ) gtk_widget_set_sensitive( ctx->prova.btn_importar, TRUE );
    if ( aba_latex )                  gtk_widget_set_sensitive( aba_latex, TRUE );
 
    char instrucao[256] = {0};
@@ -285,12 +285,12 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
    // Referências Vivas
    args->painel          = &ctx->painel; // Passagem por referência para acesso em tempo real
    args->botao_processar = widget;
-   args->botao_corrigir = ctx->ui_prova.btn_corrigir;
+   args->botao_corrigir = ctx->prova.btn_corrigir;
    args->n_rejeitadas    = -1;
    args->cabecalho = ctx->cabecalho;
 
    gtk_widget_set_sensitive( widget, FALSE );
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, FALSE );
+   gtk_widget_set_sensitive( ctx->prova.btn_corrigir, FALSE );
 
    pthread_t thread_id;
    pthread_attr_t attr;
@@ -300,8 +300,8 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
    if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
       g_printerr( "ERRO: Falha ao criar a thread de processamento de imagens.\n" );
       gtk_widget_set_sensitive( widget, TRUE );
-      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
-      gtk_widget_set_sensitive( ctx->ui_prova.btn_importar, TRUE );
+      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
+      gtk_widget_set_sensitive( ctx->prova.btn_importar, TRUE );
       free( args );
    }
 
@@ -431,8 +431,8 @@ void* thread_processar_imagens_background( void *data ) {
 typedef struct {
    char *tema;                  // ctx->dados.tema
    int qtd_subtemas;            // ctx->cabecalho.limite_subtemas
-   GtkWidget *btn_compilar;   // ctx->ui_latex.btn_compilar
-   GtkWidget *btn_pdflatex;      // ctx->ui_latex.btn_pdflatex
+   GtkWidget *btn_compilar;   // ctx->latex.btn_compilar
+   GtkWidget *btn_pdflatex;      // ctx->latex.btn_pdflatex
    GtkWidget *widget;
    gchar **subtemas;         // ctx->cabecalho.subtemas (typedef struct {char str[64];} ItemCombo;)
    InterfacePainel *painel;     // ctx->painel
@@ -539,16 +539,16 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
    g_return_if_fail( dir_compile != NULL );
    g_return_if_fail( ctx != NULL );
 
-   gtk_widget_set_sensitive( ctx->ui_latex.btn_pdflatex, FALSE );
-   gtk_widget_set_sensitive( ctx->ui_latex.btn_compilar, FALSE );
+   gtk_widget_set_sensitive( ctx->latex.btn_pdflatex, FALSE );
+   gtk_widget_set_sensitive( ctx->latex.btn_compilar, FALSE );
 
    DadosCompilacaoAsync *async_data = g_new( DadosCompilacaoAsync, 1 );
 
    // Mapeamento direto das variáveis essenciais
    async_data->tema                   = g_strdup( ctx->dados.tema );
-   async_data->qtd_subtemas           = ctx->ui_prova.limite_subtemas;
-   async_data->btn_compilar         = ctx->ui_latex.btn_compilar;
-   async_data->btn_pdflatex            = ctx->ui_latex.btn_pdflatex;
+   async_data->qtd_subtemas           = ctx->prova.limite_subtemas;
+   async_data->btn_compilar         = ctx->latex.btn_compilar;
+   async_data->btn_pdflatex            = ctx->latex.btn_pdflatex;
    async_data->widget                 = widget;
    async_data->painel                 = painel;
    async_data->dir_compile            = g_strdup( dir_compile );
@@ -556,7 +556,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
 
    // Cópia absoluta do array (Blindagem contra alterações na interface durante a compilação)
    async_data->subtemas = g_new( gchar*, async_data->qtd_subtemas );
-   memcpy( async_data->subtemas, ctx->ui_prova.subtemas, sizeof( gchar* ) * async_data->qtd_subtemas );
+   memcpy( async_data->subtemas, ctx->prova.subtemas, sizeof( gchar* ) * async_data->qtd_subtemas );
 
    int num_cores = ( int ) g_get_num_processors();
    GError *erro = NULL;
@@ -657,7 +657,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
 
       if ( map[i].status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
          int num_aluno = map[i].num;
-         FichaAluno *ficha = g_ptr_array_index( ctx->ui_diario.fichas, num_aluno - 1 );
+         FichaAluno *ficha = g_ptr_array_index( ctx->diario.fichas, num_aluno - 1 );
 
          g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/dados/temporarios/%.2d.pdf", caminho->raiz, num_aluno );
          g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
@@ -757,8 +757,8 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
    // DESBLOQUEIO DE INTERFACE:
    // Se você bloqueia o botão de "Corrigir" lá na função principal,
    // desbloqueie-o aqui. Exemplo:
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
-   gtk_widget_set_sensitive( ctx->ui_prova.btn_processar, TRUE );
+   gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
+   gtk_widget_set_sensitive( ctx->prova.btn_processar, TRUE );
    // -------------------------------------------------------------------------
 
    if ( async->cronometro ) {
@@ -806,7 +806,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
       g_free( async_data->dir_compile );
       g_free( async_data );
 
-      gtk_widget_set_sensitive( ctx->ui_prova.btn_corrigir, TRUE );
+      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
 
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento" );
       painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o GNU Parallel." );

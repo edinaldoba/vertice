@@ -2,7 +2,7 @@
 #define RGBA_H
 
 #include <gtk/gtk.h>
-#include "comum.h" // Presumo que contenha TipoRegistroDiario e StatusAssiduidade
+#include "comum.h" // Presumo que contenha TipoRegistroAula e StatusAssiduidade
 
 // Funções Wrapper de Conveniência (Traduzem o negócio para a cor semântica)
 int cor_fundo_celula_pendente( int tema_ativo, GdkRGBA *cor_out );

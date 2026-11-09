@@ -15,7 +15,7 @@
 #include "callbacks.h"
 #include "mensagens.h"
 #include "dinamica.h"
-#include "ui_diario.h"
+#include "diario.h"
 
 // Esta é a única inclusão deste arquivo em todo o projeto
 #include "auxiliar.h"
@@ -92,8 +92,8 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados  *dados     = &ctx->dados;
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
-   InterfaceProva  *ui_prova  = &ctx->ui_prova;
+   const InterfaceDiario *diario = &ctx->diario;
+   InterfaceProva  *prova  = &ctx->prova;
 
    switch ( categoria ) {
    case CATEGORIA_UI_VALIDAR_CICLOS:
@@ -106,7 +106,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
       // Regra: Se a prova não é presencial (TRUE), os dados PRECISAM ser expostos (TRUE).
       if ( dados->nao_presencial && !dados->expor_dados ) {
          // Força o botão 'Expor Dados' a ligar. O GTK emitirá um "toggled" para ele.
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ui_diario->check_expor_dados ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( diario->check_expor_dados ), TRUE );
       }
       break;
 
@@ -116,7 +116,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
       // Regra: Se os dados forem ocultados (FALSE), a prova não pode ser 'não presencial' (FALSE).
       if ( !dados->expor_dados && dados->nao_presencial ) {
          // Força o botão 'Não Presencial' a desligar. O GTK emitirá um "toggled" para ele.
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ui_prova->check_nao_presencial ), FALSE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( prova->check_nao_presencial ), FALSE );
       }
       break;
 
@@ -142,7 +142,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       // Restrição de Layout: Se a prova tiver 2 colunas, o cabeçalho não pode ser lateral (tipo 2).
       // Dispara o rádio tipo 1 (Acima) automaticamente.
       if ( dados->qtd_colunas == 2 && dados->cabecalho_tipo == 2 ) {
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_cabecalho_tipo[0] ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_cabecalho_tipo[0] ), TRUE );
       }
       break;
 
@@ -162,7 +162,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       dados->cabecalho_tipo = valor; // 1 (acima) ou 2 (à esquerda)
       // Restrição de Layout: Se forçarem o cabeçalho lateral (tipo 2), a prova precisa ter 3 colunas.
       if ( dados->cabecalho_tipo == 2 && dados->qtd_colunas == 2 ) {
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->ui_latex.radio_qtd_colunas[1] ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_qtd_colunas[1] ), TRUE );
       }
       break;
 
@@ -225,7 +225,7 @@ void atualizar_tema( AppContext *ctx, char *tema ) {
 
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
-   InterfaceProva  *ui_prova  = &ctx->ui_prova;
+   InterfaceProva  *prova  = &ctx->prova;
    InterfacePainel  *painel  = &ctx->painel;
 
    // 1. Libera com segurança a cópia do tema anterior mantida em dados
@@ -235,23 +235,23 @@ void atualizar_tema( AppContext *ctx, char *tema ) {
     * 🛡️ REGRA DE POSSE DE MEMÓRIA (OWNERSHIP):
     * NÃO substituir g_strdup por g_steal_pointer ou atribuição direta!
     *
-    * O ponteiro 'tema' pertence ao vetor 'ui_prova->temas'. Roubar sua posse ou
+    * O ponteiro 'tema' pertence ao vetor 'prova->temas'. Roubar sua posse ou
     * compartilhar seu endereço causará um Dangling Pointer quando o vetor for
     * destruído, resultando em um crash por Double Free em 'dados->tema'.
     * 'dados->tema' DEVE obrigatoriamente possuir sua própria cópia no Heap.
     * ========================================================================= */
    dados->tema = g_strdup( tema );
 
-   g_clear_pointer( &ui_prova->subtemas, g_strfreev );
+   g_clear_pointer( &prova->subtemas, g_strfreev );
 
    g_autofree gchar *diretorio = g_build_filename( caminho->banco_questoes, dados->tema, NULL );
-   ui_prova->limite_subtemas = quantidade_diretorios( diretorio );
+   prova->limite_subtemas = quantidade_diretorios( diretorio );
 
-   if ( ui_prova->limite_subtemas > 0 ) {
-      ui_prova->subtemas = carregar_diretorios_temas( ui_prova->limite_subtemas, diretorio, NULL );
+   if ( prova->limite_subtemas > 0 ) {
+      prova->subtemas = carregar_diretorios_temas( prova->limite_subtemas, diretorio, NULL );
 
    } else {
-      const char *nome_widget = gtk_widget_get_name( ctx->ui_prova.combo_tema );
+      const char *nome_widget = gtk_widget_get_name( ctx->prova.combo_tema );
       if ( g_strcmp0( nome_widget, "evento_via_codigo" ) != 0 ) {
 
          // Alimenta os buffers variádicos e delega o estilo para o motor central (AVISO)
@@ -738,15 +738,15 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
    InterfaceDados    *dados    = &ctx->dados;
    CaminhoDiretorio  *caminho  = &ctx->caminho;
-   InterfaceDinamica *montagem = &ctx->ui_prova.montagem;
-   InterfaceLatex    *ui_latex = &ctx->ui_latex;
-   InterfaceProva    *ui_prova = &ctx->ui_prova;
+   InterfaceDinamica *montagem = &ctx->prova.montagem;
+   InterfaceLatex    *latex = &ctx->latex;
+   InterfaceProva    *prova = &ctx->prova;
 
    // 1. Limpeza de interface anterior (se o combo já estiver ativo)
-   if ( ui_prova->handler_combo_tema > 0 ) {
-      limpar_container( ui_prova->listbox_subtemas );
-      limpar_container( ui_latex->listbox_subtemas );
-      limpar_container( ui_prova->flowbox_selecionados );
+   if ( prova->handler_combo_tema > 0 ) {
+      limpar_container( prova->listbox_subtemas );
+      limpar_container( latex->listbox_subtemas );
+      limpar_container( prova->flowbox_selecionados );
 
       for ( int i = 0; i < dados->total_quest_prova; i++ ) {
          g_clear_pointer( &dados->selecao_quest_prova[i], g_free );
@@ -756,34 +756,35 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
    }
 
    // Usa a nova função auxiliar de gerenciamento seguro de strings
-   g_clear_pointer( &ui_prova->subtemas, g_strfreev );
-   g_clear_pointer( &ui_prova->temas, g_strfreev );
+   g_clear_pointer( &prova->subtemas, g_strfreev );
+   g_clear_pointer( &prova->temas, g_strfreev );
 
-   ui_prova->foco_tema = 0;
-   ui_prova->limite_temas = 0;
-   ui_prova->limite_subtemas = 0; // Garantia extra de redefinição de estado
+   prova->foco_tema = 0;
+   prova->limite_temas = 0;
+   prova->limite_subtemas = 0; // Garantia extra de redefinição de estado
 
    // 3. Define o caminho físico do Acervo para a disciplina atual
    g_clear_pointer( &caminho->banco_questoes, g_free );
    caminho->banco_questoes = g_build_filename( dados->raiz, "acervo", dados->disciplina, NULL );
+   g_mkdir_with_parents( caminho->banco_questoes, 0755 );
 
    // 4. Verifica a existência e processa o diretório
    if ( diretorio_existe( caminho->banco_questoes ) ) {
-      ui_prova->limite_temas = quantidade_diretorios( caminho->banco_questoes );
+      prova->limite_temas = quantidade_diretorios( caminho->banco_questoes );
    }
 
    // 5. Bifurcação de Estado (Carga ou Fallback)
-   if ( ui_prova->limite_temas > 0 ) {
+   if ( prova->limite_temas > 0 ) {
 
-      ui_prova->temas = carregar_diretorios_temas( ui_prova->limite_temas, caminho->banco_questoes, NULL );
+      prova->temas = carregar_diretorios_temas( prova->limite_temas, caminho->banco_questoes, NULL );
 
-      popular_combo_box_text( ctx->ui_prova.combo_tema, ui_prova->temas, 0,
-                              ui_prova->limite_temas, ui_prova->handler_combo_tema );
+      popular_combo_box_text( ctx->prova.combo_tema, prova->temas, 0,
+                              prova->limite_temas, prova->handler_combo_tema );
 
-      popular_combo_box_text( ctx->ui_latex.combo_tema_espelho, ui_prova->temas, 0,
-                              ui_prova->limite_temas, ui_latex->handler_combo_tema_espelho );
+      popular_combo_box_text( ctx->latex.combo_tema_espelho, prova->temas, 0,
+                              prova->limite_temas, latex->handler_combo_tema_espelho );
 
-      atualizar_tema( ctx, ui_prova->temas[0] );
+      atualizar_tema( ctx, prova->temas[0] );
 
    } else {
       // Pasta ausente ou vazia
@@ -792,21 +793,21 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
       // Solução Elegante para as 6 linhas: Agrupamos por contexto de execução.
       // Primeiro blindamos a interface, depois alteramos os dados, e então liberamos a interface.
-      if ( ui_prova->handler_combo_tema > 0 ) {
-         g_signal_handler_block( ctx->ui_prova.combo_tema, ui_prova->handler_combo_tema );
+      if ( prova->handler_combo_tema > 0 ) {
+         g_signal_handler_block( ctx->prova.combo_tema, prova->handler_combo_tema );
       }
-      if ( ui_latex->handler_combo_tema_espelho > 0 ) {
-         g_signal_handler_block( ctx->ui_latex.combo_tema_espelho, ui_latex->handler_combo_tema_espelho );
+      if ( latex->handler_combo_tema_espelho > 0 ) {
+         g_signal_handler_block( ctx->latex.combo_tema_espelho, latex->handler_combo_tema_espelho );
       }
 
-      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->ui_prova.combo_tema ) );
-      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->ui_latex.combo_tema_espelho ) );
+      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->prova.combo_tema ) );
+      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->latex.combo_tema_espelho ) );
 
-      if ( ui_prova->handler_combo_tema > 0 ) {
-         g_signal_handler_unblock( ctx->ui_prova.combo_tema, ui_prova->handler_combo_tema );
+      if ( prova->handler_combo_tema > 0 ) {
+         g_signal_handler_unblock( ctx->prova.combo_tema, prova->handler_combo_tema );
       }
-      if ( ui_latex->handler_combo_tema_espelho > 0 ) {
-         g_signal_handler_unblock( ctx->ui_latex.combo_tema_espelho, ui_latex->handler_combo_tema_espelho );
+      if ( latex->handler_combo_tema_espelho > 0 ) {
+         g_signal_handler_unblock( ctx->latex.combo_tema_espelho, latex->handler_combo_tema_espelho );
       }
    }
 }
@@ -820,11 +821,11 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    if ( !ctx ) return;
 
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
+   const InterfaceDiario *diario = &ctx->diario;
    InterfaceDados      *dados      = &ctx->dados;
-   InterfaceConteudo   *conteudo   = &ctx->ui_diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
-   InterfaceAvaliacao  *avaliacao = &ctx->ui_diario.avaliacao;
+   InterfaceConteudo   *conteudo   = &ctx->diario.conteudo;
+   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceAvaliacao  *avaliacao = &ctx->diario.avaliacao;
 
    ui_restaurar_registros_de_aula( ctx, TRUE );
    conteudo->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
@@ -843,7 +844,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    int foco = obter_foco_inicial( limite, ctx );
 
-   popular_combo_box_generico( frequencia->combo_alunos, ui_diario->fichas, limite, foco,
+   popular_combo_box_generico( frequencia->combo_alunos, diario->fichas, limite, foco,
                                frequencia->handler_combo_alunos, mapear_alunos );
 
    // Precisa que a lista de alunos já esteja populada
@@ -856,7 +857,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
       salvar_avaliacoes( ctx, FALSE );
       carregar_avaliacoes( ctx );
       obter_avaliacoes_validas( avaliacao );
-      sincronizar_registro_diario_com_turma_siaep( ctx );
+      sincronizar_registro_aula_com_turma_siaep( ctx );
    }
 
    gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
@@ -875,7 +876,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    iniciar_autosave_diario( ctx, 5 );
 
    g_autofree gchar *texto_ativos = g_strdup_printf( "%d ativos", dados->qtd_alunos_ativos );
-   gtk_label_set_text( GTK_LABEL( ctx->ui_prova.label_qtd_ativos ), texto_ativos );
+   gtk_label_set_text( GTK_LABEL( ctx->prova.label_qtd_ativos ), texto_ativos );
 }
 //==================================================================================================
 
@@ -884,12 +885,122 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
 
 //==================================================================================================
+// Função auxiliar para criar arquivos ocultos vazios
+static void _criar_arquivo_oculto( const gchar *diretorio, const gchar *nome ) {
+   if ( !diretorio || !nome || nome[0] == '\0' ) return;
+
+   g_autofree gchar *nome_oculto = g_strdup_printf( ".%s", nome );
+   g_autofree gchar *caminho_arquivo = g_build_filename( diretorio, nome_oculto, NULL );
+
+   if ( !g_file_test( caminho_arquivo, G_FILE_TEST_EXISTS ) ) {
+      g_file_set_contents( caminho_arquivo, "", -1, NULL ); // Cria o arquivo invisível vazio
+   }
+}
+
+//--------------------------------------------------------------------------------------------------
+static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_periodo ) {
+   g_return_if_fail( raiz != NULL && combo_periodo != NULL );
+
+   // =========================================================================
+   // 1. EXTRAÇÃO DOS PERÍODOS DO GLADE
+   // =========================================================================
+   GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( combo_periodo ) );
+   GtkTreeIter iter;
+   gboolean valid = gtk_tree_model_get_iter_first( model, &iter );
+
+   g_autoptr( GPtrArray ) lista_periodos = g_ptr_array_new_with_free_func( g_free );
+
+   // Varre o modelo interno do ComboBox e salva as strings ("1º Período", "2º Período"...)
+   while ( valid ) {
+      gchar *periodo = NULL;
+      // Em um GtkComboBoxText, o texto sempre fica armazenado na coluna 0
+      gtk_tree_model_get( model, &iter, 0, &periodo, -1 );
+
+      if ( periodo ) {
+         g_ptr_array_add( lista_periodos, periodo );
+      }
+      valid = gtk_tree_model_iter_next( model, &iter );
+   }
+
+   // =========================================================================
+   // 2. LEITURA DA CONFIGURAÇÃO INICIAL (vertice.ini)
+   // =========================================================================
+   g_autofree gchar *vertice_ini = g_build_filename( raiz, "config", "vertice.ini", NULL );
+
+   g_autoptr( GKeyFile ) keyfile = g_key_file_new();
+   g_autoptr( GError ) error = NULL;
+
+   if ( !g_key_file_load_from_file( keyfile, vertice_ini, G_KEY_FILE_NONE, &error ) ) {
+      g_printerr( "[Aviso] Arquivo vertice.ini não encontrado ou inválido: %s\n", error->message );
+      return;
+   }
+
+   g_autofree gchar *ano_letivo = g_key_file_get_string( keyfile, "Geral", "ano_letivo", NULL );
+   if ( !ano_letivo ) ano_letivo = g_strdup( "2027" ); // Fallback
+
+   gsize n_escolas = 0;
+   g_auto( GStrv ) escolas = g_key_file_get_string_list( keyfile, "Geral", "escolas", &n_escolas, NULL );
+   if ( !escolas ) return;
+
+   g_autofree gchar *base_informados = g_build_filename( raiz, "dados", "informados", ano_letivo, NULL );
+
+   // =========================================================================
+   // 3. CONSTRUÇÃO DA HIERARQUIA COMPLETA
+   // =========================================================================
+   for ( gsize e = 0; e < n_escolas; e++ ) {
+      const gchar *escola = escolas[e];
+      g_autofree gchar *dir_escola = g_build_filename( base_informados, escola, NULL );
+      g_mkdir_with_parents( dir_escola, 0755 );
+
+      // Arquivo oculto do GESTOR (Raiz da escola)
+      g_autofree gchar *gestor = g_key_file_get_string( keyfile, escola, "gestor", NULL );
+      if ( gestor ) _criar_arquivo_oculto( dir_escola, gestor );
+
+      gsize n_turmas = 0;
+      g_auto( GStrv ) turmas = g_key_file_get_string_list( keyfile, escola, "turmas", &n_turmas, NULL );
+      if ( !turmas ) continue;
+
+      for ( gsize i = 0; i < n_turmas; i++ ) {
+         const gchar *turma = turmas[i];
+         g_autofree gchar *dir_turma = g_build_filename( dir_escola, turma, NULL );
+         g_mkdir_with_parents( dir_turma, 0755 );
+
+         g_autofree gchar *secao_turma = g_strdup_printf( "%s:%s", escola, turma );
+
+         gsize n_disc = 0;
+         g_auto( GStrv ) disciplinas = g_key_file_get_string_list( keyfile, secao_turma, "disciplinas", &n_disc, NULL );
+         if ( !disciplinas ) continue;
+
+         for ( gsize j = 0; j < n_disc; j++ ) {
+            const gchar *disc = disciplinas[j];
+            g_autofree gchar *dir_disc = g_build_filename( dir_turma, disc, NULL );
+            g_mkdir_with_parents( dir_disc, 0755 );
+
+            // Arquivo oculto do PROFESSOR (Raiz da disciplina)
+            g_autofree gchar *chave_prof = g_strdup_printf( "prof_%s", disc );
+            g_autofree gchar *prof = g_key_file_get_string( keyfile, secao_turma, chave_prof, NULL );
+            if ( prof ) _criar_arquivo_oculto( dir_disc, prof );
+
+            // ---------------------------------------------------------------
+            // O GRAN FINALE: Injeção dos Períodos lidos do GTK na Disciplina
+            // ---------------------------------------------------------------
+            for ( guint p = 0; p < lista_periodos->len; p++ ) {
+               const gchar *periodo = g_ptr_array_index( lista_periodos, p );
+
+               g_autofree gchar *dir_periodo = g_build_filename( dir_disc, periodo, NULL );
+               g_mkdir_with_parents( dir_periodo, 0755 );
+            }
+         }
+      }
+   }
+}
+//--------------------------------------------------------------------------------------------------
 void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    if ( !ctx ) return;
 
    InterfaceDados     *dados    = &ctx->dados;
-   InterfaceConteudo  *conteudo = &ctx->ui_diario.conteudo;
-   InterfaceAvaliacao *avaliacao = &ctx->ui_diario.avaliacao;
+   InterfaceConteudo  *conteudo = &ctx->diario.conteudo;
+   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    dados->max_quest_prova = 20;
@@ -914,29 +1025,33 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    long int escalar_hoje = mapear_data_para_id( ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
    cabecalho->foco_periodo_vigente = foco_periodo_corrente( escalar_hoje );
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
+   GtkComboBox *combo_periodo = GTK_COMBO_BOX( cabecalho->combo_periodo );
 
-   gtk_combo_box_set_active( GTK_COMBO_BOX( cabecalho->combo_periodo ), cabecalho->foco_periodo );
+   gtk_combo_box_set_active( combo_periodo, cabecalho->foco_periodo );
    dados->periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
 
    dados->foco_cor_serie = COR_SERIE_PRIMEIRO_ANO;
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_cor_serie ), dados->foco_cor_serie );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_cor_serie ), dados->foco_cor_serie );
 
    dados->foco_decoracao = DECORACAO_TRAPEZIOS;
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->ui_latex.combo_decoracao ), dados->foco_decoracao );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_decoracao ), dados->foco_decoracao );
 
-   dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->ui_prova.combo_seq_prova ) );
+   dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->prova.combo_seq_prova ) );
 
    const gchar *home = g_get_home_dir();
-   ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "LATEX", "SEDUC", NULL );
+   // ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "LATEX", "SEDUC", NULL );
+   ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "Vértice", NULL );
    dados->raiz = ctx->caminho.raiz;
+
+   _carregar_escolas_e_turmas( dados->raiz, combo_periodo );
 
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", NULL );
    cabecalho->limite_anos = quantidade_diretorios( diretorio );
    cabecalho->anos = carregar_diretorios_temas( cabecalho->limite_anos, diretorio, NULL );
 
    popular_combo_box_text( cabecalho->combo_ano, cabecalho->anos, cabecalho->limite_anos - 1, cabecalho->limite_anos, cabecalho->handler_ano );
-   on_entry_atualizar_ano_interface_changed( NULL, ctx );
 
+   on_entry_atualizar_ano_interface_changed( NULL, ctx );
 }
 //======================================================================================================================//
 
@@ -987,7 +1102,7 @@ gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboole
    if ( !ctx || !nova_escola ) return FALSE;
 
    InterfaceDados     *dados     = &ctx->dados;
-   InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
+   InterfaceResponsavel *responsavel = &ctx->diario.responsavel;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    gboolean escola_mudou = ( g_strcmp0( nova_escola, dados->escola ) != 0 );
@@ -1069,7 +1184,7 @@ void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gb
 
    InterfaceDados     *dados     = &ctx->dados;
    CaminhoDiretorio   *caminho   = &ctx->caminho;
-   InterfaceResponsavel *responsavel = &ctx->ui_diario.responsavel;
+   InterfaceResponsavel *responsavel = &ctx->diario.responsavel;
 
    // Agora SIM! TRUE significa que mudou, FALSE significa que é igual.
    gboolean disciplina_mudou = ( g_strcmp0( nova_disciplina, dados->disciplina ) != 0 );

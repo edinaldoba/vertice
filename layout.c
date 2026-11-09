@@ -176,11 +176,11 @@ static void _mapear_cabecalho( AppContext *ctx, GtkBuilder *builder ) {
 
 
 static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
-   InterfaceDiario     *diario     = &ctx->ui_diario;
-   InterfaceConteudo   *conteudo   = &ctx->ui_diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->ui_diario.frequencia;
-   InterfaceAvaliacao  *avaliacao  = &ctx->ui_diario.avaliacao;
-   InterfaceRelatorio  *relatorio  = &ctx->ui_diario.relatorio;
+   InterfaceDiario     *diario     = &ctx->diario;
+   InterfaceConteudo   *conteudo   = &ctx->diario.conteudo;
+   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceAvaliacao  *avaliacao  = &ctx->diario.avaliacao;
+   InterfaceRelatorio  *relatorio  = &ctx->diario.relatorio;
 
    // --- RAIZ DA ABA DIÁRIOS ---
    diario->stack_pages            = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages_diarios" ) );
@@ -261,7 +261,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
 
 static void _mapear_aba_latex( AppContext *ctx, GtkBuilder *builder ) {
-   InterfaceLatex *latex = &ctx->ui_latex;
+   InterfaceLatex *latex = &ctx->latex;
 
    latex->combo_tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
    latex->listbox_subtemas   = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
@@ -301,7 +301,7 @@ static void _mapear_aba_latex( AppContext *ctx, GtkBuilder *builder ) {
 
 
 static void _mapear_aba_provas( AppContext *ctx, GtkBuilder *builder ) {
-   InterfaceProva *prova = &ctx->ui_prova;
+   InterfaceProva *prova = &ctx->prova;
 
    prova->combo_tema           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
    prova->listbox_subtemas     = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas" ) );
@@ -346,9 +346,9 @@ static void _mapear_painel_feedback( AppContext *ctx, GtkBuilder *builder ) {
 
 static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builder ) {
    // Acesso direto aos domínios perfeitamente estruturados
-   const InterfaceDiario *ui_diario = &ctx->ui_diario;
-   InterfaceLatex  *ui_latex  = &ctx->ui_latex;
-   InterfaceProva  *ui_prova  = &ctx->ui_prova;
+   const InterfaceDiario *diario = &ctx->diario;
+   InterfaceLatex  *latex  = &ctx->latex;
+   InterfaceProva  *prova  = &ctx->prova;
 
    // Espaçamento nos Labels Soltos
    const gchar *labels[8] = {
@@ -363,29 +363,29 @@ static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builde
       }
 
       if ( g_strcmp0( labels[i], "label_config_diagramacao" ) == 0 ) {
-         ui_latex->label_diag_acervo = label;
+         latex->label_diag_acervo = label;
       }
    }
 
    // Espaçamento nos Labels Internos dos Botões (Usando a nova topologia)
    GtkWidget *widgets_botoes[17] = {
-      ui_diario->relatorio.btn_consolidar,
-      ui_diario->avaliacao.btn_nova_avaliacao,
-      ui_diario->avaliacao.btn_salvar,
-      ui_diario->conteudo.btn_salvar,
-      ui_diario->frequencia.btn_salvar,
-      ui_diario->avaliacao.btn_popover_nomear,
-      ui_latex->btn_pdflatex,
-      ui_latex->btn_compilar,
-      ui_latex->btn_diversificar,
-      ui_diario->btn_frequencia,
-      ui_diario->btn_conteudo,
-      ui_diario->btn_avaliacao,
-      ui_diario->btn_relatorio,
-      ui_prova->btn_gerar_prova,
-      ui_prova->btn_corrigir,
-      ui_prova->btn_processar,
-      ui_prova->btn_importar
+      diario->relatorio.btn_consolidar,
+      diario->avaliacao.btn_nova_avaliacao,
+      diario->avaliacao.btn_salvar,
+      diario->conteudo.btn_salvar,
+      diario->frequencia.btn_salvar,
+      diario->avaliacao.btn_popover_nomear,
+      latex->btn_pdflatex,
+      latex->btn_compilar,
+      latex->btn_diversificar,
+      diario->btn_frequencia,
+      diario->btn_conteudo,
+      diario->btn_avaliacao,
+      diario->btn_relatorio,
+      prova->btn_gerar_prova,
+      prova->btn_corrigir,
+      prova->btn_processar,
+      prova->btn_importar
    };
 
    for ( int i = 0; i < 17; i++ ) {

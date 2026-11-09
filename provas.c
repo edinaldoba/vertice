@@ -15,7 +15,7 @@
 #include "provas.h"
 #include "comum.h"
 #include "basicas.h"
-#include "latex.h"
+#include "tex.h"
 #include "imgcore.h"
 
 
