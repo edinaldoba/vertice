@@ -4,7 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include "diario.h"
+#include "diarios.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -177,16 +177,16 @@ gchar* validar_data( const gchar *texto ) {
 
    int dia = 0, mes = 0, ano = 0;
    gboolean data_valida = FALSE;
+   size_t len = strlen( texto );
 
-   if ( texto != NULL ) {
-      // Extração flexível (Barras, 6 dígitos ou 8 dígitos)
-      if ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 ) {
-         data_valida = TRUE;
-      } else if ( sscanf( texto, "%02d%02d%02d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 6 ) {
-         data_valida = TRUE;
-      } else if ( sscanf( texto, "%02d%02d%04d", &dia, &mes, &ano ) == 3 && strlen( texto ) == 8 ) {
-         data_valida = TRUE;
-      }
+   // Extração limpa e direta eliminando if/else if redundantes
+   if ( strchr( texto, '/' ) != NULL ) {
+      data_valida = ( sscanf( texto, "%d/%d/%d", &dia, &mes, &ano ) == 3 );
+   } else if ( len == 8 ) {
+      // Uso correto de delimitador de largura no scanf (%2d em vez de %02d)
+      data_valida = ( sscanf( texto, "%2d%2d%4d", &dia, &mes, &ano ) == 3 );
+   } else if ( len == 6 ) {
+      data_valida = ( sscanf( texto, "%2d%2d%2d", &dia, &mes, &ano ) == 3 );
    }
 
    if ( data_valida ) {
@@ -196,7 +196,8 @@ gchar* validar_data( const gchar *texto ) {
       }
 
       // Valida pelo calendário gregoriano da GLib
-      if ( ano >= 1900 && ano <= 2100 && g_date_valid_dmy( dia, mes, ano ) ) {
+      gboolean eh_data_valida = g_date_valid_dmy( (GDateDay)dia, (GDateMonth)mes, (GDateYear)ano );
+      if ( ano >= 1900 && ano <= 2100 && eh_data_valida ) {
          return g_strdup_printf( "%02d/%02d/%04d", dia, mes, ano ); // SUCESSO
       }
    }
@@ -282,7 +283,7 @@ gboolean remover_registro_aula_selecionado( AppContext *ctx, int indice_remocao,
    // =========================================================================
    // 4. REMOÇÃO ATÔMICA: RAM E AUTOSAVE
    // =========================================================================
-   g_array_remove_index( diario->aulas, indice_remocao );
+   g_array_remove_index( diario->aulas, (guint)indice_remocao );
    _marcar_dados_modificado( ctx );
 
    // =========================================================================
@@ -343,7 +344,7 @@ static void _extrair_linha_liststore_para_ram( GtkListStore *store, GtkTreeIter 
    }
 
    reg->ch = qtd;
-   reg->tipo_registro = tipo;
+   reg->tipo_registro = (TipoRegistroAula)tipo;
 }
 
 //===================================================================================================
@@ -460,7 +461,7 @@ void registrar_aula( AppContext *ctx ) {
    _reconstruir_ui_conteudos_da_ram( ctx );
 
    // Acha o índice final da aula para dar o scroll
-   int novo_indice = diario->aulas->len - 1;
+   int novo_indice = (int)diario->aulas->len - 1;
    for ( guint i = 0; i < diario->aulas->len; i++ ) {
       RegistroAula *r = &g_array_index( diario->aulas, RegistroAula, i );
       if ( g_strcmp0( r->data, nova_aula.data ) == 0 && g_strcmp0( r->tema, nova_aula.tema ) == 0 ) {
@@ -472,7 +473,7 @@ void registrar_aula( AppContext *ctx ) {
    // Limpezas de UI e Scroll...
    g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
    if ( path_novo ) {
-      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
    }
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( tree_view ) );
 
@@ -548,7 +549,7 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_from_indices( novo_indice, -1 );
    if ( path_novo ) {
-      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
    }
 
    conteudo->editando = FALSE;
@@ -567,7 +568,7 @@ void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, in
    GtkEntry *entry_descricao = GTK_ENTRY( conteudo->entry_descricao );
 
    const gchar *texto = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
-   int qtd_caracteres = g_utf8_strlen( texto, -1 );
+   int qtd_caracteres = (int)g_utf8_strlen( texto, -1 );
 
    // Matemática inteira limpa: (x * 3) / 2 substitui o round(x * 1.5)
    // Se qtd_caracteres == 0, a subtração será 0 automaticamente, dispensando o if/else
@@ -620,7 +621,7 @@ void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem ) {
       return;
    }
 
-   int total_registros = tamanho / sizeof( RegistroAula );
+   int total_registros = (int)(tamanho / sizeof( RegistroAula ));
    RegistroAula *registros = ( RegistroAula * )cont_bin;
    GtkTreeIter iter;
 
@@ -635,10 +636,10 @@ void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem ) {
    if ( rolagem && total_registros > 0 ) {
       g_autoptr( GtkTreePath ) path_fim = gtk_tree_model_get_path( model_view, &iter );
       if ( path_fim ) {
-         gtk_tree_view_scroll_to_cell( tree_view, path_fim, NULL, FALSE, 0.0, 0.0 );
+         gtk_tree_view_scroll_to_cell( tree_view, path_fim, NULL, FALSE, 0.0f, 0.0f );
       }
    } else if ( !rolagem && path_topo ) {
-      gtk_tree_view_scroll_to_cell( tree_view, path_topo, NULL, TRUE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( tree_view, path_topo, NULL, TRUE, 0.0f, 0.0f );
       gtk_tree_path_free( path_topo );
    }
 }
@@ -802,7 +803,7 @@ static void _processar_modo_por_aluno( AppContext *ctx, int idx_aula, const char
 
 static gchar *_cod_aluno_formatado( uint32_t cod_aluno ) {
    g_autofree gchar *str_temp = g_strdup_printf( "%" PRIu32, cod_aluno );
-   int len = strlen( str_temp );
+   int len = (int)strlen( str_temp );
 
    // Se o número tiver 3 dígitos ou menos, não precisa de ponto.
    if ( len <= 3 ) {
@@ -812,7 +813,7 @@ static gchar *_cod_aluno_formatado( uint32_t cod_aluno ) {
    int qtd_pontos = ( len - 1 ) / 3;
    int novo_len = len + qtd_pontos;
 
-   gchar *resultado = g_malloc( novo_len + 1 );
+   gchar *resultado = g_malloc( (guint)(novo_len + 1) );
    resultado[novo_len] = '\0';
 
    int i_origem = len - 1;
@@ -1053,14 +1054,14 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
       gboolean tipo_feriado    = ( aula->tipo_registro == TIPO_REGISTRO_FERIADO );
       gboolean tipo_pedagogico = ( aula->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
       if ( tipo_feriado || tipo_pedagogico ) {
-         if ( ( guint )proxima_data_pendente == i ) proxima_data_pendente = i + 1;
+         if ( ( guint )proxima_data_pendente == i ) proxima_data_pendente = (int)(i + 1);
          continue;
       }
 
       int idx_st = aula->chamada[idx_aluno].status;
 
       if ( idx_st == SEM_STATUS && !achou_pendente ) {
-         proxima_data_pendente = i;
+         proxima_data_pendente = (int)i;
          achou_pendente = TRUE;
       }
 
@@ -1221,7 +1222,7 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
    // Proteção extra contra underflow
    if ( foco < 0 ) foco = 0;
 
-   float row_align = 1.0;
+   float row_align = 1.0f;
 
    // O g_autoptr cuida da liberação automática de memória do GtkTreePath
    g_autoptr( GtkTreePath ) path = gtk_tree_path_new_from_indices( foco, -1 );
@@ -1229,7 +1230,7 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
    // TRUE ativa o alinhamento.
    // Penúltimo parâmetro (row_align) controla eixo Y.
    // Último parâmetro (col_align) mantido em 0.0 para evitar pulos horizontais.
-   gtk_tree_view_scroll_to_cell( treeview, path, NULL, TRUE, row_align, 0.0 );
+   gtk_tree_view_scroll_to_cell( treeview, path, NULL, TRUE, row_align, 0.0f );
 }
 
 
@@ -1270,7 +1271,7 @@ static gboolean carregar_garray_binario( GArray **array_ptr, gsize tamanho_eleme
       g_array_unref( *array_ptr );
    }
 
-   *array_ptr = g_array_new( FALSE, FALSE, tamanho_elemento );
+   *array_ptr = g_array_new( FALSE, FALSE, (guint)tamanho_elemento );
 
    if ( !caminho_arquivo ) return FALSE;
 
@@ -1278,9 +1279,9 @@ static gboolean carregar_garray_binario( GArray **array_ptr, gsize tamanho_eleme
    gsize tamanho = 0;
 
    if ( g_file_get_contents( caminho_arquivo, &conteudo, &tamanho, NULL ) ) {
-      int total_registros = tamanho / tamanho_elemento;
+      int total_registros = (int)(tamanho / tamanho_elemento);
       if ( total_registros > 0 ) {
-         g_array_append_vals( *array_ptr, conteudo, total_registros );
+         g_array_append_vals( *array_ptr, conteudo, (guint)total_registros );
          return TRUE;
       }
    }
@@ -1294,7 +1295,7 @@ static gboolean salvar_garray_binario( GArray *array, gsize tamanho_elemento, co
    gsize bytes_para_gravar = array->len * tamanho_elemento;
    GError *erro = NULL;
 
-   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )array->data, bytes_para_gravar, &erro ) ) {
+   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )array->data, (guint)bytes_para_gravar, &erro ) ) {
       g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
       g_clear_error( &erro );
       return FALSE;
@@ -1475,7 +1476,7 @@ void carregar_avaliacoes( AppContext *ctx ) {
          popular_combo_box_generico(
             avaliacao->combo_avaliacao,
             diario->metas_avs->data,               // Bloco contíguo das structs
-            diario->metas_avs->len,                // Quantidade exata de itens
+            (int)diario->metas_avs->len,                // Quantidade exata de itens
             foco_inicial,                        // Foco padrão
             avaliacao->handler_combo_avaliacao,  // Silencia o sinal durante o processo
             mapper_avaliacao_diario
@@ -1693,7 +1694,7 @@ static gboolean _salvar_bloco_binario( gconstpointer dados, gsize tamanho_bytes,
    if ( !dados || !caminho_arquivo ) return FALSE;
 
    GError *erro = NULL;
-   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )dados, tamanho_bytes, &erro ) ) {
+   if ( !g_file_set_contents( caminho_arquivo, ( const gchar * )dados, (guint)tamanho_bytes, &erro ) ) {
       g_printerr( "Aviso: Falha ao salvar %s: %s\n", caminho_arquivo, erro->message );
       g_clear_error( &erro );
       return FALSE;
@@ -1987,7 +1988,7 @@ void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_
    GtkWidget *editor = gtk_container_get_focus_child( GTK_CONTAINER( tree_view ) );
 
    // Rola a visualização (se necessário) e reabre a edição na nova célula
-   gtk_tree_view_scroll_to_cell( tree_view, path_destino, col_destino, TRUE, 0.5, 0.9 );
+   gtk_tree_view_scroll_to_cell( tree_view, path_destino, col_destino, TRUE, 0.5f, 0.9f );
 
    // Força o disparo síncrono do sinal "edited" nativo do GTK
    if ( GTK_IS_CELL_EDITABLE( editor ) ) {
@@ -2132,7 +2133,10 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    // ==========================================================
    // 3. RETORNO ANTECIPADO UNIVERSAL (Destrava a rolagem do TreeView)
    // ==========================================================
-   if ( *nota_alvo == nova_nota ) {
+   // Aplicação da margem de tolerância (Epsilon) para silenciar o -Wfloat-equal
+   // e garantir a precisão sem precisar importar <math.h>
+   float diff = *nota_alvo - nova_nota;
+   if ( diff > -0.001f && diff < 0.001f ) {
       GtkTreePath *path_temp = gtk_tree_path_new_from_string( path_string );
       if ( path_temp ) {
          gtk_tree_model_row_changed( model, path_temp, &iter );
@@ -2158,7 +2162,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
 
    gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
 }
-//=============================================================================================================
+//=====================================================================================================
 
 
 
@@ -2328,7 +2332,7 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
    GtkTreePath *path_novo = gtk_tree_path_new_from_indices( 0, -1 );
    if ( path_novo ) {
-      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( avaliacao->treeview ), path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( avaliacao->treeview ), path_novo, NULL, FALSE, 0.0f, 0.0f );
       gtk_tree_path_free( path_novo );
    }
 }
@@ -2416,7 +2420,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
       gsize tamanho = 0;
 
       if ( g_file_get_contents( acesso_bin, &conteudo, &tamanho, NULL ) ) {
-         int qtd_acessos = tamanho / sizeof( AcessoFicha );
+         int qtd_acessos = (int)( tamanho / sizeof(AcessoFicha) );
          AcessoFicha *acessos = ( AcessoFicha * )conteudo;
 
          for ( int a = 0; a < qtd_acessos; a++ ) {
@@ -2536,7 +2540,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // 5. Retorna o scroll para o topo da lista
    GtkTreePath *path_novo = gtk_tree_path_new_first();
    if ( path_novo ) {
-      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0, 0.0 );
+      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
       gtk_tree_path_free( path_novo );
    }
 }
@@ -2576,7 +2580,7 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
    }
 
    g_autofree AcessoFicha *acessos = ( AcessoFicha * )conteudo;
-   int qtd_acessos = tamanho / sizeof( AcessoFicha );
+   int qtd_acessos = (int)(tamanho / sizeof(AcessoFicha));
 
    // Desativa todo mundo por precaução antes do filtro
    for ( int i = 0; i < qtd_acessos; i++ ) acessos[i].ativo = FALSE;
@@ -2612,7 +2616,7 @@ void gerar_acesso_recuperacao_final( AppContext *ctx ) {
    // 5. Cria a pasta da Recuperação (se não existir) e injeta o novo binário
    g_mkdir_with_parents( dir_rec, 0755 );
 
-   if ( g_file_set_contents( arq_rec, ( const gchar * )acessos, tamanho, NULL ) ) {
+   if ( g_file_set_contents( arq_rec, ( const gchar * )acessos, (guint)tamanho, NULL ) ) {
       g_print( "Acesso da Recuperação Final gerado com sucesso em: %s\n", dir_rec );
    } else {
       g_printerr( "Falha ao gravar acesso da Recuperação Final.\n" );

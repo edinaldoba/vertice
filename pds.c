@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "glib.h"
+#include "glibconfig.h"
 #include "matriz.h"
 #include "pds.h"
 #include "imgcore.h"
@@ -55,14 +57,14 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = mapa->x_origem + ( y_novo * mapa->vx ) + ( x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( y_novo * mapa->vy ) + ( x_novo * mapa->uy );
+         float x_orig = mapa->x_origem + ( (float)y_novo * mapa->vx ) + ( (float)x_novo * mapa->ux );
+         float y_orig = mapa->y_origem + ( (float)y_novo * mapa->vy ) + ( (float)x_novo * mapa->uy );
 
          int x_base = ( int )floorf( x_orig );
          int y_base = ( int )floorf( y_orig );
 
-         float dx = x_orig - x_base;
-         float dy = y_orig - y_base;
+         float dx = x_orig - (float)x_base;
+         float dy = y_orig - (float)y_base;
 
          int pA, pB, pC, pD;
 
@@ -83,12 +85,12 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
             pD = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x1] : 255;
          }
 
-         float interpolado = pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
-                             pB * dx * ( 1.0f - dy ) +
-                             pC * ( 1.0f - dx ) * dy +
-                             pD * dx * dy;
+         float interpolado = (float)pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
+                             (float)pB * dx * ( 1.0f - dy ) +
+                             (float)pC * ( 1.0f - dx ) * dy +
+                             (float)pD * dx * dy;
 
-         img->image[y_novo][x_novo] = ( int )( interpolado + 0.5f );
+         img->image[y_novo][x_novo] = ( guint8 )( interpolado + 0.5f );
       }
    }
 }
@@ -123,14 +125,14 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = mapa->x_origem + ( y_novo * mapa->vx ) + ( x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( y_novo * mapa->vy ) + ( x_novo * mapa->uy );
+         float x_orig = mapa->x_origem + ( (float)y_novo * mapa->vx ) + ( (float)x_novo * mapa->ux );
+         float y_orig = mapa->y_origem + ( (float)y_novo * mapa->vy ) + ( (float)x_novo * mapa->uy );
 
          int x_base = ( int )floorf( x_orig );
          int y_base = ( int )floorf( y_orig );
 
-         float dx = x_orig - x_base;
-         float dy = y_orig - y_base;
+         float dx = x_orig - (float)x_base;
+         float dy = y_orig - (float)y_base;
 
          PixelRGB pA, pB, pC, pD;
 
@@ -163,9 +165,9 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
          float pesoD = dx * dy;
 
          // Aplicação nos 3 canais de cor
-         float r_interp = pA.r * pesoA + pB.r * pesoB + pC.r * pesoC + pD.r * pesoD;
-         float g_interp = pA.g * pesoA + pB.g * pesoB + pC.g * pesoC + pD.g * pesoD;
-         float b_interp = pA.b * pesoA + pB.b * pesoB + pC.b * pesoC + pD.b * pesoD;
+         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB +  (float)pC.r * pesoC + (float)pD.r * pesoD;
+         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
+         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
 
          img->image[y_novo][x_novo].r = ( unsigned char )( r_interp + 0.5f );
          img->image[y_novo][x_novo].g = ( unsigned char )( g_interp + 0.5f );
@@ -181,9 +183,9 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
 void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora ) {
    if ( !IMG || !img || !ancora ) return;
 
-   float x_B = ancora[1].j, y_B = ancora[1].i;
-   float x_C = ancora[2].j, y_C = ancora[2].i;
-   float x_D = ancora[3].j, y_D = ancora[3].i;
+   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
+   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
+   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
 
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
@@ -197,10 +199,10 @@ void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const
    mapa.x_origem = x_B + x_D - x_C;
    mapa.y_origem = y_B + y_D - y_C;
 
-   mapa.ux = ( x_C - x_D ) / mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / mapa.altura_destino;
+   mapa.ux = ( x_C - x_D ) / (float)mapa.largura_destino;
+   mapa.uy = ( y_C - y_D ) / (float)mapa.largura_destino;
+   mapa.vx = ( x_C - x_B ) / (float)mapa.altura_destino;
+   mapa.vy = ( y_C - y_B ) / (float)mapa.altura_destino;
 
    aplicar_transformacao_afim( IMG, img, &mapa );
 }
@@ -211,9 +213,9 @@ void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const
 void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora ) {
    if ( !IMG || !img || !ancora ) return;
 
-   float x_B = ancora[1].j, y_B = ancora[1].i;
-   float x_C = ancora[2].j, y_C = ancora[2].i;
-   float x_D = ancora[3].j, y_D = ancora[3].i;
+   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
+   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
+   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
 
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
@@ -227,10 +229,10 @@ void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColor
    mapa.x_origem = x_B + x_D - x_C;
    mapa.y_origem = y_B + y_D - y_C;
 
-   mapa.ux = ( x_C - x_D ) / mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / mapa.altura_destino;
+   mapa.ux = ( x_C - x_D ) / (float)mapa.largura_destino;
+   mapa.uy = ( y_C - y_D ) / (float)mapa.largura_destino;
+   mapa.vx = ( x_C - x_B ) / (float)mapa.altura_destino;
+   mapa.vy = ( y_C - y_B ) / (float)mapa.altura_destino;
 
    aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
@@ -240,9 +242,9 @@ void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColor
 
 void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_graus ) {
    // Converte para radianos
-   float rad = angulo_graus * ( G_PI / 180.0f );
-   float cos_a = cosf( rad );
-   float sin_a = sinf( rad );
+   double rad = (double)angulo_graus * ( G_PI / 180.0 );
+   double cos_a = cos( rad );
+   double sin_a = sin( rad );
 
    MapeamentoAfim mapa;
    // Em uma rotação pura, as dimensões da imagem destino mudam para acomodar as pontas
@@ -250,14 +252,14 @@ void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_g
    mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
 
    // Vetores diretores simples baseados no ângulo
-   mapa.ux = cos_a;
-   mapa.uy = -sin_a;
-   mapa.vx = sin_a;
-   mapa.vy = cos_a;
+   mapa.ux = (float)cos_a;
+   mapa.uy = (float)-sin_a;
+   mapa.vx = (float)sin_a;
+   mapa.vy = (float)cos_a;
 
    // Calcula a origem para centralizar
-   mapa.x_origem = ( IMG->ncol / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.ux - ( mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( IMG->nrow / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.uy - ( mapa.altura_destino / 2.0f ) * mapa.vy;
+   mapa.x_origem = ( (float)IMG->ncol / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.ux - ( (float)mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( (float)IMG->nrow / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.uy - ( (float)mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim( IMG, img, &mapa );
 }
@@ -269,21 +271,21 @@ void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_g
 
 
 void rotacionar_imagem_colorida( const ImagemColorida *IMG, ImagemColorida *img, float angulo_graus ) {
-   float rad = angulo_graus * ( G_PI / 180.0f );
-   float cos_a = cosf( rad );
-   float sin_a = sinf( rad );
+   double rad = (double)angulo_graus * ( G_PI / 180.0 );
+   double cos_a = cos( rad );
+   double sin_a = sin( rad );
 
    MapeamentoAfim mapa;
    mapa.largura_destino = ( int )( fabs( IMG->ncol * cos_a ) + fabs( IMG->nrow * sin_a ) );
    mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
 
-   mapa.ux = cos_a;
-   mapa.uy = -sin_a;
-   mapa.vx = sin_a;
-   mapa.vy = cos_a;
+   mapa.ux = (float)cos_a;
+   mapa.uy = (float)-sin_a;
+   mapa.vx = (float)sin_a;
+   mapa.vy = (float)cos_a;
 
-   mapa.x_origem = ( IMG->ncol / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.ux - ( mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( IMG->nrow / 2.0f ) - ( mapa.largura_destino / 2.0f ) * mapa.uy - ( mapa.altura_destino / 2.0f ) * mapa.vy;
+   mapa.x_origem = ( (float)IMG->ncol / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.ux - ( (float)mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( (float)IMG->nrow / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.uy - ( (float)mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
@@ -297,9 +299,9 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
    if ( !IMG || !img || !ancora ) return;
 
    // Coordenadas dos 3 pontos âncoras de base (B, C e D)
-   float x_B = ancora[1].j, y_B = ancora[1].i;
-   float x_C = ancora[2].j, y_C = ancora[2].i;
-   float x_D = ancora[3].j, y_D = ancora[3].i;
+   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
+   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
+   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
 
    // 1. Dedução do Ponto A (Canto Superior Esquerdo)
    // Usado como ponto de origem inabalável para o mapeamento reverso
@@ -328,12 +330,12 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
 
    // 3. Vetores diretores de passo unitário
    // ux/uy (Passo Horizontal): Direção do vetor D->C
-   float ux = ( x_C - x_D ) / img->ncol;
-   float uy = ( y_C - y_D ) / img->ncol;
+   float ux = ( x_C - x_D ) / (float)img->ncol;
+   float uy = ( y_C - y_D ) / (float)img->ncol;
 
    // vx/vy (Passo Vertical): Direção do vetor B->C
-   float vx = ( x_C - x_B ) / img->nrow;
-   float vy = ( y_C - y_B ) / img->nrow;
+   float vx = ( x_C - x_B ) / (float)img->nrow;
+   float vy = ( y_C - y_B ) / (float)img->nrow;
 
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
@@ -345,14 +347,14 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
          // O mapa reverso usa o ponto A deduzido matematicamente como origem
-         float x_orig = x_A + ( y_novo * vx ) + ( x_novo * ux );
-         float y_orig = y_A + ( y_novo * vy ) + ( x_novo * uy );
+         float x_orig = x_A + ( (float)y_novo * vx ) + ( (float)x_novo * ux );
+         float y_orig = y_A + ( (float)y_novo * vy ) + ( (float)x_novo * uy );
 
          int x_base = ( int )floorf( x_orig );
          int y_base = ( int )floorf( y_orig );
 
-         float dx = x_orig - x_base;
-         float dy = y_orig - y_base;
+         float dx = x_orig - (float)x_base;
+         float dy = y_orig - (float)y_base;
 
          int pA, pB, pC, pD;
 
@@ -377,12 +379,12 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
          }
 
          // Cálculo dos pesos bilineares otimizado
-         float interpolado = pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
-                             pB * dx * ( 1.0f - dy ) +
-                             pC * ( 1.0f - dx ) * dy +
-                             pD * dx * dy;
+         float interpolado = (float)pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
+                             (float)pB * dx * ( 1.0f - dy ) +
+                             (float)pC * ( 1.0f - dx ) * dy +
+                             (float)pD * dx * dy;
 
-         img->image[y_novo][x_novo] = ( int )( interpolado + 0.5f );
+         img->image[y_novo][x_novo] = ( guint8 )( interpolado + 0.5f );
       }
    }
 }
@@ -395,9 +397,9 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
 void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora ) {
    if ( !IMG || !img || !ancora ) return;
 
-   float x_B = ancora[1].j, y_B = ancora[1].i;
-   float x_C = ancora[2].j, y_C = ancora[2].i;
-   float x_D = ancora[3].j, y_D = ancora[3].i;
+   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
+   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
+   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
 
    float x_A = x_B + x_D - x_C;
    float y_A = y_B + y_D - y_C;
@@ -420,10 +422,10 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   float ux = ( x_C - x_D ) / img->ncol;
-   float uy = ( y_C - y_D ) / img->ncol;
-   float vx = ( x_C - x_B ) / img->nrow;
-   float vy = ( y_C - y_B ) / img->nrow;
+   float ux = ( x_C - x_D ) / (float)img->ncol;
+   float uy = ( y_C - y_D ) / (float)img->ncol;
+   float vx = ( x_C - x_B ) / (float)img->nrow;
+   float vy = ( y_C - y_B ) / (float)img->nrow;
 
    int x_lim = IMG->ncol - 1;
    int y_lim = IMG->nrow - 1;
@@ -432,14 +434,14 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
    for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = x_A + ( y_novo * vx ) + ( x_novo * ux );
-         float y_orig = y_A + ( y_novo * vy ) + ( x_novo * uy );
+         float x_orig = x_A + ( (float)y_novo * vx ) + ( (float)x_novo * ux );
+         float y_orig = y_A + ( (float)y_novo * vy ) + ( (float)x_novo * uy );
 
          int x_base = ( int )floorf( x_orig );
          int y_base = ( int )floorf( y_orig );
 
-         float dx = x_orig - x_base;
-         float dy = y_orig - y_base;
+         float dx = x_orig - (float)x_base;
+         float dy = y_orig - (float)y_base;
 
          PixelRGB pA, pB, pC, pD;
 
@@ -468,9 +470,9 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
          float pesoC = ( 1.0f - dx ) * dy;
          float pesoD = dx * dy;
 
-         float r_interp = pA.r * pesoA + pB.r * pesoB + pC.r * pesoC + pD.r * pesoD;
-         float g_interp = pA.g * pesoA + pB.g * pesoB + pC.g * pesoC + pD.g * pesoD;
-         float b_interp = pA.b * pesoA + pB.b * pesoB + pC.b * pesoC + pD.b * pesoD;
+         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB + (float)pC.r * pesoC + (float)pD.r * pesoD;
+         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
+         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
 
          img->image[y_novo][x_novo].r = ( unsigned char )( r_interp + 0.5f );
          img->image[y_novo][x_novo].g = ( unsigned char )( g_interp + 0.5f );
@@ -504,25 +506,25 @@ void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, i
    if ( !destino->image ) return;
 
    // Fatores de proporção (mapeamento reverso alinhando os cantos)
-   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? destino->ncol - 1 : 1 );
-   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? destino->nrow - 1 : 1 );
+   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? (float)destino->ncol - 1 : 1 );
+   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? (float)destino->nrow - 1 : 1 );
 
    // Paralelização OpenMP ativada.
    // schedule(static) é perfeito aqui porque o custo computacional de cada linha é exatamente igual.
    // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < destino->nrow; i++ ) {
       // OTIMIZAÇÃO 1: Variáveis declaradas aqui dentro são PRIVADAS para cada thread
-      float src_y = y_ratio * i;
+      float src_y = y_ratio * (float)i;
       int y = ( int )src_y;
-      float y_diff = src_y - y;
+      float y_diff = src_y - (float)y;
       float y_inv = 1.0f - y_diff;
 
       int y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
 
       for ( int j = 0; j < destino->ncol; j++ ) {
-         float src_x = x_ratio * j;
+         float src_x = x_ratio * (float)j;
          int x = ( int )src_x;
-         float x_diff = src_x - x;
+         float x_diff = src_x - (float)x;
          float x_inv = 1.0f - x_diff;
 
          int x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
@@ -533,13 +535,13 @@ void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, i
          int c = origem->image[y_next][x];
          int d = origem->image[y_next][x_next];
 
-         float pixel_interpolado = a * x_inv * y_inv +
-                                   b * x_diff * y_inv +
-                                   c * x_inv * y_diff +
-                                   d * x_diff * y_diff;
+         float pixel_interpolado = (float)a * x_inv * y_inv +
+                                   (float)b * x_diff * y_inv +
+                                   (float)c * x_inv * y_diff +
+                                   (float)d * x_diff * y_diff;
 
          // OTIMIZAÇÃO 3: Escrita sem colisão, cada thread escreve na sua própria linha 'i'
-         destino->image[i][j] = ( int )( pixel_interpolado + 0.5f );
+         destino->image[i][j] = ( guint8 )( pixel_interpolado + 0.5f );
       }
    }
 }
@@ -570,23 +572,23 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
    if ( !destino->image ) return;
 
    // 4. Fatores de proporção
-   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? destino->ncol - 1 : 1 );
-   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? destino->nrow - 1 : 1 );
+   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? (float)destino->ncol - 1 : 1 );
+   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? (float)destino->nrow - 1 : 1 );
 
    // 5. Mapeamento Reverso Paralelizado
    // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < destino->nrow; i++ ) {
-      float src_y = y_ratio * i;
+      float src_y = y_ratio * (float)i;
       int y = ( int )src_y;
-      float y_diff = src_y - y;
+      float y_diff = src_y - (float)y;
       float y_inv = 1.0f - y_diff;
 
       int y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
 
       for ( int j = 0; j < destino->ncol; j++ ) {
-         float src_x = x_ratio * j;
+         float src_x = x_ratio * (float)j;
          int x = ( int )src_x;
-         float x_diff = src_x - x;
+         float x_diff = src_x - (float)x;
          float x_inv = 1.0f - x_diff;
 
          int x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
@@ -605,9 +607,9 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
          float pesoD = x_diff * y_diff;
 
          // Aplica os pesos aos 3 canais de forma independente
-         float r_interp = pA.r * pesoA + pB.r * pesoB + pC.r * pesoC + pD.r * pesoD;
-         float g_interp = pA.g * pesoA + pB.g * pesoB + pC.g * pesoC + pD.g * pesoD;
-         float b_interp = pA.b * pesoA + pB.b * pesoB + pC.b * pesoC + pD.b * pesoD;
+         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB + (float)pC.r * pesoC + (float)pD.r * pesoD;
+         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
+         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
 
          // Escrita limpa e sem colisão arredondando de volta para uint8_t
          destino->image[i][j].r = ( uint8_t )( r_interp + 0.5f );
@@ -656,7 +658,7 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
    for ( int i = -raio; i <= raio; i++ ) {
       for ( int j = -raio; j <= raio; j++ ) {
          // Não precisamos da constante externa da fórmula, pois normalizaremos no final
-         float peso = expf( -( ( i * i ) + ( j * j ) ) / divisor_expoente );
+         float peso = expf( (float)-( ( i * i ) + ( j * j ) ) / divisor_expoente );
          kernel[idx++] = peso;
          soma_pesos += peso;
       }
@@ -682,7 +684,7 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
          if ( x >= raio && x < IMG->ncol - raio && y >= raio && y < IMG->nrow - raio ) {
             for ( int ky = -raio; ky <= raio; ky++ ) {
                for ( int kx = -raio; kx <= raio; kx++ ) {
-                  pixel_acumulado += IMG->image[y + ky][x + kx] * kernel[k_idx++];
+                  pixel_acumulado += (float)IMG->image[y + ky][x + kx] * kernel[k_idx++];
                }
             }
          }
@@ -697,13 +699,13 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
                   int coord_x = x + kx;
                   coord_x = ( coord_x < 0 ) ? 0 : ( ( coord_x > x_lim ) ? x_lim : coord_x );
 
-                  pixel_acumulado += IMG->image[coord_y][coord_x] * kernel[k_idx++];
+                  pixel_acumulado += (float)IMG->image[coord_y][coord_x] * kernel[k_idx++];
                }
             }
          }
 
          // Arredondamento perfeito para inteiro
-         img->image[y][x] = ( int )( pixel_acumulado + 0.5f );
+         img->image[y][x] = ( guint8 )( pixel_acumulado + 0.5f );
       }
    }
 }
@@ -743,7 +745,7 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
    for ( int i = -raio; i <= raio; i++ ) {
       for ( int j = -raio; j <= raio; j++ ) {
          // Não precisamos da constante externa da fórmula, pois normalizaremos no final
-         float peso = expf( -( ( i * i ) + ( j * j ) ) / divisor_expoente );
+         float peso = expf( (float)-( ( i * i ) + ( j * j ) ) / divisor_expoente );
          kernel[idx++] = peso;
          soma_pesos += peso;
       }
@@ -775,9 +777,9 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
                   float peso = kernel[k_idx++];
                   const PixelRGB *p_src = &IMG->image[y + ky][x + kx];
 
-                  pixel_r += p_src->r * peso;
-                  pixel_g += p_src->g * peso;
-                  pixel_b += p_src->b * peso;
+                  pixel_r += (float)p_src->r * peso;
+                  pixel_g += (float)p_src->g * peso;
+                  pixel_b += (float)p_src->b * peso;
                }
             }
          }
@@ -794,9 +796,9 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
                   float peso = kernel[k_idx++];
                   const PixelRGB *p_src = &IMG->image[coord_y][coord_x];
 
-                  pixel_r += p_src->r * peso;
-                  pixel_g += p_src->g * peso;
-                  pixel_b += p_src->b * peso;
+                  pixel_r += (float)p_src->r * peso;
+                  pixel_g += (float)p_src->g * peso;
+                  pixel_b += (float)p_src->b * peso;
                }
             }
          }
@@ -882,7 +884,7 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
    // =================================================================================
    for ( int i = 0; i < IMG->nrow; i++ ) {
       for ( int j = 0; j < IMG->ncol; j++ ) {
-         IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? max_val : 0;
+         IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? (guint8)max_val : 0;
       }
    }
 }
@@ -1001,9 +1003,9 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
                                ( p22 * dx * dy );
 
             // Grava diretamente no crop
-            img_crop->image[y_dst][x_dst] = ( int )round( pixel_val );
+            img_crop->image[y_dst][x_dst] = ( guint8 )round( pixel_val );
          } else {
-            img_crop->image[y_dst][x_dst] = fundo_branco;
+            img_crop->image[y_dst][x_dst] = ( guint8 ) fundo_branco;
          }
       }
    }
@@ -1207,7 +1209,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
             soma += orig->image[r][nc];
          }
-         fundo_h.image[r][c] = ( int )( soma / qtd_vizinhos );
+         fundo_h.image[r][c] = ( guint8 )( soma / qtd_vizinhos );
       }
    }
 
@@ -1224,7 +1226,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
             soma += fundo_h.image[nr][c];
          }
-         fundo.image[r][c] = ( int )( soma / qtd_vizinhos );
+         fundo.image[r][c] = ( guint8 )( soma / qtd_vizinhos );
       }
    }
 
@@ -1248,7 +1250,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
          // Realce de Fundo Branco:
          // Se passar do limiar, estoura para o valor máximo para limpar o fundo.
-         dest->image[r][c] = ( n > limiar_branco ) ? orig->max : n;
+         dest->image[r][c] = ( n > limiar_branco ) ? (guint8)orig->max : (guint8)n;
       }
    }
 

@@ -4,7 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include "acervo.h"
+#include "latex.h"
 #include "comum.h"
 #include "basicas.h"
 #include "glib_gio.h"
@@ -32,9 +32,11 @@ static gboolean executar_gerador_c_nativamente( const char *pasta_tema ) {
       if ( quantidade_arquivos_por_extensao( pasta_tema, ".h" ) == 1 ) {
 
          // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
-         char *argv[] = { ( char * )"sh", ( char * )"-c",
-                          ( char * )"gcc Q.c -lm -O3 -march=native -o Q && ./Q", NULL
-                        };
+         g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+         argv[0] = g_strdup( "sh" );
+         argv[1] = g_strdup( "-c" );
+         argv[2] = g_strdup( "gcc Q.c -lm -O3 -march=native -o Q && ./Q" );
+
          GError *erro = NULL;
 
          if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
@@ -251,7 +253,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
                     "\\end{document}\n" );
 
    GError *error = NULL;
-   if ( !g_file_set_contents( tema_pdf, tex->str, tex->len, &error ) ) {
+   if ( !g_file_set_contents( tema_pdf, tex->str, (guint)tex->len, &error ) ) {
       g_printerr( "[ERRO] Não foi possível criar o arquivo de destino em: %s (%s)\n", pasta_tema, error->message );
       g_error_free( error );
    }

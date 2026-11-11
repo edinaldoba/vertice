@@ -135,9 +135,9 @@ void on_entry_atualizar_tema_changed( GtkWidget *widget, gpointer user_data );
 
 void on_subtema_check_toggled( GtkWidget *widget, gpointer user_data );
 
-void on_stepper_mais_clicked( GtkWidget *button, gpointer user_data );
+void on_stepper_mais_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_stepper_menos_clicked( GtkWidget *button, gpointer user_data );
+void on_stepper_menos_clicked( GtkWidget *widget, gpointer user_data );
 
 
 

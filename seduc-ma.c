@@ -132,7 +132,7 @@ static double obter_largura_nome_mm( PangoLayout *layout, const char *texto ) {
 }
 
 static int obter_limite_corte_nome( PangoLayout *layout, const char *aluno ) {
-   int max_chars = g_utf8_strlen( aluno, -1 );
+   int max_chars = (int)g_utf8_strlen( aluno, -1 );
    int limite_corte = calcular_len_limpo( aluno, max_chars );
 
    char buffer[64];
@@ -205,7 +205,7 @@ static gchar *padronizar_nome_turma( const gchar *coluna, FILE **f_acesso, const
    g_return_val_if_fail( coluna && f_acesso && diretorio, NULL );
 
    g_autofree gchar *coluna_minusculo = g_utf8_strdown( coluna, -1 );
-   int len = strlen( coluna_minusculo );
+   int len = (int)strlen( coluna_minusculo );
    gchar *turma = NULL;
 
    if ( len > 9 ) {
@@ -301,7 +301,7 @@ static void liberar_estrutura_diretorios(EspelhamentoDiretorios *paths) {
 }
 //-------------------------------------------------------------------------------------------------
 static FichaAluno* criar_ficha_zerada(int lim_disc) {
-   gsize tamanho_total = sizeof(FichaAluno) + (lim_disc * sizeof(HistoricoDisciplina));
+   gsize tamanho_total = sizeof(FichaAluno) + (gsize)lim_disc * sizeof(HistoricoDisciplina);
 
    // g_malloc0 garante que toda a base e o array de disciplinas nasçam zerados
    FichaAluno *ficha = g_malloc0(tamanho_total);
@@ -368,7 +368,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
    AcessoFicha acesso = {0};
    int idx = 0;
 
-   gsize tamanho_gravacao = sizeof(FichaAluno) + (lim_disc * sizeof(HistoricoDisciplina));
+   gsize tamanho_gravacao = sizeof(FichaAluno) + (gsize)lim_disc * sizeof(HistoricoDisciplina);
 
    while (fread(&turmas, sizeof(AcessoTurmas), 1, f_acesso) == 1) {
 
@@ -393,10 +393,10 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
 
          // Delega a criação segura (e do tamanho correto) para a função auxiliar
          FichaAluno *ficha = criar_ficha_zerada(lim_disc);
-         ficha->idx_siaep = idx;
+         ficha->idx_siaep = (guint8)idx;
 
          g_autofree char *nome_formatado = converter_nome_proprio(siaep.aluno);
-         ficha->limite_corte = obter_limite_corte_nome(layout, nome_formatado);
+         ficha->limite_corte = (guint8)obter_limite_corte_nome(layout, nome_formatado);
 
          snprintf(ficha->aluno, sizeof(ficha->aluno), "%s", nome_formatado);
          snprintf(ficha->nasc, sizeof(ficha->nasc), "%s", siaep.nasc);
@@ -460,11 +460,11 @@ static void tentar_mapear_cabecalho( gchar **colunas, guint num_colunas, MapaSia
       // Converte para uppercase apenas para a validação (Case-Insensitive)
       g_autofree gchar *col_up = g_utf8_strup( colunas[i], -1 );
 
-      if ( strstr( col_up, "COD" ) && strstr( col_up, "ALUNO" ) ) mapa->idx_codigo = i;
-      else if ( strstr( col_up, "NOME" ) ) mapa->idx_nome = i;
-      else if ( strstr( col_up, "SEXO" ) ) mapa->idx_sexo = i;
-      else if ( strstr( col_up, "NASCIMENTO" ) || strstr( col_up, "NASC" ) ) mapa->idx_nascimento = i;
-      else if ( strstr( col_up, "SITUA" ) ) mapa->idx_situacao = i;
+      if ( strstr( col_up, "COD" ) && strstr( col_up, "ALUNO" ) ) mapa->idx_codigo = (guint8)i;
+      else if ( strstr( col_up, "NOME" ) ) mapa->idx_nome = (guint8)i;
+      else if ( strstr( col_up, "SEXO" ) ) mapa->idx_sexo = (guint8)i;
+      else if ( strstr( col_up, "NASCIMENTO" ) || strstr( col_up, "NASC" ) ) mapa->idx_nascimento = (guint8)i;
+      else if ( strstr( col_up, "SITUA" ) ) mapa->idx_situacao = (guint8)i;
    }
 
    // Só declara sucesso quando as 5 âncoras vitais forem rastreadas
@@ -737,7 +737,7 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
       return FALSE;
    }
 
-   int num_arquivos = lista_arquivos->len;
+   int num_arquivos = (int)lista_arquivos->len;
 
    if ( num_arquivos == 0 ) {
       g_print( "Nenhum arquivo .xls encontrado no diretório: %s\n", dir_origem );

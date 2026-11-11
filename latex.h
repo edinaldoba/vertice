@@ -1,5 +1,5 @@
-#ifndef BANCO_H
-#define BANCO_H
+#ifndef LATEX_H
+#define LATEX_H
 
 #include <gtk/gtk.h>
 #include "interface.h"

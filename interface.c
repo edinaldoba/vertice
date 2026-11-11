@@ -4,6 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,7 +16,7 @@
 #include "callbacks.h"
 #include "mensagens.h"
 #include "dinamica.h"
-#include "diario.h"
+#include "diarios.h"
 
 // Esta é a única inclusão deste arquivo em todo o projeto
 #include "auxiliar.h"
@@ -185,29 +186,30 @@ void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantida
    g_return_if_fail( GTK_IS_LABEL( label_widget ) );
 
    const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
-   if ( !texto_original || *texto_original == '\0' ) return;
+   if ( !texto_original || texto_original[0] == '\0' ) return;
 
-   GString *resultado = g_string_new( "" );
-   const gchar *p = texto_original;
+   // Mascaramento seguro para contornar o -Wcast-qual da macro g_utf8_next_char
+   gchar *p = (gchar *)(guintptr)texto_original;
+
+   GString *resultado = g_string_sized_new( strlen( texto_original ) * 2 );
+   gboolean primeiro_caractere = TRUE;
 
    while ( *p != '\0' ) {
       gunichar c = g_utf8_get_char( p );
-      const gchar *proximo = g_utf8_next_char( p );
+      p = g_utf8_next_char( p ); // Agora 'p' é mutável, o compilador fica em silêncio
 
       if ( c == 0x200A ) {
-         p = proximo;
          continue;
       }
 
-      g_string_append_unichar( resultado, c );
-      gunichar proximo_c = g_utf8_get_char( proximo );
-
-      if ( *proximo != '\0' && proximo_c != 0x200A ) {
+      if ( !primeiro_caractere && quantidade_espacos > 0 ) {
          for ( gint i = 0; i < quantidade_espacos; i++ ) {
             g_string_append( resultado, "\u200A" );
          }
       }
-      p = proximo;
+
+      g_string_append_unichar( resultado, c );
+      primeiro_caractere = FALSE;
    }
 
    gtk_label_set_text( GTK_LABEL( label_widget ), resultado->str );
@@ -426,7 +428,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
 
    // 1. A matemática do tamanho exato em bytes
    int n = dados->total_quest_prova; // A quantidade escolhida pelo usuário (ex: 5, 8, 15)
-   size_t tamanho_total = sizeof( DadosRascunho ) + ( n * sizeof( QuestaoRascunho ) );
+   size_t tamanho_total = sizeof( DadosRascunho ) + ( (guint)n * sizeof( QuestaoRascunho ) );
 
    // 2. Aloca a struct com o tamanho da "bagagem" extra usando o calloc (para zerar a memória)
    DadosRascunho *rascunho = ( DadosRascunho * ) g_malloc0( tamanho_total );
@@ -570,7 +572,7 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
    // 3. ENGENHARIA REVERSA DO TAMANHO (FAM - Flexible Array Member)
    // =========================================================================
    fseek( arquivo, 0, SEEK_END );
-   size_t tamanho_arquivo = ftell( arquivo );
+   size_t tamanho_arquivo = (size_t)ftell( arquivo );
    rewind( arquivo );
 
    // Trava de segurança: O arquivo precisa ter no mínimo o tamanho do cabeçalho
@@ -1023,7 +1025,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
 
    long int escalar_hoje = mapear_data_para_id( ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
-   cabecalho->foco_periodo_vigente = foco_periodo_corrente( escalar_hoje );
+   cabecalho->foco_periodo_vigente = foco_periodo_corrente( (int)escalar_hoje );
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
    GtkComboBox *combo_periodo = GTK_COMBO_BOX( cabecalho->combo_periodo );
 

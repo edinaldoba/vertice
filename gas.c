@@ -190,7 +190,7 @@ static void gas_torneio( const GasPopulacao *pop, GasGenitores *gen, const int n
             rnd1 = rnd2;
          }
       }
-      memcpy( gen[i].x, pop[rnd1].x, n_dim * sizeof( double ) );
+      memcpy( gen[i].x, pop[rnd1].x, (guint)n_dim * sizeof( double ) );
    }
 }
 
@@ -211,8 +211,8 @@ static void gas_crossover_aritmetico( GasPopulacao *pop, const GasGenitores *gen
          }
 
       } else {
-         memcpy( pop[i].x, gen[i].x, n_dim * sizeof( double ) );
-         memcpy( pop[i + 1].x, gen[i + 1].x, n_dim * sizeof( double ) );
+         memcpy( pop[i].x, gen[i].x, (guint)n_dim * sizeof( double ) );
+         memcpy( pop[i + 1].x, gen[i + 1].x, (guint)n_dim * sizeof( double ) );
       }
    }
 }
@@ -461,14 +461,14 @@ static double gas_erro_cantos_externos( const GasPopulacao *simulacao, int nrow,
 // ============================================================================
 // FUNÇÃO DE FITNESS GEOMÉTRICO (ATUALIZADA)
 // ============================================================================
-static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite,
+static double gas_fitness_geometrico( double *x, const GasPopulacao *elite,
                                       const int nrow, const int ncol, const int k ) {
    g_return_val_if_fail( x && elite && k >= 0 && k < 4, 0.0 );
 
    // 1. O PULO DO GATO: Simulação do polígono
    GasPopulacao simulacao[4];
    for ( int i = 0; i < 4; i++ ) {
-      simulacao[i].x = ( i == k ) ? ( double * )x : elite[i].x;
+      simulacao[i].x = ( i == k ) ? x : elite[i].x;
    }
 
    // 2. Extrai as distâncias reais PRIMEIRO (Para resolver o "Ovo e a Galinha")
@@ -524,12 +524,11 @@ static double gas_fitness_geometrico( const double *x, const GasPopulacao *elite
 // FUNÇÃO GLOBAL DE AVALIAÇÃO (COEVOLUÇÃO)
 // ============================================================================
 
-static double gas_fitness_coevolutivo( const double *x, const GasPopulacao *elite, const ImagemCinza *img,
+static double gas_fitness_coevolutivo( double *x, const GasPopulacao *elite, const ImagemCinza *img,
                                        const double w1, const int limiar, const int k ) {
    g_return_val_if_fail( x && img, 0.0 );
 
    // Pesos da combinação linear para gerações > 0 (podem ser ajustados depois)
-   // printf( "%lf\n", w1 ); getchar();
    const double w2 = 1.0 - w1;
 
    // 1. O fitness local sempre é calculado, independentemente da geração
@@ -606,9 +605,9 @@ static GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *
       for ( int i = 0; i < par->n_pop; i++ ) {
          pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, NULL, img, w1, par->limiar, k );
       }
-      qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
+      qsort( pop[k], (guint)par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
 
-      memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
+      memcpy( elite[k].x, pop[k][par->n_pop - 1].x, (guint)lim[k].n_dim * sizeof( double ) );
       elite[k].fitness = pop[k][par->n_pop - 1].fitness;
    }
 
@@ -650,10 +649,10 @@ static GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *
          for ( int i = 0; i < par->n_gen; i++ ) {
             pop[k][i].fitness = gas_fitness_coevolutivo( pop[k][i].x, elite, img, w1, par->limiar, k );
          }
-         qsort( pop[k], par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
+         qsort( pop[k], (guint)par->n_pop, sizeof( GasPopulacao ), gas_comparar_objetivo_max );
 
          // Atualiza o Elite DESTE grupo para o próximo grupo k usar (Gauss-Seidel real)
-         memcpy( elite[k].x, pop[k][par->n_pop - 1].x, lim[k].n_dim * sizeof( double ) );
+         memcpy( elite[k].x, pop[k][par->n_pop - 1].x, (guint)lim[k].n_dim * sizeof( double ) );
          elite[k].fitness = pop[k][par->n_pop - 1].fitness;
       }
 
@@ -684,7 +683,8 @@ static GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *
  * Executa o Algoritmo Genético para encontrar as coordenadas das 4 âncoras na imagem.
  * Possui suporte a ajuste dinâmico de parâmetros em caso de resgate (2ª tentativa).
  */
-void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *map, IndiceMatriz *ancora, int tentativa ) {
+void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *map,
+                         IndiceMatriz *ancora, int tentativa ) {
    // 1. Validação de segurança dos ponteiros de entrada
    g_return_if_fail( img && map && ancora );
 

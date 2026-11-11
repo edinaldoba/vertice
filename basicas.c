@@ -40,7 +40,7 @@ int calcular_digito_verificador( uint32_t sequencia_base ) {
 
    // Extrai cada dígito e multiplica pelo respectivo peso
    for ( int i = 0; i < 7; i++ ) {
-      int digito = temp % 10;
+      int digito = (int)temp % 10;
       soma += ( digito * pesos[i] );
       temp /= 10;
    }
@@ -73,7 +73,7 @@ uint32_t gerar_codigo_aluno_seguro( uint32_t *ultimo_id_salvo ) {
 
    // 4. Monta o número de 8 algarismos (Base * 10 + DV)
    // Exemplo: se a base for 1234567 e o DV for 4, retorna 12345674
-   return ( *ultimo_id_salvo * 10 ) + dv;
+   return ( *ultimo_id_salvo * 10 ) + (uint32_t)dv;
 }
 
 
@@ -258,12 +258,11 @@ int comparar_item_texto_curto( const void* a, const void* b ) {
 
 int comparar_item_combo( const void* a, const void* b ) {
    // O qsort passa ponteiros para os elementos do array.
-   // Como nosso array é de gchar*, 'a' e 'b' são ponteiros duplos (gchar**).
-   const gchar *str1 = *( ( const gchar ** )a );
-   const gchar *str2 = *( ( const gchar ** )b );
+   // O cast correto para satisfazer o -Wcast-qual exige que o ponteiro
+   // intermediário também seja const (const gchar * const *).
+   const gchar *str1 = *( ( const gchar * const * )a );
+   const gchar *str2 = *( ( const gchar * const * )b );
 
-   // Substituímos strcoll por g_utf8_collate, que é a versão nativa do GLib
-   // construída especificamente para ordenar strings UTF-8 na interface GTK.
    return g_utf8_collate( str1, str2 );
 }
 
@@ -295,7 +294,7 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
       // 1. Converte os ponteiros void para char* (para trabalhar a nível de byte)
       // 2. Subtrai o endereço base do endereço encontrado
       // 3. Divide pelo tamanho do elemento para descobrir a posição exata no array
-      return ( int )( ( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
+      return ( int )( (guint)( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
    }
 
    return -1; // Não encontrado
@@ -338,7 +337,7 @@ int contar_registros_binarios( const char *filepath, size_t tam ) {
 
    // Consulta rápida aos metadados do disco sem abrir o arquivo
    if ( g_stat( filepath, &st ) == 0 ) {
-      return ( int )( st.st_size / tam );
+      return ( int )( (guint)st.st_size / tam );
    }
 
    // Retorna 0 caso o arquivo não exista ou falhe no acesso
@@ -528,7 +527,7 @@ int datefind( int a, int *v, int n ) {
 
 //=========================================================================================================//
 int sdatefind( char a, char *v, int n ) {
-   char *ptr = memchr( v, a, n );
+   char *ptr = memchr( v, a, (guint)n );
    if ( ptr != NULL ) {
       return ( int )( ptr - v ); // Aritmética de ponteiros para achar o índice
    }
@@ -660,7 +659,7 @@ static int copiar_recurso_para_disco( const char *caminho_recurso, const char *d
    gconstpointer buffer = g_bytes_get_data( bytes, &tamanho );
 
    // 2. Grava no disco atomicamente usando GLib (substitui fopen, fwrite, fclose)
-   if ( !g_file_set_contents( destino, buffer, tamanho, &error ) ) {
+   if ( !g_file_set_contents( destino, buffer, (guint)tamanho, &error ) ) {
       g_printerr( "🚨 Erro ao gravar o arquivo %s: %s\n", destino, error->message );
       g_clear_error( &error );
       return -1;
@@ -736,7 +735,11 @@ void preparar_ambiente_latex( const char *recursos_prefix ) {
 
             // 5. Atualiza o banco do TeX (Substitui o system() para evitar travamentos de shell)
             g_autofree gchar *pasta_texmf = g_build_filename( home, "texmf", NULL );
-            gchar *argv[] = { ( gchar* )"texhash", pasta_texmf, NULL }; // Comando em array
+
+            g_auto( GStrv ) argv = g_new0( gchar*, 3 );
+            argv[0] = g_strdup( "texhash" );
+            argv[1] = g_strdup( pasta_texmf );
+
             GError *spawn_err = NULL;
 
             if ( !g_spawn_sync( NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &spawn_err ) ) {
@@ -988,33 +991,35 @@ int tamanho_fonte_px( GtkWidget *window ) {
 int calcular_len_limpo( const char *str, int len_maximo_caracteres ) {
    if ( !str || str[0] == '\0' || len_maximo_caracteres <= 0 ) return 0;
 
-   const char *ptr = str;
+   // O alerta -Wcast-qual ocorre porque as macros de navegação UTF-8 da GLib
+   // fazem um cast interno para (char *). Para silenciar o compilador e
+   // assumir o controle, retiramos a constância localmente via (guintptr).
+   gchar *base = (gchar *)(guintptr)str;
+   gchar *ptr  = base;
    int char_count = 0;
 
-   // 1. Avança na string contando caracteres lógicos (não bytes)
+   // 1. Avança na string contando caracteres lógicos (parando no \0 de forma segura)
    while ( *ptr != '\0' && char_count < len_maximo_caracteres ) {
       ptr = g_utf8_next_char( ptr );
       char_count++;
    }
 
-   // byte_len agora descobre sozinho quantos bytes foram necessários
-   // para formar esses 'char_count' caracteres.
-   // Se tinha 25 letras com acentos, pode dar 28, 30 bytes... você não precisa saber!
-   int byte_len = ptr - str;
+   // byte_len calcula automaticamente o volume em bytes dos caracteres processados
+   int byte_len = (int)(ptr - base);
 
-   // 2. Retrocede limpando os espaços e lixos do final
+   // 2. Retrocede limpando os espaços e lixos (non-printable) do final
    while ( byte_len > 0 ) {
-      const char *prev_ptr = g_utf8_prev_char( str + byte_len );
+      gchar *prev_ptr = g_utf8_prev_char( base + byte_len );
       gunichar ch = g_utf8_get_char( prev_ptr );
 
       if ( g_unichar_isspace( ch ) || !g_unichar_isprint( ch ) ) {
-         byte_len = prev_ptr - str;
+         byte_len = (int)(prev_ptr - base);
       } else {
          break;
       }
    }
 
-   // 3. Retorna o tamanho em BYTES, pronto para alimentar o %.*s do snprintf
+   // 3. Retorna o tamanho final em BYTES, ideal para '%.*s'
    return byte_len;
 }
 

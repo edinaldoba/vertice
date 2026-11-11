@@ -136,7 +136,7 @@ typedef struct {
    GtkWidget *check_pendencias;  // Filtra alunos em recuperação/dependência
 } InterfaceRelatorio;
 
-// Contêiner Mestre: Aba DIÁRIOS (Notebook Page)
+// Contêiner Mestre: Aba DIÁRIOS (Notebook Page 1)
 typedef struct {
    // --- ARMAZENAMENTO EM MEMÓRIA RAM (Gerido pela GLib) ---
    GArray *aulas;    // Registros cronológicos de aula
@@ -177,7 +177,7 @@ typedef struct {
 
 /*** 3. MÓDULO LATEX (Sandbox de Diagramação e Acervo) ***/
 
-// Contêiner Mestre: Aba LATEX (Notebook Page)
+// Contêiner Mestre: Aba LATEX (Notebook Page 2)
 typedef struct {
    GtkWidget *combo_tema_espelho;
    gulong handler_combo_tema_espelho;
@@ -218,7 +218,7 @@ typedef struct {
    int cont_add;
 } InterfaceDinamica;
 
-// Contêiner Mestre: Aba PROVAS (Notebook Page)
+// Contêiner Mestre: Aba PROVAS (Notebook Page 3)
 typedef struct {
    gchar **temas;
    int foco_tema;
@@ -252,7 +252,37 @@ typedef struct {
 } InterfaceProva;
 
 
-/*** 5. COMPONENTES DE FEEDBACK E ESTADO GLOBAL ***/
+/*** 5. MÓDULO CONFIG (Parâmetros Globais, Escolas e Acervo) ***/
+
+// Sub-aba: Configurações Gerais e Estrutura Escolar (vertice.ini)
+typedef struct {
+   GtkWidget *btn_salvar;
+   // Adicione aqui os widgets específicos de escolas, turmas e disciplinas...
+} InterfaceGeral;
+
+// Sub-aba: Atribuição de Atipicidades e CIDs dos Alunos
+typedef struct {
+   GtkWidget *btn_salvar;
+   // Adicione aqui os widgets de seleção de turmas, alunos e flags atípicas...
+} InterfaceAtipicidade;
+
+// Sub-aba: Gerenciamento do Acervo de Questões (TeX)
+typedef struct {
+   GtkWidget *btn_salvar;
+   // Adicione aqui os widgets de manipulação do banco de questões...
+} InterfaceAcervo;
+
+// Contêiner Mestre: Aba CONFIG (Notebook Page 4)
+typedef struct {
+   GtkWidget *stack_pages;       // Sub-páginas: Geral, Atipicidades, Acervo
+
+   InterfaceGeral       geral;
+   InterfaceAtipicidade atipicidade;
+   InterfaceAcervo      acervo;
+} InterfaceConfig;
+
+
+/*** 6. COMPONENTES DE FEEDBACK E ESTADO GLOBAL ***/
 
 // Notificações flutuantes assíncronas (Toast)
 typedef struct {
@@ -280,6 +310,7 @@ typedef struct {
    InterfaceDiario    diario;
    InterfaceLatex     latex;
    InterfaceProva     prova;
+   InterfaceConfig    config;
    InterfacePainel    painel;
 
    // --- ESTRUTURAS DE APOIO E CSS ---

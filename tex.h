@@ -6,7 +6,8 @@
 void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uint8_t id, char direcao,
                           gboolean assinalar_nome_numero, const InterfaceDados *dados, const InterfaceCabecalho *cabecalho );
 
-int imagens_corrigidas( const char *gab, const MapeamentoGabarito *info, const AppContext *ctx, const char *nome_base );
+int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx,
+                        const char *nome_base );
 
 
 void anexar_circulo_alternativa_colorida( GString *tex, gint intensidade, const gchar *texto );

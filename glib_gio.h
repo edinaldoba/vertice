@@ -12,7 +12,7 @@ void g_xdg_open( const char *caminho );
 
 void g_system_async( const char *comando );
 
-void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arquivos, const char *saida );
+void g_pdfunite( const char *diretorio, GStrv arquivos, const int qtd_arquivos, const char *saida );
 
 void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex );
 

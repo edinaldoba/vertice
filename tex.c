@@ -20,11 +20,11 @@ static void gerar_matriz_identificacao( GString *tex, uint8_t id, uint8_t turma,
 
    // 1. Empacotando 23 bits em um inteiro de 32 bits
    uint32_t payload = 0;
-   payload |= ( id    & 0x3F );       // 6 bits (0 a 5)
-   payload |= ( turma & 0xFF ) << 6;  // 8 bits (6 a 13)
-   payload |= ( disc  & 0x0F ) << 14; // 4 bits (14 a 17)
-   payload |= ( per   & 0x07 ) << 18; // 3 bits (18 a 20)
-   payload |= ( seq   & 0x03 ) << 21; // 2 bits (21 a 22)
+   payload |= ( (uint32_t)id    & 0x3F );       // 6 bits (0 a 5)
+   payload |= ( (uint32_t)turma & 0xFF ) << 6;  // 8 bits (6 a 13)
+   payload |= ( (uint32_t)disc  & 0x0F ) << 14; // 4 bits (14 a 17)
+   payload |= ( (uint32_t)per   & 0x07 ) << 18; // 3 bits (18 a 20)
+   payload |= ( (uint32_t)seq   & 0x03 ) << 21; // 2 bits (21 a 22)
 
    // 2. Cálculo dos 4 bits de paridade (XOR de blocos de 4 bits)
    uint32_t paridade = 0;
@@ -43,7 +43,7 @@ static void gerar_matriz_identificacao( GString *tex, uint8_t id, uint8_t turma,
       int linha = i / 3;
       int coluna = i % 3;
 
-      int bit_ativo = ( payload >> i ) & 1;
+      uint32_t bit_ativo = ( payload >> i ) & 1;
 
       if ( bit_ativo ) {
          // Fatores de deslocamento horizontal e vertical extraídos
@@ -72,8 +72,8 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
 
    // 1. Lógica de Rotação transferida do LaTeX para o C
    int   rotacao = ( direcao == 'h' ) ? 0 : 90;
-   float xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
-   float yscale = ( direcao == 'h' ) ? 0.6 : 0.6;
+   double xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
+   double yscale = 0.6;
 
    // Injeção direta dos valores calculados
    g_string_append_printf( tex, "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n",
@@ -119,10 +119,10 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
    }
 
 
-   uint8_t turma = cabecalho->foco_turma;
-   uint8_t disc  = cabecalho->foco_disciplina;
-   uint8_t per   = cabecalho->foco_periodo;
-   uint8_t seq   = dados->seq_prova; // Mudei de seq_prova-1 para seq_prova apenas, para evitar payload válido nulo.
+   uint8_t turma = (uint8_t)cabecalho->foco_turma;
+   uint8_t disc  = (uint8_t)cabecalho->foco_disciplina;
+   uint8_t per   = (uint8_t)cabecalho->foco_periodo;
+   uint8_t seq   = (uint8_t)dados->seq_prova; // Mudei de seq_prova-1 para seq_prova apenas, para evitar payload válido nulo.
 
    // ATENÇÃO: gerar_matriz_identificacao também precisará receber GString *tex
    gerar_matriz_identificacao( tex, id, turma, disc, per, seq );
@@ -184,12 +184,20 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
 
 
 
-int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx, const char *nome_base ) {
+int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx,
+                        const char *nome_base ) {
 
    if ( !gab || !map || !ctx ) return -1;
    const InterfaceDiario *diario = &ctx->diario;
 
-   const char *LATEX_PREAMBLE_TEMPLATE =
+   int largura = ( map->direcao == 'h' ) ? 18 : 14;
+   int altura  = ( map->direcao == 'h' ) ? 15 : 19;
+
+   // Pré-alocação otimizada (16KB) na RAM
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
+
+   // 2. INJEÇÃO DO CABEÇALHO LATEX
+   g_string_append_printf( tex,
       "\\documentclass[11pt]{report}\n"
       "\\usepackage[utf8]{inputenc}\n"
       "\\usepackage[T1]{fontenc}\n"
@@ -204,18 +212,18 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
       "\\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}\n"
       "\\definecolor{AzulProfessor}{cmyk} {1,0.50,0,0.33}\n"
       "\\definecolor{VerdeEscola}{cmyk} {1,0,1,0.47}\n\n"
-      "% MACRO: Símbolo de Correto\n"
+      "%% MACRO: Símbolo de Correto\n"
       "\\def\\correto{\n"
       "  \\fill[rounded corners=6, bottom color=NeonVerde, top color=LimaoFluo] ($(-0.43,-0.43)+(P)$) rectangle ($(0.43,0.43)+(P)$);\n"
       "  \\fill[rounded corners=1, color=white] ($(-0.172,-0.258)+(P)$) -- ($(-0.0215,-0.258)+(P)$) -- ($(0.344,0.258)+(P)$) -- ($(0.1935,0.258)+(P)$) -- cycle;\n"
       "  \\fill[rounded corners=1, color=white] ($(-0.0215,-0.258)+(P)$) -- ($(-0.172,-0.258)+(P)$) -- ($(-0.344,0.00)+(P)$) -- ($(-0.1935,0.00)+(P)$) -- cycle;\n"
       "}\n\n"
-      "% MACRO: Símbolo de Incorreto\n"
+      "%% MACRO: Símbolo de Incorreto\n"
       "\\def\\incorreto{\n"
       "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,-0.35)+(-45:0.0875)+(P)$) -- ($(-0.35,-0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(-45:0.0875)+(P)$) -- cycle;\n"
       "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,0.35)+(45:0.0875)+(P)$) -- ($(-0.35,0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(45:0.0875)+(P)$) -- cycle;\n"
       "}\n"
-      "\\pagecolor{yellow!20}\n";
+      "\\pagecolor{yellow!20}\n", largura, altura );
 
    const InterfaceDados *dados  = &ctx->dados;
    const CalendarioData *hoje   = &ctx->hoje;
@@ -233,15 +241,6 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // Caminho do arquivo seguro com g_strdup_printf
    g_autofree char *arquivo = g_strdup_printf( "%s/dados/temporarios/%s.tex", ctx->caminho.raiz, nome_base );
-
-   // Pré-alocação otimizada (16KB) na RAM
-   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
-
-   int largura = ( map->direcao == 'h' ) ? 18 : 14;
-   int altura  = ( map->direcao == 'h' ) ? 15 : 19;
-
-   // 2. INJEÇÃO DO CABEÇALHO LATEX
-   g_string_append_printf( tex, LATEX_PREAMBLE_TEMPLATE, largura, altura );
 
    g_autofree gchar *raiz_projeto = g_get_current_dir();
    g_autofree char *imagem = g_build_filename( raiz_projeto, "dados", "gabaritos", dados->ano,
@@ -262,7 +261,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
       int linha  = ( map->direcao == 'h' ) ? i / 3 : i % 3;
       int coluna = ( map->direcao == 'h' ) ? i % 3 : i / 3;
 
-      int bit_ativo = ( map->payload >> i ) & 1;
+      uint32_t bit_ativo = ( map->payload >> i ) & 1;
 
       if ( bit_ativo ) {
          // Multiplicação e soma exatas primeiro, divisão apenas no final
@@ -332,7 +331,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // 7. GRAVAÇÃO ATÔMICA E SEGURA NO DISCO
    GError *error = NULL;
-   if ( !g_file_set_contents( arquivo, tex->str, tex->len, &error ) ) {
+   if ( !g_file_set_contents( arquivo, tex->str, (guint)tex->len, &error ) ) {
       g_printerr( "[ERRO] Não foi possível salvar o arquivo latex (%s): %s\n", arquivo, error->message );
       g_error_free( error );
       return -1;

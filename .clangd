@@ -1,0 +1,62 @@
+CompileFlags:
+  Add:
+    # --- [ Suas Flags Originais ] ---
+    - "-Wall"
+    - "-Wextra"
+    - "-Wpedantic"
+    - "-Wshadow"
+    - "-Wcast-align"
+    - "-Wundef"
+    - "-Wformat=2"
+    - "-Werror=implicit-function-declaration"
+    - "-Wstrict-prototypes"
+    - "-Wmissing-prototypes"
+    - "-Wconversion"
+    - "-Wsign-conversion"
+    - "-Wdouble-promotion"
+    - "-Wnull-dereference"
+    - "-Wwrite-strings"
+    - "-Wswitch-enum"
+    - "-std=c11"
+
+    # --- [ NOVAS: Segurança e Tipagem ] ---
+    - "-Wcast-qual"           # (NOVO) Grita se você remover o 'const' de um ponteiro (ex: char* p = (char*)const_gchar_ptr;). Vital para GTK.
+    - "-Wvla"                 # (NOVO) Proíbe Variable Length Arrays no stack (ex: int array[n]). Evita Stack Overflow; o Vértice já usa FAM/Heap.
+    - "-Wpointer-arith"       # (NOVO) Alerta se tentar fazer matemática com ponteiros void* (o que a GLib às vezes induz a fazer).
+    - "-Wfloat-equal"         # (NOVO) Alerta se você fizer "if (nota == 10.0f)". Floats devem ser comparados por diferença (>= ou epsilon).
+    - "-Wuninitialized"       # (NOVO) Pega variáveis locais lidas antes de receberem um valor inicial.
+    - "-Wduplicated-cond"     # (NOVO) Detecta falhas de lógica como: if (a > 0) {...} else if (a > 0) {...}.
+    - "-Wduplicated-branches" # (NOVO) Detecta se o bloco 'if' e o 'else' possuem exatamente o mesmo código copiado e colado.
+
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None
+
+  ClangTidy:
+    Add:
+      # --- [ Seus Checks Originais ] ---
+      - "clang-analyzer-core.*"
+      - "clang-analyzer-unix.*"
+      - "clang-analyzer-security.insecureAPI.*"
+      - "bugprone-sizeof-expression"
+      - "bugprone-branch-clone"
+      - "bugprone-suspicious-memory-comparison"
+      - "bugprone-macro-parentheses"
+      - "readability-inconsistent-declaration-parameter-name"
+      - "readability-redundant-declaration"
+      - "performance-*"
+
+      # --- [ NOVAS: Erros Lógicos Silenciosos e Matemática ] ---
+      - "bugprone-integer-division"         # (NOVO) Crucial! Alerta se você dividir int por int esperando float (ex: float media = 3 / 2; resulta em 1.0).
+      - "bugprone-assignment-in-if-condition" # (NOVO) Impede o erro clássico de digitar "if (ativo = TRUE)" em vez de "==".
+      - "bugprone-narrowing-conversions"    # (NOVO) Reforça o -Wconversion, explicando exatamente onde há truncamento perigoso de bits.
+      - "misc-definitions-in-headers"       # (NOVO) Grita se você implementar uma função num arquivo .h (o que causaria erro de multi-definição no linker).
+      - "misc-redundant-expression"         # (NOVO) Pega lógicas inúteis (ex: if (x == x) ou if (a && a)).
+#      - "readability-braces-around-statements" # (NOVO) Força o uso de chaves {} mesmo em if/for de 1 linha, blindando contra a inserção de novos bugs no futuro.
+
+    Remove:
+      - "readability-identifier-length"
+      - "bugprone-easily-swappable-parameters"
+      - "misc-unused-parameters"
+      - "performance-no-int-to-ptr"
+      - "clang-analyzer-security.insecureAPI.strcpy" # Trocado para o termo exato reconhecido

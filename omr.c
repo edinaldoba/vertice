@@ -134,7 +134,7 @@ static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candid
 // MÓDULO 4: Função Principal de Extração
 // ============================================================================
 static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size ) {
-   float limiar_correlacao = 0.5;
+   double limiar_correlacao = 0.5;
    int stride_busca = 1;
    int max_blobs_saida = MAX_CANDIDATOS;
 
@@ -186,7 +186,7 @@ static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, i
    if ( num_candidatos < 4 ) return 0;
 
    if ( num_candidatos > max_blobs_saida ) {
-      qsort( blobs, num_candidatos, sizeof( BlobInfo ), blob_comparar_solidez );
+      qsort( blobs, (guint)num_candidatos, sizeof( BlobInfo ), blob_comparar_solidez );
       num_candidatos = max_blobs_saida;
    }
 
@@ -264,8 +264,8 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
 
    if ( w <= 0 || h <= 0 || num_pixels <= 0 ) return;
 
-   memset( proj_x, 0, w * sizeof( int ) );
-   memset( proj_y, 0, h * sizeof( int ) );
+   memset( proj_x, 0, (guint)w * sizeof( int ) );
+   memset( proj_y, 0, (guint)h * sizeof( int ) );
 
    int max_px = 0, max_py = 0;
 
@@ -413,7 +413,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
    if ( num_blobs < 4 ) return 0;
 
    if ( num_blobs > max_blobs_saida ) {
-      qsort( blobs, num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
+      qsort( blobs, (guint)num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
       num_blobs = max_blobs_saida;
    }
 
@@ -459,7 +459,7 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
                // Trava de Rotação (Máx 10 graus)
                double dx_top = ord[1]->centro_j - ord[0]->centro_j;
                double dy_top = ord[1]->centro_i - ord[0]->centro_i;
-               double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * 180.0 / M_PI );
+               double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * 180.0 / G_PI );
 
                if ( angulo_top_graus > 10.0 && fabs( angulo_top_graus - 90.0 ) > 10.0 ) continue;
 
@@ -698,8 +698,8 @@ uint32_t extrair_payload_matriz( const ImagemCinza *IMG, char direcao ) {
 
 static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, int j_celula,
                                         float p_x, float p_y, float raio, float raio_quad ) {
-   float cx = ( j_celula + 0.5f ) * p_x;
-   float cy = ( i_celula + 0.5f ) * p_y;
+   float cx = ( (float)j_celula + 0.5f ) * p_x;
+   float cy = ( (float)i_celula + 0.5f ) * p_y;
 
    int x_min = ( int )floorf( cx - raio );
    int x_max = ( int )ceilf( cx + raio );
@@ -718,8 +718,8 @@ static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, in
 
    for ( int y = y_min; y <= y_max; y++ ) {
       for ( int x = x_min; x <= x_max; x++ ) {
-         float dx = x - cx;
-         float dy = y - cy;
+         float dx = (float)x - cx;
+         float dy = (float)y - cy;
 
          if ( ( dx * dx + dy * dy ) <= raio_quad ) {
             total_pixels++;
@@ -730,7 +730,7 @@ static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, in
       }
    }
 
-   return total_pixels > 0 ? ( float )pixels_pretos / total_pixels : 0.0f;
+   return total_pixels > 0 ? ( float )pixels_pretos / (float)total_pixels : 0.0f;
 }
 
 
@@ -746,8 +746,8 @@ void ler_respostas_gabarito( const ImagemCinza *IMG, char direcao, char *respost
    int rows_grid = ( direcao == 'h' ) ? 11 : 15;
 
    // 2. Tamanho da unidade 'p' em pixels nos eixos X e Y
-   float p_x = ( float )IMG->ncol / cols_grid;
-   float p_y = ( float )IMG->nrow / rows_grid;
+   float p_x = ( float )IMG->ncol / (float)cols_grid;
+   float p_y = ( float )IMG->nrow / (float)rows_grid;
 
    // Para manter a área de busca perfeitamente circular, usamos o menor dos dois 'p'
    float p_min = ( p_x < p_y ) ? p_x : p_y;
@@ -787,7 +787,7 @@ void ler_respostas_gabarito( const ImagemCinza *IMG, char direcao, char *respost
       // Exigimos no mínimo 50% de preenchimento para considerar a bolinha marcada.
       // Caso contrário, a questão foi deixada em branco (assinalada com '-').
       if ( max_densidade > 0.50f ) {
-         respostas_out[q] = 'A' + alt_marcada;
+         respostas_out[q] = (char)('A' + (char)alt_marcada);
       } else {
          respostas_out[q] = '-';
       }
@@ -808,8 +808,8 @@ int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
    int cols_grid = ( direcao == 'h' ) ? 14 : 10;
    int rows_grid = ( direcao == 'h' ) ? 11 : 15;
 
-   float p_x = ( float )IMG->ncol / cols_grid;
-   float p_y = ( float )IMG->nrow / rows_grid;
+   float p_x = ( float )IMG->ncol / (float)cols_grid;
+   float p_y = ( float )IMG->nrow / (float)rows_grid;
 
    float p_min = ( p_x < p_y ) ? p_x : p_y;
    float raio = 0.35f * p_min;

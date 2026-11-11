@@ -4,6 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -72,7 +73,7 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void
    args->snap.cabecalho = ctx->cabecalho;
    args->snap.caminho   = ctx->caminho;
    args->snap.hoje      = ctx->hoje;
-   args->snap.fichas    = clonar_diario_alunos( ctx->diario.fichas, ctx->cabecalho.limite_disciplinas );
+   args->snap.fichas    = clonar_diario_alunos( ctx->diario.fichas, (uint8_t)ctx->cabecalho.limite_disciplinas );
 
    // 2. Referências Mestre para a Main Thread
    args->ctx         = ctx;
@@ -220,7 +221,7 @@ void* thread_gerar_prova_background( void *data ) {
    }
 
    ItemTextoCurto *G = g_new0( ItemTextoCurto, snap->dados.qtd_alunos_ativos );
-   size_t lidos = fread( G, sizeof( ItemTextoCurto ), snap->dados.qtd_alunos_ativos, p );
+   size_t lidos = fread( G, sizeof( ItemTextoCurto ), (guint)snap->dados.qtd_alunos_ativos, p );
 
    if ( lidos != ( size_t )snap->dados.qtd_alunos_ativos ) {
       g_printerr( "Aviso de I/O: Esperava %d alunos, mas só consegui ler %zu.\n",
@@ -504,7 +505,7 @@ static void ao_terminar_compilacao_banco( GPid pid, gint status, gpointer user_d
 
          // 3. Chama a sua função nativa passando o arquivo_saida blindado
          g_remove( arquivo_saida );
-         g_pdfunite( async_data->dir_compile, ( const char ** )arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
+         g_pdfunite( async_data->dir_compile, arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
 
          // 4. Limpeza dos arquivos temporários
          for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
@@ -556,7 +557,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
 
    // Cópia absoluta do array (Blindagem contra alterações na interface durante a compilação)
    async_data->subtemas = g_new( gchar*, async_data->qtd_subtemas );
-   memcpy( async_data->subtemas, ctx->prova.subtemas, sizeof( gchar* ) * async_data->qtd_subtemas );
+   memcpy( async_data->subtemas, ctx->prova.subtemas, sizeof( gchar* ) * (guint)async_data->qtd_subtemas );
 
    int num_cores = ( int ) g_get_num_processors();
    GError *erro = NULL;
@@ -564,7 +565,11 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile, Inte
 
    g_autofree char *comando_interno = g_strdup_printf(
                                          "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
-   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+
+   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   argv[0] = g_strdup( "sh" );
+   argv[1] = g_strdup( "-c" );
+   argv[2] = g_strdup( comando_interno );
 
    if ( !g_spawn_async( dir_compile, argv, NULL,
                         G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
@@ -687,13 +692,13 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
 
       // 5.1. Arquivos Não Presenciais
       if ( dados->nao_presencial ) {
-         copiar_arquivos_correcao_nao_presencial( ( MapeamentoGabarito * )map_array->data, map_array->len, ctx );
+         copiar_arquivos_correcao_nao_presencial( ( MapeamentoGabarito * )map_array->data, (int)map_array->len, ctx );
       }
 
       // ====================================================================================
       // 6. UNIFICAÇÃO DOS PDFS E LIMPEZA NATIVA
       // ====================================================================================
-      int total_provas = map_array->len;
+      int total_provas = (int)map_array->len;
       g_auto( GStrv ) arquivos_pdf = g_new0( char *, total_provas + 1 );
       int qtd_sucessos = 0;
 
@@ -711,7 +716,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint status, gpointer user_dat
       g_remove( arquivo_saida );
 
       // Unifica os PDFs
-      g_pdfunite( async->dir_compile, ( const char ** )arquivos_pdf, qtd_sucessos, arquivo_saida );
+      g_pdfunite( async->dir_compile, arquivos_pdf, qtd_sucessos, arquivo_saida );
 
       // Limpeza com OpenMP
       #pragma omp parallel for schedule(static)
@@ -792,7 +797,11 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
 
    g_autofree char *comando_interno = g_strdup_printf(
                                          "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true", num_cores );
-   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+
+   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   argv[0] = g_strdup( "sh" );
+   argv[1] = g_strdup( "-c" );
+   argv[2] = g_strdup( comando_interno );
 
    if ( !g_spawn_async( async_data->dir_compile, argv, NULL,
                         G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,

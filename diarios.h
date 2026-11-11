@@ -1,5 +1,5 @@
-#ifndef DIARIO_H
-#define DIARIO_H
+#ifndef DIARIOS_H
+#define DIARIOS_H
 
 #include "interface.h"
 

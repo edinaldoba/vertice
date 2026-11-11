@@ -121,7 +121,7 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
 
       gulong handler_id = g_signal_connect( check, "toggled", G_CALLBACK( on_subtema_check_toggled ), ctx );
 
-      if ( prova->limite_subtemas > 0 && montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+      if ( prova->limite_subtemas > 0 && montagem->handlers_check != NULL ) {
          montagem->handlers_check[i] = handler_id;
       }
 
@@ -325,7 +325,7 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
          if ( check_box && GTK_IS_TOGGLE_BUTTON( check_box ) ) {
             int id_widget = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( check_box ), "id_widget" ) );
 
-            if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+            if ( montagem->handlers_check != NULL ) {
                g_signal_handler_block( check_box, montagem->handlers_check[id_widget] );
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check_box ), FALSE );
                g_signal_handler_unblock( check_box, montagem->handlers_check[id_widget] );
@@ -370,7 +370,7 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
    int id_widget = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "id_widget" ) );
 
    if ( estado && montagem->cont_add == dados->total_quest_prova ) {
-      if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+      if ( montagem->handlers_check != NULL ) {
          g_signal_handler_block( widget, montagem->handlers_check[id_widget] );
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
          g_signal_handler_unblock( widget, montagem->handlers_check[id_widget] );
@@ -402,7 +402,7 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
          int qtd_tex = quantidade_arquivos_por_extensao( caminho->questoes_tex, ".tex" );
 
          if ( qtd_tex == 0 ) {
-            if ( montagem->handlers_check != NULL && montagem->handlers_check != NULL ) {
+            if ( montagem->handlers_check != NULL ) {
                g_signal_handler_block( widget, montagem->handlers_check[id_widget] );
                gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( widget ), FALSE );
                g_signal_handler_unblock( widget, montagem->handlers_check[id_widget] );
@@ -484,7 +484,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
       if ( !tema_salvo || !subtema_salvo ) continue;
 
       // Busca rápida sem alocações extras no Heap
-      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, prova->limite_temas,
+      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, (guint)prova->limite_temas,
                                      sizeof( tema_salvo ), comparar_item_combo );
       if ( t >= 0 ) {
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.combo_tema ), t );

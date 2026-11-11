@@ -4,6 +4,7 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
@@ -135,7 +136,7 @@ static guchar* achatar_matriz_colorida( const ImagemColorida *img ) {
    int rowstride = largura * 3;
 
    // Alocamos o bloco único contíguo usando GLib
-   guchar *pixels_1d = g_malloc( altura * rowstride );
+   guchar *pixels_1d = g_malloc( (guint)(altura * rowstride) );
 
    // Copiamos linha por linha em paralelo!
    // O memcpy faz a CPU transferir o bloco de memória de uma vez só (instruções SIMD).
@@ -143,7 +144,7 @@ static guchar* achatar_matriz_colorida( const ImagemColorida *img ) {
       guchar *destino_linha = pixels_1d + ( y * rowstride );
 
       // Copiamos os pixels da linha Y da sua matriz 2D para a posição correta no vetor 1D
-      memcpy( destino_linha, img->image[y], rowstride );
+      memcpy( destino_linha, img->image[y], (guint)rowstride );
    }
 
    return pixels_1d;
@@ -214,7 +215,7 @@ static void reconstruir_matriz_colorida( const guchar *pixels_1d, ImagemColorida
 
    // Se for RGB puro (3 canais) e sem padding, podemos usar o memcpy ultraveloz!
    if ( canais == 3 && rowstride == ( largura * 3 ) ) {
-      size_t tamanho_linha_util = largura * sizeof( PixelRGB );
+      size_t tamanho_linha_util = (size_t)largura * sizeof( PixelRGB );
 
       // #pragma omp parallel for
       for ( int y = 0; y < altura; y++ ) {
@@ -283,7 +284,7 @@ void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino ) {
    fprintf( out, "%s\n%d %d\n%d\n", IMG->key, IMG->ncol, IMG->nrow, IMG->max );
 
    // 2. Otimização I/O: Buffer Gigante (aloca a imagem inteira de uma vez)
-   size_t total_pixels = ( size_t )IMG->nrow * IMG->ncol;
+   size_t total_pixels = ( size_t )(IMG->nrow * IMG->ncol);
    unsigned char *buffer_gigante = ( unsigned char * ) malloc( total_pixels );
 
    if ( !buffer_gigante ) {
@@ -298,11 +299,11 @@ void salvar_imagem_pgm( ImagemCinza *IMG, const char *arquivo_destino ) {
    for ( int i = 0; i < IMG->nrow; i++ ) {
 
       // Calcula o deslocamento da linha no buffer gigante
-      size_t offset_linha = ( size_t )i * IMG->ncol;
+      size_t offset_linha = ( size_t )(i * IMG->ncol);
 
       for ( int j = 0; j < IMG->ncol; j++ ) {
          // Cada thread acessa seu espaço exclusivo no buffer_gigante
-         buffer_gigante[ offset_linha + j ] = ( unsigned char ) IMG->image[i][j];
+         buffer_gigante[ offset_linha + (guint)j ] = ( unsigned char ) IMG->image[i][j];
       }
    }
 
@@ -339,7 +340,7 @@ void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, int x_in
    // Cópia ultra-rápida de blocos de memória linha a linha (sem interpolação)
    // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < altura; i++ ) {
-      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( int ) );
+      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], (guint)largura * sizeof( int ) );
    }
 }
 
@@ -368,7 +369,7 @@ void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida
    // Cópia pura de memória, muito mais rápida que interpolação para cortes retos
    // #pragma omp parallel for schedule(static)
    for ( int i = 0; i < altura; i++ ) {
-      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( PixelRGB ) );
+      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], (guint)largura * sizeof( PixelRGB ) );
    }
 }
 
@@ -597,13 +598,13 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
    sprintf( IMG->key, "P5" );
 
    // 1. Pré-alocação segura da matriz 2D
-   IMG->image = ( uint8_t** ) malloc( IMG->nrow * sizeof( uint8_t* ) );
+   IMG->image = ( uint8_t** ) malloc( (guint)IMG->nrow * sizeof( uint8_t* ) );
    for ( uint8_t i = 0; i < IMG->nrow; i++ ) {
-      IMG->image[i] = ( uint8_t* ) malloc( IMG->ncol * sizeof( uint8_t ) );
+      IMG->image[i] = ( uint8_t* ) malloc( (guint)IMG->ncol * sizeof( uint8_t ) );
    }
 
    // 2. I/O em Bloco (Leitura Massiva)
-   size_t total_pixels = ( size_t )IMG->ncol * IMG->nrow;
+   size_t total_pixels = ( size_t )(IMG->ncol * IMG->nrow);
    unsigned char *buffer_gigante = ( unsigned char * ) malloc( total_pixels * 3 );
 
    // Lemos todos os pixels de uma única vez. O disco rígido adora isso.
@@ -618,10 +619,10 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
    for ( int i = 0; i < IMG->nrow; i++ ) {
 
       // Cada thread calcula matematicamente onde começa a sua linha no buffer gigante
-      size_t offset_linha = ( size_t )i * IMG->ncol * 3;
+      size_t offset_linha = ( size_t )(i * IMG->ncol * 3);
 
       for ( int j = 0; j < IMG->ncol; j++ ) {
-         size_t idx = offset_linha + ( j * 3 );
+         size_t idx = offset_linha + (size_t)( j * 3 );
 
          // Acesso seguro: cada thread lê de um índice exclusivo, sem colisão
          unsigned char r = buffer_gigante[idx];
@@ -629,7 +630,7 @@ void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
          unsigned char b = buffer_gigante[idx + 2];
 
          int luminancia = ( 2126 * r + 7152 * g + 722 * b ) / 10000;
-         IMG->image[i][j] = luminancia;
+         IMG->image[i][j] = (guint8)luminancia;
       }
    }
 
@@ -665,7 +666,7 @@ void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
    }
 
    // 3. I/O em Bloco (Leitura Massiva)
-   size_t total_pixels = ( size_t )IMG->ncol * IMG->nrow;
+   size_t total_pixels = ( size_t )(IMG->ncol * IMG->nrow);
    unsigned char *buffer_gigante = g_new( unsigned char, total_pixels );
 
    if ( fread( buffer_gigante, 1, total_pixels, p ) != total_pixels ) {
@@ -679,13 +680,13 @@ void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
    for ( int i = 0; i < IMG->nrow; i++ ) {
 
       // CORREÇÃO: Em PGM (tons de cinza), temos exatos 1 byte por pixel, sem o '* 3'
-      size_t offset_linha = ( size_t )i * IMG->ncol;
+      size_t offset_linha = ( size_t )(i * IMG->ncol);
 
       for ( int j = 0; j < IMG->ncol; j++ ) {
          // O acesso é perfeitamente linear e contíguo
-         size_t idx = offset_linha + j;
+         size_t idx = offset_linha + (size_t)j;
 
-         IMG->image[i][j] = ( int )buffer_gigante[idx];
+         IMG->image[i][j] = ( guint8 )buffer_gigante[idx];
       }
    }
 
@@ -717,10 +718,10 @@ void imread( ImagemColorida *img, const char *arquivo ) {
    }
 
    // 1. Aloca apenas o "esqueleto" (a coluna de ponteiros das linhas)
-   img->image = ( PixelRGB** ) malloc( img->nrow * sizeof( PixelRGB* ) );
+   img->image = ( PixelRGB** ) malloc( (guint)img->nrow * sizeof( PixelRGB* ) );
 
    // 2. A MÁGICA: Aloca TODOS os pixels da imagem em um único bloco contíguo (A "carne")
-   size_t total_pixels = ( size_t )img->nrow * img->ncol;
+   size_t total_pixels = ( size_t )(img->nrow * img->ncol);
    PixelRGB *buffer_gigante = ( PixelRGB* ) malloc( total_pixels * sizeof( PixelRGB ) );
 
    if ( img->image == NULL || buffer_gigante == NULL ) {

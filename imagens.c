@@ -54,7 +54,7 @@ static char* gerar_nome_aleatorio( size_t tam ) {
 
 // Wrapper OBRIGATÓRIO para ordernar ou buscar strings em GPtrArray / bsearch
 static gint cmp_str_ptr( gconstpointer a, gconstpointer b ) {
-   return g_strcmp0( *( const char** )a, *( const char** )b );
+   return g_strcmp0( *( const char* const * )a, *( const char* const * )b );
 }
 
 // =========================================================================
@@ -95,7 +95,7 @@ static GPtrArray* converter_e_copiar_imagens( const char *origem, const char *de
    // Criamos o array de retorno e pré-alocamos o tamanho exato.
    // Isso previne reallocs e permite acesso thread-safe direto pelo índice (pdata[i]).
    GPtrArray *arquivos_gerados = g_ptr_array_new_with_free_func( g_free );
-   g_ptr_array_set_size( arquivos_gerados, arquivos_validos->len );
+   g_ptr_array_set_size( arquivos_gerados, (int)arquivos_validos->len );
 
    // 3. FASE DE PROCESSAMENTO PARALELO (Dynamic mantido para carga balanceada)
    #pragma omp parallel for schedule(dynamic)
@@ -269,7 +269,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
          if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
-            int j = found - ( char** )resp_bin->pdata;
+            int j = (int)(found - ( char** )resp_bin->pdata);
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
@@ -456,7 +456,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
          if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
-            int j = found - ( char** )resp_bin->pdata;
+            int j = (int)(found - ( char** )resp_bin->pdata);
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
             g_strlcpy( map.nome_img, img_png, sizeof( map.nome_img ) );
@@ -640,7 +640,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
          char **found = bsearch( &chave, resp_bin->pdata, resp_bin->len, sizeof( char* ), cmp_str_ptr );
 
          if ( found && f[found - ( char** )resp_bin->pdata] != NULL ) {
-            int j = found - ( char** )resp_bin->pdata;
+            int j = (int)(found - ( char** )resp_bin->pdata);
             ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
             map.num = ler_numero_aluno( &img_gray_crop, map.direcao );
 
@@ -794,18 +794,18 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    }
 
    // ⚠️ ATENÇÃO: Sem g_autoptr! A memória do GArray agora é transferida para a callback assíncrona.
-   GArray *map_array = g_array_sized_new( FALSE, FALSE, sizeof( MapeamentoGabarito ), qtd_linhas );
-   g_array_set_size( map_array, qtd_linhas );
+   GArray *map_array = g_array_sized_new( FALSE, FALSE, sizeof( MapeamentoGabarito ), (guint)qtd_linhas );
+   g_array_set_size( map_array, (guint)qtd_linhas );
 
-   size_t lidos_resp = fread( map_array->data, sizeof( MapeamentoGabarito ), qtd_linhas, fr );
+   size_t lidos_resp = fread( map_array->data, sizeof( MapeamentoGabarito ), (guint)qtd_linhas, fr );
    fclose( fr );
 
    if ( lidos_resp != ( size_t )qtd_linhas ) {
-      g_array_set_size( map_array, lidos_resp );
+      g_array_set_size( map_array, (guint)lidos_resp );
    }
 
    g_autofree ItemTextoCurto *G = g_new0( ItemTextoCurto, dados->qtd_alunos_ativos );
-   size_t lidos_gab = fread( G, sizeof( ItemTextoCurto ), dados->qtd_alunos_ativos, fg );
+   size_t lidos_gab = fread( G, sizeof( ItemTextoCurto ), (guint)dados->qtd_alunos_ativos, fg );
    fclose( fg );
 
    if ( lidos_gab != ( size_t )dados->qtd_alunos_ativos ) {
@@ -829,7 +829,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
             for ( guint j = 0; j < diario->fichas->len; j++ ) {
                FichaAluno *f_busca = g_ptr_array_index( diario->fichas, j );
                if ( f_busca->cod_aluno == map->cod_aluno ) {
-                  map->num = j + 1;
+                  map->num = (int)(j + 1);
                   break;
                }
             }
@@ -843,7 +843,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    g_array_sort( map_array, comparar_por_cod_aluno );
 
    if ( map_array->len > 1 ) {
-      for ( int i = map_array->len - 1; i > 0; i-- ) {
+      for ( guint i = map_array->len - 1; i > 0; i-- ) {
          MapeamentoGabarito *atual = &g_array_index( map_array, MapeamentoGabarito, i );
          MapeamentoGabarito *anterior = &g_array_index( map_array, MapeamentoGabarito, i - 1 );
 
@@ -863,7 +863,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    // ====================================================================================
    // 4. LAÇO PARALELO BLINDADO COM INJEÇÃO DIRETA NA MEMÓRIA
    // ====================================================================================
-   int total_provas = map_array->len;
+   int total_provas = (int)map_array->len;
 
    #pragma omp parallel for schedule(static)
    for ( int i = 0; i < total_provas; i++ ) {
@@ -912,7 +912,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    // 5. ATUALIZAÇÃO DO ARQUIVO BINÁRIO E COMPILAÇÃO (LaTeX Assíncrono)
    // ====================================================================================
    GError *erro = NULL;
-   if ( !g_file_set_contents( path_resp, map_array->data, map_array->len * sizeof( MapeamentoGabarito ), &erro ) ) {
+   if ( !g_file_set_contents( path_resp, map_array->data, (guint)(map_array->len * sizeof(MapeamentoGabarito)), &erro ) ) {
       g_printerr( "Erro crítico ao atualizar o arquivo de respostas: %s\n", erro->message );
       g_clear_error( &erro );
    }

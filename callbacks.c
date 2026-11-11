@@ -15,12 +15,12 @@
 #include "imagens.h"
 #include "interface.h"
 #include "relatorios.h"
-#include "acervo.h"
+#include "latex.h"
 #include "mensagens.h"
 #include "dinamica.h"
 #include "assincrono.h"
 #include "seduc-ma.h"
-#include "diario.h"
+#include "diarios.h"
 
 
 
@@ -920,7 +920,7 @@ void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *e
    if ( !GTK_IS_ENTRY( editable ) ) return;
 
    GtkEntry *entry = GTK_ENTRY( editable );
-   gtk_entry_set_alignment( entry, 0.5 );
+   gtk_entry_set_alignment( entry, 0.5f );
 
    const gchar *texto_atual = gtk_entry_get_text( entry );
    if ( g_strcmp0( texto_atual, "" ) == 0 || g_strcmp0( texto_atual, "-" ) == 0 ) {
@@ -1023,7 +1023,7 @@ void on_cell_relatorio_editing_started( GtkCellRenderer *renderer, GtkCellEditab
    const gchar *texto_atual = gtk_entry_get_text( entry );
 
    // Alinha o Entry à direita para manter o padrão visual da sua tabela
-   gtk_entry_set_alignment( entry, 1.0 );
+   gtk_entry_set_alignment( entry, 1.0f );
 
    // Se a célula estiver vazia ou com um traço de placeholder, limpa para facilitar digitação
    if ( g_strcmp0( texto_atual, "" ) == 0 ) {
@@ -1320,7 +1320,7 @@ void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
  * @brief Configura os metadados do GObject e gerencia a transição de estado do botão de edição.
  */
 static void _configurar_transicao_aba( AppContext *ctx, GtkWidget *btn_clicado,
-                                       const gchar *nome_pagina, GtkWidget *widget_foco ) {
+                                       gchar *nome_pagina, GtkWidget *widget_foco ) {
    InterfaceConteudo *conteudo = &ctx->diario.conteudo;
 
    GObject *object = G_OBJECT( ctx->diario.check_modo_edicao );
@@ -1352,7 +1352,8 @@ void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_
 
    // 1º CASO: Primeiro clique (ou botão inativo) -> Ativa o modo de edição
    if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
-      _configurar_transicao_aba( ctx, widget, "page_conteudo", conteudo->tipo_registro );
+      g_autofree gchar *page = g_strdup( "page_conteudo" );
+      _configurar_transicao_aba( ctx, widget, page, conteudo->tipo_registro );
    }
    // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
    else {
@@ -1368,7 +1369,8 @@ void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user
    InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
 
    if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
-      _configurar_transicao_aba( ctx, widget, "page_frequencia", frequencia->combo_data );
+      g_autofree gchar *page = g_strdup( "page_frequencia" );
+      _configurar_transicao_aba( ctx, widget, page, frequencia->combo_data );
    } else {
       g_print( "Gerando PDF de Frequência...\n" );
       relatorio_de_frequencia( &ctx->painel, ctx );
@@ -1382,7 +1384,8 @@ void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user
    InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
 
    if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
-      _configurar_transicao_aba( ctx, widget, "page_avaliacoes", avaliacao->combo_avaliacao );
+      g_autofree gchar *page = g_strdup( "page_avaliacoes" );
+      _configurar_transicao_aba( ctx, widget, page, avaliacao->combo_avaliacao );
    } else {
       g_print( "Gerando PDF de Avaliações...\n" );
 
@@ -1404,7 +1407,8 @@ void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) 
    InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
 
    if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
-      _configurar_transicao_aba( ctx, widget, "page_relatorio", relatorio->btn_consolidar );
+      g_autofree gchar *page = g_strdup( "page_relatorio" );
+      _configurar_transicao_aba( ctx, widget, page, relatorio->btn_consolidar );
    } else {
       g_print( "Gerando PDF de Relatório Final...\n" );
 

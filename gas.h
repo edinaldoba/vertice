@@ -32,7 +32,8 @@ typedef struct {
 // ASSINATURAS DE FUNÇÕES
 // ============================================================================
 
-void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *info, IndiceMatriz *ancora, int tentativa );
+void gas_mapear_ancoras( const ImagemCinza *img, MapeamentoGabarito *map,
+                         IndiceMatriz *ancora, int tentativa );
 
 
 

@@ -33,7 +33,7 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
  */
 static void _treeview_configurar_alinhamento_coluna( GtkWidget *widget,
       int coluna,
-      float align_celula,
+      double align_celula,
       guint pad_celula_x,
       float align_cabecalho ) {
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
@@ -209,7 +209,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    conteudo->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if ( i < 2 ) _treeview_configurar_alinhamento_coluna( conteudo->treeview, i, 0.5, 0, 0.5 );
+      if ( i < 2 ) _treeview_configurar_alinhamento_coluna( conteudo->treeview, i, 0.5, 0, 0.5f );
       if ( i < 2 ) _treeview_configurar_font_features_col( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
    }
 
@@ -226,7 +226,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    frequencia->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 5; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5f );
       if ( i == 0 || i == 2 ) _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
    }
 
@@ -243,7 +243,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    avaliacao->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 13; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( avaliacao->treeview, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( avaliacao->treeview, i, 0.5, 0, 0.5f );
       if ( i != 1 ) _treeview_configurar_font_features_col( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
    }
    _destacar_cabecalho_nota( avaliacao->treeview );
@@ -254,7 +254,7 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    relatorio->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( relatorio->treeview, i, 0.5, 0, 0.5 );
+      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( relatorio->treeview, i, 0.5, 0, 0.5f );
       if ( i != 1 ) _treeview_configurar_font_features_col( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
    }
 }

@@ -243,7 +243,7 @@ static void _on_renderizar_cores_frequencia( GtkTreeViewColumn *col, GtkCellRend
 
    // 2. Fonte (Protegendo a Coluna 0 de numeração)
    if ( col_idx != 0 ) {
-      int status = 0;
+      StatusAssiduidade status = 0;
       gtk_tree_model_get( model, iter, 6, &status, -1 );
 
       gboolean tem_cor = cor_texto_linha_frequencia( status, tema_ativo, &cor );

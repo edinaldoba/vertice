@@ -199,6 +199,7 @@ static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_o
       }
       break;
 
+   case COR_NATIVA:
    default:
       return 0;
    }
@@ -237,8 +238,7 @@ gboolean cor_texto_observacao( gboolean eh_inativo, int tema_ativo, int pendenci
    // 2. Agrupamentos lógicos de estados (Máscaras combinadas)
    int mascara_sucesso = OBS_ALUNO_APROVADO_DIRETO |
                          OBS_ALUNO_APROVADO_NA_FINAL |
-                         OBS_ALUNO_APROVADO_NO_CONSELHO |
-                         OBS_ALUNO_APROVADO_PENDENCIA;
+                         OBS_ALUNO_APROVADO_NO_CONSELHO;
 
    int mascara_alerta  = OBS_ALUNO_EM_RECUPERACAO_FINAL |
                          OBS_ALUNO_EM_CONSELHO_CLASSE;
@@ -286,6 +286,7 @@ int cor_texto_tipo_registro( int tipo_registro, int tema_ativo, GdkRGBA *cor_out
 int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGBA *cor_out ) {
    switch ( status ) {
    case SEM_STATUS:
+   case NOVO_ALUNO:
       return obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
 
    case AUSENTE:
@@ -304,6 +305,7 @@ int cor_texto_linha_frequencia( StatusAssiduidade status, int tema_ativo, GdkRGB
    case FALTA_JUSTIFICADA:
       return obter_cor_semantica( COR_SUCESSO, tema_ativo, cor_out );
 
+   case PRESENTE:
    default:
       return 0; // Presente (usa cor nativa)
    }

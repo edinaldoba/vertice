@@ -114,7 +114,7 @@ void g_system_async( const char *comando ) {
 
 
 
-void g_pdfunite( const char *diretorio, const char **arquivos, const int qtd_arquivos, const char *saida ) {
+void g_pdfunite( const char *diretorio, GStrv arquivos, const int qtd_arquivos, const char *saida ) {
    g_return_if_fail( diretorio != NULL );
    g_return_if_fail( arquivos != NULL );
    g_return_if_fail( saida != NULL );
@@ -164,7 +164,10 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
    g_autofree char *comando_interno = g_strdup_printf(
                                          "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
 
-   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   argv[0] = g_strdup( "sh" );
+   argv[1] = g_strdup( "-c" );
+   argv[2] = g_strdup( comando_interno );
 
    // 2. A MÁGICA: O 3º parâmetro (dir_compile) garante o "cd" seguro antes da execução.
    if ( !g_spawn_sync( dir_compile, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status_saida, &erro ) ) {
@@ -192,7 +195,10 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
    g_autofree char *comando_interno = g_strdup_printf(
                                          "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: %s*.tex", num_cores, prefixo );
 
-   char *argv[] = { ( char * )"sh", ( char * )"-c", comando_interno, NULL };
+   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   argv[0] = g_strdup( "sh" );
+   argv[1] = g_strdup( "-c" );
+   argv[2] = g_strdup( comando_interno );
 
    // 2. A MÁGICA: O 3º parâmetro (dir_compile) diz à GLib para fazer um "cd"
    // silencioso e seguro para essa pasta ANTES de executar o argv.

@@ -10,7 +10,9 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 
+#include "glib-unix.h"
 #include "glib_gio.h"
+#include "glibconfig.h"
 #include "interface.h"
 #include "provas.h"
 #include "comum.h"
@@ -131,7 +133,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 
    // 3. GRAVAÇÃO ATÔMICA NO DISCO
    GError *error = NULL;
-   if ( !g_file_set_contents( caminho_saida, tex->str, tex->len, &error ) ) {
+   if ( !g_file_set_contents( caminho_saida, tex->str, (guint)tex->len, &error ) ) {
       g_printerr( "[ERRO] Falha ao salvar a lista de frequência: %s\n", error->message );
       g_error_free( error );
    }
@@ -178,13 +180,13 @@ void imagens_para_prova( const int i, int numero, const GPtrArray *fichas,
    // Para que isto funcione perfeitamente, a assinatura de quadro_de_respostas
    // deverá ser alterada de (FILE *p, ...) para (GString *tex, ...)
    // e lá dentro você substituirá fprintf(p, ...) por g_string_append_printf(tex, ...)
-   quadro_de_respostas( tex, ficha->aluno, numero, i, direcao, TRUE, dados, cabecalho );
+   quadro_de_respostas( tex, ficha->aluno, numero, (guint8)i, direcao, TRUE, dados, cabecalho );
 
    g_string_append( tex, "\\end{document}\n" );
 
    // 4. Gravação Atômica (O "commit" da string para o disco)
    GError *error = NULL;
-   if ( !g_file_set_contents( arquivo, tex->str, tex->len, &error ) ) {
+   if ( !g_file_set_contents( arquivo, tex->str, (guint)tex->len, &error ) ) {
       g_printerr( "[ERRO] Falha ao salvar a prova na imagem %d: %s\n", i, error->message );
       g_error_free( error );
    }
@@ -536,7 +538,10 @@ static void executar_gerador_c_de_questoes_nativamente( const char *pasta_tema )
    g_return_if_fail( pasta_tema );
 
    if ( quantidade_arquivos_por_extensao( pasta_tema, ".c" ) == 1 ) {
-      char *argv[] = { ( char * )"sh", ( char * )"-c", ( char * )"./Q", NULL };
+      g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+      argv[0] = g_strdup( "sh" );
+      argv[1] = g_strdup( "-c" );
+      argv[2] = g_strdup( "./Q" );
       GError *erro = NULL;
 
       if ( !g_spawn_sync( pasta_tema, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &erro ) ) {
@@ -594,7 +599,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       file_permute( pb, dados->total_quest_prova );
 
       if ( dados->nao_presencial ) {
-         imagens_para_prova( num_ativo, jj + 1, fichas, dados, cabecalho );
+         imagens_para_prova( num_ativo, (guint8)(jj + 1), fichas, dados, cabecalho );
       }
 
       // 3. Montagem Atômica do Arquivo .tex via GLib (Puramente em RAM)
@@ -606,7 +611,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       anexar_preambulo_latex( tex_corpo, dados );
 
       g_string_append( tex_corpo, "\\begin{document}\n\\noindent\n\\begin{tikzpicture}\n" );
-      anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, hoje, titulo_prova, TRUE );
+      anexar_cabecalho_base_latex( tex_corpo, dados, ficha, (guint8)(jj + 1), hoje, titulo_prova, TRUE );
       anexar_colunas_separadoras_latex( tex_corpo, dados, FALSE );
       g_string_append( tex_corpo, "\\end{tikzpicture}\n\n" );
 
@@ -619,7 +624,7 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       for ( int qi = 0; qi < dados->total_quest_prova; qi++ ) {
          if ( qi == 5 && dados->qtd_paginas == 2 ) {
             g_string_append( tex_corpo, "\\end{enumerate}\n\\end{multicols}\n\\newpage\n\\noindent\n\\begin{tikzpicture}\n" );
-            anexar_cabecalho_base_latex( tex_corpo, dados, ficha, jj + 1, hoje, titulo_prova, FALSE );
+            anexar_cabecalho_base_latex( tex_corpo, dados, ficha, (guint8)(jj + 1), hoje, titulo_prova, FALSE );
             anexar_colunas_separadoras_latex( tex_corpo, dados, TRUE );
             g_string_append_printf( tex_corpo, "\\end{tikzpicture}\n\n\\vspace{-27.85cm}\n\\begin{multicols}{%d}\n\\begin{enumerate}[\\hspace{-1.8mm}]\n", dados->qtd_colunas );
          }
@@ -632,22 +637,16 @@ void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G ) {
       // Chamada externa unificada via ponteiro GString
       char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
 
-      if ( dados->qtd_paginas == 1 ) {
-         g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->nao_presencial, dados, cabecalho );
-         g_string_append( tex_corpo, "\\end{center}\n" );
-      } else {
-         g_string_append( tex_corpo, "\\begin{center}\n" );
-         quadro_de_respostas( tex_corpo, ficha->aluno, jj + 1, num_ativo, direcao, dados->nao_presencial, dados, cabecalho );
-         g_string_append( tex_corpo, "\\end{center}\n" );
-      }
+      g_string_append( tex_corpo, "\\begin{center}\n" );
+      quadro_de_respostas( tex_corpo, ficha->aluno, (guint8)(jj + 1), (guint8)num_ativo, direcao, dados->nao_presencial, dados, cabecalho );
+      g_string_append( tex_corpo, "\\end{center}\n" );
 
       // Encerra código LaTeX
       g_string_append( tex_corpo, "\\end{multicols}\n\\end{document}\n" );
 
       // 4. Descarrega o texto GString massivo no disco de uma VEZ SÓ de forma segura
       GError *error = NULL;
-      if ( !g_file_set_contents( caminho_tex, tex_corpo->str, tex_corpo->len, &error ) ) {
+      if ( !g_file_set_contents( caminho_tex, tex_corpo->str, (guint)tex_corpo->len, &error ) ) {
          g_printerr( "[ERRO] Falha ao salvar a prova %d: %s\n", num_ativo, error->message );
          g_error_free( error );
       }
@@ -805,7 +804,7 @@ void compilacao_latex_e_manipulacao_de_arquivos( const GPtrArray *fichas, const 
    g_remove( destino_relatorio );
 
    // Geração unificada direto na pasta Relatórios (Elimina o gio_mover_arquivo)
-   g_pdfunite( temp, ( const char ** )arquivos_pdf, qtd_pdfs, destino_relatorio );
+   g_pdfunite( temp, arquivos_pdf, qtd_pdfs, destino_relatorio );
 
    // =========================================================================
    // LIMPEZA PARALELA DE ARQUIVOS NATIVOS

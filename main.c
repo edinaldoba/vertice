@@ -16,7 +16,7 @@
 #include "basicas.h"
 
 #include "mensagens.h"
-#include "diario.h"
+#include "diarios.h"
 
 
 

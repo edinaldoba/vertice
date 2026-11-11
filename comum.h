@@ -265,7 +265,7 @@ typedef enum {
    // --- Estados Finais Pós-Avaliações Especiais (Fechamento do Ano) ---
    OBS_ALUNO_APROVADO_NA_FINAL    = 1 << 4,    // Atingiu a nota necessária na Recuperação Final
    OBS_ALUNO_APROVADO_NO_CONSELHO = 1 << 5,    // Aprovado após deliberação do Conselho de Classe
-   OBS_ALUNO_APROVADO_PENDENCIA   = 1 << 6,    // Aprovado com dependência/pendência documental
+   // OBS_ALUNO_APROVADO_PENDENCIA   = 1 << 6,    // Aprovado com dependência/pendência documental
    OBS_ALUNO_REPROVADO            = 1 << 7     // Reprovado no ano letivo
 
 } __attribute__( ( packed ) ) ObservacaoAluno;
