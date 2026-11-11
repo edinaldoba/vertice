@@ -3,6 +3,7 @@
 # ==============================================================================
 
 # Ignora qualquer pasta chamada 'CE Poeta Cunha Santos' em qualquer profundidade/subpasta
+config/*
 **/CE Poeta Cunha Santos/
 
 # Ignora assinaturas
