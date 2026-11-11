@@ -1,36 +1,72 @@
 # ==============================================================================
-# BLINDAGEM DE DADOS SENSÍVEIS E PRIVACIDADE (SISTEMA VÉRTICE)
+# BLINDAGEM DE DADOS SENSÍVEIS, BANCO BINÁRIO E PRIVACIDADE
 # ==============================================================================
 
-# 1. Ignora qualquer subpasta chamada 'CE Poeta Cunha Santos' em qualquer nível do projeto
+# Ignora qualquer pasta chamada 'CE Poeta Cunha Santos' em qualquer profundidade/subpasta
 **/CE Poeta Cunha Santos/
-**/CE Poeta Cunha Santos/**/*
 
-# 2. Ignora qualquer arquivo que comece com 'assinatura' ou '.assinatura' em qualquer pasta
-**/.assinatura*
-**/assinatura*
+# Ignora assinaturas
+.assinatura*
+assinatura*
 
-# 3. Regra restritiva para a pasta 'suporte/'
-# Primeiro: Bloqueia TUDO dentro de suporte/
-dados/backup/*
-suporte/*
-drive/*
-dados/fichas/*
-planilhas/*
+# Regras restritivas para suporte e acervo
 acervo/*
 !acervo/.gitkeep
-
-!planilhas/acesso
-
-# Segundo: Abre exceção (!) APENAS para o script dependencias.sh
+suporte/*
 !suporte/dependencias.sh
 
+# Scripts locais
 github.sh
 
+# ==============================================================================
+# PRODUTOS DE COMPILAÇÃO C / GTK / MAKEFILE
+# ==============================================================================
+# Executável compilado
+vertice
+
+# Objetos e dependências automáticas do GCC/Clang (-MMD -MP)
+*.o
+*.d
+*.so
+*.a
+*.out
+recursos.c
+
+# Relatórios de análise de memória e diagnósticos
+relatorio_valgrind.txt
+
+# Arquivos temporários de editores (Kate, VSCode, Clangd)
+.*.kate-swp
+.clangd/
+.cache/
+compile_commands.json
+compile_flags.txt
 
 # ==============================================================================
-# IMAGENS E MÍDIAS (MINÚSCULAS E MAIÚSCULAS)
+# ARQUIVOS AUXILIARES DE COMPILAÇÃO LATEX / PDF
 # ==============================================================================
+*.aux
+*.log
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Documentos finais gerados (PDFs e arquivos binários de alunos)
+*.pdf
+*.PDF
+*.bin
+
+# Backup compactado / Encriptado
+*.tar.gz
+*.tar.gz.gpg
+
+# ==============================================================================
+# IMAGENS E MÍDIAS (Ignora mídias locais de teste/scans OMR)
+# ==============================================================================
+
+# Regras globais de imagens
 *.png
 *.PNG
 *.jpg
@@ -43,24 +79,9 @@ github.sh
 *.BMP
 *.gif
 *.GIF
-# *.svg
+*.svg
 *.SVG
 *.webp
 *.WEBP
 *.tiff
 *.TIFF
-
-# ==============================================================================
-# DOCUMENTOS GERADOS, COMPILAÇÃO E BACKUPS
-# ==============================================================================
-*.pdf
-*.PDF
-*.o
-*.so
-*.a
-*.out
-*.tar.gz
-*.tar.gz.gpg
-.aux
-.log 
-.synctex.gz
