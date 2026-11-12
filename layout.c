@@ -11,6 +11,31 @@
 // 1. FUNÇÕES AUXILIARES DE ESTILIZAÇÃO E ALINHAMENTO
 // ======================================================================================
 
+static gboolean _detectar_ubuntu( void ) {
+   FILE *fp = fopen( "/etc/os-release", "r" );
+   if ( fp == NULL ) {
+      // Se o arquivo não existir, provavelmente não é um Linux moderno
+      return FALSE;
+   }
+
+   char linha[256];
+   gboolean eh_ubuntu = FALSE;
+
+   // Lê o arquivo linha por linha buscando o ID da distribuição
+   while ( fgets( linha, sizeof( linha ), fp ) ) {
+      // O arquivo costuma ter uma linha como: ID=ubuntu
+      if ( strncmp( linha, "ID=", 3 ) == 0 ) {
+         if ( strstr( linha, "ubuntu" ) != NULL ) {
+            eh_ubuntu = TRUE;
+            break;
+         }
+      }
+   }
+
+   fclose( fp );
+   return eh_ubuntu;
+}
+
 /**
  * @brief Extrai o GtkLabel interno de um botão configurado pelo Glade e aplica o espaçamento.
  */
@@ -39,7 +64,9 @@ static void _treeview_configurar_alinhamento_coluna( GtkWidget *widget,
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
 
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
-   if ( !col_ch ) return;
+   if ( !col_ch ) {
+      return;
+   }
 
    // 1. Controle do Cabeçalho (Botão superior)
    gtk_tree_view_column_set_alignment( col_ch, align_cabecalho );
@@ -75,7 +102,9 @@ static void _treeview_configurar_font_features_col( GtkWidget *widget, int colun
    g_return_if_fail( font_features != NULL );
 
    GtkTreeViewColumn *col_ch = gtk_tree_view_get_column( GTK_TREE_VIEW( widget ), coluna );
-   if ( !col_ch ) return;
+   if ( !col_ch ) {
+      return;
+   }
 
    GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col_ch ) );
 
@@ -117,15 +146,19 @@ static void _treeview_configurar_font_features_col( GtkWidget *widget, int colun
 // Chamar apenas UMA VEZ durante a inicialização (ex: layout.c)
 //===================================================================================================
 static void _destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
-   g_return_if_fail( treeview_avaliacoes && GTK_IS_TREE_VIEW( treeview_avaliacoes ) );
+   g_return_if_fail( treeview_avaliacoes != NULL && GTK_IS_TREE_VIEW( treeview_avaliacoes ) );
 
    // 1. Obtém a coluna 12 (Nota do Período) da TreeView de Avaliações
    GtkTreeViewColumn *col_nota = gtk_tree_view_get_column( GTK_TREE_VIEW( treeview_avaliacoes ), 12 );
-   if ( !col_nota ) return;
+   if ( !col_nota ) {
+      return;
+   }
 
    // 2. Captura o widget real do botão do cabeçalho
    GtkWidget *button = gtk_tree_view_column_get_button( col_nota );
-   if ( !button ) return;
+   if ( !button ) {
+      return;
+   }
 
    // 3. Adiciona a classe CSS nativamente
    GtkStyleContext *context = gtk_widget_get_style_context( button );
@@ -147,7 +180,7 @@ static void _mapear_janela_mestra( AppContext *ctx, GtkBuilder *builder, GtkAppl
 
    gtk_window_set_application( GTK_WINDOW( ctx->window ), app );
 
-   if ( detectar_ubuntu() ) {
+   if ( _detectar_ubuntu() ) {
       gtk_window_set_position( GTK_WINDOW( ctx->window ), GTK_WIN_POS_CENTER );
    } else {
       gtk_window_move( GTK_WINDOW( ctx->window ), 1019, 141 );
@@ -209,8 +242,12 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    conteudo->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
-      if ( i < 2 ) _treeview_configurar_alinhamento_coluna( conteudo->treeview, i, 0.5, 0, 0.5f );
-      if ( i < 2 ) _treeview_configurar_font_features_col( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
+      if ( i < 2 ) {
+         _treeview_configurar_alinhamento_coluna( conteudo->treeview, i, 0.5, 0, 0.5f );
+      }
+      if ( i < 2 ) {
+         _treeview_configurar_font_features_col( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
+      }
    }
 
    // --- SUB-ABA: FREQUÊNCIA ---
@@ -226,8 +263,12 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    frequencia->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 5; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5f );
-      if ( i == 0 || i == 2 ) _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
+      if ( i != 1 ) {
+         _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5f );
+      }
+      if ( i == 0 || i == 2 ) {
+         _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
+      }
    }
 
    // --- SUB-ABA: AVALIAÇÕES ---
@@ -243,8 +284,12 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    avaliacao->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 13; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( avaliacao->treeview, i, 0.5, 0, 0.5f );
-      if ( i != 1 ) _treeview_configurar_font_features_col( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
+      if ( i != 1 ) {
+         _treeview_configurar_alinhamento_coluna( avaliacao->treeview, i, 0.5, 0, 0.5f );
+      }
+      if ( i != 1 ) {
+         _treeview_configurar_font_features_col( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
+      }
    }
    _destacar_cabecalho_nota( avaliacao->treeview );
 
@@ -254,8 +299,12 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
 
    relatorio->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
-      if ( i != 1 ) _treeview_configurar_alinhamento_coluna( relatorio->treeview, i, 0.5, 0, 0.5f );
-      if ( i != 1 ) _treeview_configurar_font_features_col( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
+      if ( i != 1 ) {
+         _treeview_configurar_alinhamento_coluna( relatorio->treeview, i, 0.5, 0, 0.5f );
+      }
+      if ( i != 1 ) {
+         _treeview_configurar_font_features_col( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
+      }
    }
 }
 

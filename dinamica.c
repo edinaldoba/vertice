@@ -26,7 +26,9 @@ static void destruir_widget_callback( GtkWidget *widget, gpointer data ) {
 }
 
 void limpar_container( GtkWidget *container ) {
-   if ( !container ) return;
+   if ( !container ) {
+      return;
+   }
    gtk_container_foreach( GTK_CONTAINER( container ), destruir_widget_callback, NULL );
 }
 
@@ -34,12 +36,16 @@ void limpar_container( GtkWidget *container ) {
 // 2. BUSCA DE WIDGETS INTERNOS E LISTBOX LATEX
 // ==================================================================================================
 static void atualizar_listbox_subtemas_latex( InterfaceLatex *latex, InterfaceProva *prova ) {
-   if ( !latex || !prova ) return;
+   if ( !latex || !prova ) {
+      return;
+   }
 
    limpar_container( latex->listbox_subtemas );
 
    for ( int i = 0; i < prova->limite_subtemas; i++ ) {
-      if ( !prova->subtemas[i] ) continue;
+      if ( !prova->subtemas[i] ) {
+         continue;
+      }
 
       GtkWidget *linha_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 8 );
 
@@ -61,7 +67,9 @@ static void atualizar_listbox_subtemas_latex( InterfaceLatex *latex, InterfacePr
 static void comparar_nome_do_filho( GtkWidget *container_child, gpointer user_data ) {
    BuscaWidgetData *data = ( BuscaWidgetData * )user_data;
 
-   if ( data->encontrado != NULL ) return;
+   if ( data->encontrado != NULL ) {
+      return;
+   }
 
    GtkWidget *widget_interno = gtk_bin_get_child( GTK_BIN( container_child ) );
 
@@ -71,7 +79,9 @@ static void comparar_nome_do_filho( GtkWidget *container_child, gpointer user_da
 }
 
 static GtkWidget* buscar_widget_por_nome_interno( GtkWidget *container, const char *nome_alvo ) {
-   if ( !container || !nome_alvo ) return NULL;
+   if ( !container || !nome_alvo ) {
+      return NULL;
+   }
 
    BuscaWidgetData data = { .nome_alvo = nome_alvo, .encontrado = NULL };
    gtk_container_foreach( GTK_CONTAINER( container ), comparar_nome_do_filho, &data );
@@ -83,7 +93,9 @@ static GtkWidget* buscar_widget_por_nome_interno( GtkWidget *container, const ch
 // 3. ATUALIZAÇÃO DA LISTA DE SUBTEMAS DA PROVA
 // ==================================================================================================
 void atualizar_listbox_subtemas( AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    InterfaceDinamica *montagem = &ctx->prova.montagem;
    InterfaceProva    *prova = &ctx->prova;
@@ -101,11 +113,13 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
 
    // 2. Aloca o novo vetor simples para os subtemas visíveis
    if ( prova->limite_subtemas > 0 ) {
-      montagem->handlers_check = g_new0( gulong, prova->limite_subtemas );
+      montagem->handlers_check = g_new0( gulong, ( gsize )prova->limite_subtemas );
    }
 
    for ( int i = 0; i < prova->limite_subtemas; i++ ) {
-      if ( !prova->subtemas[i] ) continue;
+      if ( !prova->subtemas[i] ) {
+         continue;
+      }
 
       GtkWidget *check = gtk_check_button_new_with_label( prova->subtemas[i] );
       gtk_widget_set_name( check, prova->subtemas[i] );
@@ -193,7 +207,9 @@ static EstadoStepper extrair_estado_stepper( GtkWidget *button ) {
    EstadoStepper st = {0};
 
    st.tag_box = GTK_WIDGET( g_object_get_data( G_OBJECT( button ), "tag_pai" ) );
-   if ( !st.tag_box ) return st;
+   if ( !st.tag_box ) {
+      return st;
+   }
 
    st.label_qtd  = GTK_WIDGET( g_object_get_data( G_OBJECT( st.tag_box ), "label_quantidade" ) );
    st.btn_menos  = GTK_WIDGET( g_object_get_data( G_OBJECT( st.tag_box ), "btn_menos" ) );
@@ -237,7 +253,9 @@ static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const Interfac
          }
       }
 
-      if ( idx == dados->total_quest_prova ) break;
+      if ( idx == dados->total_quest_prova ) {
+         break;
+      }
    }
 }
 
@@ -245,10 +263,14 @@ static void sincronizar_vetor_com_flowbox( InterfaceDados *dados, const Interfac
 // 6. LÓGICA DOS BOTÕES STEPPER (MAIS E MENOS - CORRIGIDA)
 // ==================================================================================================
 void logica_stepper_mais( GtkWidget *button, AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    EstadoStepper st = extrair_estado_stepper( button );
-   if ( !st.tag_box ) return;
+   if ( !st.tag_box ) {
+      return;
+   }
 
    if ( st.valor_atual < st.limite_max ) {
       st.valor_atual++;
@@ -266,7 +288,9 @@ void logica_stepper_mais( GtkWidget *button, AppContext *ctx ) {
 }
 
 static void remover_tag_no_flowbox( GtkWidget *flowbox, const char *tag_id ) {
-   if ( !flowbox || !tag_id ) return;
+   if ( !flowbox || !tag_id ) {
+      return;
+   }
 
    GtkWidget *box = buscar_widget_por_nome_interno( flowbox, tag_id );
    if ( box ) {
@@ -275,10 +299,14 @@ static void remover_tag_no_flowbox( GtkWidget *flowbox, const char *tag_id ) {
 }
 
 void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
-   if ( !ctx || !button ) return;
+   if ( !ctx || !button ) {
+      return;
+   }
 
    EstadoStepper st = extrair_estado_stepper( button );
-   if ( !st.tag_box ) return;
+   if ( !st.tag_box ) {
+      return;
+   }
 
    InterfaceDados    *dados    = &ctx->dados;
    InterfaceProva    *prova = &ctx->prova;
@@ -301,10 +329,14 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
       // 🎯 CORREÇÃO DO BOTÃO IFOOD:
       // Lê o tag_id direto do nome da tag_box (mantido em memória pelo GTK)
       const char *label_tema = gtk_widget_get_name( st.tag_box );
-      if ( !label_tema ) return;
+      if ( !label_tema ) {
+         return;
+      }
 
       g_auto( GStrv ) pedacos = g_strsplit( label_tema, "/", 2 );
-      if ( !pedacos || !pedacos[0] || !pedacos[1] ) return;
+      if ( !pedacos || !pedacos[0] || !pedacos[1] ) {
+         return;
+      }
 
       const char *tema_alvo    = pedacos[0];
       const char *subtema_alvo = pedacos[1];
@@ -338,7 +370,9 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
 }
 
 void rolar_para_o_fim( GtkScrolledWindow *scrolled_window ) {
-   if ( !scrolled_window ) return;
+   if ( !scrolled_window ) {
+      return;
+   }
 
    GtkAdjustment *v_adj = gtk_scrolled_window_get_vadjustment( scrolled_window );
    double max_v = gtk_adjustment_get_upper( v_adj ) - gtk_adjustment_get_page_size( v_adj );
@@ -357,7 +391,9 @@ void rolar_para_o_fim( GtkScrolledWindow *scrolled_window ) {
 // 7. LÓGICA DE SELEÇÃO DO SUBTEMA (TOGGLED)
 // ==================================================================================================
 void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
-   if ( !ctx || !widget ) return;
+   if ( !ctx || !widget ) {
+      return;
+   }
 
    CaminhoDiretorio  *caminho  = &ctx->caminho;
    InterfaceProva    *prova = &ctx->prova;
@@ -388,7 +424,9 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
    }
 
    g_autofree gchar *tema_ativo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->prova.combo_tema ) );
-   if ( !tema_ativo ) return;
+   if ( !tema_ativo ) {
+      return;
+   }
 
    char tag_id[256];
    snprintf( tag_id, sizeof( tag_id ), "%s/%s", tema_ativo, subtema );
@@ -445,7 +483,9 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
 // ==================================================================================================
 static gboolean bloquear_sinal_com_atraso( gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   if ( !ctx ) return G_SOURCE_REMOVE;
+   if ( !ctx ) {
+      return G_SOURCE_REMOVE;
+   }
 
    if ( ctx->prova.montagem.handler_scrolled > 0 ) {
       g_signal_handler_block( ctx->prova.scrolled_window, ctx->prova.montagem.handler_scrolled );
@@ -456,7 +496,9 @@ static gboolean bloquear_sinal_com_atraso( gpointer user_data ) {
 }
 
 void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascunho ) {
-   if ( !ctx || !rascunho ) return;
+   if ( !ctx || !rascunho ) {
+      return;
+   }
 
    InterfaceDados *dados    = &ctx->dados;
    InterfaceProva *prova = &ctx->prova;
@@ -475,16 +517,20 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
    atualizar_listbox_subtemas( ctx );
 
    for ( int i = 0; i < dados->total_quest_prova; i++ ) {
-      if ( rascunho->questoes[i].str[0] == '\0' ) continue;
+      if ( rascunho->questoes[i].str[0] == '\0' ) {
+         continue;
+      }
 
       g_auto( GStrv ) pedacos = g_strsplit( rascunho->questoes[i].str, "/", -1 );
       char *tema_salvo    = pedacos[0];
       char *subtema_salvo = pedacos[1];
 
-      if ( !tema_salvo || !subtema_salvo ) continue;
+      if ( !tema_salvo || !subtema_salvo ) {
+         continue;
+      }
 
       // Busca rápida sem alocações extras no Heap
-      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, (guint)prova->limite_temas,
+      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, ( guint )prova->limite_temas,
                                      sizeof( tema_salvo ), comparar_item_combo );
       if ( t >= 0 ) {
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.combo_tema ), t );
@@ -549,21 +595,25 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
 // Função auxiliar interna para verificar se o arquivo oculto é lixo do sistema
 static int eh_metadado_valido( const char *nome ) {
    // Ignora o diretório atual (.) e pai (..)
-   if ( g_strcmp0( nome, "." ) == 0 || g_strcmp0( nome, ".." ) == 0 ) return 0;
+   if ( g_strcmp0( nome, "." ) == 0 || g_strcmp0( nome, ".." ) == 0 ) {
+      return 0;
+   }
 
    // Ignora pastas ou arquivos comuns de sistemas/ferramentas
    if ( g_strcmp0( nome, ".git" ) == 0 ||
          g_strcmp0( nome, ".vscode" ) == 0 ||
-         g_strcmp0( nome, ".DS_Store" ) == 0 ) return 0;
+         g_strcmp0( nome, ".DS_Store" ) == 0 ) {
+      return 0;
+   }
 
    return 1;
 }
 //==================================================================================================
 static gchar *preencher_painel_responsavel( const char *diretorio, GtkWidget *box, const char *prefixo ) {
    // 1. Defesas rigorosas com macros GLib
-   g_return_val_if_fail( diretorio, NULL );
+   g_return_val_if_fail( diretorio != NULL, NULL );
    g_return_val_if_fail( GTK_IS_BOX( box ), NULL );
-   g_return_val_if_fail( prefixo, NULL );
+   g_return_val_if_fail( prefixo != NULL, NULL );
 
    // 2. Abertura do diretório no padrão GLib
    GDir *dir = g_dir_open( diretorio, 0, NULL );

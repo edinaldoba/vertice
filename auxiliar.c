@@ -65,9 +65,9 @@ void mapear_id_para_data( long int w, int *dia, int *mes, int *ano ) {
    long int d = j - ( 1461 * y ) / 4;
    long int m = ( 5 * d - 3 ) / 153;
 
-   *dia = (int)(d - ( 153 * m + 3 ) / 5);
-   *mes = (int)(m + 3);
-   *ano = (int)y;
+   *dia = ( int )( d - ( 153 * m + 3 ) / 5 );
+   *mes = ( int )( m + 3 );
+   *ano = ( int )y;
 
    if ( *mes > 12 ) {
       *mes -= 12;
@@ -86,12 +86,19 @@ int foco_periodo_corrente( int escalar_hoje ) {
    fim_do_periodo[4] = mapear_data_para_id( 15,  1, 2027 ); // fim da recuperação e do conselho de classe
 
    // Substituição perfeita do switch por lógica condicional dinâmica:
-   if ( fim_do_periodo[0] + 10 > escalar_hoje )  foco = 0;
-   else if ( fim_do_periodo[1] + 30 > escalar_hoje )  foco = 1;
-   else if ( fim_do_periodo[2] + 10 > escalar_hoje )  foco = 2;
-   else if ( fim_do_periodo[3] + 10 > escalar_hoje )  foco = 3;
-   else if ( fim_do_periodo[4] + 10 > escalar_hoje )  foco = 4;
-   else return 0;
+   if ( fim_do_periodo[0] + 10 > escalar_hoje )  {
+      foco = 0;
+   } else if ( fim_do_periodo[1] + 30 > escalar_hoje )  {
+      foco = 1;
+   } else if ( fim_do_periodo[2] + 10 > escalar_hoje )  {
+      foco = 2;
+   } else if ( fim_do_periodo[3] + 10 > escalar_hoje )  {
+      foco = 3;
+   } else if ( fim_do_periodo[4] + 10 > escalar_hoje )  {
+      foco = 4;
+   } else {
+      return 0;
+   }
 
    return foco;
 }
@@ -113,11 +120,13 @@ int obter_foco_inicial( const int limite, const AppContext *ctx ) {
    return foco;
 }
 void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
-   g_return_if_fail( store && iter && dados );
+   g_return_if_fail( store != NULL && iter != NULL && dados != NULL );
 
    const GPtrArray *fichas = ( const GPtrArray * )dados;
 
-   if ( ( guint )i >= fichas->len ) return;
+   if ( ( guint )i >= fichas->len ) {
+      return;
+   }
 
    const FichaAluno *ficha = g_ptr_array_index( fichas, i );
 
@@ -140,7 +149,7 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
    for ( int i = 0; i < qtd_disciplinas; i++ ) {
 
       g_autofree gchar *dir = g_build_filename( ctx->caminho.raiz, "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                                  ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
+                              ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
       // Se o diretório NÃO estiver vazio, encontramos o foco ideal!
       if ( !diretorio_esta_vazio( dir ) ) {
@@ -153,13 +162,13 @@ int obter_foco_inicial_disciplina( const AppContext *ctx, int qtd_disciplinas ) 
 }
 //---------------------------------------------------------------------------------------------------------
 void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dados, int i ) {
-   g_return_if_fail( store && iter && dados );
+   g_return_if_fail( store != NULL && iter != NULL && dados != NULL );
 
    const AppContext *ctx = ( const AppContext * )dados;
 
    // CORREÇÃO: g_autofree garante que a string alocada será limpa ao sair da função
    g_autofree gchar *dir = g_build_filename( ctx->caminho.raiz, "dados", "informados", ctx->dados.ano, ctx->dados.escola,
-                               ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
+                           ctx->dados.turma, ctx->cabecalho.disciplinas[i], NULL );
 
    gboolean riscar = diretorio_esta_vazio( dir );
 
@@ -174,7 +183,7 @@ void mapear_disciplinas( GtkListStore *store, GtkTreeIter *iter, const void *dad
 
 
 int quantidade_diretorios( const char *diretorio ) {
-   g_return_val_if_fail( diretorio, 0 );
+   g_return_val_if_fail( diretorio != NULL, 0 );
 
    DIR *dir = opendir( diretorio );
    if ( dir == NULL ) {
@@ -225,15 +234,19 @@ gboolean diretorio_existe( const char *caminhodir ) {
 
 
 gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *comparadora )( const void *, const void * ) ) {
-   if ( diretorio == NULL || qtd_dir <= 0 ) return NULL;
+   if ( diretorio == NULL || qtd_dir <= 0 ) {
+      return NULL;
+   }
 
    // 1. GDir (GLib Directory) é multiplataforma e já ignora caminho->raiz e ".." por padrão
    GDir *dir = g_dir_open( diretorio, 0, NULL );
-   if ( !dir ) return NULL;
+   if ( !dir ) {
+      return NULL;
+   }
 
    // 2. Aloca um array de ponteiros (gchar*).
    // Adicionamos +1 para o terminador NULL, criando um formato padrão GStrv.
-   gchar **tms_combo = g_new0( gchar *, qtd_dir + 1 );
+   gchar **tms_combo = g_new0( gchar *, ( gsize )( qtd_dir + 1 ) );
 
    int i = 0;
    const gchar *nome_arquivo;
@@ -267,9 +280,9 @@ gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *c
    // 6. Ordenação do array de ponteiros
    if ( num_dir > 0 ) {
       if ( comparadora == NULL ) {
-         qsort( tms_combo, (guint)num_dir, sizeof( gchar * ), comparar_item_combo );
+         qsort( tms_combo, ( guint )num_dir, sizeof( gchar * ), comparar_item_combo );
       } else {
-         qsort( tms_combo, (guint)num_dir, sizeof( gchar * ), comparadora );
+         qsort( tms_combo, ( guint )num_dir, sizeof( gchar * ), comparadora );
       }
    }
 
@@ -312,7 +325,9 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
  * @param caminho Ponteiro para a estrutura CaminhoDiretorio a ser liberada.
  */
 static void _caminho_diretorio_free( CaminhoDiretorio *caminho ) {
-   if ( !caminho ) return;
+   if ( !caminho ) {
+      return;
+   }
    // 1. Liberação segura de cada campo dinâmico
    g_clear_pointer( &caminho->dados, g_free );
    g_clear_pointer( &caminho->gabaritos, g_free );
@@ -380,53 +395,91 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
 
 
 
+// ====================================================================================
+// FUNÇÃO AUXILIAR: Embaralhamento Fisher-Yates (Thread-Safe)
+// ====================================================================================
+static void _chrperm( char *str, gsize n, GRand *rng ) {
+   g_return_if_fail( str != NULL && n > 0 && rng != NULL );
 
+   // Algoritmo Fisher-Yates com navegação 100% GSize para evitar -Wsign-conversion
+   for ( gsize i = 0; i < n; i++ ) {
+      // Sorteia um índice entre a posição atual 'i' e o fim da string 'n' (exclusivo no limite superior)
+      gint32 j_rand = g_rand_int_range( rng, ( gint32 )i, ( gint32 )n );
+      gsize j = ( gsize )j_rand;
 
+      char c = str[j];
+      str[j] = str[i];
+      str[i] = c;
+   }
+}
+
+// ====================================================================================
+// GERADOR DE GABARITOS (Motor Paralelizado em Bloco 1D Contíguo)
+// ====================================================================================
 void gerar_gabaritos( const gchar *arquivo, const int adicionados, const InterfaceDados *dados, const gchar *modo ) {
-   g_return_if_fail( arquivo && dados && modo );
+   g_return_if_fail( arquivo != NULL && dados != NULL && modo != NULL );
 
-   // Proteção contra estouro de buffer (Corrigido para barrar se for MAIOR que o máximo)
+   // 1. Defesa rigorosa de limites
    if ( dados->total_quest_prova <= 0 || dados->total_quest_prova > dados->max_quest_prova ) {
-      g_printerr( "Erro: Quantidade de questões (%d) inválida.\n", dados->total_quest_prova );
+      g_printerr( "[ERRO] Quantidade de questões (%d) inválida.\n", dados->total_quest_prova );
       return;
+   }
+
+   if ( adicionados <= 0 ) {
+      return; // Nada a fazer
    }
 
    FILE *p = g_fopen( arquivo, modo );
    if ( !p ) {
-      g_printerr( "Erro ao abrir o arquivo binário: %s\n", arquivo );
+      g_printerr( "[ERRO] Não foi possível abrir o arquivo binário para gravação: %s\n", arquivo );
       return;
    }
 
-   // CONDIÇÃO 3: Alocação na RAM. g_autofree limpa automaticamente ao sair da função.
-   g_autofree ItemTextoCurto *bloco = g_new0( ItemTextoCurto, adicionados );
+   // Uniformização de tipos para a engine de memória
+   gsize num_provas = ( gsize )adicionados;
+   gsize total_quest = ( gsize )dados->total_quest_prova;
 
-   // Processamento ultra-rápido isolado na RAM
-   for ( int i = 0; i < adicionados; i++ ) {
+   // Definimos o tamanho fixo de cada registro baseando-se no limite da prova (+1 para o \0)
+   gsize max_len = ( gsize )dados->max_quest_prova + 1;
 
-      // DISTRIBUIÇÃO UNIFORME DINÂMICA
-      // O 'offset' sorteia a letra inicial (0=A, 1=B, 2=C...).
-      // Isso impede vícios estatísticos caso total_quest_prova não seja múltiplo de 5.
-      int offset = g_random_int_range( 0, 5 );
+   // 2. Alocação Contígua Plana (Substitui completamente a ItemTextoCurto)
+   // Um bloco único na RAM substitui as matrizes. A memória já nasce preenchida com zeros (\0).
+   g_autofree char *bloco = g_malloc0( num_provas * max_len );
 
-      for ( int q = 0; q < dados->total_quest_prova; q++ ) {
-         bloco[i].str[q] = (char)('A' + ( ( q + offset ) % 5 ));
+
+   // Cada thread do processador cria sua própria "máquina de sorteio"
+   // Isso zera os travamentos de concorrência e garante entropia pura
+   g_autoptr( GRand ) rng_local = g_rand_new();
+
+   for ( gsize i = 0; i < num_provas; i++ ) {
+
+      // Deslocamento aritmético de ponteiro: acessamos o "slot" da string no bloco gigante
+      char *gabarito = bloco + ( i * max_len );
+
+      // DISTRIBUIÇÃO UNIFORME DINÂMICA (0=A, 1=B, 2=C, 3=D, 4=E)
+      gint32 offset = g_rand_int_range( rng_local, 0, 5 );
+
+      for ( gsize q = 0; q < total_quest; q++ ) {
+         gabarito[q] = ( char )( 'A' + ( ( q + ( gsize )offset ) % 5 ) );
       }
 
-      // Fecha a string com segurança baseada no tamanho da prova do usuário
-      bloco[i].str[dados->total_quest_prova] = '\0';
+      // Encerra a string ativa exatamente no tamanho preenchido
+      gabarito[total_quest] = '\0';
 
-      // EMBARALHAMENTO (A string base perfeita agora é bagunçada para o aluno)
-      chrperm( bloco[i].str, dados->total_quest_prova );
+      // EMBARALHAMENTO (Bagunça a string perfeita de forma thread-safe)
+      _chrperm( gabarito, total_quest, rng_local );
    }
 
-   // CONDIÇÃO 4: A Gravação em Lote (Zero Latência)
-   size_t blocos_gravados = fwrite( bloco, sizeof( ItemTextoCurto ), (guint)adicionados, p );
+   // 4. I/O em Bloco (Disk-Bound de Zero Latência)
+   // Mandamos a matriz de caracteres puras para o disco, dispensando structs e padding.
+   gsize blocos_gravados = fwrite( bloco, max_len, num_provas, p );
 
-   if ( blocos_gravados != ( size_t )adicionados ) {
-      g_printerr( "Erro crítico de I/O: Apenas %zu de %d registros foram salvos.\n", blocos_gravados, adicionados );
+   if ( blocos_gravados != num_provas ) {
+      g_printerr( "[ERRO CRÍTICO] Falha de I/O: Apenas %" G_GSIZE_FORMAT " de %" G_GSIZE_FORMAT " registros foram salvos.\n",
+                  blocos_gravados, num_provas );
    }
 
-   // A liberação da RAM (g_free) não é mais necessária manualmente graças ao g_autofree(bloco).
+   // O bloco gigante da heap evapora graças ao g_autofree.
    fclose( p );
 }
 
@@ -436,11 +489,13 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
 
 //==================================================================================================
 void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
-   g_return_if_fail( ctx );
+   g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
 
    // 1. Aborta se não houver registros carregados na memória
-   if ( !diario->aulas || diario->aulas->len == 0 ) return;
+   if ( !diario->aulas || diario->aulas->len == 0 ) {
+      return;
+   }
 
    // 2. Acessa o primeiro registro diretamente do GArray em O(1)
    RegistroAula *primeiro_registro = &g_array_index( diario->aulas, RegistroAula, 0 );
@@ -466,7 +521,9 @@ void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
    }
 
    // Tudo em sincronia, aborta precocemente.
-   if ( !precisa_sincronizar ) return;
+   if ( !precisa_sincronizar ) {
+      return;
+   }
 
    // =========================================================================
    // 6. Sincronização em Lote de Alta Performance (O(N) por registro)
@@ -499,7 +556,7 @@ void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
 
          // Busca O(1): O aluno já estava matriculado neste dia específico?
          if ( g_hash_table_lookup_extended( hash_status, GINT_TO_POINTER( cod_alvo ), NULL, &ptr_status ) ) {
-            nova_chamada[k].status = (StatusAssiduidade)GPOINTER_TO_INT( ptr_status ); // Restaura o status (Presença, Falta, etc.)
+            nova_chamada[k].status = ( StatusAssiduidade )GPOINTER_TO_INT( ptr_status ); // Restaura o status (Presença, Falta, etc.)
          } else {
             nova_chamada[k].status = NOVO_ALUNO; // Aluno injetado tardiamente
          }
@@ -528,7 +585,9 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    // Começa do período IMEDIATAMENTE ANTERIOR ao atual e desce até o 1º período (0)
    for ( int p = target_periodo - 1; p >= 0; p-- ) {
       g_autofree gchar *nome_periodo = combo_box_text_get_text_at( combo, p );
-      if ( !nome_periodo ) continue;
+      if ( !nome_periodo ) {
+         continue;
+      }
 
       g_autofree gchar *dir_periodo = g_build_filename( ctx->caminho.raiz, "dados", "informados",
                                       dados->ano, dados->escola,
@@ -554,7 +613,9 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    // 2. PREENCHIMENTO PARA FRENTE: Cobre as lacunas do período selecionado
    // =========================================================================
    g_autofree gchar *nome_target = combo_box_text_get_text_at( combo, target_periodo );
-   if ( !nome_target ) return;
+   if ( !nome_target ) {
+      return;
+   }
 
    g_autofree gchar *dir_target = g_build_filename( ctx->caminho.raiz, "dados", "informados",
                                   dados->ano, dados->escola,
@@ -586,7 +647,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    // Tamanho real dinâmico (Ficha Base + Histórico Flexível)
    gsize tamanho_real_ficha = sizeof( FichaAluno ) +
-                              ( (guint)ctx->cabecalho.limite_disciplinas * sizeof( HistoricoDisciplina ) );
+                              ( ( guint )ctx->cabecalho.limite_disciplinas * sizeof( HistoricoDisciplina ) );
 
    g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
@@ -608,17 +669,19 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    }
 
    g_autofree AcessoFicha *buffer_acessos = ( AcessoFicha * )conteudo_acessos;
-   dados->qtd_alunos_total = (int)( tamanho_arquivo / sizeof(AcessoFicha) );
+   dados->qtd_alunos_total = ( int )( tamanho_arquivo / sizeof( AcessoFicha ) );
 
-   if ( dados->qtd_alunos_total == 0 ) return;
+   if ( dados->qtd_alunos_total == 0 ) {
+      return;
+   }
 
    // =========================================================================
    // 4. NOVA ALOCAÇÃO: GPtrArray com Destruição Automática (g_free)
    // =========================================================================
-   diario->fichas = g_ptr_array_new_full( (guint)dados->qtd_alunos_total, g_free );
+   diario->fichas = g_ptr_array_new_full( ( guint )dados->qtd_alunos_total, g_free );
 
    g_autofree gchar *dir_base_alunos = g_build_filename( caminho->raiz, "dados", "informados",
-                                                         dados->ano, dados->escola, "fichas", NULL );
+                                       dados->ano, dados->escola, "fichas", NULL );
 
    for ( int i = 0; i < dados->qtd_alunos_total; i++ ) {
       AcessoFicha *acesso = &buffer_acessos[i];
@@ -640,10 +703,10 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
             // Hidrata as variáveis de estado de execução
             ficha_ptr->cod_aluno = acesso->cod_aluno;
-            ficha_ptr->idx_siaep = (uint8_t)i;
+            ficha_ptr->idx_siaep = ( guint8 )i;
             ficha_ptr->sit = acesso->sit;
             ficha_ptr->ativo = acesso->ativo;
-            ficha_ptr->lim_disc = (uint8_t)ctx->cabecalho.limite_disciplinas;
+            ficha_ptr->lim_disc = ( guint8 )ctx->cabecalho.limite_disciplinas;
             ficha_ptr->ficha_modificada = FALSE;
 
             if ( ficha_ptr->ativo ) {
@@ -682,9 +745,15 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
    const gchar *turma_b = *( ( const gchar * const * )b );
 
    // Defesa contra ponteiros nulos
-   if ( !turma_a && !turma_b ) return 0;
-   if ( !turma_a ) return -1;
-   if ( !turma_b ) return 1;
+   if ( !turma_a && !turma_b ) {
+      return 0;
+   }
+   if ( !turma_a ) {
+      return -1;
+   }
+   if ( !turma_b ) {
+      return 1;
+   }
 
    // 2. Primeiro Critério: A Série (100, 200, 300)
    // A função atoi lê os números no começo da string e ignora o texto que vem depois
@@ -698,11 +767,17 @@ int ordenar_turmas_novo_em( const void* a, const void* b ) {
    // 3. Segundo Critério: O Turno (Matutino vs Vespertino)
    int turno_a = 3, turno_b = 3;
 
-   if ( strstr( turma_a, "mat" ) != NULL ) turno_a = 1;
-   else if ( strstr( turma_a, "vesp" ) != NULL ) turno_a = 2;
+   if ( strstr( turma_a, "mat" ) != NULL ) {
+      turno_a = 1;
+   } else if ( strstr( turma_a, "vesp" ) != NULL ) {
+      turno_a = 2;
+   }
 
-   if ( strstr( turma_b, "mat" ) != NULL ) turno_b = 1;
-   else if ( strstr( turma_b, "vesp" ) != NULL ) turno_b = 2;
+   if ( strstr( turma_b, "mat" ) != NULL ) {
+      turno_b = 1;
+   } else if ( strstr( turma_b, "vesp" ) != NULL ) {
+      turno_b = 2;
+   }
 
    if ( turno_a != turno_b ) {
       return turno_a - turno_b;

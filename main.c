@@ -277,7 +277,9 @@ void inicializacao_app_context( AppContext *ctx ) {
 // HIGIENE DE MEMÓRIA FINAL
 // =========================================================================
 void limpeza_final( AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    g_print( "\n[Higiene] g_application_run finalizado. Limpando estruturas de dados...\n" );
 

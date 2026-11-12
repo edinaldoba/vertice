@@ -40,7 +40,7 @@ int calcular_digito_verificador( uint32_t sequencia_base ) {
 
    // Extrai cada dígito e multiplica pelo respectivo peso
    for ( int i = 0; i < 7; i++ ) {
-      int digito = (int)temp % 10;
+      int digito = ( int )temp % 10;
       soma += ( digito * pesos[i] );
       temp /= 10;
    }
@@ -73,7 +73,7 @@ uint32_t gerar_codigo_aluno_seguro( uint32_t *ultimo_id_salvo ) {
 
    // 4. Monta o número de 8 algarismos (Base * 10 + DV)
    // Exemplo: se a base for 1234567 e o DV for 4, retorna 12345674
-   return ( *ultimo_id_salvo * 10 ) + (uint32_t)dv;
+   return ( *ultimo_id_salvo * 10 ) + ( uint32_t )dv;
 }
 
 
@@ -119,7 +119,7 @@ gboolean diretorio_esta_vazio( const gchar *caminho ) {
 
 
 void gerar_sementes( guint32 *sementes ) {
-   g_return_if_fail( sementes );
+   g_return_if_fail( sementes != NULL );
 
    // 1. Pega os ciclos/tempo monotônico do processador em alta precisão (64 bits)
    gint64 ciclos_cpu = g_get_monotonic_time();
@@ -141,7 +141,7 @@ void gerar_sementes( guint32 *sementes ) {
 int* randperm( int n ) {
    g_return_val_if_fail( n > 0, NULL );
    // Alocação tipo-segura da GLib (equivale a (int*) calloc(n, sizeof(int)))
-   int *N = g_new0( int, n );
+   int *N = g_new0( int, ( gsize )n );
 
    for ( int i = 0; i < n; i++ ) {
       N[i] = i;
@@ -159,7 +159,7 @@ int* randperm( int n ) {
 }
 
 void file_permute( FILE **pb, int nquest ) {
-   g_return_if_fail( pb && nquest > 0 );
+   g_return_if_fail( pb != NULL && nquest > 0 );
 
    for ( int i = 0; i < nquest - 1; i++ ) {
       int j = g_random_int_range( i, nquest );
@@ -169,20 +169,12 @@ void file_permute( FILE **pb, int nquest ) {
    }
 }
 
-void chrperm( gchar *str, int n ) {
-   g_return_if_fail( str != NULL && n > 0 );
 
-   for ( int i = 0; i < n; i++ ) {
-      // g_random_int_range(i, n) sorteia exatamente entre 'i' e 'n-1' (inclusivo)
-      int j = g_random_int_range( i, n );
-      gchar c = str[j];
-      str[j] = str[i];
-      str[i] = c;
-   }
-}
 
 void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina, int periodo, int prova ) {
-   if ( !nome || tam < 16 ) return;
+   if ( !nome || tam < 16 ) {
+      return;
+   }
    snprintf( nome, tam, "%.3d%.2d%d%d.bin", turma, disciplina, periodo, prova );
 }
 
@@ -197,7 +189,9 @@ void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina,
  * Após a liberação, o ponteiro original é definido como NULL de forma segura.
  */
 void liberar_array_strings( gchar ***array_ptr, int limite ) {
-   if ( !array_ptr || !*array_ptr ) return;
+   if ( !array_ptr || !*array_ptr ) {
+      return;
+   }
 
    gchar **array = *array_ptr;
 
@@ -227,7 +221,9 @@ void liberar_vetor_ponteiros( gpointer ptr_to_array, int limite, GDestroyNotify 
    // Internamente, nós o convertemos para o ponteiro duplo necessário:
    gpointer *array_ptr = ( gpointer * ) ptr_to_array;
 
-   if ( !array_ptr || !*array_ptr ) return;
+   if ( !array_ptr || !*array_ptr ) {
+      return;
+   }
 
    gpointer *array = ( gpointer * ) *array_ptr;
 
@@ -242,16 +238,6 @@ void liberar_vetor_ponteiros( gpointer ptr_to_array, int limite, GDestroyNotify 
    g_clear_pointer( array_ptr, g_free );
 }
 
-
-
-
-int comparar_item_texto_curto( const void* a, const void* b ) {
-   const ItemTextoCurto *arg1 = ( const ItemTextoCurto * )a;
-   const ItemTextoCurto *arg2 = ( const ItemTextoCurto * )b;
-
-   // strcoll substitui o g_strcmp0 cuidando dos acentos automaticamente
-   return strcoll( arg1->str, arg2->str );
-}
 
 
 
@@ -275,8 +261,12 @@ int comparar_mapeamento_gabarito( const void* a, const void* b ) {
    const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
    const MapeamentoGabarito *arg2 = ( const MapeamentoGabarito * )b;
 
-   if ( arg1->num < arg2->num ) return -1;
-   if ( arg1->num > arg2->num ) return 1;
+   if ( arg1->num < arg2->num ) {
+      return -1;
+   }
+   if ( arg1->num > arg2->num ) {
+      return 1;
+   }
    return 0;
 }
 
@@ -286,7 +276,7 @@ int comparar_mapeamento_gabarito( const void* a, const void* b ) {
 int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,
                            int ( *comparador )( const void *, const void * ) ) {
    // Defesa contra ponteiros nulos ou tamanhos inválidos
-   g_return_val_if_fail( chave && vetor && comparador && n > 0 && tamanho_elemento > 0, -1 );
+   g_return_val_if_fail( chave != NULL && vetor != NULL && comparador != NULL && n > 0 && tamanho_elemento > 0, -1 );
 
    const void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
 
@@ -294,7 +284,7 @@ int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_
       // 1. Converte os ponteiros void para char* (para trabalhar a nível de byte)
       // 2. Subtrai o endereço base do endereço encontrado
       // 3. Divide pelo tamanho do elemento para descobrir a posição exata no array
-      return ( int )( (guint)( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
+      return ( int )( ( guint )( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
    }
 
    return -1; // Não encontrado
@@ -331,13 +321,13 @@ int buscar_indice_garray_bsearch( GArray *array, gconstpointer chave, GCompareFu
 
 
 int contar_registros_binarios( const char *filepath, size_t tam ) {
-   g_return_val_if_fail( filepath && tam > 0, 0 );
+   g_return_val_if_fail( filepath != NULL && tam > 0, 0 );
 
    GStatBuf st;
 
    // Consulta rápida aos metadados do disco sem abrir o arquivo
    if ( g_stat( filepath, &st ) == 0 ) {
-      return ( int )( (guint)st.st_size / tam );
+      return ( int )( ( guint )st.st_size / tam );
    }
 
    // Retorna 0 caso o arquivo não exista ou falhe no acesso
@@ -347,7 +337,7 @@ int contar_registros_binarios( const char *filepath, size_t tam ) {
 
 
 void display_tempo( const char *descricao, GTimer *cronometro ) {
-   g_return_if_fail( descricao && cronometro );
+   g_return_if_fail( descricao != NULL && cronometro != NULL );
 
    double tempo_segundos = g_timer_elapsed( cronometro, NULL );
    if ( tempo_segundos > 60.0 ) {
@@ -366,7 +356,9 @@ void display_tempo( const char *descricao, GTimer *cronometro ) {
 
 //=========================================================================================================//
 int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
-   if ( diretorio == NULL || ext == NULL ) return 0;
+   if ( diretorio == NULL || ext == NULL ) {
+      return 0;
+   }
 
    DIR *dir = opendir( diretorio );
    if ( dir == NULL ) {
@@ -419,7 +411,9 @@ int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
 GPtrArray *carregar_arquivos_por_extensao( const char *diretorio, const char *ext, int limite_n ) {
    // 1. Defesa inicial: agora apenas diretório e extensão são obrigatórios.
    // Se limite_n <= 0, podemos ignorar o limite e ler tudo.
-   if ( diretorio == NULL || ext == NULL ) return NULL;
+   if ( diretorio == NULL || ext == NULL ) {
+      return NULL;
+   }
 
    g_autoptr( GError ) error = NULL;
    g_autoptr( GDir ) dir = g_dir_open( diretorio, 0, &error );
@@ -514,8 +508,9 @@ int atoi_seguro( const char *num_string ) {
 int datefind( int a, int *v, int n ) {
    int i;
    for ( i = 0; i < n; i++ ) {
-      if ( v[i] == a )
+      if ( v[i] == a ) {
          return i;
+      }
    }
    return -1;
 }
@@ -527,7 +522,7 @@ int datefind( int a, int *v, int n ) {
 
 //=========================================================================================================//
 int sdatefind( char a, char *v, int n ) {
-   char *ptr = memchr( v, a, (guint)n );
+   char *ptr = memchr( v, a, ( guint )n );
    if ( ptr != NULL ) {
       return ( int )( ptr - v ); // Aritmética de ponteiros para achar o índice
    }
@@ -587,7 +582,9 @@ EstadoArquivo verificar_arquivo( const char *nome_arquivo ) {
 
 int copiar_arquivo( const char *origem, const char *destino ) {
    FILE *src = fopen( origem, "rb" );
-   if ( src == NULL ) return -1;
+   if ( src == NULL ) {
+      return -1;
+   }
 
    FILE *dst = fopen( destino, "wb" );
    if ( dst == NULL ) {
@@ -614,7 +611,9 @@ int criar_diretorios_cascata( const char *caminho ) {
    char tmp[512];
    snprintf( tmp, sizeof( tmp ), "%s", caminho );
    size_t len = strlen( tmp );
-   if ( tmp[len - 1] == '/' ) tmp[len - 1] = 0;
+   if ( tmp[len - 1] == '/' ) {
+      tmp[len - 1] = 0;
+   }
 
    for ( char *p = tmp + 1; *p; p++ ) {
       if ( *p == '/' ) {
@@ -629,8 +628,12 @@ int criar_diretorios_cascata( const char *caminho ) {
 // Emula o `cp -u` do Bash (compara qual arquivo é mais novo)
 int origem_mais_recente( const char *origem, const char *destino ) {
    struct stat st_orig, st_dest;
-   if ( stat( origem, &st_orig ) != 0 ) return 0;
-   if ( stat( destino, &st_dest ) != 0 ) return 1; // Se o destino sumiu, atualiza
+   if ( stat( origem, &st_orig ) != 0 ) {
+      return 0;
+   }
+   if ( stat( destino, &st_dest ) != 0 ) {
+      return 1; // Se o destino sumiu, atualiza
+   }
 
    // Retorna 1 (verdadeiro) se a origem foi modificada depois do destino
    return st_orig.st_mtime > st_dest.st_mtime;
@@ -659,7 +662,7 @@ static int copiar_recurso_para_disco( const char *caminho_recurso, const char *d
    gconstpointer buffer = g_bytes_get_data( bytes, &tamanho );
 
    // 2. Grava no disco atomicamente usando GLib (substitui fopen, fwrite, fclose)
-   if ( !g_file_set_contents( destino, buffer, (guint)tamanho, &error ) ) {
+   if ( !g_file_set_contents( destino, buffer, ( guint )tamanho, &error ) ) {
       g_printerr( "🚨 Erro ao gravar o arquivo %s: %s\n", destino, error->message );
       g_clear_error( &error );
       return -1;
@@ -736,7 +739,7 @@ void preparar_ambiente_latex( const char *recursos_prefix ) {
             // 5. Atualiza o banco do TeX (Substitui o system() para evitar travamentos de shell)
             g_autofree gchar *pasta_texmf = g_build_filename( home, "texmf", NULL );
 
-            g_auto( GStrv ) argv = g_new0( gchar*, 3 );
+            g_auto( GStrv ) argv = g_new0( gchar*, ( gsize )3 );
             argv[0] = g_strdup( "texhash" );
             argv[1] = g_strdup( pasta_texmf );
 
@@ -880,35 +883,6 @@ void apagar_arquivos_temporarios_latex_nativamente( const char *diretorio, const
 
 
 
-//=========================================================================================================//
-gboolean detectar_ubuntu( void ) {
-   FILE *fp = fopen( "/etc/os-release", "r" );
-   if ( fp == NULL ) {
-      // Se o arquivo não existir, provavelmente não é um Linux moderno
-      return FALSE;
-   }
-
-   char linha[256];
-   gboolean eh_ubuntu = FALSE;
-
-   // Lê o arquivo linha por linha buscando o ID da distribuição
-   while ( fgets( linha, sizeof( linha ), fp ) ) {
-      // O arquivo costuma ter uma linha como: ID=ubuntu
-      if ( strncmp( linha, "ID=", 3 ) == 0 ) {
-         if ( strstr( linha, "ubuntu" ) != NULL ) {
-            eh_ubuntu = TRUE;
-            break;
-         }
-      }
-   }
-
-   fclose( fp );
-   return eh_ubuntu;
-}
-//=========================================================================================================//
-
-
-
 
 
 void obter_resolucao_tela( GtkWidget *widget, int *largura, int *altura ) {
@@ -954,15 +928,21 @@ int tamanho_fonte( GtkWidget *window ) {
 }
 
 int tamanho_fonte_px( GtkWidget *window ) {
-   if ( !window ) return 0;
+   if ( !window ) {
+      return 0;
+   }
 
    // 1. Obtém o contexto tipográfico do widget
    PangoContext *context = gtk_widget_get_pango_context( window );
-   if ( !context ) return 0;
+   if ( !context ) {
+      return 0;
+   }
 
    // 2. Captura a descrição da fonte ativa herdada pelo contexto
    PangoFontDescription *desc = pango_context_get_font_description( context );
-   if ( !desc ) return 0;
+   if ( !desc ) {
+      return 0;
+   }
 
    // 3. Captura o tamanho bruto nas unidades internas do Pango
    int raw_size = pango_font_description_get_size( desc );
@@ -989,12 +969,14 @@ int tamanho_fonte_px( GtkWidget *window ) {
 
 
 int calcular_len_limpo( const char *str, int len_maximo_caracteres ) {
-   if ( !str || str[0] == '\0' || len_maximo_caracteres <= 0 ) return 0;
+   if ( !str || str[0] == '\0' || len_maximo_caracteres <= 0 ) {
+      return 0;
+   }
 
    // O alerta -Wcast-qual ocorre porque as macros de navegação UTF-8 da GLib
    // fazem um cast interno para (char *). Para silenciar o compilador e
    // assumir o controle, retiramos a constância localmente via (guintptr).
-   gchar *base = (gchar *)(guintptr)str;
+   gchar *base = ( gchar * )( guintptr )str;
    gchar *ptr  = base;
    int char_count = 0;
 
@@ -1005,7 +987,7 @@ int calcular_len_limpo( const char *str, int len_maximo_caracteres ) {
    }
 
    // byte_len calcula automaticamente o volume em bytes dos caracteres processados
-   int byte_len = (int)(ptr - base);
+   int byte_len = ( int )( ptr - base );
 
    // 2. Retrocede limpando os espaços e lixos (non-printable) do final
    while ( byte_len > 0 ) {
@@ -1013,7 +995,7 @@ int calcular_len_limpo( const char *str, int len_maximo_caracteres ) {
       gunichar ch = g_utf8_get_char( prev_ptr );
 
       if ( g_unichar_isspace( ch ) || !g_unichar_isprint( ch ) ) {
-         byte_len = (int)(prev_ptr - base);
+         byte_len = ( int )( prev_ptr - base );
       } else {
          break;
       }

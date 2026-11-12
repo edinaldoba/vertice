@@ -25,10 +25,7 @@ void gerar_tex_lista_frequencia( const char *caminho_saida, char *titulo_prova, 
 void imagens_para_prova( const int i, int numero, const GPtrArray *fichas,
                          const InterfaceDados *dados, const InterfaceCabecalho *cabecalho );
 
-void provinha( FILE *pm, FILE **pb, const int i, char *titulo_prova, const InterfaceDados *dados, const InterfaceCabecalho *cabecalho,
-               const GArray *fichas, const CalendarioData *hoje, const ItemTextoCurto *G );
-
-void prova( const MotorProvaSnapshot *snap, const ItemTextoCurto *G );
+void prova( const MotorProvaSnapshot *snap, const char *G );
 
 void compilacao_latex_e_manipulacao_de_arquivos( const GPtrArray *fichas, const InterfaceDados *dados,
       const CaminhoDiretorio *caminho );

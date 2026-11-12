@@ -84,7 +84,9 @@ static void _configurar_colunas_editaveis( AppContext *ctx, GtkTreeView *treevie
 
    for ( int col_idx = col_inicio; col_idx <= col_fim; col_idx++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( treeview, col_idx );
-      if ( !col ) continue;
+      if ( !col ) {
+         continue;
+      }
 
       GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
       if ( renderers && GTK_IS_CELL_RENDERER_TEXT( renderers->data ) ) {
@@ -140,7 +142,9 @@ static void _configurar_colunas_editaveis( AppContext *ctx, GtkTreeView *treevie
  */
 static gboolean _cor_fundo_linha_zebrada_modelo( GtkTreeModel *model, GtkTreeIter *iter, int tema_ativo, GdkRGBA *cor_out ) {
    GtkTreePath *path = gtk_tree_model_get_path( model, iter );
-   if ( !path ) return FALSE;
+   if ( !path ) {
+      return FALSE;
+   }
 
    gint row_idx = gtk_tree_path_get_indices( path )[0];
    gtk_tree_path_free( path );
@@ -154,11 +158,15 @@ static gboolean _cor_fundo_linha_zebrada_modelo( GtkTreeModel *model, GtkTreeIte
  */
 static void _vincular_renderizadores_em_massa( GtkTreeView *tree_view, int col_inicio, int col_fim,
       GtkTreeCellDataFunc callback, AppContext *ctx ) {
-   if ( !tree_view ) return;
+   if ( !tree_view ) {
+      return;
+   }
 
    for ( int i = col_inicio; i <= col_fim; i++ ) {
       GtkTreeViewColumn *col = gtk_tree_view_get_column( tree_view, i );
-      if ( !col ) continue;
+      if ( !col ) {
+         continue;
+      }
 
       GList *renderers = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( col ) );
       if ( renderers ) {
@@ -177,16 +185,22 @@ static void _vincular_renderizadores_em_massa( GtkTreeView *tree_view, int col_i
  * Utilitário para aplicar ou remover a cor de fundo nativa no renderer.
  */
 static inline void _aplicar_cor_fundo( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
-   if ( usar ) g_object_set( cell, "cell-background-rgba", cor, "cell-background-set", TRUE, NULL );
-   else        g_object_set( cell, "cell-background-set", FALSE, NULL );
+   if ( usar ) {
+      g_object_set( cell, "cell-background-rgba", cor, "cell-background-set", TRUE, NULL );
+   } else {
+      g_object_set( cell, "cell-background-set", FALSE, NULL );
+   }
 }
 
 /**
  * Utilitário para aplicar ou remover a cor de fonte nativa no renderer.
  */
 static inline void _aplicar_cor_texto( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
-   if ( usar ) g_object_set( cell, "foreground-rgba", cor, "foreground-set", TRUE, NULL );
-   else        g_object_set( cell, "foreground-set", FALSE, NULL );
+   if ( usar ) {
+      g_object_set( cell, "foreground-rgba", cor, "foreground-set", TRUE, NULL );
+   } else {
+      g_object_set( cell, "foreground-set", FALSE, NULL );
+   }
 }
 
 

@@ -17,9 +17,9 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
 
 void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora );
 
-void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim );
+void redimensionar_imagem_bilinear( const ImagemCinza *origem, ImagemCinza *destino, gsize dim );
 
-void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim );
+void redimensionar_imagem_colorida_bilinear( const ImagemColorida *origem, ImagemColorida *destino, gsize dim );
 
 void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, float sigma );
 
@@ -31,9 +31,9 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
 
 void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img_crop, IndiceMatriz *ancora, char direcao );
 
-void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int raio_blur );
+void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsize raio_blur );
 
-void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur );
+void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, gsize raio_blur );
 
 void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturacao );
 

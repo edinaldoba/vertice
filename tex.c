@@ -15,16 +15,18 @@
 /*
 * Função refinada para desenhar o payload binário dinamicamente em TikZ.
 */
-static void gerar_matriz_identificacao( GString *tex, uint8_t id, uint8_t turma, uint8_t disc, uint8_t per, uint8_t seq ) {
-   if ( !tex ) return;
+static void gerar_matriz_identificacao( GString *tex, guint8 id, guint8 turma, guint8 disc, guint8 per, guint8 seq ) {
+   if ( !tex ) {
+      return;
+   }
 
    // 1. Empacotando 23 bits em um inteiro de 32 bits
    uint32_t payload = 0;
-   payload |= ( (uint32_t)id    & 0x3F );       // 6 bits (0 a 5)
-   payload |= ( (uint32_t)turma & 0xFF ) << 6;  // 8 bits (6 a 13)
-   payload |= ( (uint32_t)disc  & 0x0F ) << 14; // 4 bits (14 a 17)
-   payload |= ( (uint32_t)per   & 0x07 ) << 18; // 3 bits (18 a 20)
-   payload |= ( (uint32_t)seq   & 0x03 ) << 21; // 2 bits (21 a 22)
+   payload |= ( ( uint32_t )id    & 0x3F );     // 6 bits (0 a 5)
+   payload |= ( ( uint32_t )turma & 0xFF ) << 6; // 8 bits (6 a 13)
+   payload |= ( ( uint32_t )disc  & 0x0F ) << 14; // 4 bits (14 a 17)
+   payload |= ( ( uint32_t )per   & 0x07 ) << 18; // 3 bits (18 a 20)
+   payload |= ( ( uint32_t )seq   & 0x03 ) << 21; // 2 bits (21 a 22)
 
    // 2. Cálculo dos 4 bits de paridade (XOR de blocos de 4 bits)
    uint32_t paridade = 0;
@@ -65,10 +67,10 @@ static void gerar_matriz_identificacao( GString *tex, uint8_t id, uint8_t turma,
 
 
 //========================================================================================================//
-void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uint8_t id, char direcao,
+void quadro_de_respostas( GString *tex, const char *aluno, int numero, const guint8 id, char direcao,
                           gboolean assinalar_nome_numero, const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
 
-   g_return_if_fail( aluno && dados && cabecalho && tex );
+   g_return_if_fail( aluno != NULL && dados != NULL && cabecalho != NULL && tex != NULL );
 
    // 1. Lógica de Rotação transferida do LaTeX para o C
    int   rotacao = ( direcao == 'h' ) ? 0 : 90;
@@ -119,10 +121,10 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
    }
 
 
-   uint8_t turma = (uint8_t)cabecalho->foco_turma;
-   uint8_t disc  = (uint8_t)cabecalho->foco_disciplina;
-   uint8_t per   = (uint8_t)cabecalho->foco_periodo;
-   uint8_t seq   = (uint8_t)dados->seq_prova; // Mudei de seq_prova-1 para seq_prova apenas, para evitar payload válido nulo.
+   guint8 turma = ( guint8 )cabecalho->foco_turma;
+   guint8 disc  = ( guint8 )cabecalho->foco_disciplina;
+   guint8 per   = ( guint8 )cabecalho->foco_periodo;
+   guint8 seq   = ( guint8 )dados->seq_prova; // Mudei de seq_prova-1 para seq_prova apenas, para evitar payload válido nulo.
 
    // ATENÇÃO: gerar_matriz_identificacao também precisará receber GString *tex
    gerar_matriz_identificacao( tex, id, turma, disc, per, seq );
@@ -187,7 +189,9 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const uin
 int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx,
                         const char *nome_base ) {
 
-   if ( !gab || !map || !ctx ) return -1;
+   if ( !gab || !map || !ctx ) {
+      return -1;
+   }
    const InterfaceDiario *diario = &ctx->diario;
 
    int largura = ( map->direcao == 'h' ) ? 18 : 14;
@@ -198,32 +202,32 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // 2. INJEÇÃO DO CABEÇALHO LATEX
    g_string_append_printf( tex,
-      "\\documentclass[11pt]{report}\n"
-      "\\usepackage[utf8]{inputenc}\n"
-      "\\usepackage[T1]{fontenc}\n"
-      "\\usepackage[brazil]{babel}\n"
-      "\\usepackage{cmbright, xcolor, ifthen, setspace, graphicx, tikz}\n"
-      "\\usetikzlibrary{calc}\n\n"
-      "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n"
-      "\\geometry{paperwidth=%dcm,paperheight=%dcm}\n\n"
-      "\\pagestyle{empty}\n\n"
-      "\\definecolor{NeonVerde}{cmyk}{0.65,0,1,0.2}\n"
-      "\\definecolor{LimaoFluo}{cmyk}{0.40,0,1,0}\n"
-      "\\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}\n"
-      "\\definecolor{AzulProfessor}{cmyk} {1,0.50,0,0.33}\n"
-      "\\definecolor{VerdeEscola}{cmyk} {1,0,1,0.47}\n\n"
-      "%% MACRO: Símbolo de Correto\n"
-      "\\def\\correto{\n"
-      "  \\fill[rounded corners=6, bottom color=NeonVerde, top color=LimaoFluo] ($(-0.43,-0.43)+(P)$) rectangle ($(0.43,0.43)+(P)$);\n"
-      "  \\fill[rounded corners=1, color=white] ($(-0.172,-0.258)+(P)$) -- ($(-0.0215,-0.258)+(P)$) -- ($(0.344,0.258)+(P)$) -- ($(0.1935,0.258)+(P)$) -- cycle;\n"
-      "  \\fill[rounded corners=1, color=white] ($(-0.0215,-0.258)+(P)$) -- ($(-0.172,-0.258)+(P)$) -- ($(-0.344,0.00)+(P)$) -- ($(-0.1935,0.00)+(P)$) -- cycle;\n"
-      "}\n\n"
-      "%% MACRO: Símbolo de Incorreto\n"
-      "\\def\\incorreto{\n"
-      "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,-0.35)+(-45:0.0875)+(P)$) -- ($(-0.35,-0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(-45:0.0875)+(P)$) -- cycle;\n"
-      "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,0.35)+(45:0.0875)+(P)$) -- ($(-0.35,0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(45:0.0875)+(P)$) -- cycle;\n"
-      "}\n"
-      "\\pagecolor{yellow!20}\n", largura, altura );
+                           "\\documentclass[11pt]{report}\n"
+                           "\\usepackage[utf8]{inputenc}\n"
+                           "\\usepackage[T1]{fontenc}\n"
+                           "\\usepackage[brazil]{babel}\n"
+                           "\\usepackage{cmbright, xcolor, ifthen, setspace, graphicx, tikz}\n"
+                           "\\usetikzlibrary{calc}\n\n"
+                           "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n"
+                           "\\geometry{paperwidth=%dcm,paperheight=%dcm}\n\n"
+                           "\\pagestyle{empty}\n\n"
+                           "\\definecolor{NeonVerde}{cmyk}{0.65,0,1,0.2}\n"
+                           "\\definecolor{LimaoFluo}{cmyk}{0.40,0,1,0}\n"
+                           "\\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}\n"
+                           "\\definecolor{AzulProfessor}{cmyk} {1,0.50,0,0.33}\n"
+                           "\\definecolor{VerdeEscola}{cmyk} {1,0,1,0.47}\n\n"
+                           "%% MACRO: Símbolo de Correto\n"
+                           "\\def\\correto{\n"
+                           "  \\fill[rounded corners=6, bottom color=NeonVerde, top color=LimaoFluo] ($(-0.43,-0.43)+(P)$) rectangle ($(0.43,0.43)+(P)$);\n"
+                           "  \\fill[rounded corners=1, color=white] ($(-0.172,-0.258)+(P)$) -- ($(-0.0215,-0.258)+(P)$) -- ($(0.344,0.258)+(P)$) -- ($(0.1935,0.258)+(P)$) -- cycle;\n"
+                           "  \\fill[rounded corners=1, color=white] ($(-0.0215,-0.258)+(P)$) -- ($(-0.172,-0.258)+(P)$) -- ($(-0.344,0.00)+(P)$) -- ($(-0.1935,0.00)+(P)$) -- cycle;\n"
+                           "}\n\n"
+                           "%% MACRO: Símbolo de Incorreto\n"
+                           "\\def\\incorreto{\n"
+                           "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,-0.35)+(-45:0.0875)+(P)$) -- ($(-0.35,-0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(-45:0.0875)+(P)$) -- cycle;\n"
+                           "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,0.35)+(45:0.0875)+(P)$) -- ($(-0.35,0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(45:0.0875)+(P)$) -- cycle;\n"
+                           "}\n"
+                           "\\pagecolor{yellow!20}\n", largura, altura );
 
    const InterfaceDados *dados  = &ctx->dados;
    const CalendarioData *hoje   = &ctx->hoje;
@@ -331,7 +335,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // 7. GRAVAÇÃO ATÔMICA E SEGURA NO DISCO
    GError *error = NULL;
-   if ( !g_file_set_contents( arquivo, tex->str, (guint)tex->len, &error ) ) {
+   if ( !g_file_set_contents( arquivo, tex->str, ( guint )tex->len, &error ) ) {
       g_printerr( "[ERRO] Não foi possível salvar o arquivo latex (%s): %s\n", arquivo, error->message );
       g_error_free( error );
       return -1;

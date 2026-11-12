@@ -15,11 +15,6 @@
 #include "omr.h"
 #include "interface.h"
 
-
-
-
-
-
 // ============================================================================
 // CONSTANTES E CONFIGURAÇÕES
 // ============================================================================
@@ -52,8 +47,11 @@ static int blob_comparar_solidez( const void *a, const void *b ) {
    const BlobInfo *ba = ( const BlobInfo * )a;
    const BlobInfo *bb = ( const BlobInfo * )b;
 
-   double f_a = ( double )ba->area / ( ( ba->max_i - ba->min_i + 1 ) * ( ba->max_j - ba->min_j + 1 ) );
-   double f_b = ( double )bb->area / ( ( bb->max_i - bb->min_i + 1 ) * ( bb->max_j - bb->min_j + 1 ) );
+   double area_box_a = ( double )( ( ba->max_i - ba->min_i + 1 ) * ( ba->max_j - ba->min_j + 1 ) );
+   double area_box_b = ( double )( ( bb->max_i - bb->min_i + 1 ) * ( bb->max_j - bb->min_j + 1 ) );
+
+   double f_a = ( double )ba->area / area_box_a;
+   double f_b = ( double )bb->area / area_box_b;
 
    return ( f_a < f_b ) - ( f_a > f_b ); // Ordem decrescente
 }
@@ -62,6 +60,10 @@ static int blob_comparar_solidez( const void *a, const void *b ) {
 // MÓDULO 2: Correlação Cruzada Direta (Otimizada)
 // ============================================================================
 static double calcular_correcao_cruzada_direta( const ImagemCinza *img, int start_i, int start_j, const TemplateParams *tpl ) {
+   if ( tpl->max_energia <= 0.0 ) {
+      return 0.0;
+   }
+
    int soma_margem = 0;
    int soma_core = 0;
 
@@ -71,32 +73,36 @@ static double calcular_correcao_cruzada_direta( const ImagemCinza *img, int star
 
    // 1. Margem Superior (Apenas branco)
    for ( int i = 0; i < ms; i++ ) {
-      const uint8_t *linha = img->image[start_i + i];
+      const uint8_t *linha = img->image[start_i + i] + start_j;
       for ( int j = 0; j < ts; j++ ) {
-         soma_margem += linha[start_j + j];
+         soma_margem += ( int )linha[j];
       }
    }
 
    // 2. Miolo (Margem Esquerda + Core Preto + Margem Direita)
    for ( int i = ms; i < limit_core; i++ ) {
-      const uint8_t *linha = img->image[start_i + i];
+      const uint8_t *linha = img->image[start_i + i] + start_j;
 
-      for ( int j = 0; j < ms; j++ ) soma_margem += linha[start_j + j];
-      for ( int j = ms; j < limit_core; j++ ) soma_core += linha[start_j + j];
-      for ( int j = limit_core; j < ts; j++ ) soma_margem += linha[start_j + j];
+      for ( int j = 0; j < ms; j++ ) {
+         soma_margem += ( int )linha[j];
+      }
+      for ( int j = ms; j < limit_core; j++ ) {
+         soma_core += ( int )linha[j];
+      }
+      for ( int j = limit_core; j < ts; j++ ) {
+         soma_margem += ( int )linha[j];
+      }
    }
 
    // 3. Margem Inferior (Apenas branco)
    for ( int i = limit_core; i < ts; i++ ) {
-      const uint8_t *linha = img->image[start_i + i];
+      const uint8_t *linha = img->image[start_i + i] + start_j;
       for ( int j = 0; j < ts; j++ ) {
-         soma_margem += linha[start_j + j];
+         soma_margem += ( int )linha[j];
       }
    }
 
-   double correlacao = ( double )soma_margem - ( double )soma_core;
-
-   if ( tpl->max_energia <= 0.0 ) return 0.0;
+   double correlacao = ( double )( soma_margem - soma_core );
    return correlacao / tpl->max_energia;
 }
 
@@ -111,14 +117,14 @@ static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candid
    for ( int k = 0; k < *num_candidatos; k++ ) {
       double dist_i = candidatos[k].blob.centro_i - nova_blob.centro_i;
       double dist_j = candidatos[k].blob.centro_j - nova_blob.centro_j;
-      double dist_sq = dist_i * dist_i + dist_j * dist_j;
+      double dist_sq = ( dist_i * dist_i ) + ( dist_j * dist_j );
 
       if ( dist_sq < raio_sq ) {
          if ( novo_score > candidatos[k].score ) {
             candidatos[k].blob = nova_blob;
             candidatos[k].score = novo_score;
          }
-         return; // Supressão ocorreu (atualizando ou descartando), podemos sair
+         return; // Supressão ocorreu (atualizando ou descartando)
       }
    }
 
@@ -131,12 +137,12 @@ static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candid
 }
 
 // ============================================================================
-// MÓDULO 4: Função Principal de Extração
+// MÓDULO 4: Função Principal de Extração por Template (Paralelizada com OpenMP)
 // ============================================================================
 static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size ) {
-   double limiar_correlacao = 0.5;
-   int stride_busca = 1;
-   int max_blobs_saida = MAX_CANDIDATOS;
+   const double limiar_correlacao = 0.5;
+   const int stride_busca = 1;
+   const int max_blobs_saida = MAX_CANDIDATOS;
 
    MatchCandidate candidatos[MAX_CANDIDATOS];
    int num_candidatos = 0;
@@ -144,79 +150,91 @@ static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, i
    TemplateParams tpl;
    tpl.core_size = core_size;
    tpl.margin_size = margin_size;
-   tpl.total_size = core_size + 2 * margin_size;
+   tpl.total_size = core_size + ( 2 * margin_size );
 
    // Pré-cálculo da energia máxima teórica para O(1) dentro do laço
    int pixels_margem = ( tpl.total_size * tpl.total_size ) - ( core_size * core_size );
    tpl.max_energia = ( double )pixels_margem * 255.0;
 
    int raio_nms = ( tpl.total_size * 70 ) / 100;
-   int limite_i = img->nrow - tpl.total_size;
-   int limite_j = img->ncol - tpl.total_size;
+   int limite_i = ( int )img->nrow - tpl.total_size;
+   int limite_j = ( int )img->ncol - tpl.total_size;
 
-   // ATENÇÃO (OPENMP): Se for paralelizar este laço (ex: #pragma omp parallel for),
-   // a matriz 'candidatos' e 'num_candidatos' sofrerão Race Conditions na chamada de NMS.
-   // Recomenda-se buffers locais por thread fundidos ao final em caso de paralelismo aqui.
-   for ( int i = 0; i <= limite_i; i += stride_busca ) {
-      for ( int j = 0; j <= limite_j; j += stride_busca ) {
+   // Paralelização segura: cada thread acumula em seu buffer local sem contenção
+   // e funde os candidatos sobreviventes ao final via NMS global.
+   #pragma omp parallel
+   {
+      MatchCandidate candidatos_local[MAX_CANDIDATOS];
+      int num_local = 0;
 
-         double score = calcular_correcao_cruzada_direta( img, i, j, &tpl );
+      #pragma omp for schedule(static) nowait
+      for ( int i = 0; i <= limite_i; i += stride_busca ) {
+         for ( int j = 0; j <= limite_j; j += stride_busca ) {
 
-         if ( score > limiar_correlacao ) {
-            BlobInfo blob;
-            blob.min_i = i + tpl.margin_size;
-            blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
-            blob.min_j = j + tpl.margin_size;
-            blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
+            double score = calcular_correcao_cruzada_direta( img, i, j, &tpl );
 
-            blob.area = tpl.core_size * tpl.core_size;
-            blob.centro_i = ( double )( blob.min_i + blob.max_i ) / 2.0;
-            blob.centro_j = ( double )( blob.min_j + blob.max_j ) / 2.0;
+            if ( score > limiar_correlacao ) {
+               BlobInfo blob;
+               blob.min_i = i + tpl.margin_size;
+               blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
+               blob.min_j = j + tpl.margin_size;
+               blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
 
-            adicionar_candidato_nms( candidatos, &num_candidatos, blob, score, raio_nms );
+               blob.area = tpl.core_size * tpl.core_size;
+               blob.centro_i = ( double )( blob.min_i + blob.max_i ) * 0.5;
+               blob.centro_j = ( double )( blob.min_j + blob.max_j ) * 0.5;
+
+               adicionar_candidato_nms( candidatos_local, &num_local, blob, score, raio_nms );
+            }
+         }
+      }
+
+      if ( num_local > 0 ) {
+         #pragma omp critical
+         {
+            for ( int k = 0; k < num_local; k++ ) {
+               adicionar_candidato_nms( candidatos, &num_candidatos,
+                                        candidatos_local[k].blob, candidatos_local[k].score, raio_nms );
+            }
          }
       }
    }
 
-   // Transfere o resultado e aplica ordenação e corte se necessário
    for ( int k = 0; k < num_candidatos; k++ ) {
       blobs[k] = candidatos[k].blob;
    }
 
-   if ( num_candidatos < 4 ) return 0;
+   if ( num_candidatos < 4 ) {
+      return 0;
+   }
 
    if ( num_candidatos > max_blobs_saida ) {
-      qsort( blobs, (guint)num_candidatos, sizeof( BlobInfo ), blob_comparar_solidez );
+      qsort( blobs, ( gsize )num_candidatos, sizeof( BlobInfo ), blob_comparar_solidez );
       num_candidatos = max_blobs_saida;
    }
 
    return num_candidatos;
 }
 
-
-
-
-
-
-
-
 //-----------------------------------------------------------------------------------------------------
 // 1. Função auxiliar inline: Ordenação polar manual para 4 itens
 static void blob_ordenar_polar_inline( const BlobInfo *candidatos[4], const BlobInfo *ordenados[4] ) {
-   double cx = 0.0, cy = 0.0;
+   double cx = 0.0;
+   double cy = 0.0;
+
    for ( int i = 0; i < 4; i++ ) {
       cy += candidatos[i]->centro_i;
       cx += candidatos[i]->centro_j;
    }
-   cy /= 4.0;
-   cx /= 4.0;
+   cy *= 0.25;
+   cx *= 0.25;
 
    double angulos[4];
    for ( int i = 0; i < 4; i++ ) {
       angulos[i] = atan2( candidatos[i]->centro_i - cy, candidatos[i]->centro_j - cx );
    }
 
-   int idx[4] = {0, 1, 2, 3};
+   int idx[4] = { 0, 1, 2, 3 };
    for ( int i = 0; i < 3; i++ ) {
       for ( int j = i + 1; j < 4; j++ ) {
          if ( angulos[idx[i]] > angulos[idx[j]] ) {
@@ -251,7 +269,7 @@ static double blob_erro_ortogonal( const double p0[2], const double p1[2],
    double cos2 = fabs( dp2 ) / ( bot_w * right_h );
    double cos3 = fabs( dp3 ) / ( bot_w * left_h );
 
-   return ( cos0 + cos1 + cos2 + cos3 ) / 4.0;
+   return ( cos0 + cos1 + cos2 + cos3 ) * 0.25;
 }
 
 /**
@@ -262,12 +280,15 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
    int w = blob->max_j - blob->min_j + 1;
    int h = blob->max_i - blob->min_i + 1;
 
-   if ( w <= 0 || h <= 0 || num_pixels <= 0 ) return;
+   if ( w <= 0 || h <= 0 || num_pixels <= 0 ) {
+      return;
+   }
 
-   memset( proj_x, 0, (guint)w * sizeof( int ) );
-   memset( proj_y, 0, (guint)h * sizeof( int ) );
+   memset( proj_x, 0, ( gsize )w * sizeof( int ) );
+   memset( proj_y, 0, ( gsize )h * sizeof( int ) );
 
-   int max_px = 0, max_py = 0;
+   int max_px = 0;
+   int max_py = 0;
 
    // 1. Constrói o histograma de densidade
    for ( int k = 0; k < num_pixels; k++ ) {
@@ -277,16 +298,22 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
       proj_x[x]++;
       proj_y[y]++;
 
-      if ( proj_x[x] > max_px ) max_px = proj_x[x];
-      if ( proj_y[y] > max_py ) max_py = proj_y[y];
+      if ( proj_x[x] > max_px ) {
+         max_px = proj_x[x];
+      }
+      if ( proj_y[y] > max_py ) {
+         max_py = proj_y[y];
+      }
    }
 
-   // 2. Limiar de Corte (50% da massa máxima projetada)
-   int limiar_x = ( int )( max_px * 0.5 );
-   int limiar_y = ( int )( max_py * 0.5 );
+   // 2. Limiar de Corte (50% da massa máxima projetada via divisão inteira exata)
+   int limiar_x = max_px / 2;
+   int limiar_y = max_py / 2;
 
-   int novo_min_j = blob->min_j, novo_max_j = blob->max_j;
-   int novo_min_i = blob->min_i, novo_max_i = blob->max_i;
+   int novo_min_j = blob->min_j;
+   int novo_max_j = blob->max_j;
+   int novo_min_i = blob->min_i;
+   int novo_max_i = blob->max_i;
 
    // 3. Amputa as extremidades (Riscos finos)
    for ( int j = 0; j < w; j++ ) {
@@ -321,7 +348,8 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
    blob->max_j = novo_max_j;
    blob->area = 0;
 
-   double soma_i = 0, soma_j = 0;
+   int64_t soma_i = 0;
+   int64_t soma_j = 0;
 
    for ( int k = 0; k < num_pixels; k++ ) {
       int ci = fila_i[k];
@@ -335,60 +363,79 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
    }
 
    if ( blob->area > 0 ) {
-      blob->centro_i = soma_i / blob->area;
-      blob->centro_j = soma_j / blob->area;
+      blob->centro_i = ( double )soma_i / ( double )blob->area;
+      blob->centro_j = ( double )soma_j / ( double )blob->area;
    }
 }
-
-
 
 /**
  * Varre a imagem e extrai candidatos OMR (com inteligência contra riscos)
  */
 static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *blobs ) {
-   int nrow = img_bin->nrow;
-   int ncol = img_bin->ncol;
-   int max_blobs_saida = 30;
+   int nrow = ( int )img_bin->nrow;
+   int ncol = ( int )img_bin->ncol;
+   const int max_blobs_saida = 30;
 
-   g_autofree uint8_t *visitado = g_new0( uint8_t, nrow * ncol );
-   g_autofree int *fila_i = g_new( int, nrow * ncol );
-   g_autofree int *fila_j = g_new( int, nrow * ncol );
+   gsize total_pixels = img_bin->nrow * img_bin->ncol;
 
-   g_autofree int *proj_x = g_new( int, ncol );
-   g_autofree int *proj_y = g_new( int, nrow );
+   g_autofree uint8_t *visitado = g_new0( uint8_t, total_pixels );
+   g_autofree int *fila_i = g_new( int, total_pixels );
+   g_autofree int *fila_j = g_new( int, total_pixels );
 
-   int limiar_binario = img_bin->max / 2;
+   g_autofree int *proj_x = g_new( int, img_bin->ncol );
+   g_autofree int *proj_y = g_new( int, img_bin->nrow );
+
+   uint8_t limiar_binario = ( uint8_t )( img_bin->max / 2 );
    int num_blobs = 0;
 
    for ( int i = 0; i < nrow; i++ ) {
       for ( int j = 0; j < ncol; j++ ) {
-         if ( img_bin->image[i][j] < limiar_binario && !visitado[i * ncol + j] ) {
-            int start_idx = 0, end_idx = 0;
+         gsize idx_raiz = ( ( gsize )i * img_bin->ncol ) + ( gsize )j;
+
+         if ( img_bin->dados[idx_raiz] < limiar_binario && !visitado[idx_raiz] ) {
+            int start_idx = 0;
+            int end_idx = 0;
+
             fila_i[end_idx] = i;
             fila_j[end_idx] = j;
             end_idx++;
-            visitado[i * ncol + j] = 1;
+            visitado[idx_raiz] = 1;
 
             BlobInfo blob = { i, i, j, j, 0, 0.0, 0.0 };
 
             while ( start_idx < end_idx ) {
-               int ci = fila_i[start_idx], cj = fila_j[start_idx];
+               int ci = fila_i[start_idx];
+               int cj = fila_j[start_idx];
                start_idx++;
 
-               if ( ci < blob.min_i ) blob.min_i = ci;
-               if ( ci > blob.max_i ) blob.max_i = ci;
-               if ( cj < blob.min_j ) blob.min_j = cj;
-               if ( cj > blob.max_j ) blob.max_j = cj;
+               if ( ci < blob.min_i ) {
+                  blob.min_i = ci;
+               }
+               if ( ci > blob.max_i ) {
+                  blob.max_i = ci;
+               }
+               if ( cj < blob.min_j ) {
+                  blob.min_j = cj;
+               }
+               if ( cj > blob.max_j ) {
+                  blob.max_j = cj;
+               }
 
                for ( int di = -1; di <= 1; di++ ) {
+                  int ni = ci + di;
+                  if ( ni < 0 || ni >= nrow ) {
+                     continue;
+                  }
+
                   for ( int dj = -1; dj <= 1; dj++ ) {
-                     int ni = ci + di, nj = cj + dj;
-                     if ( ni >= 0 && ni < nrow && nj >= 0 && nj < ncol ) {
-                        if ( img_bin->image[ni][nj] < limiar_binario && !visitado[ni * ncol + nj] ) {
+                     int nj = cj + dj;
+                     if ( nj >= 0 && nj < ncol ) {
+                        gsize idx_viz = ( ( gsize )ni * img_bin->ncol ) + ( gsize )nj;
+                        if ( img_bin->dados[idx_viz] < limiar_binario && !visitado[idx_viz] ) {
                            fila_i[end_idx] = ni;
                            fila_j[end_idx] = nj;
                            end_idx++;
-                           visitado[ni * ncol + nj] = 1;
+                           visitado[idx_viz] = 1;
                         }
                      }
                   }
@@ -397,23 +444,28 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
             blob_aparar_riscos( &blob, fila_i, fila_j, end_idx, proj_x, proj_y );
 
-            int altura = blob.max_i - blob.min_i + 1;
-            int largura = blob.max_j - blob.min_j + 1;
-            double aspect_ratio = ( double )largura / ( double )altura;
-            double fill_ratio = ( double )blob.area / ( ( double )largura * altura );
+            double altura = ( double )( blob.max_i - blob.min_i + 1 );
+            double largura = ( double )( blob.max_j - blob.min_j + 1 );
+            double aspect_ratio = largura / altura;
+            double fill_ratio = ( double )blob.area / ( largura * altura );
 
             // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
-            if ( blob.area > 50 && blob.area < 6000 && aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
-               if ( num_blobs < MAX_CANDIDATOS ) blobs[num_blobs++] = blob;
+            if ( blob.area > 50 && blob.area < 6000 &&
+                  aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
+               if ( num_blobs < MAX_CANDIDATOS ) {
+                  blobs[num_blobs++] = blob;
+               }
             }
          }
       }
    }
 
-   if ( num_blobs < 4 ) return 0;
+   if ( num_blobs < 4 ) {
+      return 0;
+   }
 
    if ( num_blobs > max_blobs_saida ) {
-      qsort( blobs, (guint)num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
+      qsort( blobs, ( gsize )num_blobs, sizeof( BlobInfo ), blob_comparar_solidez );
       num_blobs = max_blobs_saida;
    }
 
@@ -423,17 +475,17 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 //------------------------------------------------------------------------------------------------------------
 static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
       char *direcao_inferida, gboolean resgate ) {
-   // (void)resgate;
-   int nrow = img_bin->nrow;
-   int ncol = img_bin->ncol;
+   double nrow_d = ( double )img_bin->nrow;
+   double ncol_d = ( double )img_bin->ncol;
+   double max_dist_quad = ( nrow_d * nrow_d ) + ( ncol_d * ncol_d );
 
-   BlobInfo blobs[MAX_CANDIDATOS] = {0};
+   BlobInfo blobs[MAX_CANDIDATOS] = { 0 };
    int num_blobs = 0;
+
    if ( resgate ) {
       // Valores otimizados para quadradinhos de 6 milímetros de lado
-      // Precisarei refazer os testes para os novos quadradinhos de 6.5 milímetros de lado
-      int core_size = 28;  // Para quadradinhos 6mm x 6mm
-      int margin_size = 7; // Para quadradinhos 6mm x 6mm
+      int core_size = 28;
+      int margin_size = 7;
       num_blobs = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
    } else {
       num_blobs = blob_extrair_quadrados_pretos( img_bin, blobs );
@@ -447,10 +499,16 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
          for ( int k = j + 1; k < num_blobs - 1; k++ ) {
             for ( int l = k + 1; l < num_blobs; l++ ) {
 
-               double a0 = blobs[i].area, a1 = blobs[j].area, a2 = blobs[k].area, a3 = blobs[l].area;
+               double a0 = ( double )blobs[i].area;
+               double a1 = ( double )blobs[j].area;
+               double a2 = ( double )blobs[k].area;
+               double a3 = ( double )blobs[l].area;
+
                double max_a = fmax( fmax( a0, a1 ), fmax( a2, a3 ) );
                double min_a = fmin( fmin( a0, a1 ), fmin( a2, a3 ) );
-               if ( max_a / min_a > 2.0 ) continue;
+               if ( max_a / min_a > 2.0 ) {
+                  continue;
+               }
 
                const BlobInfo *candidatos[4] = { &blobs[i], &blobs[j], &blobs[k], &blobs[l] };
                const BlobInfo *ord[4];
@@ -459,33 +517,42 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
                // Trava de Rotação (Máx 10 graus)
                double dx_top = ord[1]->centro_j - ord[0]->centro_j;
                double dy_top = ord[1]->centro_i - ord[0]->centro_i;
-               double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * 180.0 / G_PI );
+               double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * ( 180.0 / G_PI ) );
 
-               if ( angulo_top_graus > 10.0 && fabs( angulo_top_graus - 90.0 ) > 10.0 ) continue;
+               if ( angulo_top_graus > 10.0 && fabs( angulo_top_graus - 90.0 ) > 10.0 ) {
+                  continue;
+               }
 
-               double top_w   = hypot( ord[1]->max_j - ord[0]->min_j, ord[1]->min_i - ord[0]->min_i );
-               double bot_w   = hypot( ord[2]->max_j - ord[3]->min_j, ord[2]->max_i - ord[3]->max_i );
-               double left_h  = hypot( ord[3]->min_j - ord[0]->min_j, ord[3]->max_i - ord[0]->min_i );
-               double right_h = hypot( ord[2]->max_j - ord[1]->max_j, ord[2]->max_i - ord[1]->min_i );
+               double p0[2] = { ( double )ord[0]->min_j, ( double )ord[0]->min_i };
+               double p1[2] = { ( double )ord[1]->max_j, ( double )ord[1]->min_i };
+               double p2[2] = { ( double )ord[2]->max_j, ( double )ord[2]->max_i };
+               double p3[2] = { ( double )ord[3]->min_j, ( double )ord[3]->max_i };
 
-               double larg = ( top_w + bot_w ) / 2.0;
-               double alt  = ( left_h + right_h ) / 2.0;
+               double top_w   = hypot( p1[0] - p0[0], p1[1] - p0[1] );
+               double bot_w   = hypot( p2[0] - p3[0], p2[1] - p3[1] );
+               double left_h  = hypot( p3[0] - p0[0], p3[1] - p0[1] );
+               double right_h = hypot( p2[0] - p1[0], p2[1] - p1[1] );
 
-               if ( larg < 50.0 || alt < 50.0 ) continue;
+               double larg = ( top_w + bot_w ) * 0.5;
+               double alt  = ( left_h + right_h ) * 0.5;
+
+               if ( larg < 50.0 || alt < 50.0 ) {
+                  continue;
+               }
 
                double erro_paralelogramo = ( fabs( top_w - bot_w ) / larg ) + ( fabs( left_h - right_h ) / alt );
-               if ( erro_paralelogramo > 0.25 ) continue;
-
-               double p0[2] = { ord[0]->min_j, ord[0]->min_i };
-               double p1[2] = { ord[1]->max_j, ord[1]->min_i };
-               double p2[2] = { ord[2]->max_j, ord[2]->max_i };
-               double p3[2] = { ord[3]->min_j, ord[3]->max_i };
+               if ( erro_paralelogramo > 0.25 ) {
+                  continue;
+               }
 
                double erro_ortogonal = blob_erro_ortogonal( p0, p1, p2, p3, top_w, bot_w, left_h, right_h );
-               if ( erro_ortogonal > 0.20 ) continue;
+               if ( erro_ortogonal > 0.20 ) {
+                  continue;
+               }
 
-               char dir = ( - ord[0]->min_i - ord[1]->min_i + ord[2]->max_i + ord[3]->max_i <
-                            - ord[0]->min_j + ord[1]->max_j + ord[2]->max_j - ord[3]->min_j ) ? 'h' : 'v';
+               int soma_alt  = -ord[0]->min_i - ord[1]->min_i + ord[2]->max_i + ord[3]->max_i;
+               int soma_larg = -ord[0]->min_j + ord[1]->max_j + ord[2]->max_j - ord[3]->min_j;
+               char dir = ( soma_alt < soma_larg ) ? 'h' : 'v';
 
                double proporcao_alvo = ( dir == 'h' ) ? ( 14.0 / 11.0 ) : ( 10.0 / 15.0 );
                double proporcao_real = larg / alt;
@@ -499,14 +566,14 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
                double ci_D = ord[3]->centro_i, cj_D = ord[3]->centro_j;
 
                double d_tl = ( ci_A * ci_A ) + ( cj_A * cj_A );
-               double d_tr = ( ci_B * ci_B ) + ( ( ncol - cj_B ) * ( ncol - cj_B ) );
-               double d_br = ( ( nrow - ci_C ) * ( nrow - ci_C ) ) + ( ( ncol - cj_C ) * ( ncol - cj_C ) );
-               double d_bl = ( ( nrow - ci_D ) * ( nrow - ci_D ) ) + ( cj_D * cj_D );
+               double d_tr = ( ci_B * ci_B ) + ( ( ncol_d - cj_B ) * ( ncol_d - cj_B ) );
+               double d_br = ( ( nrow_d - ci_C ) * ( nrow_d - ci_C ) ) + ( ( ncol_d - cj_C ) * ( ncol_d - cj_C ) );
+               double d_bl = ( ( nrow_d - ci_D ) * ( nrow_d - ci_D ) ) + ( cj_D * cj_D );
 
-               double max_dist_quad = ( double )( nrow * nrow ) + ( double )( ncol * ncol );
                double erro_extremos = ( d_tl + d_tr + d_br + d_bl ) / max_dist_quad;
 
-               double erro_total = erro_proporcao + erro_paralelogramo + erro_ortogonal + ( erro_area_ancoras * 0.5 ) + erro_extremos;
+               double erro_total = erro_proporcao + erro_paralelogramo + erro_ortogonal +
+                                   ( erro_area_ancoras * 0.5 ) + erro_extremos;
 
                if ( erro_total < menor_erro_global ) {
                   menor_erro_global = erro_total;
@@ -529,9 +596,12 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
  * Pipeline OMR Determinístico Atualizado.
  */
 gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida, gboolean resgate ) {
+   g_return_val_if_fail( img_bin != NULL, FALSE );
+   g_return_val_if_fail( img_bin->dados != NULL, FALSE );
+   g_return_val_if_fail( ancora != NULL && direcao_inferida != NULL, FALSE );
+
    BlobInfo melhores_blobs[4];
 
-   // CORREÇÃO CRÍTICA: Se não encontrar (FALSE), deve retornar FALSE. O código anterior abortava em caso de sucesso.
    if ( !blob_busca_combinatoria( img_bin, melhores_blobs, direcao_inferida, resgate ) ) {
       return FALSE;
    }
@@ -594,11 +664,11 @@ gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const InterfaceCab
    }
 
    // 3. Desempacotamento (Bitwise Shift reverso e aplicação de máscaras)
-   map->id    = ( uint8_t )( map->payload & 0x3F );      // Isola os bits 0 a 5
-   map->turma = ( uint8_t )( ( map->payload >> 6 )  & 0xFF ); // Desloca 6 bits e isola 8 bits (6 a 13)
-   map->disc  = ( uint8_t )( ( map->payload >> 14 ) & 0x0F ); // Desloca 14 bits e isola 4 bits (14 a 17)
-   map->per   = ( uint8_t )( ( map->payload >> 18 ) & 0x07 ); // Desloca 18 bits e isola 3 bits (18 a 20)
-   map->seq   = ( uint8_t )( ( map->payload >> 21 ) & 0x03 ); // Desloca 21 bits e isola 2 bits (21 a 22)
+   map->id    = ( guint8 )( map->payload & 0x3F );      // Isola os bits 0 a 5
+   map->turma = ( guint8 )( ( map->payload >> 6 )  & 0xFF ); // Desloca 6 bits e isola 8 bits (6 a 13)
+   map->disc  = ( guint8 )( ( map->payload >> 14 ) & 0x0F ); // Desloca 14 bits e isola 4 bits (14 a 17)
+   map->per   = ( guint8 )( ( map->payload >> 18 ) & 0x07 ); // Desloca 18 bits e isola 3 bits (18 a 20)
+   map->seq   = ( guint8 )( ( map->payload >> 21 ) & 0x03 ); // Desloca 21 bits e isola 2 bits (21 a 22)
 
    // A sequência da prova é o único valor que não pode ser zero (valores 1, 2 e 3)
    // Pois a leitura do binário numa área branca retornava um payload válido onde todos os bits são zero
@@ -616,14 +686,16 @@ gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const InterfaceCab
 
 
 
+// ============================================================================
+// MÓDULO 5: Extração do Payload Binário (27 bits - Grade 3x9)
+// ============================================================================
 /**
  * Extrai o payload de 27 bits armazenado na grade 3x9 da imagem PGM binarizada.
  * Suporta orientações horizontais (14p x 11p) e verticais (10p x 15p).
  */
 uint32_t extrair_payload_matriz( const ImagemCinza *IMG, char direcao ) {
    // 1. Validações defensivas robustas via GLib
-   g_return_val_if_fail( IMG != NULL, 0 );
-   g_return_val_if_fail( IMG->image != NULL, 0 );
+   g_return_val_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL, 0 );
    g_return_val_if_fail( direcao == 'h' || direcao == 'v', 0 );
 
    uint32_t payload_lido = 0;
@@ -639,51 +711,56 @@ uint32_t extrair_payload_matriz( const ImagemCinza *IMG, char direcao ) {
    }
 
    // Ponto de corte para separar branco e preto
-   int limiar_binario = IMG->max / 2;
+   uint8_t limiar_binario = ( uint8_t )( IMG->max / 2 );
 
-   // Kernel dinâmico ajustado para cobrir precisamente ~50% da área total do quadrado (raio = 35% do lado).
-   // Isso equivale a uma varredura de 70% da largura e 70% da altura (0.7 * 0.7 ≈ 0.50).
-   int raio_x = MAX( 1, ( int )( ( p_x / 3.0 ) * 0.8 ) );
-   int raio_y = MAX( 1, ( int )( ( p_y / 3.0 ) * 0.8 ) );
+   // Kernel dinâmico ajustado para cobrir o miolo seguro de cada célula
+   gssize raio_x = MAX( 1, ( gssize )( ( p_x / 3.0 ) * 0.8 ) );
+   gssize raio_y = MAX( 1, ( gssize )( ( p_y / 3.0 ) * 0.8 ) );
 
-   // 3. Varredura dos 27 bits do payload
-   for ( int i = 0; i < 27; i++ ) {
+   gssize ncol_s = ( gssize )IMG->ncol;
+   gssize nrow_s = ( gssize )IMG->nrow;
+   const double passo_grade = 2.0 / 3.0;
 
-      int linha  = ( direcao == 'h' )  ?  i / 3  :  i % 3;
-      int coluna = ( direcao == 'h' )  ?  i % 3  :  i / 3;
+   // 3. Varredura dos 27 bits do payload (guint evita -Wsign-conversion no bit shift)
+   for ( guint i = 0; i < 27U; i++ ) {
 
-      double x_centro_p, y_centro_p;
-      double passo_grade = 2.0 / 3.0;
+      guint linha  = ( direcao == 'h' ) ? ( i / 3U ) : ( i % 3U );
+      guint coluna = ( direcao == 'h' ) ? ( i % 3U ) : ( i / 3U );
 
-      x_centro_p = 1.0 + ( coluna * passo_grade ) + ( passo_grade / 2.0 );
-      y_centro_p = 1.0 + ( linha  * passo_grade ) + ( passo_grade / 2.0 );
+      double x_centro_p = 1.0 + ( ( double )coluna * passo_grade ) + ( passo_grade * 0.5 );
+      double y_centro_p = 1.0 + ( ( double )linha  * passo_grade ) + ( passo_grade * 0.5 );
 
       // Converte a unidade fracionária 'p' para a coordenada real de pixels
-      int px = ( int )( x_centro_p * p_x );
-      int py = ( int )( y_centro_p * p_y );
+      gssize px = ( gssize )( x_centro_p * p_x );
+      gssize py = ( gssize )( y_centro_p * p_y );
 
       // Garante que o centro calculado está dentro dos limites físicos da imagem
-      if ( px >= 0 && px < IMG->ncol && py >= 0 && py < IMG->nrow ) {
+      if ( px >= 0 && px < ncol_s && py >= 0 && py < nrow_s ) {
          int pixels_pretos = 0;
          int cont_pixels = 0;
 
-         // 5. Votação por Maioria usando o Kernel Dinâmico Adaptativo
-         for ( int dy = -raio_y; dy <= raio_y; dy++ ) {
-            for ( int dx = -raio_x; dx <= raio_x; dx++ ) {
-               int nx = px + dx;
-               int ny = py + dy;
+         // 4. Votação usando o Kernel Dinâmico com ponteiro de linha em cache
+         for ( gssize dy = -raio_y; dy <= raio_y; dy++ ) {
+            gssize ny = py + dy;
+            if ( ny < 0 || ny >= nrow_s ) {
+               continue;
+            }
 
-               if ( nx >= 0 && nx < IMG->ncol && ny >= 0 && ny < IMG->nrow ) {
-                  if ( IMG->image[ny][nx] < limiar_binario ) {
+            const uint8_t *linha_img = IMG->image[ny];
+
+            for ( gssize dx = -raio_x; dx <= raio_x; dx++ ) {
+               gssize nx = px + dx;
+
+               if ( nx >= 0 && nx < ncol_s ) {
+                  if ( linha_img[nx] < limiar_binario ) {
                      pixels_pretos++;
                   }
                   cont_pixels++;
-                  // IMG->image[ny][nx] = 0; // apenas para verificação visual
                }
             }
          }
 
-         // Valida o bit se a densidade de tinta no miolo do quadrado for maior que 50%
+         // Valida o bit se a densidade de tinta no miolo atingir o limiar
          if ( pixels_pretos > ( cont_pixels / 3 ) ) {
             payload_lido |= ( 1U << i );
          }
@@ -693,66 +770,79 @@ uint32_t extrair_payload_matriz( const ImagemCinza *IMG, char direcao ) {
    return payload_lido;
 }
 
-
-
-
+// ============================================================================
+// MÓDULO 6: Leitura das Bolhas de Resposta e Identificação do Aluno
+// ============================================================================
 static float calcular_densidade_celula( const ImagemCinza *IMG, int i_celula, int j_celula,
                                         float p_x, float p_y, float raio, float raio_quad ) {
-   float cx = ( (float)j_celula + 0.5f ) * p_x;
-   float cy = ( (float)i_celula + 0.5f ) * p_y;
+   float cx = ( ( float )j_celula + 0.5f ) * p_x;
+   float cy = ( ( float )i_celula + 0.5f ) * p_y;
 
-   int x_min = ( int )floorf( cx - raio );
-   int x_max = ( int )ceilf( cx + raio );
-   int y_min = ( int )floorf( cy - raio );
-   int y_max = ( int )ceilf( cy + raio );
+   gssize ncol_s = ( gssize )IMG->ncol;
+   gssize nrow_s = ( gssize )IMG->nrow;
 
-   if ( x_min < 0 ) x_min = 0;
-   if ( x_max >= IMG->ncol ) x_max = IMG->ncol - 1;
-   if ( y_min < 0 ) y_min = 0;
-   if ( y_max >= IMG->nrow ) y_max = IMG->nrow - 1;
+   gssize x_min = ( gssize )floorf( cx - raio );
+   gssize x_max = ( gssize )ceilf( cx + raio );
+   gssize y_min = ( gssize )floorf( cy - raio );
+   gssize y_max = ( gssize )ceilf( cy + raio );
+
+   if ( x_min < 0 ) {
+      x_min = 0;
+   }
+   if ( x_max >= ncol_s ) {
+      x_max = ncol_s - 1;
+   }
+   if ( y_min < 0 ) {
+      y_min = 0;
+   }
+   if ( y_max >= nrow_s ) {
+      y_max = nrow_s - 1;
+   }
 
    int total_pixels = 0;
    int pixels_pretos = 0;
+   uint8_t limiar_binario = ( uint8_t )( IMG->max / 2 );
 
-   int limiar_binario = IMG->max / 2;
+   for ( gssize y = y_min; y <= y_max; y++ ) {
+      float dy = ( float )y - cy;
+      float dy_quad = dy * dy;
+      const uint8_t *linha_img = IMG->image[y];
 
-   for ( int y = y_min; y <= y_max; y++ ) {
-      for ( int x = x_min; x <= x_max; x++ ) {
-         float dx = (float)x - cx;
-         float dy = (float)y - cy;
+      for ( gssize x = x_min; x <= x_max; x++ ) {
+         float dx = ( float )x - cx;
 
-         if ( ( dx * dx + dy * dy ) <= raio_quad ) {
+         if ( ( ( dx * dx ) + dy_quad ) <= raio_quad ) {
             total_pixels++;
-            if ( IMG->image[y][x] < limiar_binario ) {
+            if ( linha_img[x] < limiar_binario ) {
                pixels_pretos++;
             }
          }
       }
    }
 
-   return total_pixels > 0 ? ( float )pixels_pretos / (float)total_pixels : 0.0f;
+   return ( total_pixels > 0 ) ? ( ( float )pixels_pretos / ( float )total_pixels ) : 0.0f;
 }
 
-
-
-
-
-// Função para escanear a matriz de pixels e detectar a resposta assinalada
+/**
+ * Escaneia a matriz de pixels e detecta a alternativa assinalada em cada questão.
+ */
 void ler_respostas_gabarito( const ImagemCinza *IMG, char direcao, char *respostas_out ) {
-   if ( !IMG || !IMG->image || !respostas_out ) return;
+   g_return_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL );
+   g_return_if_fail( respostas_out != NULL );
+   g_return_if_fail( direcao == 'h' || direcao == 'v' );
 
    // 1. Definição da malha matricial com base na orientação
    int cols_grid = ( direcao == 'h' ) ? 14 : 10;
    int rows_grid = ( direcao == 'h' ) ? 11 : 15;
 
    // 2. Tamanho da unidade 'p' em pixels nos eixos X e Y
-   float p_x = ( float )IMG->ncol / (float)cols_grid;
-   float p_y = ( float )IMG->nrow / (float)rows_grid;
+   float p_x = ( float )IMG->ncol / ( float )cols_grid;
+   float p_y = ( float )IMG->nrow / ( float )rows_grid;
 
    // Para manter a área de busca perfeitamente circular, usamos o menor dos dois 'p'
    float p_min = ( p_x < p_y ) ? p_x : p_y;
    float raio = 0.35f * p_min;
-   float raio_quad = raio * raio; // Evita usar sqrt() dentro dos laços
+   float raio_quad = raio * raio;
 
    // 3. Varredura das 10 questões
    for ( int q = 0; q < 10; q++ ) {
@@ -762,54 +852,40 @@ void ler_respostas_gabarito( const ImagemCinza *IMG, char direcao, char *respost
 
       // Varredura das 5 alternativas para a questão atual
       for ( int alt = 0; alt < 5; alt++ ) {
-         int i_celula, j_celula;
+         int i_celula = ( direcao == 'h' ) ? ( alt + 2 ) : ( q + 3 );
+         int j_celula = ( direcao == 'h' ) ? ( q + 3 )   : ( alt + 2 );
 
-         if ( direcao == 'h' ) {
-            j_celula = q + 3;     // Colunas: 3 a 12
-            i_celula = alt + 2;   // Linhas:  2 a 6
-         } else {
-            // Transposição Matricial ('v')
-            i_celula = q + 3;     // Linhas:  3 a 12
-            j_celula = alt + 2;   // Colunas: 2 a 6
-         }
-
-         // Calcula a porcentagem de preenchimento da bolinha
          float densidade = calcular_densidade_celula( IMG, i_celula, j_celula, p_x, p_y, raio, raio_quad );
 
-         // Registra a alternativa com a marcação mais forte
          if ( densidade > max_densidade ) {
             max_densidade = densidade;
             alt_marcada = alt;
          }
       }
 
-      // 4. Critério de Aceitação (Tratamento de rasuras e questões em branco)
-      // Exigimos no mínimo 50% de preenchimento para considerar a bolinha marcada.
-      // Caso contrário, a questão foi deixada em branco (assinalada com '-').
-      if ( max_densidade > 0.50f ) {
-         respostas_out[q] = (char)('A' + (char)alt_marcada);
+      // 4. Critério de Aceitação (Mínimo de 50% de preenchimento)
+      if ( max_densidade > 0.50f && alt_marcada >= 0 ) {
+         respostas_out[q] = ( char )( 'A' + alt_marcada );
       } else {
          respostas_out[q] = '-';
       }
    }
 
-   // Finaliza a string C corretamente
    respostas_out[10] = '\0';
 }
 
-
-
-
-
-
+/**
+ * Lê o número de chamada do aluno (dezena 0..6 e unidade 0..9) na matriz OMR.
+ */
 int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
-   if ( !IMG || !IMG->image ) return -1;
+   g_return_val_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL, -1 );
+   g_return_val_if_fail( direcao == 'h' || direcao == 'v', -1 );
 
    int cols_grid = ( direcao == 'h' ) ? 14 : 10;
    int rows_grid = ( direcao == 'h' ) ? 11 : 15;
 
-   float p_x = ( float )IMG->ncol / (float)cols_grid;
-   float p_y = ( float )IMG->nrow / (float)rows_grid;
+   float p_x = ( float )IMG->ncol / ( float )cols_grid;
+   float p_y = ( float )IMG->nrow / ( float )rows_grid;
 
    float p_min = ( p_x < p_y ) ? p_x : p_y;
    float raio = 0.35f * p_min;
@@ -820,8 +896,8 @@ int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
 
    // Varredura da DEZENA (0 a 6)
    for ( int val = 0; val <= 6; val++ ) {
-      int i_cel = ( direcao == 'h' ) ? 7 : 3 + val;
-      int j_cel = ( direcao == 'h' ) ? 3 + val : 7;
+      int i_cel = ( direcao == 'h' ) ? 7 : ( 3 + val );
+      int j_cel = ( direcao == 'h' ) ? ( 3 + val ) : 7;
 
       float densidade = calcular_densidade_celula( IMG, i_cel, j_cel, p_x, p_y, raio, raio_quad );
 
@@ -836,8 +912,8 @@ int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
 
    // Varredura da UNIDADE (0 a 9)
    for ( int val = 0; val <= 9; val++ ) {
-      int i_cel = ( direcao == 'h' ) ? 8 : 3 + val;
-      int j_cel = ( direcao == 'h' ) ? 3 + val : 8;
+      int i_cel = ( direcao == 'h' ) ? 8 : ( 3 + val );
+      int j_cel = ( direcao == 'h' ) ? ( 3 + val ) : 8;
 
       float densidade = calcular_densidade_celula( IMG, i_cel, j_cel, p_x, p_y, raio, raio_quad );
 
@@ -847,9 +923,7 @@ int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
       }
    }
 
-   // Tratamento de segurança (Limiar de marcação em 50%)
-   // Se o aluno deixou em branco ou a marcação for fraca demais, retornamos -1
-   // para o programa principal acionar um alerta no painel de revisão.
+   // Limiar de segurança em 50%: aciona alerta de revisão se houver falha ou rasura fraca
    if ( max_den_dezena <= 0.50f || max_den_unidade <= 0.50f ) {
       return -1;
    }
@@ -894,14 +968,14 @@ void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, in
    fprintf( p, "\\pagestyle{empty}\n" );
    fprintf( p, "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n" );
 
-   sprintf( sx, "%10.6f", l );
+   sprintf( sx, "%10.6f", ( double )l );
    sx[3] = '.';
-   sprintf( sy, "%10.6f", h );
+   sprintf( sy, "%10.6f", ( double )h );
    sy[3] = '.';
    fprintf( p, "\\geometry{paperwidth=%scm,paperheight=%scm}\n", sx, sy );
 
    fprintf( p, "\\pgfmathsetmacro{\\rot}{%d}\n", rot );
-   sprintf( str, "%10.6f", pp );
+   sprintf( str, "%10.6f", ( double )pp );
    str[3] = '.';
    fprintf( p, "\\pgfmathsetmacro{\\p}{%s}\n", str );
 
@@ -919,24 +993,24 @@ void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, in
    fprintf( p, "{\\noindent\\small\n" );
    fprintf( p, "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n" );
 
-   sprintf( sx, "%10.6f", C[0].x );
+   sprintf( sx, "%10.6f", ( double )C[0].x );
    sx[3] = '.';
-   sprintf( sy, "%10.6f", C[0].y );
+   sprintf( sy, "%10.6f", ( double )C[0].y );
    sy[3] = '.';
    fprintf( p, "\\coordinate (A) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", C[1].x );
+   sprintf( sx, "%10.6f", ( double )C[1].x );
    sx[3] = '.';
-   sprintf( sy, "%10.6f", C[1].y );
+   sprintf( sy, "%10.6f", ( double )C[1].y );
    sy[3] = '.';
    fprintf( p, "\\coordinate (B) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", C[2].x );
+   sprintf( sx, "%10.6f", ( double )C[2].x );
    sx[3] = '.';
-   sprintf( sy, "%10.6f", C[2].y );
+   sprintf( sy, "%10.6f", ( double )C[2].y );
    sy[3] = '.';
    fprintf( p, "\\coordinate (C) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", C[3].x );
+   sprintf( sx, "%10.6f", ( double )C[3].x );
    sx[3] = '.';
-   sprintf( sy, "%10.6f", C[3].y );
+   sprintf( sy, "%10.6f", ( double )C[3].y );
    sy[3] = '.';
    fprintf( p, "\\coordinate (D) at (%s,-%s);\n", sy, sx );
 

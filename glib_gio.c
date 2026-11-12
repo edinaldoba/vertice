@@ -121,7 +121,7 @@ void g_pdfunite( const char *diretorio, GStrv arquivos, const int qtd_arquivos, 
    g_return_if_fail( qtd_arquivos > 0 );
 
    // g_auto(GStrv) aplica g_strfreev automaticamente ao final do escopo.
-   g_auto( GStrv ) argv = g_new0( char *, qtd_arquivos + 3 );
+   g_auto( GStrv ) argv = g_new0( char *, ( gsize )( qtd_arquivos + 3 ) );
 
    int pos = 0;
    argv[pos++] = g_strdup( "pdfunite" );
@@ -164,7 +164,7 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
    g_autofree char *comando_interno = g_strdup_printf(
                                          "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
 
-   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   g_auto( GStrv ) argv = g_new0( gchar *, ( gsize )4 );
    argv[0] = g_strdup( "sh" );
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
@@ -195,7 +195,7 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
    g_autofree char *comando_interno = g_strdup_printf(
                                          "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: %s*.tex", num_cores, prefixo );
 
-   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   g_auto( GStrv ) argv = g_new0( gchar *, ( gsize )4 );
    argv[0] = g_strdup( "sh" );
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
@@ -221,7 +221,9 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
  * Adiciona cada caminho encontrado dentro do GPtrArray retornado.
  */
 GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos ) {
-   if ( !caminho_pai ) return lista_caminhos;
+   if ( !caminho_pai ) {
+      return lista_caminhos;
+   }
 
    if ( !lista_caminhos ) {
       lista_caminhos = g_ptr_array_new_with_free_func( g_free );
@@ -253,7 +255,9 @@ GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista
          break;
       }
 
-      if ( !info ) break; // Atingiu o fim do diretório com sucesso
+      if ( !info ) {
+         break;  // Atingiu o fim do diretório com sucesso
+      }
 
       g_autoptr( GFileInfo ) info_ptr = info;
       const char *nome = g_file_info_get_name( info_ptr );

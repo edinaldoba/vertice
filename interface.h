@@ -350,8 +350,6 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
 
 void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos );
 
-gboolean detectar_ubuntu( void );
-
 gboolean carregar_estado_aplicativo( AppContext *ctx );
 
 void atualizar_tema( AppContext *ctx, char *tema );

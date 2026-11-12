@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "matriz.h"
 
 
@@ -14,7 +15,7 @@ Matrix mat_new( int r, int c ) {
    Matrix m;
    m.rows = r;
    m.cols = c;
-   m.data = ( double * )malloc( (size_t)(r * c) * sizeof( double ) );
+   m.data = ( double * )malloc( ( size_t )( r * c ) * sizeof( double ) );
    if ( m.data == NULL ) {
       fprintf( stderr, "Erro: Falha na alocação de memória!\n" );
       exit( 1 );
@@ -401,7 +402,9 @@ void mat_apply_homography( Matrix src, Matrix H, Matrix dst ) {
       double w = H.data[6] * x + H.data[7] * y + H.data[8];
 
       // Proteção matemática contra divisão por zero acidental
-      if ( w == 0.0 ) w = 1.0e-8;
+      if ( fabs( w ) < 1.0e-8 ) {
+         w = 1.0e-8;
+      }
 
       double u = ( H.data[0] * x + H.data[1] * y + H.data[2] ) / w;
       double v = ( H.data[3] * x + H.data[4] * y + H.data[5] ) / w;

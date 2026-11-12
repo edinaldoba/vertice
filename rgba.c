@@ -35,7 +35,9 @@ typedef enum {
  * Retorna 0 se a semântica for COR_NATIVA (deixando o GTK pintar sozinho).
  */
 static int obter_cor_semantica( CorSemantica cor, int tema_ativo, GdkRGBA *cor_out ) {
-   if ( !cor_out || cor == COR_NATIVA ) return 0;
+   if ( !cor_out || cor == COR_NATIVA ) {
+      return 0;
+   }
 
    switch ( cor ) {
 
@@ -261,12 +263,16 @@ gboolean cor_texto_observacao( gboolean eh_inativo, int tema_ativo, int pendenci
 }
 
 int cor_texto_aluno_inativo( int eh_inativo, int tema_ativo, GdkRGBA *cor_out ) {
-   if ( eh_inativo ) return obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
+   if ( eh_inativo ) {
+      return obter_cor_semantica( COR_INATIVO, tema_ativo, cor_out );
+   }
    return 0; // Nota normal, usa cor nativa
 }
 
 int cor_texto_nota_vermelha( double nota, int tema_ativo, GdkRGBA *cor_out ) {
-   if ( nota >= 0.0 && nota < 6.0 ) return obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out );
+   if ( nota >= 0.0 && nota < 6.0 ) {
+      return obter_cor_semantica( COR_PERIGO, tema_ativo, cor_out );
+   }
    return 0; // Nota normal, usa cor nativa
 }
 

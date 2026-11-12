@@ -27,7 +27,9 @@
 
 
 void interface_style( AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    // Capturamos a screen global uma única vez no topo do escopo da função
    GdkScreen *screen = gdk_screen_get_default();
@@ -186,10 +188,12 @@ void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantida
    g_return_if_fail( GTK_IS_LABEL( label_widget ) );
 
    const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
-   if ( !texto_original || texto_original[0] == '\0' ) return;
+   if ( !texto_original || texto_original[0] == '\0' ) {
+      return;
+   }
 
    // Mascaramento seguro para contornar o -Wcast-qual da macro g_utf8_next_char
-   gchar *p = (gchar *)(guintptr)texto_original;
+   gchar *p = ( gchar * )( guintptr )texto_original;
 
    GString *resultado = g_string_sized_new( strlen( texto_original ) * 2 );
    gboolean primeiro_caractere = TRUE;
@@ -223,7 +227,9 @@ void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantida
 
 
 void atualizar_tema( AppContext *ctx, char *tema ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    InterfaceDados   *dados   = &ctx->dados;
    CaminhoDiretorio *caminho = &ctx->caminho;
@@ -276,24 +282,33 @@ void atualizar_tema( AppContext *ctx, char *tema ) {
 
 
 
-/* =================================================================================================================
-   GERENCIAMENTO DE FLUXO DE GABARITOS - Versão Otimizada (Painel de Feedback)
-   ================================================================================================================= */
+// =================================================================================================================
+// GERENCIAMENTO DE FLUXO DE GABARITOS - Versão Otimizada (Painel de Feedback)
+// =================================================================================================================
 void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx ) {
-   if ( !widget || !painel || !ctx ) return;
+   g_return_if_fail( widget != NULL && painel != NULL && ctx != NULL );
 
-   const InterfaceDados     *dados = &ctx->dados;
-   const InterfaceCabecalho *cabecalho  = &ctx->cabecalho;
+   const InterfaceDados     *dados     = &ctx->dados;
+   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
-   g_autofree char *destino = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL );
-
-   if ( g_mkdir_with_parents( destino, 0755 ) != 0 ) {
-      g_printerr( "Erro crítico: Não foi possível criar os diretórios de destino: %s\n", destino );
+   if ( dados->qtd_alunos_ativos <= 0 || dados->max_quest_prova <= 0 ) {
+      g_printerr( "[ERRO] Não é possível gerenciar gabaritos com %d alunos ativos ou %d máximo de questões.\n",
+                  dados->qtd_alunos_ativos, dados->max_quest_prova );
       return;
    }
 
-   char nome[32] = {0};
-   nome_base_gabaritos_bin( nome, sizeof( nome ), cabecalho->foco_turma, cabecalho->foco_disciplina, cabecalho->foco_periodo, dados->seq_prova );
+   g_autofree char *destino = g_build_filename(
+                                 dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL
+                              );
+
+   if ( g_mkdir_with_parents( destino, 0755 ) != 0 ) {
+      g_printerr( "[ERRO CRÍTICO] Não foi possível criar os diretórios de destino: %s\n", destino );
+      return;
+   }
+
+   char nome[64] = { 0 };
+   nome_base_gabaritos_bin( nome, sizeof( nome ), cabecalho->foco_turma, cabecalho->foco_disciplina,
+                            cabecalho->foco_periodo, dados->seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 
@@ -303,10 +318,12 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       return;
    }
 
-   int contador = contar_registros_binarios( arquivo, sizeof( ItemTextoCurto ) );
+   // O tamanho de 1 registro equivale à capacidade máxima de caracteres + 1 (para o '\0')
+   gsize tamanho_registro = ( gsize )dados->max_quest_prova + 1;
+   int contador = contar_registros_binarios( arquivo, tamanho_registro );
 
    // Sub-cenário B1: Alunos adicionados (Seguro - Não sobrescreve, apenas anexa)
-   if ( contador < dados->qtd_alunos_ativos ) {
+   if ( contador > 0 && contador < dados->qtd_alunos_ativos ) {
       int adicionados = dados->qtd_alunos_ativos - contador;
 
       gerar_gabaritos( arquivo, adicionados, dados, "ab" );
@@ -316,12 +333,12 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       painel->format_instrucao = meu_gerador_variadico( "%d novos gabaritos foram anexados mantendo os antigos intactos.", adicionados );
       criar_mensagem_painel( AVISO, painel );
 
-      gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
-      gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
-      agendar_ou_exibir_mensagem_painel( INFO, painel, format_titulo, format_subtitulo, format_instrucao );
+      gchar *f_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
+      gchar *f_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
+      gchar *f_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
+      agendar_ou_exibir_mensagem_painel( INFO, painel, f_titulo, f_subtitulo, f_instrucao );
    }
-   // Sub-cenário B2: Risco de Perda de Dados (Alunos removidos ou quantidade idêntica -> Exige "wb")
+   // Sub-cenário B2: Risco de Perda de Dados (Alunos removidos, qtde idêntica, ou erro de leitura)
    else {
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
       char *msg_gabarito = NULL;
@@ -334,6 +351,11 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
                            "A turma atual possui <b>%d aluno(s) a menos</b> que o arquivo de gabaritos existente.\n\n"
                            "Deseja sobrescrever o arquivo para refletir a nova quantidade exata da turma?",
                            dados->escola, dados->turma, removidos
+                        );
+      } else if ( contador == 0 ) {
+         msg_gabarito = meu_gerador_variadico(
+                           "<b>Atenção:</b> O arquivo de gabaritos %s parece estar corrompido ou vazio.\n"
+                           "Deseja gerar um novo arquivo substituindo-o?", nome
                         );
       } else {
          msg_gabarito = meu_gerador_variadico(
@@ -348,7 +370,7 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       gboolean emitir_gabarito = mostrar_popup_confirmacao( janela_principal, "Aviso de Sobrescrita", msg_gabarito );
       g_free( msg_gabarito );
 
-      if ( !emitir_gabarito ) {
+      if ( !emitir_gabarito && contador > 0 ) {
          painel->format_titulo    = meu_gerador_variadico( "✔ Reaproveitando Histórico" );
          painel->format_subtitulo = meu_gerador_variadico( "Gerando provas com o uso de gabaritos gerados em compilação anterior." );
          painel->format_instrucao = meu_gerador_variadico( "Os dados originais dos alunos foram preservados com sucesso." );
@@ -356,15 +378,15 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
          gerar_gabaritos( arquivo, dados->qtd_alunos_ativos, dados, "wb" );
          painel->format_titulo    = meu_gerador_variadico( "✔ Novos Gabaritos Alocados" );
          painel->format_subtitulo = meu_gerador_variadico( "Gerando provas com o uso de uma nova sequência de gabaritos." );
-         painel->format_instrucao = meu_gerador_variadico( "O arquivo antigo foi sobrescrito conforme solicitado." );
+         painel->format_instrucao = meu_gerador_variadico( "O arquivo anterior foi sobrescrito conforme solicitado." );
       }
 
       criar_mensagem_painel( SUCESSO, painel );
 
-      gchar *format_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *format_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
-      gchar *format_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
-      agendar_ou_exibir_mensagem_painel( INFO, painel, format_titulo, format_subtitulo, format_instrucao );
+      gchar *f_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
+      gchar *f_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
+      gchar *f_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
+      agendar_ou_exibir_mensagem_painel( INFO, painel, f_titulo, f_subtitulo, f_instrucao );
    }
 }
 
@@ -373,7 +395,9 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
 
 //=== NO MOMENTO SÓ É USADA NA FUNÇÃO ACIMA, MAS É UMA FUNÇÃO DE POP-UP GERAL IMPORTANTÍSSIMA
 gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const char *mensagem ) {
-   if ( !mensagem ) return FALSE;
+   if ( !mensagem ) {
+      return FALSE;
+   }
 
    GtkWidget *dialog;
    gint resposta;
@@ -418,17 +442,21 @@ gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const
 
 
 void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretorio *caminho ) {
-   if ( !dados ) return;
+   if ( !dados ) {
+      return;
+   }
 
    g_autofree gchar *cache = g_strdup_printf( "cache%d.bin", dados->seq_prova );
    g_autofree gchar *caminho_arquivo = g_build_filename( caminho->dados, cache, NULL );
 
    FILE *arquivo = fopen( caminho_arquivo, "wb" );
-   if ( !arquivo ) return;
+   if ( !arquivo ) {
+      return;
+   }
 
    // 1. A matemática do tamanho exato em bytes
    int n = dados->total_quest_prova; // A quantidade escolhida pelo usuário (ex: 5, 8, 15)
-   size_t tamanho_total = sizeof( DadosRascunho ) + ( (guint)n * sizeof( QuestaoRascunho ) );
+   size_t tamanho_total = sizeof( DadosRascunho ) + ( ( guint )n * sizeof( QuestaoRascunho ) );
 
    // 2. Aloca a struct com o tamanho da "bagagem" extra usando o calloc (para zerar a memória)
    DadosRascunho *rascunho = ( DadosRascunho * ) g_malloc0( tamanho_total );
@@ -547,7 +575,9 @@ gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceD
 //                           PERSISTÊNCIA: CARREGAMENTO INDIRETO DO DISCO                              //
 //=====================================================================================================//
 gboolean carregar_estado_aplicativo( AppContext *ctx ) {
-   if ( !ctx ) return FALSE;
+   if ( !ctx ) {
+      return FALSE;
+   }
 
    CaminhoDiretorio *caminho = &ctx->caminho;
    InterfacePainel  *painel  = &ctx->painel;
@@ -572,7 +602,7 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
    // 3. ENGENHARIA REVERSA DO TAMANHO (FAM - Flexible Array Member)
    // =========================================================================
    fseek( arquivo, 0, SEEK_END );
-   size_t tamanho_arquivo = (size_t)ftell( arquivo );
+   size_t tamanho_arquivo = ( size_t )ftell( arquivo );
    rewind( arquivo );
 
    // Trava de segurança: O arquivo precisa ter no mínimo o tamanho do cabeçalho
@@ -636,9 +666,11 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
 
 void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int limite, int foco,
                                  gulong handler_id, ComboMapperFunc mapper ) {
-   g_return_if_fail( combo && mapper );
+   g_return_if_fail( combo != NULL && mapper != NULL );
 
-   if ( handler_id > 0 ) g_signal_handler_block( combo, handler_id );
+   if ( handler_id > 0 ) {
+      g_signal_handler_block( combo, handler_id );
+   }
 
    GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( combo ) );
    GtkListStore *store = GTK_LIST_STORE( model );
@@ -652,9 +684,13 @@ void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int 
       }
    }
 
-   if ( foco >= 0 ) gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
+   if ( foco >= 0 ) {
+      gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
+   }
 
-   if ( handler_id > 0 ) g_signal_handler_unblock( combo, handler_id );
+   if ( handler_id > 0 ) {
+      g_signal_handler_unblock( combo, handler_id );
+   }
 }
 
 
@@ -710,11 +746,15 @@ gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index ) {
    g_return_val_if_fail( GTK_IS_COMBO_BOX( combo ), NULL );
 
    // Índice negativo geralmente ocorre ao resgatar um 'active_index' sem nada selecionado
-   if ( index < 0 ) return NULL;
+   if ( index < 0 ) {
+      return NULL;
+   }
 
    // 2. Obtém o modelo de dados interno (GtkListStore)
    GtkTreeModel *model = gtk_combo_box_get_model( combo );
-   if ( !model ) return NULL;
+   if ( !model ) {
+      return NULL;
+   }
 
    // 3. Aponta o iterador para o índice informado
    GtkTreeIter iter;
@@ -821,7 +861,9 @@ static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
 
 //===============================================================================================
 void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    const InterfaceDiario *diario = &ctx->diario;
    InterfaceDados      *dados      = &ctx->dados;
@@ -889,7 +931,9 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 //==================================================================================================
 // Função auxiliar para criar arquivos ocultos vazios
 static void _criar_arquivo_oculto( const gchar *diretorio, const gchar *nome ) {
-   if ( !diretorio || !nome || nome[0] == '\0' ) return;
+   if ( !diretorio || !nome || nome[0] == '\0' ) {
+      return;
+   }
 
    g_autofree gchar *nome_oculto = g_strdup_printf( ".%s", nome );
    g_autofree gchar *caminho_arquivo = g_build_filename( diretorio, nome_oculto, NULL );
@@ -938,11 +982,15 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
    }
 
    g_autofree gchar *ano_letivo = g_key_file_get_string( keyfile, "Geral", "ano_letivo", NULL );
-   if ( !ano_letivo ) ano_letivo = g_strdup( "2027" ); // Fallback
+   if ( !ano_letivo ) {
+      ano_letivo = g_strdup( "2027" );   // Fallback
+   }
 
    gsize n_escolas = 0;
    g_auto( GStrv ) escolas = g_key_file_get_string_list( keyfile, "Geral", "escolas", &n_escolas, NULL );
-   if ( !escolas ) return;
+   if ( !escolas ) {
+      return;
+   }
 
    g_autofree gchar *base_informados = g_build_filename( raiz, "dados", "informados", ano_letivo, NULL );
 
@@ -956,11 +1004,15 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
 
       // Arquivo oculto do GESTOR (Raiz da escola)
       g_autofree gchar *gestor = g_key_file_get_string( keyfile, escola, "gestor", NULL );
-      if ( gestor ) _criar_arquivo_oculto( dir_escola, gestor );
+      if ( gestor ) {
+         _criar_arquivo_oculto( dir_escola, gestor );
+      }
 
       gsize n_turmas = 0;
       g_auto( GStrv ) turmas = g_key_file_get_string_list( keyfile, escola, "turmas", &n_turmas, NULL );
-      if ( !turmas ) continue;
+      if ( !turmas ) {
+         continue;
+      }
 
       for ( gsize i = 0; i < n_turmas; i++ ) {
          const gchar *turma = turmas[i];
@@ -971,7 +1023,9 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
 
          gsize n_disc = 0;
          g_auto( GStrv ) disciplinas = g_key_file_get_string_list( keyfile, secao_turma, "disciplinas", &n_disc, NULL );
-         if ( !disciplinas ) continue;
+         if ( !disciplinas ) {
+            continue;
+         }
 
          for ( gsize j = 0; j < n_disc; j++ ) {
             const gchar *disc = disciplinas[j];
@@ -981,7 +1035,9 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
             // Arquivo oculto do PROFESSOR (Raiz da disciplina)
             g_autofree gchar *chave_prof = g_strdup_printf( "prof_%s", disc );
             g_autofree gchar *prof = g_key_file_get_string( keyfile, secao_turma, chave_prof, NULL );
-            if ( prof ) _criar_arquivo_oculto( dir_disc, prof );
+            if ( prof ) {
+               _criar_arquivo_oculto( dir_disc, prof );
+            }
 
             // ---------------------------------------------------------------
             // O GRAN FINALE: Injeção dos Períodos lidos do GTK na Disciplina
@@ -998,7 +1054,9 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
 }
 //--------------------------------------------------------------------------------------------------
 void inicializar_estado_do_aplicativo( AppContext *ctx ) {
-   if ( !ctx ) return;
+   if ( !ctx ) {
+      return;
+   }
 
    InterfaceDados     *dados    = &ctx->dados;
    InterfaceConteudo  *conteudo = &ctx->diario.conteudo;
@@ -1007,9 +1065,9 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    dados->max_quest_prova = 20;
    dados->total_quest_prova = 10; // Esse valor deverá ser escolhido na interface em breve.
-   dados->selecao_quest_prova = g_new0( gchar*, dados->total_quest_prova + 1 );
-   dados->qtd_quest_subtema = g_new0( gint, dados->total_quest_prova );
-   avaliacao->validas = g_new0( gboolean, MAX_AVALIACOES );
+   dados->selecao_quest_prova = g_new0( gchar*, ( gsize )( dados->total_quest_prova + 1 ) );
+   dados->qtd_quest_subtema = g_new0( gint, ( gsize )dados->total_quest_prova );
+   avaliacao->validas = g_new0( gboolean, ( gsize )MAX_AVALIACOES );
 
    gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
 
@@ -1025,7 +1083,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
 
    long int escalar_hoje = mapear_data_para_id( ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
-   cabecalho->foco_periodo_vigente = foco_periodo_corrente( (int)escalar_hoje );
+   cabecalho->foco_periodo_vigente = foco_periodo_corrente( ( int )escalar_hoje );
    cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
    GtkComboBox *combo_periodo = GTK_COMBO_BOX( cabecalho->combo_periodo );
 
@@ -1063,7 +1121,9 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
 
 gboolean atualizar_ano_interface( AppContext *ctx, gchar *novo_ano, gboolean forcar_atualizacao ) {
-   if ( !ctx || !novo_ano ) return FALSE;
+   if ( !ctx || !novo_ano ) {
+      return FALSE;
+   }
 
    InterfaceDados  *dados   = &( ctx->dados );
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
@@ -1101,7 +1161,9 @@ gboolean atualizar_ano_interface( AppContext *ctx, gchar *novo_ano, gboolean for
 
 
 gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboolean forcar_atualizacao ) {
-   if ( !ctx || !nova_escola ) return FALSE;
+   if ( !ctx || !nova_escola ) {
+      return FALSE;
+   }
 
    InterfaceDados     *dados     = &ctx->dados;
    InterfaceResponsavel *responsavel = &ctx->diario.responsavel;
@@ -1138,7 +1200,9 @@ gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboole
 
 
 gboolean atualizar_turma_interface( AppContext *ctx, gchar *nova_turma, gboolean forcar_atualizacao ) {
-   if ( !ctx || !nova_turma ) return FALSE;
+   if ( !ctx || !nova_turma ) {
+      return FALSE;
+   }
 
    InterfaceDados  *dados   = &( ctx->dados );
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
@@ -1182,7 +1246,9 @@ gboolean atualizar_turma_interface( AppContext *ctx, gchar *nova_turma, gboolean
 
 
 void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gboolean forcar_atualizacao ) {
-   if ( !ctx || !nova_disciplina ) return;
+   if ( !ctx || !nova_disciplina ) {
+      return;
+   }
 
    InterfaceDados     *dados     = &ctx->dados;
    CaminhoDiretorio   *caminho   = &ctx->caminho;
@@ -1220,7 +1286,9 @@ void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gb
 
 
 void atualizar_periodo_interface( AppContext *ctx, gchar *novo_periodo ) {
-   if ( !ctx || !novo_periodo ) return;
+   if ( !ctx || !novo_periodo ) {
+      return;
+   }
 
    InterfaceDados   *dados   = &( ctx->dados );
    CaminhoDiretorio *caminho = &( ctx->caminho );

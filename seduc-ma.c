@@ -85,14 +85,26 @@ static uint32_t atou32_seguro( const char *num_string ) {
 
 
 static SituacaoAluno situacao_aluno( const char *sit ) {
-   g_return_val_if_fail( sit, SEM_SITUACAO );
+   g_return_val_if_fail( sit != NULL, SEM_SITUACAO );
 
-   if ( g_strcmp0( sit, "MTR" ) == 0 ) return MATRICULA_REGULAR;
-   if ( g_strcmp0( sit, "MTE" ) == 0 ) return MATRICULA_EXTERNA;
-   if ( g_strcmp0( sit, "MTI" ) == 0 ) return MATRICULA_INTERNA;
-   if ( g_strcmp0( sit, "CTE" ) == 0 ) return TRANSFERENCIA_EXTERNA;
-   if ( g_strcmp0( sit, "CTI" ) == 0 ) return TRANSFERENCIA_INTERNA;
-   if ( g_strcmp0( sit, "CPG" ) == 0 ) return EVADIDO;
+   if ( g_strcmp0( sit, "MTR" ) == 0 ) {
+      return MATRICULA_REGULAR;
+   }
+   if ( g_strcmp0( sit, "MTE" ) == 0 ) {
+      return MATRICULA_EXTERNA;
+   }
+   if ( g_strcmp0( sit, "MTI" ) == 0 ) {
+      return MATRICULA_INTERNA;
+   }
+   if ( g_strcmp0( sit, "CTE" ) == 0 ) {
+      return TRANSFERENCIA_EXTERNA;
+   }
+   if ( g_strcmp0( sit, "CTI" ) == 0 ) {
+      return TRANSFERENCIA_INTERNA;
+   }
+   if ( g_strcmp0( sit, "CPG" ) == 0 ) {
+      return EVADIDO;
+   }
 
    return SEM_SITUACAO;
 }
@@ -132,7 +144,7 @@ static double obter_largura_nome_mm( PangoLayout *layout, const char *texto ) {
 }
 
 static int obter_limite_corte_nome( PangoLayout *layout, const char *aluno ) {
-   int max_chars = (int)g_utf8_strlen( aluno, -1 );
+   int max_chars = ( int )g_utf8_strlen( aluno, -1 );
    int limite_corte = calcular_len_limpo( aluno, max_chars );
 
    char buffer[64];
@@ -153,7 +165,7 @@ static int obter_limite_corte_nome( PangoLayout *layout, const char *aluno ) {
 }
 
 static gboolean eh_preposicao( const gchar *str ) {
-   g_return_val_if_fail( str, FALSE );
+   g_return_val_if_fail( str != NULL, FALSE );
 
    // Como a string raiz já foi convertida para minúscula previamente,
    // g_strcmp0 é computacionalmente mais leve que g_ascii_strcasecmp.
@@ -166,7 +178,9 @@ static gboolean eh_preposicao( const gchar *str ) {
 }
 
 static gchar* converter_nome_proprio( const gchar *nome_completo ) {
-   if ( !nome_completo || *nome_completo == '\0' ) return NULL;
+   if ( !nome_completo || *nome_completo == '\0' ) {
+      return NULL;
+   }
 
    // 1. Converte tudo para minúsculas (base padronizada)
    gchar *nome_minusculo = g_utf8_strdown( nome_completo, -1 );
@@ -202,10 +216,10 @@ static gchar* converter_nome_proprio( const gchar *nome_completo ) {
 }
 
 static gchar *padronizar_nome_turma( const gchar *coluna, FILE **f_acesso, const gchar *diretorio ) {
-   g_return_val_if_fail( coluna && f_acesso && diretorio, NULL );
+   g_return_val_if_fail( coluna != NULL && f_acesso != NULL && diretorio != NULL, NULL );
 
    g_autofree gchar *coluna_minusculo = g_utf8_strdown( coluna, -1 );
-   int len = (int)strlen( coluna_minusculo );
+   int len = ( int )strlen( coluna_minusculo );
    gchar *turma = NULL;
 
    if ( len > 9 ) {
@@ -239,76 +253,80 @@ typedef struct {
    gchar *dest_alunos;
 } EspelhamentoDiretorios;
 //-------------------------------------------------------------------------------------------------
-static EspelhamentoDiretorios* criar_estrutura_diretorios(const gchar *diretorio, const char *raiz, const char *turma) {
-   EspelhamentoDiretorios *paths = g_malloc0(sizeof(EspelhamentoDiretorios));
+static EspelhamentoDiretorios* criar_estrutura_diretorios( const gchar *diretorio, const char *raiz, const char *turma ) {
+   EspelhamentoDiretorios *paths = g_malloc0( sizeof( EspelhamentoDiretorios ) );
 
    // 1. Caminho 'listas'
-   g_autofree gchar *plan = g_build_filename(raiz, "planilhas", NULL);
-   if (g_str_has_prefix(diretorio, plan)) {
-      const char *subdirs = diretorio + strlen(plan);
-      if (g_str_has_prefix(subdirs, G_DIR_SEPARATOR_S)) subdirs++;
-      paths->dir_destino = g_build_filename(raiz, "dados", "listas", subdirs, NULL);
+   g_autofree gchar *plan = g_build_filename( raiz, "planilhas", NULL );
+   if ( g_str_has_prefix( diretorio, plan ) ) {
+      const char *subdirs = diretorio + strlen( plan );
+      if ( g_str_has_prefix( subdirs, G_DIR_SEPARATOR_S ) ) {
+         subdirs++;
+      }
+      paths->dir_destino = g_build_filename( raiz, "dados", "listas", subdirs, NULL );
    } else {
-      paths->dir_destino = g_build_filename(raiz, "dados", "listas", NULL);
+      paths->dir_destino = g_build_filename( raiz, "dados", "listas", NULL );
    }
 
    // 🛡️ GARANTIA ABSOLUTA: Se o destino não começou com '/', forçamos a barra inicial.
    // Isso blinda a função caso a 'raiz' tenha vindo sem a barra do sistema operacional.
-   if (!g_str_has_prefix(paths->dir_destino, G_DIR_SEPARATOR_S)) {
-      gchar *temp_absoluto = g_strdup_printf("%s%s", G_DIR_SEPARATOR_S, paths->dir_destino);
-      g_free(paths->dir_destino);
+   if ( !g_str_has_prefix( paths->dir_destino, G_DIR_SEPARATOR_S ) ) {
+      gchar *temp_absoluto = g_strdup_printf( "%s%s", G_DIR_SEPARATOR_S, paths->dir_destino );
+      g_free( paths->dir_destino );
       paths->dir_destino = temp_absoluto;
    }
 
    // 2. Caminho 'informados'
-   gchar **partes = g_strsplit(paths->dir_destino, G_DIR_SEPARATOR_S, -1);
-   guint n_partes = g_strv_length(partes);
-   if (n_partes > 0) {
-      g_free(partes[n_partes - 1]);
-      partes[n_partes - 1] = g_strdup(turma);
+   gchar **partes = g_strsplit( paths->dir_destino, G_DIR_SEPARATOR_S, -1 );
+   guint n_partes = g_strv_length( partes );
+   if ( n_partes > 0 ) {
+      g_free( partes[n_partes - 1] );
+      partes[n_partes - 1] = g_strdup( turma );
 
-      for (guint i = 0; i < n_partes; i++) {
-         if (g_strcmp0(partes[i], "listas") == 0) {
-            g_free(partes[i]);
-            partes[i] = g_strdup("informados");
+      for ( guint i = 0; i < n_partes; i++ ) {
+         if ( g_strcmp0( partes[i], "listas" ) == 0 ) {
+            g_free( partes[i] );
+            partes[i] = g_strdup( "informados" );
             break;
          }
       }
 
       // 🎯 CORREÇÃO CRÍTICA: g_strjoinv preserva a string vazia [0] gerada pela
       // explosão do caminho absoluto, restaurando a '/' inicial perfeitamente.
-      paths->dir_turma = g_strjoinv(G_DIR_SEPARATOR_S, partes);
-      g_strfreev(partes);
+      paths->dir_turma = g_strjoinv( G_DIR_SEPARATOR_S, partes );
+      g_strfreev( partes );
    }
 
    // 3. Subpastas alvo
-   paths->dest_acesso = g_build_filename(paths->dir_destino, "acessos", NULL);
-   paths->dest_alunos = g_build_filename(paths->dir_destino, "fichas", NULL);
+   paths->dest_acesso = g_build_filename( paths->dir_destino, "acessos", NULL );
+   paths->dest_alunos = g_build_filename( paths->dir_destino, "fichas", NULL );
 
-   g_mkdir_with_parents(paths->dest_acesso, 0755);
-   g_mkdir_with_parents(paths->dest_alunos, 0755);
+   g_mkdir_with_parents( paths->dest_acesso, 0755 );
+   g_mkdir_with_parents( paths->dest_alunos, 0755 );
 
    return paths;
 }
 //-------------------------------------------------------------------------------------------------
-static void liberar_estrutura_diretorios(EspelhamentoDiretorios *paths) {
-   if (!paths) return;
-   g_free(paths->dir_destino);
-   g_free(paths->dir_turma);
-   g_free(paths->dest_acesso);
-   g_free(paths->dest_alunos);
-   g_free(paths);
+static void liberar_estrutura_diretorios( EspelhamentoDiretorios *paths ) {
+   if ( !paths ) {
+      return;
+   }
+   g_free( paths->dir_destino );
+   g_free( paths->dir_turma );
+   g_free( paths->dest_acesso );
+   g_free( paths->dest_alunos );
+   g_free( paths );
 }
 //-------------------------------------------------------------------------------------------------
-static FichaAluno* criar_ficha_zerada(int lim_disc) {
-   gsize tamanho_total = sizeof(FichaAluno) + (gsize)lim_disc * sizeof(HistoricoDisciplina);
+static FichaAluno* criar_ficha_zerada( int lim_disc ) {
+   gsize tamanho_total = sizeof( FichaAluno ) + ( gsize )lim_disc * sizeof( HistoricoDisciplina );
 
    // g_malloc0 garante que toda a base e o array de disciplinas nasçam zerados
-   FichaAluno *ficha = g_malloc0(tamanho_total);
+   FichaAluno *ficha = g_malloc0( tamanho_total );
 
-   for (int k = 0; k < lim_disc; k++) {
-      for (int ii = 0; ii < 4; ii++) {
-         for (int jj = 0; jj < 5; jj++) {
+   for ( int k = 0; k < lim_disc; k++ ) {
+      for ( int ii = 0; ii < 4; ii++ ) {
+         for ( int jj = 0; jj < 5; jj++ ) {
             ficha->disciplina[k].periodo[ii].avaliacoes[jj].av  = -1.0f;
             ficha->disciplina[k].periodo[ii].avaliacoes[jj].rec = -1.0f;
          }
@@ -327,60 +345,60 @@ static FichaAluno* criar_ficha_zerada(int lim_disc) {
 }
 //--------------------------------------------------------------------------------------------
 static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte, const gchar *diretorio, char *raiz ) {
-   g_return_if_fail( nome_turma_padrao && diretorio && raiz );
+   g_return_if_fail( nome_turma_padrao != NULL && diretorio != NULL && raiz != NULL );
 
    // 1. Configura a rede de caminhos
-   EspelhamentoDiretorios *paths = criar_estrutura_diretorios(diretorio, raiz, nome_turma_padrao);
+   EspelhamentoDiretorios *paths = criar_estrutura_diretorios( diretorio, raiz, nome_turma_padrao );
 
-   int lim_disc = _quantidade_diretorios(paths->dir_turma);
+   int lim_disc = _quantidade_diretorios( paths->dir_turma );
 
    // 2. Abertura do Arquivo Central de Acessos
-   g_autofree gchar *arquivo_acesso_destino = g_strdup_printf("%s/%s.bin", paths->dest_acesso, nome_turma_padrao);
-   g_autofree gchar *arquivo_acesso_origem  = g_strdup_printf("%s/acessos/%s.bin", diretorio, nome_turma_padrao);
+   g_autofree gchar *arquivo_acesso_destino = g_strdup_printf( "%s/%s.bin", paths->dest_acesso, nome_turma_padrao );
+   g_autofree gchar *arquivo_acesso_origem  = g_strdup_printf( "%s/acessos/%s.bin", diretorio, nome_turma_padrao );
 
-   FILE *f = fopen(arquivo_acesso_destino, "wb");
-   if (!f) {
-      g_printerr("Falha ao criar binário de acesso: %s\n", arquivo_acesso_destino);
-      liberar_estrutura_diretorios(paths);
+   FILE *f = fopen( arquivo_acesso_destino, "wb" );
+   if ( !f ) {
+      g_printerr( "Falha ao criar binário de acesso: %s\n", arquivo_acesso_destino );
+      liberar_estrutura_diretorios( paths );
       return;
    }
 
-   FILE *f_acesso = fopen(arquivo_acesso_origem, "rb");
-   if (!f_acesso) {
-      g_printerr("Falha ao abrir acesso de origem: %s\n", arquivo_acesso_origem);
-      fclose(f);
-      liberar_estrutura_diretorios(paths);
+   FILE *f_acesso = fopen( arquivo_acesso_origem, "rb" );
+   if ( !f_acesso ) {
+      g_printerr( "Falha ao abrir acesso de origem: %s\n", arquivo_acesso_origem );
+      fclose( f );
+      liberar_estrutura_diretorios( paths );
       return;
    }
 
    // 3. Inicialização do Motor Tipográfico (Pango)
    PangoFontMap *font_map = pango_cairo_font_map_get_default();
-   PangoContext *context = pango_font_map_create_context(font_map);
-   PangoLayout *layout = pango_layout_new(context);
+   PangoContext *context = pango_font_map_create_context( font_map );
+   PangoLayout *layout = pango_layout_new( context );
 
-   const char *fonte_latex = (fonte == 1) ? "CMU Bright 11" : "CMU Serif 11";
-   PangoFontDescription *desc = pango_font_description_from_string(fonte_latex);
-   pango_layout_set_font_description(layout, desc);
-   pango_font_description_free(desc);
+   const char *fonte_latex = ( fonte == 1 ) ? "CMU Bright 11" : "CMU Serif 11";
+   PangoFontDescription *desc = pango_font_description_from_string( fonte_latex );
+   pango_layout_set_font_description( layout, desc );
+   pango_font_description_free( desc );
 
    // 4. Loop de Transmutação de Arquivos (SIAEP Cru -> Vértice Dinâmico)
    AcessoTurmas turmas = {0};
    AcessoFicha acesso = {0};
    int idx = 0;
 
-   gsize tamanho_gravacao = sizeof(FichaAluno) + (gsize)lim_disc * sizeof(HistoricoDisciplina);
+   gsize tamanho_gravacao = sizeof( FichaAluno ) + ( gsize )lim_disc * sizeof( HistoricoDisciplina );
 
-   while (fread(&turmas, sizeof(AcessoTurmas), 1, f_acesso) == 1) {
+   while ( fread( &turmas, sizeof( AcessoTurmas ), 1, f_acesso ) == 1 ) {
 
-      acesso.sit = situacao_aluno(turmas.sit);
-      acesso.ativo = (acesso.sit & (MATRICULA_INTERNA | MATRICULA_EXTERNA | MATRICULA_REGULAR)) != 0;
+      acesso.sit = situacao_aluno( turmas.sit );
+      acesso.ativo = ( acesso.sit & ( MATRICULA_INTERNA | MATRICULA_EXTERNA | MATRICULA_REGULAR ) ) != 0;
       acesso.cod_aluno = turmas.cod_aluno;
-      fwrite(&acesso, sizeof(AcessoFicha), 1, f);
+      fwrite( &acesso, sizeof( AcessoFicha ), 1, f );
 
       // g_autofree gchar *arquivo_aluno_origem = g_strdup_printf("%s/alunos/%" PRIu32 ".bin", diretorio, acesso.cod_aluno);
       // Altere esta linha dentro do loop while:
-      g_autofree gchar *arquivo_aluno_origem = g_strdup_printf("%s/fichas/%" PRIu32 ".bin", diretorio, acesso.cod_aluno);
-      FILE *f_origem = fopen(arquivo_aluno_origem, "rb" );
+      g_autofree gchar *arquivo_aluno_origem = g_strdup_printf( "%s/fichas/%" PRIu32 ".bin", diretorio, acesso.cod_aluno );
+      FILE *f_origem = fopen( arquivo_aluno_origem, "rb" );
 
       if ( !f_origem ) {
          // ⚠️ SE CAIR AQUI, ELE PASSA PARA O PRÓXIMO ALUNO EM SILÊNCIO
@@ -389,43 +407,43 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
       }
 
       FichaSiaep siaep;
-      if (fread(&siaep, sizeof(FichaSiaep), 1, f_origem) == 1) {
+      if ( fread( &siaep, sizeof( FichaSiaep ), 1, f_origem ) == 1 ) {
 
          // Delega a criação segura (e do tamanho correto) para a função auxiliar
-         FichaAluno *ficha = criar_ficha_zerada(lim_disc);
-         ficha->idx_siaep = (guint8)idx;
+         FichaAluno *ficha = criar_ficha_zerada( lim_disc );
+         ficha->idx_siaep = ( guint8 )idx;
 
-         g_autofree char *nome_formatado = converter_nome_proprio(siaep.aluno);
-         ficha->limite_corte = (guint8)obter_limite_corte_nome(layout, nome_formatado);
+         g_autofree char *nome_formatado = converter_nome_proprio( siaep.aluno );
+         ficha->limite_corte = ( guint8 )obter_limite_corte_nome( layout, nome_formatado );
 
-         snprintf(ficha->aluno, sizeof(ficha->aluno), "%s", nome_formatado);
-         snprintf(ficha->nasc, sizeof(ficha->nasc), "%s", siaep.nasc);
-         snprintf(ficha->sexo, sizeof(ficha->sexo), "%s", (siaep.sexo == 'M') ? "Masculino" : "Feminino");
+         snprintf( ficha->aluno, sizeof( ficha->aluno ), "%s", nome_formatado );
+         snprintf( ficha->nasc, sizeof( ficha->nasc ), "%s", siaep.nasc );
+         snprintf( ficha->sexo, sizeof( ficha->sexo ), "%s", ( siaep.sexo == 'M' ) ? "Masculino" : "Feminino" );
 
-         g_autofree gchar *arquivo_aluno_destino = g_strdup_printf("%s/%" PRIu32 ".bin", paths->dest_alunos, acesso.cod_aluno);
-         FILE *f_destino = fopen(arquivo_aluno_destino, "wb");
+         g_autofree gchar *arquivo_aluno_destino = g_strdup_printf( "%s/%" PRIu32 ".bin", paths->dest_alunos, acesso.cod_aluno );
+         FILE *f_destino = fopen( arquivo_aluno_destino, "wb" );
 
-         if (f_destino) {
+         if ( f_destino ) {
             // GRAVAÇÃO BLINDADA: Escreve a base + FAM no disco
-            fwrite(ficha, tamanho_gravacao, 1, f_destino);
-            fclose(f_destino);
+            fwrite( ficha, tamanho_gravacao, 1, f_destino );
+            fclose( f_destino );
          }
 
-         g_free(ficha); // Previne memory leak após gravação de cada aluno
+         g_free( ficha ); // Previne memory leak após gravação de cada aluno
       }
 
-      fclose(f_origem);
+      fclose( f_origem );
       idx++;
    }
 
    // 5. Encerramento e Limpeza
-   fclose(f_acesso);
-   fclose(f);
+   fclose( f_acesso );
+   fclose( f );
 
-   liberar_estrutura_diretorios(paths);
-   g_object_unref(layout);
-   g_object_unref(context);
-   g_object_unref(font_map);
+   liberar_estrutura_diretorios( paths );
+   g_object_unref( layout );
+   g_object_unref( context );
+   g_object_unref( font_map );
 }
 //=====================================================================================================
 
@@ -455,21 +473,29 @@ static void inicializar_mapa_siaep( MapaSiaep *mapa ) {
 
 static void tentar_mapear_cabecalho( gchar **colunas, guint num_colunas, MapaSiaep *mapa ) {
    for ( guint i = 0; i < num_colunas; i++ ) {
-      if ( !colunas[i] || colunas[i][0] == '\0' ) continue;
+      if ( !colunas[i] || colunas[i][0] == '\0' ) {
+         continue;
+      }
 
       // Converte para uppercase apenas para a validação (Case-Insensitive)
       g_autofree gchar *col_up = g_utf8_strup( colunas[i], -1 );
 
-      if ( strstr( col_up, "COD" ) && strstr( col_up, "ALUNO" ) ) mapa->idx_codigo = (guint8)i;
-      else if ( strstr( col_up, "NOME" ) ) mapa->idx_nome = (guint8)i;
-      else if ( strstr( col_up, "SEXO" ) ) mapa->idx_sexo = (guint8)i;
-      else if ( strstr( col_up, "NASCIMENTO" ) || strstr( col_up, "NASC" ) ) mapa->idx_nascimento = (guint8)i;
-      else if ( strstr( col_up, "SITUA" ) ) mapa->idx_situacao = (guint8)i;
+      if ( strstr( col_up, "COD" ) && strstr( col_up, "ALUNO" ) ) {
+         mapa->idx_codigo = ( guint8 )i;
+      } else if ( strstr( col_up, "NOME" ) ) {
+         mapa->idx_nome = ( guint8 )i;
+      } else if ( strstr( col_up, "SEXO" ) ) {
+         mapa->idx_sexo = ( guint8 )i;
+      } else if ( strstr( col_up, "NASCIMENTO" ) || strstr( col_up, "NASC" ) ) {
+         mapa->idx_nascimento = ( guint8 )i;
+      } else if ( strstr( col_up, "SITUA" ) ) {
+         mapa->idx_situacao = ( guint8 )i;
+      }
    }
 
    // Só declara sucesso quando as 5 âncoras vitais forem rastreadas
    if ( mapa->idx_codigo != -1 && mapa->idx_nome != -1 && mapa->idx_sexo != -1 &&
-        mapa->idx_nascimento != -1 && mapa->idx_situacao != -1 ) {
+         mapa->idx_nascimento != -1 && mapa->idx_situacao != -1 ) {
       mapa->mapeado = TRUE;
    }
 }
@@ -482,10 +508,14 @@ static gboolean processar_linha_aluno( gchar **colunas, guint num_colunas, const
 
    // Defesa 1: Garante que a linha fatiada seja maior que o maior índice do nosso mapa
    int max_idx = MAX( mapa->idx_situacao, MAX( mapa->idx_nascimento, MAX( mapa->idx_sexo, MAX( mapa->idx_codigo, mapa->idx_nome ) ) ) );
-   if ( (int)num_colunas <= max_idx ) return FALSE;
+   if ( ( int )num_colunas <= max_idx ) {
+      return FALSE;
+   }
 
    const char *nome = colunas[mapa->idx_nome];
-   if ( !nome || strlen( nome ) < 2 ) return FALSE; // Linha vazia ou lixo de fim de tabela
+   if ( !nome || strlen( nome ) < 2 ) {
+      return FALSE;   // Linha vazia ou lixo de fim de tabela
+   }
 
    const char *codigo = colunas[mapa->idx_codigo];
    const char *sexo   = colunas[mapa->idx_sexo];
@@ -529,25 +559,33 @@ static gboolean processar_linha_aluno( gchar **colunas, guint num_colunas, const
 // 3. MAESTRO ORQUESTRADOR
 // ============================================================================
 static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, char *raiz ) {
-   g_return_val_if_fail( arquivo_xls, FALSE );
+   g_return_val_if_fail( arquivo_xls != NULL, FALSE );
 
    // 1. Abstração de Nomes e Caminhos
    g_autofree gchar *diretorio = g_path_get_dirname( arquivo_xls );
 
    g_autofree gchar *arquivo_csv = g_strdup( arquivo_xls );
    gchar *ext_csv = strrchr( arquivo_csv, '.' );
-   if ( ext_csv ) strcpy( ext_csv, ".csv" );
+   if ( ext_csv ) {
+      g_strlcpy( ext_csv, ".csv", sizeof( ext_csv ) );
+   }
 
    g_autofree gchar *arquivo_dat = g_strdup( arquivo_xls );
    gchar *ext_dat = strrchr( arquivo_dat, '.' );
-   if ( ext_dat ) strcpy( ext_dat, ".dat" );
+   if ( ext_dat ) {
+      g_strlcpy( ext_dat, ".dat", sizeof( ext_dat ) );
+   }
 
    // 2. Extração Física (xls -> csv via ssconvert)
    g_autofree gchar *comando = g_strdup_printf( "ssconvert \"%s\" \"%s\"", arquivo_xls, arquivo_csv );
-   if ( !g_spawn_command_line_sync( comando, NULL, NULL, NULL, NULL ) ) return FALSE;
+   if ( !g_spawn_command_line_sync( comando, NULL, NULL, NULL, NULL ) ) {
+      return FALSE;
+   }
 
    g_autofree gchar *conteudo_csv = NULL;
-   if ( !g_file_get_contents( arquivo_csv, &conteudo_csv, NULL, NULL ) ) return FALSE;
+   if ( !g_file_get_contents( arquivo_csv, &conteudo_csv, NULL, NULL ) ) {
+      return FALSE;
+   }
 
    aplicar_sed_nativo( conteudo_csv );
 
@@ -570,7 +608,9 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, ch
    // 5. Laço de Triagem de Linhas (O Pipeline)
    for ( guint i = 0; linhas[i] != NULL; i++ ) {
       g_strstrip( linhas[i] );
-      if ( linhas[i][0] == '\0' ) continue;
+      if ( linhas[i][0] == '\0' ) {
+         continue;
+      }
 
       g_auto( GStrv ) colunas = g_strsplit( linhas[i], ";", -1 );
       guint num_colunas = g_strv_length( colunas );
@@ -578,7 +618,10 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, ch
       // Estágio A: Identificou a tag de Turma
       if ( g_ascii_strncasecmp( colunas[0], "TURMA: ", 7 ) == 0 && num_colunas > 0 ) {
          g_clear_pointer( &nome_turma_padrao, g_free );
-         if ( f_acesso ) { fclose( f_acesso ); f_acesso = NULL; }
+         if ( f_acesso ) {
+            fclose( f_acesso );
+            f_acesso = NULL;
+         }
          nome_turma_padrao = padronizar_nome_turma( colunas[0], &f_acesso, diretorio );
          continue;
       }
@@ -603,8 +646,12 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, ch
    }
 
    // 6. Limpeza Operacional de Arquivos
-   if ( saida_dat ) fclose( saida_dat );
-   if ( f_acesso ) fclose( f_acesso );
+   if ( saida_dat ) {
+      fclose( saida_dat );
+   }
+   if ( f_acesso ) {
+      fclose( f_acesso );
+   }
    g_remove( arquivo_csv );
 
    // 7. Salto Final de Espelhamento (SIAEP -> Vértice)
@@ -625,7 +672,7 @@ static gboolean siaep_processar_arquivo( const gchar *arquivo_xls, int fonte, ch
 
 
 static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
-   g_return_if_fail( ctx );
+   g_return_if_fail( ctx != NULL );
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceDados   *dados   = &ctx->dados;
 
@@ -655,7 +702,9 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
          g_autofree char *caminho_disciplina = g_build_filename( dir_turma_base, nome_disciplina, NULL );
 
-         if ( diretorio_esta_vazio( caminho_disciplina ) ) continue;
+         if ( diretorio_esta_vazio( caminho_disciplina ) ) {
+            continue;
+         }
 
          // Verifica se a entrada atual é realmente um diretório (ignora arquivos)
          if ( g_file_test( caminho_disciplina, G_FILE_TEST_IS_DIR ) ) {
@@ -673,10 +722,10 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
    // 2. Caminhos dos alunos
    g_autofree char *dir_alunos_orig = g_build_filename( dados->raiz, "dados", "listas", dados->ano,
-                                                        dados->escola, dados->periodo, "fichas", NULL );
+                                      dados->escola, dados->periodo, "fichas", NULL );
 
    g_autofree char *dir_alunos_dest = g_build_filename( dados->raiz, "dados", "informados", dados->ano,
-                                                        dados->escola, "fichas", NULL );
+                                      dados->escola, "fichas", NULL );
 
    // Garante que a árvore de pastas de destino já exista antes de iniciar as cópias
    g_mkdir_with_parents( dir_alunos_dest, 0755 );
@@ -711,8 +760,10 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 }
 
 gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_val_if_fail( painel && ctx, FALSE );
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) return FALSE;
+   g_return_val_if_fail( painel != NULL && ctx != NULL, FALSE );
+   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+      return FALSE;
+   }
 
    const InterfaceDados *dados   = &ctx->dados;
 
@@ -737,7 +788,7 @@ gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx 
       return FALSE;
    }
 
-   int num_arquivos = (int)lista_arquivos->len;
+   int num_arquivos = ( int )lista_arquivos->len;
 
    if ( num_arquivos == 0 ) {
       g_print( "Nenhum arquivo .xls encontrado no diretório: %s\n", dir_origem );

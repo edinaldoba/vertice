@@ -22,7 +22,9 @@
    2. VERIFICAR ESTADO DE ARQUIVO - Redução de Linhas
    ================================================================================================================= */
 gboolean verificar_estado_de_arquivo( const char *path, InterfacePainel *painel, const InterfaceDados *dados ) {
-   if ( !dados ) return FALSE;
+   if ( !dados ) {
+      return FALSE;
+   }
    const char *nome_arquivo = strrchr( path, '/' );
    nome_arquivo = ( nome_arquivo == NULL ) ? path : nome_arquivo + 1;
 

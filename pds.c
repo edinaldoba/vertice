@@ -26,71 +26,89 @@ typedef struct {
    float uy; // Passo horizontal Y
    float vx; // Passo vertical X
    float vy; // Passo vertical Y
-   int largura_destino;
-   int altura_destino;
+   gsize largura_destino;
+   gsize altura_destino;
 } MapeamentoAfim;
 
 // ====================================================================================
 // MOTOR GRÁFICO (Única função que faz a interpolação pesada e usa o OpenMP)
 // ====================================================================================
 static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img, const MapeamentoAfim *mapa ) {
-   if ( !IMG || !img || !mapa ) return;
+   g_return_if_fail( IMG != NULL && img != NULL && mapa != NULL );
+   g_return_if_fail( mapa->largura_destino > 0 && mapa->altura_destino > 0 );
 
-   if ( mapa->largura_destino <= 0 || mapa->altura_destino <= 0 ) return;
-
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels( img->image, img->nrow );
+   // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
    }
 
    img->ncol = mapa->largura_destino;
    img->nrow = mapa->altura_destino;
-   img->image = alocar_matriz_pixels( img->nrow, img->ncol );
-   if ( !img->image ) return;
+
+   // Aloca o bloco mestre de pixels e o vetor de atalhos de linha em chamadas únicas
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
+   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   // O SEGREDO: Usar gssize (signed size) para garantir que coordenadas
+   // fora da imagem (negativas) sejam interpretadas corretamente.
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // #pragma omp parallel for schedule(static)
-   for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
-      for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+   for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = mapa->x_origem + ( (float)y_novo * mapa->vx ) + ( (float)x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( (float)y_novo * mapa->vy ) + ( (float)x_novo * mapa->uy );
+         float x_orig = mapa->x_origem + ( ( float )y_novo * mapa->vx ) + ( ( float )x_novo * mapa->ux );
+         float y_orig = mapa->y_origem + ( ( float )y_novo * mapa->vy ) + ( ( float )x_novo * mapa->uy );
 
-         int x_base = ( int )floorf( x_orig );
-         int y_base = ( int )floorf( y_orig );
+         gssize x_base = ( gssize )floorf( x_orig );
+         gssize y_base = ( gssize )floorf( y_orig );
 
-         float dx = x_orig - (float)x_base;
-         float dy = y_orig - (float)y_base;
+         float dx = x_orig - ( float )x_base;
+         float dy = y_orig - ( float )y_base;
 
-         int pA, pB, pC, pD;
+         // Presume-se fundo branco (255) para pontos fora da folha
+         int pA = 255, pB = 255, pC = 255, pD = 255;
 
+         // Caminho Rápido (Centro): Pixel está totalmente dentro da imagem de origem
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
             pA = IMG->image[y_base][x_base];
             pB = IMG->image[y_base][x_base + 1];
             pC = IMG->image[y_base + 1][x_base];
             pD = IMG->image[y_base + 1][x_base + 1];
          } else {
-            int x0 = ( x_base < 0 ) ? 0 : ( x_base > x_lim ) ? x_lim : x_base;
-            int x1 = ( x_base + 1 < 0 ) ? 0 : ( x_base + 1 > x_lim ) ? x_lim : x_base + 1;
-            int y0 = ( y_base < 0 ) ? 0 : ( y_base > y_lim ) ? y_lim : y_base;
-            int y1 = ( y_base + 1 < 0 ) ? 0 : ( y_base + 1 > y_lim ) ? y_lim : y_base + 1;
+            // Caminho Lento (Bordas): Lógica brutalmente simplificada.
+            // Sobrescreve o branco (255) apenas se o ponto específico cair dentro do limite.
+            if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pA = IMG->image[y_base][x_base];
+            }
 
-            pA = ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x0] : 255;
-            pB = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x1] : 255;
-            pC = ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x0] : 255;
-            pD = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x1] : 255;
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pB = IMG->image[y_base][x_base + 1];
+            }
+
+            if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pC = IMG->image[y_base + 1][x_base];
+            }
+
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pD = IMG->image[y_base + 1][x_base + 1];
+            }
          }
 
-         float interpolado = (float)pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
-                             (float)pB * dx * ( 1.0f - dy ) +
-                             (float)pC * ( 1.0f - dx ) * dy +
-                             (float)pD * dx * dy;
+         float interpolado = ( float )pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
+                             ( float )pB * dx * ( 1.0f - dy ) +
+                             ( float )pC * ( 1.0f - dx ) * dy +
+                             ( float )pD * dx * dy;
 
-         img->image[y_novo][x_novo] = ( guint8 )( interpolado + 0.5f );
+         img->image[y_novo][x_novo] = ( uint8_t )( interpolado + 0.5f );
       }
    }
 }
@@ -102,60 +120,77 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
 // MOTOR GRÁFICO RGB (Apenas executa a matemática definida no MapeamentoAfim)
 // ====================================================================================
 static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, ImagemColorida *img, const MapeamentoAfim *mapa ) {
-   if ( !IMG || !img || !mapa ) return;
+   g_return_if_fail( IMG != NULL && img != NULL && mapa != NULL );
+   g_return_if_fail( mapa->largura_destino > 0 && mapa->altura_destino > 0 );
 
-   if ( mapa->largura_destino <= 0 || mapa->altura_destino <= 0 ) return;
-
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels_colorida( img->image, img->nrow );
+   // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
    }
 
    img->ncol = mapa->largura_destino;
    img->nrow = mapa->altura_destino;
-   img->image = alocar_matriz_pixels_colorida( img->nrow, img->ncol );
-   if ( !img->image ) return;
+
+   // Aloca o bloco mestre de pixels RGB e o vetor de atalhos de linha em chamadas únicas
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
+   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   // O SEGREDO: Usar gssize (signed size) para garantir que coordenadas
+   // fora da imagem (negativas) não sofram wrap-around e quebrem os limites.
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
 
+   // Diretiva OpenMP reativada: tira proveito total da nova memória contígua
    // #pragma omp parallel for schedule(static)
-   for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
-      for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+   for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = mapa->x_origem + ( (float)y_novo * mapa->vx ) + ( (float)x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( (float)y_novo * mapa->vy ) + ( (float)x_novo * mapa->uy );
+         float x_orig = mapa->x_origem + ( ( float )y_novo * mapa->vx ) + ( ( float )x_novo * mapa->ux );
+         float y_orig = mapa->y_origem + ( ( float )y_novo * mapa->vy ) + ( ( float )x_novo * mapa->uy );
 
-         int x_base = ( int )floorf( x_orig );
-         int y_base = ( int )floorf( y_orig );
+         gssize x_base = ( gssize )floorf( x_orig );
+         gssize y_base = ( gssize )floorf( y_orig );
 
-         float dx = x_orig - (float)x_base;
-         float dy = y_orig - (float)y_base;
+         float dx = x_orig - ( float )x_base;
+         float dy = y_orig - ( float )y_base;
 
-         PixelRGB pA, pB, pC, pD;
+         // Inicia todos os pontos com o fundo branco seguro
+         PixelRGB pA = {255, 255, 255};
+         PixelRGB pB = {255, 255, 255};
+         PixelRGB pC = {255, 255, 255};
+         PixelRGB pD = {255, 255, 255};
 
-         // [FAST PATH] - Interior da imagem
+         // [FAST PATH] - Interior da imagem: Acesso direto e veloz
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
             pA = IMG->image[y_base][x_base];
             pB = IMG->image[y_base][x_base + 1];
             pC = IMG->image[y_base + 1][x_base];
             pD = IMG->image[y_base + 1][x_base + 1];
 
-            // [SLOW PATH] - Borda com fallback para branco
+            // [SLOW PATH] - Borda: Avalia cada vizinho isoladamente sem variáveis complexas
          } else {
-            int x0 = ( x_base < 0 ) ? 0 : ( x_base > x_lim ) ? x_lim : x_base;
-            int x1 = ( x_base + 1 < 0 ) ? 0 : ( x_base + 1 > x_lim ) ? x_lim : x_base + 1;
-            int y0 = ( y_base < 0 ) ? 0 : ( y_base > y_lim ) ? y_lim : y_base;
-            int y1 = ( y_base + 1 < 0 ) ? 0 : ( y_base + 1 > y_lim ) ? y_lim : y_base + 1;
+            if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pA = IMG->image[y_base][x_base];
+            }
 
-            PixelRGB branco = {255, 255, 255};
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pB = IMG->image[y_base][x_base + 1];
+            }
 
-            pA = ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x0] : branco;
-            pB = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x1] : branco;
-            pC = ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x0] : branco;
-            pD = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x1] : branco;
+            if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pC = IMG->image[y_base + 1][x_base];
+            }
+
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pD = IMG->image[y_base + 1][x_base + 1];
+            }
          }
 
          // Cálculo dos pesos otimizado (calculado 1 vez, usado 3 vezes)
@@ -165,13 +200,13 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
          float pesoD = dx * dy;
 
          // Aplicação nos 3 canais de cor
-         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB +  (float)pC.r * pesoC + (float)pD.r * pesoD;
-         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
-         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
+         float r_interp = ( float )pA.r * pesoA + ( float )pB.r * pesoB + ( float )pC.r * pesoC + ( float )pD.r * pesoD;
+         float g_interp = ( float )pA.g * pesoA + ( float )pB.g * pesoB + ( float )pC.g * pesoC + ( float )pD.g * pesoD;
+         float b_interp = ( float )pA.b * pesoA + ( float )pB.b * pesoB + ( float )pC.b * pesoC + ( float )pD.b * pesoD;
 
-         img->image[y_novo][x_novo].r = ( unsigned char )( r_interp + 0.5f );
-         img->image[y_novo][x_novo].g = ( unsigned char )( g_interp + 0.5f );
-         img->image[y_novo][x_novo].b = ( unsigned char )( b_interp + 0.5f );
+         img->image[y_novo][x_novo].r = ( uint8_t )( r_interp + 0.5f );
+         img->image[y_novo][x_novo].g = ( uint8_t )( g_interp + 0.5f );
+         img->image[y_novo][x_novo].b = ( uint8_t )( b_interp + 0.5f );
       }
    }
 }
@@ -181,28 +216,32 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
 
 
 void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) return;
+   if ( !IMG || !img || !ancora ) {
+      return;
+   }
 
-   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
-   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
-   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
+   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
+   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
+   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
 
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( int )roundf( sqrtf( dist_DC_quad ) );
-   mapa.altura_destino  = ( int )roundf( sqrtf( dist_BC_quad ) );
+   mapa.largura_destino = ( gsize )roundf( sqrtf( dist_DC_quad ) );
+   mapa.altura_destino  = ( gsize )roundf( sqrtf( dist_BC_quad ) );
 
-   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) return;
+   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) {
+      return;
+   }
 
    mapa.x_origem = x_B + x_D - x_C;
    mapa.y_origem = y_B + y_D - y_C;
 
-   mapa.ux = ( x_C - x_D ) / (float)mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / (float)mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / (float)mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / (float)mapa.altura_destino;
+   mapa.ux = ( x_C - x_D ) / ( float )mapa.largura_destino;
+   mapa.uy = ( y_C - y_D ) / ( float )mapa.largura_destino;
+   mapa.vx = ( x_C - x_B ) / ( float )mapa.altura_destino;
+   mapa.vy = ( y_C - y_B ) / ( float )mapa.altura_destino;
 
    aplicar_transformacao_afim( IMG, img, &mapa );
 }
@@ -211,28 +250,32 @@ void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const
 
 
 void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) return;
+   if ( !IMG || !img || !ancora ) {
+      return;
+   }
 
-   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
-   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
-   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
+   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
+   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
+   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
 
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( int )roundf( sqrtf( dist_DC_quad ) );
-   mapa.altura_destino  = ( int )roundf( sqrtf( dist_BC_quad ) );
+   mapa.largura_destino = ( gsize )roundf( sqrtf( dist_DC_quad ) );
+   mapa.altura_destino  = ( gsize )roundf( sqrtf( dist_BC_quad ) );
 
-   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) return;
+   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) {
+      return;
+   }
 
    mapa.x_origem = x_B + x_D - x_C;
    mapa.y_origem = y_B + y_D - y_C;
 
-   mapa.ux = ( x_C - x_D ) / (float)mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / (float)mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / (float)mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / (float)mapa.altura_destino;
+   mapa.ux = ( x_C - x_D ) / ( float )mapa.largura_destino;
+   mapa.uy = ( y_C - y_D ) / ( float )mapa.largura_destino;
+   mapa.vx = ( x_C - x_B ) / ( float )mapa.altura_destino;
+   mapa.vy = ( y_C - y_B ) / ( float )mapa.altura_destino;
 
    aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
@@ -242,24 +285,24 @@ void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColor
 
 void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_graus ) {
    // Converte para radianos
-   double rad = (double)angulo_graus * ( G_PI / 180.0 );
+   double rad = ( double )angulo_graus * ( G_PI / 180.0 );
    double cos_a = cos( rad );
    double sin_a = sin( rad );
 
    MapeamentoAfim mapa;
    // Em uma rotação pura, as dimensões da imagem destino mudam para acomodar as pontas
-   mapa.largura_destino = ( int )( fabs( IMG->ncol * cos_a ) + fabs( IMG->nrow * sin_a ) );
-   mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
+   mapa.largura_destino = ( gsize )( fabs( ( guint16 )IMG->ncol * cos_a ) + fabs( ( guint16 )IMG->nrow * sin_a ) );
+   mapa.altura_destino  = ( gsize )( fabs( ( guint16 )IMG->nrow * cos_a ) + fabs( ( guint16 )IMG->ncol * sin_a ) );
 
    // Vetores diretores simples baseados no ângulo
-   mapa.ux = (float)cos_a;
-   mapa.uy = (float)-sin_a;
-   mapa.vx = (float)sin_a;
-   mapa.vy = (float)cos_a;
+   mapa.ux = ( float )cos_a;
+   mapa.uy = ( float ) - sin_a;
+   mapa.vx = ( float )sin_a;
+   mapa.vy = ( float )cos_a;
 
    // Calcula a origem para centralizar
-   mapa.x_origem = ( (float)IMG->ncol / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.ux - ( (float)mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( (float)IMG->nrow / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.uy - ( (float)mapa.altura_destino / 2.0f ) * mapa.vy;
+   mapa.x_origem = ( ( float )IMG->ncol / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.ux - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( ( float )IMG->nrow / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.uy - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim( IMG, img, &mapa );
 }
@@ -271,21 +314,21 @@ void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_g
 
 
 void rotacionar_imagem_colorida( const ImagemColorida *IMG, ImagemColorida *img, float angulo_graus ) {
-   double rad = (double)angulo_graus * ( G_PI / 180.0 );
+   double rad = ( double )angulo_graus * ( G_PI / 180.0 );
    double cos_a = cos( rad );
    double sin_a = sin( rad );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( int )( fabs( IMG->ncol * cos_a ) + fabs( IMG->nrow * sin_a ) );
-   mapa.altura_destino  = ( int )( fabs( IMG->nrow * cos_a ) + fabs( IMG->ncol * sin_a ) );
+   mapa.largura_destino = ( gsize )( fabs( ( guint16 )IMG->ncol * cos_a ) + fabs( ( guint16 )IMG->nrow * sin_a ) );
+   mapa.altura_destino  = ( gsize )( fabs( ( guint16 )IMG->nrow * cos_a ) + fabs( ( guint16 )IMG->ncol * sin_a ) );
 
-   mapa.ux = (float)cos_a;
-   mapa.uy = (float)-sin_a;
-   mapa.vx = (float)sin_a;
-   mapa.vy = (float)cos_a;
+   mapa.ux = ( float )cos_a;
+   mapa.uy = ( float ) - sin_a;
+   mapa.vx = ( float )sin_a;
+   mapa.vy = ( float )cos_a;
 
-   mapa.x_origem = ( (float)IMG->ncol / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.ux - ( (float)mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( (float)IMG->nrow / 2.0f ) - ( (float)mapa.largura_destino / 2.0f ) * mapa.uy - ( (float)mapa.altura_destino / 2.0f ) * mapa.vy;
+   mapa.x_origem = ( ( float )IMG->ncol / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.ux - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vx;
+   mapa.y_origem = ( ( float )IMG->nrow / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.uy - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vy;
 
    aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
@@ -296,95 +339,102 @@ void rotacionar_imagem_colorida( const ImagemColorida *IMG, ImagemColorida *img,
 
 
 void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) return;
+   g_return_if_fail( IMG != NULL && img != NULL && ancora != NULL );
 
    // Coordenadas dos 3 pontos âncoras de base (B, C e D)
-   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
-   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
-   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
+   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
+   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
+   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
 
    // 1. Dedução do Ponto A (Canto Superior Esquerdo)
-   // Usado como ponto de origem inabalável para o mapeamento reverso
    float x_A = x_B + x_D - x_C;
    float y_A = y_B + y_D - y_C;
 
-   // 2. Cálculo de dimensões (Baseado nas arestas opostas)
-   // A largura é a distância entre D e C. A altura é a distância entre B e C.
+   // 2. Cálculo de dimensões
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
 
-   img->ncol = ( int )roundf( sqrtf( dist_DC_quad ) );
-   img->nrow = ( int )roundf( sqrtf( dist_BC_quad ) );
+   img->ncol = ( gsize )roundf( sqrtf( dist_DC_quad ) );
+   img->nrow = ( gsize )roundf( sqrtf( dist_BC_quad ) );
 
-   if ( img->ncol <= 0 || img->nrow <= 0 ) return;
-
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels( img->image, img->nrow );
+   if ( img->ncol == 0 || img->nrow == 0 ) {
+      return;
    }
 
-   img->image = alocar_matriz_pixels( img->nrow, img->ncol );
-   if ( !img->image ) return;
+   // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
+   }
+
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
+   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
    // 3. Vetores diretores de passo unitário
-   // ux/uy (Passo Horizontal): Direção do vetor D->C
-   float ux = ( x_C - x_D ) / (float)img->ncol;
-   float uy = ( y_C - y_D ) / (float)img->ncol;
+   float ux = ( x_C - x_D ) / ( float )img->ncol;
+   float uy = ( y_C - y_D ) / ( float )img->ncol;
 
-   // vx/vy (Passo Vertical): Direção do vetor B->C
-   float vx = ( x_C - x_B ) / (float)img->nrow;
-   float vy = ( y_C - y_B ) / (float)img->nrow;
+   float vx = ( x_C - x_B ) / ( float )img->nrow;
+   float vy = ( y_C - y_B ) / ( float )img->nrow;
 
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   // Limites espaciais (usando gssize para lidar com mapeamentos negativos seguros)
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // 4. Mapeamento Reverso com Interpolação Bilinear
    // #pragma omp parallel for schedule(static)
-   for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
+   for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-      for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+         float x_orig = x_A + ( ( float )y_novo * vx ) + ( ( float )x_novo * ux );
+         float y_orig = y_A + ( ( float )y_novo * vy ) + ( ( float )x_novo * uy );
 
-         // O mapa reverso usa o ponto A deduzido matematicamente como origem
-         float x_orig = x_A + ( (float)y_novo * vx ) + ( (float)x_novo * ux );
-         float y_orig = y_A + ( (float)y_novo * vy ) + ( (float)x_novo * uy );
+         gssize x_base = ( gssize )floorf( x_orig );
+         gssize y_base = ( gssize )floorf( y_orig );
 
-         int x_base = ( int )floorf( x_orig );
-         int y_base = ( int )floorf( y_orig );
+         float dx = x_orig - ( float )x_base;
+         float dy = y_orig - ( float )y_base;
 
-         float dx = x_orig - (float)x_base;
-         float dy = y_orig - (float)y_base;
+         int pA = 255, pB = 255, pC = 255, pD = 255;
 
-         int pA, pB, pC, pD;
-
-         // [FAST PATH] - Caso ultra-comum
+         // [FAST PATH] - Totalmente dentro da imagem
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
             pA = IMG->image[y_base][x_base];
             pB = IMG->image[y_base][x_base + 1];
             pC = IMG->image[y_base + 1][x_base];
             pD = IMG->image[y_base + 1][x_base + 1];
 
-            // [SLOW PATH] - Borda (Clamping com fallback para branco)
+            // [SLOW PATH] - Borda com fallback para branco
          } else {
-            int x0 = ( x_base < 0 ) ? 0 : ( x_base > x_lim ) ? x_lim : x_base;
-            int x1 = ( x_base + 1 < 0 ) ? 0 : ( x_base + 1 > x_lim ) ? x_lim : x_base + 1;
-            int y0 = ( y_base < 0 ) ? 0 : ( y_base > y_lim ) ? y_lim : y_base;
-            int y1 = ( y_base + 1 < 0 ) ? 0 : ( y_base + 1 > y_lim ) ? y_lim : y_base + 1;
+            if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pA = IMG->image[y_base][x_base];
+            }
 
-            pA = ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x0] : 255;
-            pB = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x1] : 255;
-            pC = ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x0] : 255;
-            pD = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x1] : 255;
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pB = IMG->image[y_base][x_base + 1];
+            }
+
+            if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pC = IMG->image[y_base + 1][x_base];
+            }
+
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pD = IMG->image[y_base + 1][x_base + 1];
+            }
          }
 
-         // Cálculo dos pesos bilineares otimizado
-         float interpolado = (float)pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
-                             (float)pB * dx * ( 1.0f - dy ) +
-                             (float)pC * ( 1.0f - dx ) * dy +
-                             (float)pD * dx * dy;
+         float interpolado = ( float )pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
+                             ( float )pB * dx * ( 1.0f - dy ) +
+                             ( float )pC * ( 1.0f - dx ) * dy +
+                             ( float )pD * dx * dy;
 
-         img->image[y_novo][x_novo] = ( guint8 )( interpolado + 0.5f );
+         img->image[y_novo][x_novo] = ( uint8_t )( interpolado + 0.5f );
       }
    }
 }
@@ -395,88 +445,114 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
 
 
 void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) return;
+   g_return_if_fail( IMG != NULL && img != NULL && ancora != NULL );
 
-   float x_B = (float)ancora[1].j, y_B = (float)ancora[1].i;
-   float x_C = (float)ancora[2].j, y_C = (float)ancora[2].i;
-   float x_D = (float)ancora[3].j, y_D = (float)ancora[3].i;
+   // Coordenadas dos 3 pontos âncoras de base (B, C e D)
+   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
+   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
+   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
 
+   // 1. Dedução do Ponto A (Canto Superior Esquerdo)
    float x_A = x_B + x_D - x_C;
    float y_A = y_B + y_D - y_C;
 
+   // 2. Cálculo de dimensões (Baseado nas arestas opostas)
    float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
    float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
 
-   img->ncol = ( int )roundf( sqrtf( dist_DC_quad ) );
-   img->nrow = ( int )roundf( sqrtf( dist_BC_quad ) );
+   img->ncol = ( gsize )roundf( sqrtf( dist_DC_quad ) );
+   img->nrow = ( gsize )roundf( sqrtf( dist_BC_quad ) );
 
-   if ( img->ncol <= 0 || img->nrow <= 0 ) return;
-
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels_colorida( img->image, img->nrow );
+   if ( img->ncol == 0 || img->nrow == 0 ) {
+      return;
    }
 
-   img->image = alocar_matriz_pixels_colorida( img->nrow, img->ncol );
-   if ( !img->image ) return;
+   // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
+   }
+
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
+   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   float ux = ( x_C - x_D ) / (float)img->ncol;
-   float uy = ( y_C - y_D ) / (float)img->ncol;
-   float vx = ( x_C - x_B ) / (float)img->nrow;
-   float vy = ( y_C - y_B ) / (float)img->nrow;
+   // 3. Vetores diretores de passo unitário
+   float ux = ( x_C - x_D ) / ( float )img->ncol;
+   float uy = ( y_C - y_D ) / ( float )img->ncol;
 
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   float vx = ( x_C - x_B ) / ( float )img->nrow;
+   float vy = ( y_C - y_B ) / ( float )img->nrow;
 
+   // Limites espaciais (usando gssize para lidar com mapeamentos negativos seguros)
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
+
+   // 4. Mapeamento Reverso com Interpolação Bilinear RGB
    // #pragma omp parallel for schedule(static)
-   for ( int y_novo = 0; y_novo < img->nrow; y_novo++ ) {
-      for ( int x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+   for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
-         float x_orig = x_A + ( (float)y_novo * vx ) + ( (float)x_novo * ux );
-         float y_orig = y_A + ( (float)y_novo * vy ) + ( (float)x_novo * uy );
+         // O mapa reverso usa o ponto A deduzido matematicamente como origem
+         float x_orig = x_A + ( ( float )y_novo * vx ) + ( ( float )x_novo * ux );
+         float y_orig = y_A + ( ( float )y_novo * vy ) + ( ( float )x_novo * uy );
 
-         int x_base = ( int )floorf( x_orig );
-         int y_base = ( int )floorf( y_orig );
+         gssize x_base = ( gssize )floorf( x_orig );
+         gssize y_base = ( gssize )floorf( y_orig );
 
-         float dx = x_orig - (float)x_base;
-         float dy = y_orig - (float)y_base;
+         float dx = x_orig - ( float )x_base;
+         float dy = y_orig - ( float )y_base;
 
-         PixelRGB pA, pB, pC, pD;
+         // Inicialização segura com fallback para fundo branco
+         PixelRGB pA = {255, 255, 255};
+         PixelRGB pB = {255, 255, 255};
+         PixelRGB pC = {255, 255, 255};
+         PixelRGB pD = {255, 255, 255};
 
+         // [FAST PATH] - Totalmente dentro da imagem (Caso ultra-comum)
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
             pA = IMG->image[y_base][x_base];
             pB = IMG->image[y_base][x_base + 1];
             pC = IMG->image[y_base + 1][x_base];
             pD = IMG->image[y_base + 1][x_base + 1];
 
+            // [SLOW PATH] - Borda com clamping individual (elimina ternários confusos)
          } else {
-            int x0 = ( x_base < 0 ) ? 0 : ( x_base > x_lim ) ? x_lim : x_base;
-            int x1 = ( x_base + 1 < 0 ) ? 0 : ( x_base + 1 > x_lim ) ? x_lim : x_base + 1;
-            int y0 = ( y_base < 0 ) ? 0 : ( y_base > y_lim ) ? y_lim : y_base;
-            int y1 = ( y_base + 1 < 0 ) ? 0 : ( y_base + 1 > y_lim ) ? y_lim : y_base + 1;
+            if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pA = IMG->image[y_base][x_base];
+            }
 
-            PixelRGB branco = {255, 255, 255};
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
+               pB = IMG->image[y_base][x_base + 1];
+            }
 
-            pA = ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x0] : branco;
-            pB = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) ? IMG->image[y0][x1] : branco;
-            pC = ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x0] : branco;
-            pD = ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) ? IMG->image[y1][x1] : branco;
+            if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pC = IMG->image[y_base + 1][x_base];
+            }
+
+            if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
+               pD = IMG->image[y_base + 1][x_base + 1];
+            }
          }
 
+         // Cálculo dos pesos bilineares otimizado (calculado 1 vez, usado nos 3 canais)
          float pesoA = ( 1.0f - dx ) * ( 1.0f - dy );
          float pesoB = dx * ( 1.0f - dy );
          float pesoC = ( 1.0f - dx ) * dy;
          float pesoD = dx * dy;
 
-         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB + (float)pC.r * pesoC + (float)pD.r * pesoD;
-         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
-         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
+         float r_interp = ( float )pA.r * pesoA + ( float )pB.r * pesoB + ( float )pC.r * pesoC + ( float )pD.r * pesoD;
+         float g_interp = ( float )pA.g * pesoA + ( float )pB.g * pesoB + ( float )pC.g * pesoC + ( float )pD.g * pesoD;
+         float b_interp = ( float )pA.b * pesoA + ( float )pB.b * pesoB + ( float )pC.b * pesoC + ( float )pD.b * pesoD;
 
-         img->image[y_novo][x_novo].r = ( unsigned char )( r_interp + 0.5f );
-         img->image[y_novo][x_novo].g = ( unsigned char )( g_interp + 0.5f );
-         img->image[y_novo][x_novo].b = ( unsigned char )( b_interp + 0.5f );
+         img->image[y_novo][x_novo].r = ( uint8_t )( r_interp + 0.5f );
+         img->image[y_novo][x_novo].g = ( uint8_t )( g_interp + 0.5f );
+         img->image[y_novo][x_novo].b = ( uint8_t )( b_interp + 0.5f );
       }
    }
 }
@@ -487,9 +563,13 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
 
 
 
-/* Redução com Interpolação Bilinear Otimizada e Paralelizada */
-void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, int dim ) {
-   if ( !origem || !destino || dim <= 0 ) return;
+// ====================================================================================
+// REDIMENSIONAMENTO BILINEAR - ESCALA DE CINZA (Multithread / Contíguo)
+// ====================================================================================
+void redimensionar_imagem_bilinear( const ImagemCinza *origem, ImagemCinza *destino, gsize dim ) {
+   g_return_if_fail( origem != NULL && origem->dados != NULL && origem->image != NULL );
+   g_return_if_fail( destino != NULL );
+   g_return_if_fail( dim > 0 );
 
    gboolean deitada = ( origem->ncol > origem->nrow );
    destino->ncol = deitada ? dim : ( dim * origem->ncol ) / origem->nrow;
@@ -498,106 +578,119 @@ void redimensionar_imagem_bilinear( ImagemCinza *origem, ImagemCinza *destino, i
    g_strlcpy( destino->key, origem->key, sizeof( destino->key ) );
    destino->max = origem->max;
 
-   if ( destino->image != NULL ) {
+   // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   if ( destino->dados ) {
+      g_free( destino->dados );
+      g_free( destino->image );
+   } else if ( destino->image ) {
       liberar_matriz_pixels( destino->image, destino->nrow );
    }
 
-   destino->image = alocar_matriz_pixels( destino->nrow, destino->ncol );
-   if ( !destino->image ) return;
+   // Alocação em bloco único para vetorização SIMD e aderência perfeita ao cache
+   destino->dados = g_malloc( destino->nrow * destino->ncol * sizeof( uint8_t ) );
+   destino->image = g_malloc( destino->nrow * sizeof( uint8_t * ) );
+   for ( gsize i = 0; i < destino->nrow; i++ ) {
+      destino->image[i] = destino->dados + ( i * destino->ncol );
+   }
 
    // Fatores de proporção (mapeamento reverso alinhando os cantos)
-   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? (float)destino->ncol - 1 : 1 );
-   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? (float)destino->nrow - 1 : 1 );
+   float x_ratio = ( float )( origem->ncol - 1 ) / ( float )( destino->ncol > 1 ? destino->ncol - 1 : 1 );
+   float y_ratio = ( float )( origem->nrow - 1 ) / ( float )( destino->nrow > 1 ? destino->nrow - 1 : 1 );
 
-   // Paralelização OpenMP ativada.
-   // schedule(static) é perfeito aqui porque o custo computacional de cada linha é exatamente igual.
-   // #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < destino->nrow; i++ ) {
-      // OTIMIZAÇÃO 1: Variáveis declaradas aqui dentro são PRIVADAS para cada thread
-      float src_y = y_ratio * (float)i;
-      int y = ( int )src_y;
-      float y_diff = src_y - (float)y;
+   // 2. Mapeamento Reverso Paralelizado
+   // schedule(static) é perfeito pois não há divergência de ramificação (branching)
+   #pragma omp parallel for schedule(static)
+   for ( gsize i = 0; i < destino->nrow; i++ ) {
+      float src_y = y_ratio * ( float )i;
+      gsize y = ( gsize )src_y;
+      float y_diff = src_y - ( float )y;
       float y_inv = 1.0f - y_diff;
 
-      int y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
+      gsize y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
 
-      for ( int j = 0; j < destino->ncol; j++ ) {
-         float src_x = x_ratio * (float)j;
-         int x = ( int )src_x;
-         float x_diff = src_x - (float)x;
+      for ( gsize j = 0; j < destino->ncol; j++ ) {
+         float src_x = x_ratio * ( float )j;
+         gsize x = ( gsize )src_x;
+         float x_diff = src_x - ( float )x;
          float x_inv = 1.0f - x_diff;
 
-         int x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
+         gsize x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
 
-         // OTIMIZAÇÃO 2: Captura limpa e independente
-         int a = origem->image[y][x];
-         int b = origem->image[y][x_next];
-         int c = origem->image[y_next][x];
-         int d = origem->image[y_next][x_next];
+         // OTIMIZAÇÃO 1: Pré-cálculo dos pesos espaciais (reaproveitados)
+         float pesoA = x_inv * y_inv;
+         float pesoB = x_diff * y_inv;
+         float pesoC = x_inv * y_diff;
+         float pesoD = x_diff * y_diff;
 
-         float pixel_interpolado = (float)a * x_inv * y_inv +
-                                   (float)b * x_diff * y_inv +
-                                   (float)c * x_inv * y_diff +
-                                   (float)d * x_diff * y_diff;
+         // OTIMIZAÇÃO 2: Captura limpa via ponteiros diretos
+         uint8_t a = origem->image[y][x];
+         uint8_t b = origem->image[y][x_next];
+         uint8_t c = origem->image[y_next][x];
+         uint8_t d = origem->image[y_next][x_next];
 
-         // OTIMIZAÇÃO 3: Escrita sem colisão, cada thread escreve na sua própria linha 'i'
-         destino->image[i][j] = ( guint8 )( pixel_interpolado + 0.5f );
+         float pixel_interpolado = ( ( float )a * pesoA ) +
+                                   ( ( float )b * pesoB ) +
+                                   ( ( float )c * pesoC ) +
+                                   ( ( float )d * pesoD );
+
+         // Escrita livre de colisão garantida pelo índice da thread 'i'
+         destino->image[i][j] = ( uint8_t )( pixel_interpolado + 0.5f );
       }
    }
 }
 
 
-
-
-
-
-void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColorida *destino, int dim ) {
-   if ( !origem || !destino || dim <= 0 ) return;
+// ====================================================================================
+// REDIMENSIONAMENTO BILINEAR - RGB COLORIDO (Multithread / Contíguo)
+// ====================================================================================
+void redimensionar_imagem_colorida_bilinear( const ImagemColorida *origem, ImagemColorida *destino, gsize dim ) {
+   g_return_if_fail( origem != NULL && origem->dados != NULL && origem->image != NULL );
+   g_return_if_fail( destino != NULL );
+   g_return_if_fail( dim > 0 );
 
    gboolean deitada = ( origem->ncol > origem->nrow );
    destino->ncol = deitada ? dim : ( dim * origem->ncol ) / origem->nrow;
    destino->nrow = deitada ? ( dim * origem->nrow ) / origem->ncol : dim;
 
-   // 1. Cópia do Cabeçalho
    g_strlcpy( destino->key, origem->key, sizeof( destino->key ) );
    destino->max = origem->max;
 
-   // 2. Barreira de Segurança (Memory Leak Prevention)
-   if ( destino->image != NULL ) {
+   // 1. Barreira de Segurança e Limpeza no Padrão Contíguo
+   if ( destino->dados ) {
+      g_free( destino->dados );
+      g_free( destino->image );
+   } else if ( destino->image ) {
       liberar_matriz_pixels_colorida( destino->image, destino->nrow );
    }
 
-   // 3. Alocação da Nova Matriz Colorida
-   destino->image = alocar_matriz_pixels_colorida( destino->nrow, destino->ncol );
-   if ( !destino->image ) return;
+   // Alocação da Nova Matriz Colorida em Bloco Único (Vetorização SIMD)
+   destino->dados = g_malloc( destino->nrow * destino->ncol * sizeof( PixelRGB ) );
+   destino->image = g_malloc( destino->nrow * sizeof( PixelRGB * ) );
+   for ( gsize i = 0; i < destino->nrow; i++ ) {
+      destino->image[i] = destino->dados + ( i * destino->ncol );
+   }
 
-   // 4. Fatores de proporção
-   float x_ratio = ( ( float )( origem->ncol - 1 ) ) / ( destino->ncol > 1 ? (float)destino->ncol - 1 : 1 );
-   float y_ratio = ( ( float )( origem->nrow - 1 ) ) / ( destino->nrow > 1 ? (float)destino->nrow - 1 : 1 );
+   // Fatores de proporção
+   float x_ratio = ( float )( origem->ncol - 1 ) / ( float )( destino->ncol > 1 ? destino->ncol - 1 : 1 );
+   float y_ratio = ( float )( origem->nrow - 1 ) / ( float )( destino->nrow > 1 ? destino->nrow - 1 : 1 );
 
-   // 5. Mapeamento Reverso Paralelizado
-   // #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < destino->nrow; i++ ) {
-      float src_y = y_ratio * (float)i;
-      int y = ( int )src_y;
-      float y_diff = src_y - (float)y;
+   // 2. Mapeamento Reverso Paralelizado
+   #pragma omp parallel for schedule(static)
+   for ( gsize i = 0; i < destino->nrow; i++ ) {
+      float src_y = y_ratio * ( float )i;
+      gsize y = ( gsize )src_y;
+      float y_diff = src_y - ( float )y;
       float y_inv = 1.0f - y_diff;
 
-      int y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
+      gsize y_next = ( y + 1 < origem->nrow ) ? y + 1 : y;
 
-      for ( int j = 0; j < destino->ncol; j++ ) {
-         float src_x = x_ratio * (float)j;
-         int x = ( int )src_x;
-         float x_diff = src_x - (float)x;
+      for ( gsize j = 0; j < destino->ncol; j++ ) {
+         float src_x = x_ratio * ( float )j;
+         gsize x = ( gsize )src_x;
+         float x_diff = src_x - ( float )x;
          float x_inv = 1.0f - x_diff;
 
-         int x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
-
-         // OTIMIZAÇÃO DE CORES: Captura da estrutura PixelRGB inteira de uma vez
-         PixelRGB pA = origem->image[y][x];
-         PixelRGB pB = origem->image[y][x_next];
-         PixelRGB pC = origem->image[y_next][x];
-         PixelRGB pD = origem->image[y_next][x_next];
+         gsize x_next = ( x + 1 < origem->ncol ) ? x + 1 : x;
 
          // OTIMIZAÇÃO MATEMÁTICA: Pré-calculamos os pesos espaciais dos 4 vizinhos.
          // Isso economiza 8 multiplicações de ponto flutuante por cada pixel gerado!
@@ -606,10 +699,21 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
          float pesoC = x_inv * y_diff;
          float pesoD = x_diff * y_diff;
 
+         // OTIMIZAÇÃO DE CORES: Captura da estrutura PixelRGB inteira de uma vez
+         PixelRGB pA = origem->image[y][x];
+         PixelRGB pB = origem->image[y][x_next];
+         PixelRGB pC = origem->image[y_next][x];
+         PixelRGB pD = origem->image[y_next][x_next];
+
          // Aplica os pesos aos 3 canais de forma independente
-         float r_interp = (float)pA.r * pesoA + (float)pB.r * pesoB + (float)pC.r * pesoC + (float)pD.r * pesoD;
-         float g_interp = (float)pA.g * pesoA + (float)pB.g * pesoB + (float)pC.g * pesoC + (float)pD.g * pesoD;
-         float b_interp = (float)pA.b * pesoA + (float)pB.b * pesoB + (float)pC.b * pesoC + (float)pD.b * pesoD;
+         float r_interp = ( ( float )pA.r * pesoA ) + ( ( float )pB.r * pesoB ) +
+                          ( ( float )pC.r * pesoC ) + ( ( float )pD.r * pesoD );
+
+         float g_interp = ( ( float )pA.g * pesoA ) + ( ( float )pB.g * pesoB ) +
+                          ( ( float )pC.g * pesoC ) + ( ( float )pD.g * pesoD );
+
+         float b_interp = ( ( float )pA.b * pesoA ) + ( ( float )pB.b * pesoB ) +
+                          ( ( float )pC.b * pesoC ) + ( ( float )pD.b * pesoD );
 
          // Escrita limpa e sem colisão arredondando de volta para uint8_t
          destino->image[i][j].r = ( uint8_t )( r_interp + 0.5f );
@@ -627,85 +731,88 @@ void redimensionar_imagem_colorida_bilinear( ImagemColorida *origem, ImagemColor
 // FILTRO GAUSSIANO ISOTRÓPICO 2D (Purista em C)
 // ====================================================================================
 void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, float sigma ) {
-   if ( !IMG || !img || sigma <= 0.0f ) return;
+   g_return_if_fail( IMG != NULL && img != NULL );
+   g_return_if_fail( IMG->nrow > 0 && IMG->ncol > 0 && sigma > 0.0f );
 
-   // 1. Preparação da Imagem de Destino
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels( img->image, img->nrow );
+   // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
    }
 
    img->ncol = IMG->ncol;
    img->nrow = IMG->nrow;
-   img->image = alocar_matriz_pixels( img->nrow, img->ncol );
-   if ( !img->image ) return;
+
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
+   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
    // 2. Cálculo do tamanho do Kernel
-   // A regra dos 3-sigmas garante que 99.7% da energia da curva gaussiana seja capturada
-   int raio = ( int )ceilf( 3.0f * sigma );
-   int diametro = 2 * raio + 1;
+   gsize raio = ( gsize )ceilf( 3.0f * sigma );
+   gsize diametro = 2 * raio + 1;
 
-   // Alocamos o kernel como um vetor plano (1D) para maximizar o cache da CPU (L1/L2)
    g_autofree float *kernel = g_new0( float, diametro * diametro );
 
    // 3. Geração do Kernel Isotrópico Normalizado
    float soma_pesos = 0.0f;
    float divisor_expoente = 2.0f * sigma * sigma;
-   int idx = 0;
+   gsize idx = 0;
 
-   for ( int i = -raio; i <= raio; i++ ) {
-      for ( int j = -raio; j <= raio; j++ ) {
-         // Não precisamos da constante externa da fórmula, pois normalizaremos no final
-         float peso = expf( (float)-( ( i * i ) + ( j * j ) ) / divisor_expoente );
+   // CRÍTICO: Índices que vão para o negativo DEVEM ser gssize (com sinal)
+   gssize limite_raio = ( gssize )raio;
+
+   for ( gssize i = -limite_raio; i <= limite_raio; i++ ) {
+      for ( gssize j = -limite_raio; j <= limite_raio; j++ ) {
+         float peso = expf( ( float ) - ( ( i * i ) + ( j * j ) ) / divisor_expoente );
          kernel[idx++] = peso;
          soma_pesos += peso;
       }
    }
 
-   // Normalização: garante que a soma de todos os pesos seja exatamente 1.0
-   for ( int k = 0; k < diametro * diametro; k++ ) {
+   for ( gsize k = 0; k < diametro * diametro; k++ ) {
       kernel[k] /= soma_pesos;
    }
 
    // 4. Convolução 2D Paralelizada com Padding Virtual (Clamp to Edge)
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // #pragma omp parallel for schedule(static)
-   for ( int y = 0; y < IMG->nrow; y++ ) {
-      for ( int x = 0; x < IMG->ncol; x++ ) {
+   for ( gsize y = 0; y < IMG->nrow; y++ ) {
+      for ( gsize x = 0; x < IMG->ncol; x++ ) {
 
          float pixel_acumulado = 0.0f;
-         int k_idx = 0;
+         gsize k_idx = 0;
 
-         // [FAST PATH] - O pixel está seguro no centro da imagem (Nenhum if necessário)
+         // [FAST PATH] - O pixel está seguro no centro da imagem
          if ( x >= raio && x < IMG->ncol - raio && y >= raio && y < IMG->nrow - raio ) {
-            for ( int ky = -raio; ky <= raio; ky++ ) {
-               for ( int kx = -raio; kx <= raio; kx++ ) {
-                  pixel_acumulado += (float)IMG->image[y + ky][x + kx] * kernel[k_idx++];
+            for ( gssize ky = -limite_raio; ky <= limite_raio; ky++ ) {
+               for ( gssize kx = -limite_raio; kx <= limite_raio; kx++ ) {
+                  pixel_acumulado += ( float )IMG->image[y + ( gsize )ky][x + ( gsize )kx] * kernel[k_idx++];
                }
             }
          }
          // [SLOW PATH] - O pixel está na borda. Simulamos a "expansão" travando os índices.
-         // Se a varredura tentar sair da imagem, ela repete a cor do pixel da beirada.
          else {
-            for ( int ky = -raio; ky <= raio; ky++ ) {
-               int coord_y = y + ky;
+            for ( gssize ky = -limite_raio; ky <= limite_raio; ky++ ) {
+               gssize coord_y = ( gssize )y + ky;
                coord_y = ( coord_y < 0 ) ? 0 : ( ( coord_y > y_lim ) ? y_lim : coord_y );
 
-               for ( int kx = -raio; kx <= raio; kx++ ) {
-                  int coord_x = x + kx;
+               for ( gssize kx = -limite_raio; kx <= limite_raio; kx++ ) {
+                  gssize coord_x = ( gssize )x + kx;
                   coord_x = ( coord_x < 0 ) ? 0 : ( ( coord_x > x_lim ) ? x_lim : coord_x );
 
-                  pixel_acumulado += (float)IMG->image[coord_y][coord_x] * kernel[k_idx++];
+                  pixel_acumulado += ( float )IMG->image[coord_y][coord_x] * kernel[k_idx++];
                }
             }
          }
 
-         // Arredondamento perfeito para inteiro
-         img->image[y][x] = ( guint8 )( pixel_acumulado + 0.5f );
+         img->image[y][x] = ( uint8_t )( pixel_acumulado + 0.5f );
       }
    }
 }
@@ -713,97 +820,105 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
 
 
 
+// ====================================================================================
+// FILTRO GAUSSIANO ISOTRÓPICO 2D RGB
+// ====================================================================================
 void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida *img, float sigma ) {
-   if ( !IMG || !img || sigma <= 0.0f ) return;
+   g_return_if_fail( IMG != NULL && img != NULL );
+   g_return_if_fail( IMG->nrow > 0 && IMG->ncol > 0 && sigma > 0.0f );
 
-   // 1. Preparação da Imagem de Destino
-   if ( img->image != NULL ) {
-      liberar_matriz_pixels_colorida( img->image, img->nrow );
+   // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   if ( img->dados ) {
+      g_free( img->dados );
+      g_free( img->image );
    }
 
    img->ncol = IMG->ncol;
    img->nrow = IMG->nrow;
-   img->image = alocar_matriz_pixels_colorida( img->nrow, img->ncol );
-   if ( !img->image ) return;
+
+   img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
+   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   for ( gsize i = 0; i < img->nrow; i++ ) {
+      img->image[i] = img->dados + ( i * img->ncol );
+   }
 
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
    // 2. Cálculo do tamanho do Kernel
-   // A regra dos 3-sigmas garante que 99.7% da energia da curva gaussiana seja capturada
-   int raio = ( int )ceilf( 3.0f * sigma );
-   int diametro = 2 * raio + 1;
+   gsize raio = ( gsize )ceilf( 3.0f * sigma );
+   gsize diametro = 2 * raio + 1;
 
-   // Alocamos o kernel como um vetor plano (1D) para maximizar o cache da CPU (L1/L2)
    g_autofree float *kernel = g_new0( float, diametro * diametro );
 
    // 3. Geração do Kernel Isotrópico Normalizado
    float soma_pesos = 0.0f;
    float divisor_expoente = 2.0f * sigma * sigma;
-   int idx = 0;
+   gsize idx = 0;
 
-   for ( int i = -raio; i <= raio; i++ ) {
-      for ( int j = -raio; j <= raio; j++ ) {
-         // Não precisamos da constante externa da fórmula, pois normalizaremos no final
-         float peso = expf( (float)-( ( i * i ) + ( j * j ) ) / divisor_expoente );
+   // CRÍTICO: Índices que vão para o negativo DEVEM ser gssize (com sinal)
+   gssize limite_raio = ( gssize )raio;
+
+   for ( gssize i = -limite_raio; i <= limite_raio; i++ ) {
+      for ( gssize j = -limite_raio; j <= limite_raio; j++ ) {
+         float peso = expf( ( float ) - ( ( i * i ) + ( j * j ) ) / divisor_expoente );
          kernel[idx++] = peso;
          soma_pesos += peso;
       }
    }
 
-   // Normalização: garante que a soma de todos os pesos seja exatamente 1.0
-   for ( int k = 0; k < diametro * diametro; k++ ) {
+   for ( gsize k = 0; k < diametro * diametro; k++ ) {
       kernel[k] /= soma_pesos;
    }
 
    // 4. Convolução 2D Paralelizada com Padding Virtual (Clamp to Edge)
-   int x_lim = IMG->ncol - 1;
-   int y_lim = IMG->nrow - 1;
+   gssize x_lim = ( gssize )IMG->ncol - 1;
+   gssize y_lim = ( gssize )IMG->nrow - 1;
 
+   // Diretiva OpenMP reativada: tira proveito total da nova memória contígua
    // #pragma omp parallel for schedule(static)
-   for ( int y = 0; y < IMG->nrow; y++ ) {
-      for ( int x = 0; x < IMG->ncol; x++ ) {
+   for ( gsize y = 0; y < IMG->nrow; y++ ) {
+      for ( gsize x = 0; x < IMG->ncol; x++ ) {
 
-         // Acumuladores isolados para cada canal de cor
          float pixel_r = 0.0f;
          float pixel_g = 0.0f;
          float pixel_b = 0.0f;
-         int k_idx = 0;
+         gsize k_idx = 0;
 
-         // [FAST PATH] - O pixel está seguro no centro da imagem (Nenhum if necessário)
+         // [FAST PATH] - O pixel está seguro no centro da imagem
          if ( x >= raio && x < IMG->ncol - raio && y >= raio && y < IMG->nrow - raio ) {
-            for ( int ky = -raio; ky <= raio; ky++ ) {
-               for ( int kx = -raio; kx <= raio; kx++ ) {
+            for ( gssize ky = -limite_raio; ky <= limite_raio; ky++ ) {
+               for ( gssize kx = -limite_raio; kx <= limite_raio; kx++ ) {
                   float peso = kernel[k_idx++];
-                  const PixelRGB *p_src = &IMG->image[y + ky][x + kx];
+                  const PixelRGB *p_src = &IMG->image[y + ( gsize )ky][x + ( gsize )kx];
 
-                  pixel_r += (float)p_src->r * peso;
-                  pixel_g += (float)p_src->g * peso;
-                  pixel_b += (float)p_src->b * peso;
+                  pixel_r += ( float )p_src->r * peso;
+                  pixel_g += ( float )p_src->g * peso;
+                  pixel_b += ( float )p_src->b * peso;
                }
             }
          }
          // [SLOW PATH] - O pixel está na borda. Simulamos a "expansão" travando os índices.
          else {
-            for ( int ky = -raio; ky <= raio; ky++ ) {
-               int coord_y = y + ky;
+            for ( gssize ky = -limite_raio; ky <= limite_raio; ky++ ) {
+               gssize coord_y = ( gssize )y + ky;
                coord_y = ( coord_y < 0 ) ? 0 : ( ( coord_y > y_lim ) ? y_lim : coord_y );
 
-               for ( int kx = -raio; kx <= raio; kx++ ) {
-                  int coord_x = x + kx;
+               for ( gssize kx = -limite_raio; kx <= limite_raio; kx++ ) {
+                  gssize coord_x = ( gssize )x + kx;
                   coord_x = ( coord_x < 0 ) ? 0 : ( ( coord_x > x_lim ) ? x_lim : coord_x );
 
                   float peso = kernel[k_idx++];
                   const PixelRGB *p_src = &IMG->image[coord_y][coord_x];
 
-                  pixel_r += (float)p_src->r * peso;
-                  pixel_g += (float)p_src->g * peso;
-                  pixel_b += (float)p_src->b * peso;
+                  pixel_r += ( float )p_src->r * peso;
+                  pixel_g += ( float )p_src->g * peso;
+                  pixel_b += ( float )p_src->b * peso;
                }
             }
          }
 
-         // Arredondamento perfeito para inteiro limitando a 255/max para evitar overflow
+         // Arredondamento perfeito para inteiro limitando a 255 (max) para evitar overflow
          img->image[y][x].r = ( uint8_t )fminf( pixel_r + 0.5f, 255.0f );
          img->image[y][x].g = ( uint8_t )fminf( pixel_g + 0.5f, 255.0f );
          img->image[y][x].b = ( uint8_t )fminf( pixel_b + 0.5f, 255.0f );
@@ -815,54 +930,60 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
 
 
 
+// ====================================================================================
+// BINARIZAÇÃO GLOBAL: MÉTODO DE OTSU (Arquitetura Contígua 1D)
+// ====================================================================================
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
-   if ( !IMG || !IMG->image ) return;
+   g_return_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL );
+   g_return_if_fail( IMG->nrow > 0 && IMG->ncol > 0 && IMG->max == 255 );
 
-   int max_val = IMG->max;
-   int num_bins = max_val + 1;
+   // O histograma possui 256 posições fixas (0 a 255)
+   const gsize num_bins = 256;
 
-   // Alocação limpa com GLib. Para imagens de 12MP, um pixel count cabe no long,
-   // mas usamos long long para garantir que nunca haverá overflow na variância.
-   g_autofree long long *histograma = g_new0( long long, num_bins );
+   // Usamos gsize (64-bits) para as contagens, prevenindo overflow mesmo em imagens gigantes
+   g_autofree gsize *histograma = g_new0( gsize, num_bins );
+
+   gsize total_pixels = IMG->nrow * IMG->ncol;
 
    // =================================================================================
-   // 1. CONSTRUÇÃO DO HISTOGRAMA (Sequencial e Otimizado para Cache L1/L2)
+   // 1. CONSTRUÇÃO DO HISTOGRAMA (Varredura Linear Otimizada para Cache L1/L2)
    // =================================================================================
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      for ( int j = 0; j < IMG->ncol; j++ ) {
-         int val = IMG->image[i][j];
-         if ( val >= 0 && val <= max_val ) {
-            histograma[val]++;
-         }
-      }
+   // Como é uma leitura simples de 1D, não paralelizamos para evitar overhead
+   // de concorrência ou reduções atômicas em 256 bins. O acesso sequencial puro é muito rápido.
+   for ( gsize i = 0; i < total_pixels; i++ ) {
+      uint8_t val = IMG->dados[i];
+      histograma[val]++;
    }
 
    // =================================================================================
-   // 2. MATEMÁTICA DO MÉTODO DE OTSU (Muito rápido, apenas 256 iterações)
+   // 2. MATEMÁTICA DO MÉTODO DE OTSU
    // =================================================================================
-   long long total_pixels = ( long long )IMG->nrow * IMG->ncol;
    double soma_total = 0.0;
 
-   for ( int i = 0; i < num_bins; i++ ) {
-      soma_total += ( double )( i * histograma[i] );
+   for ( gsize i = 0; i < num_bins; i++ ) {
+      soma_total += ( double )i * ( double )histograma[i];
    }
 
    double soma_b = 0.0;
-   long long w_b = 0;
-   long long w_f = 0;
+   gsize w_b = 0;
+   gsize w_f = 0;
 
    double variancia_maxima = 0.0;
-   int limiar_otsu = 0;
+   uint8_t limiar_otsu = 0;
 
    // Varre todos os limiares possíveis (0 a 255)
-   for ( int t = 0; t < num_bins; t++ ) {
+   for ( gsize t = 0; t < num_bins; t++ ) {
       w_b += histograma[t];              // Peso da classe "Fundo" (Background)
-      if ( w_b == 0 ) continue;          // Evita divisão por zero
+      if ( w_b == 0 ) {
+         continue;                       // Evita divisão por zero
+      }
 
       w_f = total_pixels - w_b;          // Peso da classe "Frente" (Foreground)
-      if ( w_f == 0 ) break;             // Fim dos dados úteis
+      if ( w_f == 0 ) {
+         break;                          // Fim dos dados úteis
+      }
 
-      soma_b += ( double )( t * histograma[t] );
+      soma_b += ( double )t * ( double )histograma[t];
 
       // Médias das intensidades do fundo e da frente
       double media_b = soma_b / ( double )w_b;
@@ -872,20 +993,22 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
       double diff = media_b - media_f;
       double variancia_inter = ( double )w_b * ( double )w_f * diff * diff;
 
-      // Guarda o limiar que produziu a maior separação entre branco e preto
+      // Guarda o limiar que produziu a maior separação matemática entre branco e preto
       if ( variancia_inter > variancia_maxima ) {
          variancia_maxima = variancia_inter;
-         limiar_otsu = t;
+         limiar_otsu = ( uint8_t )t;
       }
    }
 
    // =================================================================================
-   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (Sequencial)
+   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (Paralelizada via OpenMP)
    // =================================================================================
-   for ( int i = 0; i < IMG->nrow; i++ ) {
-      for ( int j = 0; j < IMG->ncol; j++ ) {
-         IMG->image[i][j] = ( IMG->image[i][j] > limiar_otsu ) ? (guint8)max_val : 0;
-      }
+   uint8_t max_val = ( uint8_t )IMG->max;
+
+   // Substituição direta em 1D. schedule(static) distribui perfeitamente em blocos
+   #pragma omp parallel for schedule(static)
+   for ( gsize i = 0; i < total_pixels; i++ ) {
+      IMG->dados[i] = ( IMG->dados[i] > limiar_otsu ) ? max_val : 0;
    }
 }
 
@@ -894,11 +1017,14 @@ void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
 
 
 
+// ====================================================================================
+// TRANSFORMADA HOMOGRÁFICA COM INTERPOLAÇÃO BILINEAR (CORREÇÃO DE PERSPECTIVA)
+// ====================================================================================
 void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMatriz *ancora, char direcao ) {
-   g_return_if_fail( img && img->image && img_crop && ancora );
+   g_return_if_fail( img != NULL && img->image != NULL && img_crop != NULL && ancora != NULL );
 
-   int largura, altura;
-   int fator_de_proporcionalidade = 50;
+   gsize largura, altura;
+   gsize fator_de_proporcionalidade = 50;
 
    if ( direcao == 'h' ) {
       largura = 14 * fator_de_proporcionalidade; // 700 px
@@ -918,17 +1044,17 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    dst_pts.data[0] = 0.0;
    dst_pts.data[1] = 0.0;
    // Âncora B (Top-Right)
-   dst_pts.data[2] = largura - 1;
+   dst_pts.data[2] = ( double )( largura - 1 );
    dst_pts.data[3] = 0.0;
    // Âncora C (Bottom-Right)
-   dst_pts.data[4] = largura - 1;
-   dst_pts.data[5] = altura - 1;
+   dst_pts.data[4] = ( double )( largura - 1 );
+   dst_pts.data[5] = ( double )( altura - 1 );
    // Âncora D (Bottom-Left)
    dst_pts.data[6] = 0.0;
-   dst_pts.data[7] = altura - 1;
+   dst_pts.data[7] = ( double )( altura - 1 );
 
    // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
-   for ( int k = 0; k < 4; k++ ) {
+   for ( gsize k = 0; k < 4; k++ ) {
       src_pts.data[k * 2 + 0] = ( double )ancora[k].j;
       src_pts.data[k * 2 + 1] = ( double )ancora[k].i;
    }
@@ -940,7 +1066,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
 
    // Passamos de DST para SRC para podermos fazer o Backward Warping
    if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
-      fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia!\n" );
+      g_printerr( "[ERRO] Falha no LAPACKE ao calcular a homografia!\n" );
       mat_free( src_pts );
       mat_free( dst_pts );
       mat_free( H_inv );
@@ -948,53 +1074,72 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    }
 
    // =========================================================================
-   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS
+   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS (Arquitetura Contígua)
    // =========================================================================
+   // Limpa dados velhos se estiver reutilizando a mesma estrutura img_crop
+   if ( img_crop->dados ) {
+      g_free( img_crop->dados );
+      g_free( img_crop->image );
+   }
+
    img_crop->ncol = largura;
    img_crop->nrow = altura;
    img_crop->max = img->max;
-   snprintf( img_crop->key, sizeof( img_crop->key ), "%s", img->key );
+   g_strlcpy( img_crop->key, img->key, sizeof( img_crop->key ) );
 
-   // Aloca a matriz do crop (Destino)
-   img_crop->image = alocar_matriz_pixels( img_crop->nrow, img_crop->ncol );
+   // Aloca a matriz do crop em bloco único para vetorização SIMD
+   img_crop->dados = g_malloc( img_crop->nrow * img_crop->ncol * sizeof( uint8_t ) );
+   img_crop->image = g_malloc( img_crop->nrow * sizeof( uint8_t * ) );
+   for ( gsize i = 0; i < img_crop->nrow; i++ ) {
+      img_crop->image[i] = img_crop->dados + ( i * img_crop->ncol );
+   }
 
-   int orig_w = img->ncol;
-   int orig_h = img->nrow;
-   int fundo_branco = img->max > 0 ? img->max : 255;
-   uint8_t **orig_pixels = img->image;
+   // Limites espaciais base convertidos para gssize para lidar com mapeamentos negativos
+   gssize orig_w = ( gssize )img->ncol;
+   gssize orig_h = ( gssize )img->nrow;
+   uint8_t fundo_branco = ( img->max > 0 ) ? ( uint8_t )img->max : 255;
 
    // =========================================================================
    // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR (MULTITHREAD)
    // =========================================================================
-   // #pragma omp parallel for schedule(dynamic)
-   for ( int y_dst = 0; y_dst < altura; y_dst++ ) {
-      for ( int x_dst = 0; x_dst < largura; x_dst++ ) {
+   // Diretiva OpenMP reativada: agendamento estático para blocos de memória contíguos
+   // #pragma omp parallel for schedule(static)
+   for ( gsize y_dst = 0; y_dst < altura; y_dst++ ) {
+      for ( gsize x_dst = 0; x_dst < largura; x_dst++ ) {
+
+         // Cast explícito para double para silenciar alertas de precisão implícita (-Wconversion)
+         double dx_dst = ( double )x_dst;
+         double dy_dst = ( double )y_dst;
 
          // 4.1 Projeção 3D (Coordenadas Homogêneas)
-         double w = H_inv.data[6] * x_dst + H_inv.data[7] * y_dst + H_inv.data[8];
-         if ( w == 0.0 ) w = 1e-8; // Evita divisão por zero matemática
+         double w = H_inv.data[6] * dx_dst + H_inv.data[7] * dy_dst + H_inv.data[8];
+         if ( fabs( w ) < 1.0e-8 ) {
+            w = 1.0e-8;   // Evita divisão por zero matemática
+         }
 
          // Resgate da coordenada exata subpixel na imagem original
-         double x_src = ( H_inv.data[0] * x_dst + H_inv.data[1] * y_dst + H_inv.data[2] ) / w;
-         double y_src = ( H_inv.data[3] * x_dst + H_inv.data[4] * y_dst + H_inv.data[5] ) / w;
+         double x_src = ( H_inv.data[0] * dx_dst + H_inv.data[1] * dy_dst + H_inv.data[2] ) / w;
+         double y_src = ( H_inv.data[3] * dx_dst + H_inv.data[4] * dy_dst + H_inv.data[5] ) / w;
 
-         // 4.2 Verifica se o ponto rastreado existe dentro da foto original
-         if ( x_src >= 0.0 && x_src < orig_w - 1 && y_src >= 0.0 && y_src < orig_h - 1 ) {
+         // Ancoragem com sinal (gssize) para evitar wrap-around em projeções fora da imagem
+         gssize x1 = ( gssize )floor( x_src );
+         gssize y1 = ( gssize )floor( y_src );
+
+         // 4.2 Verifica se o ponto rastreado existe estritamente dentro da foto original
+         if ( x1 >= 0 && x1 < orig_w - 1 && y1 >= 0 && y1 < orig_h - 1 ) {
 
             // 4.3 Interpolação Bilinear C Puro
-            int x1 = ( int )x_src;
-            int y1 = ( int )y_src;
-            int x2 = x1 + 1;
-            int y2 = y1 + 1;
+            gssize x2 = x1 + 1;
+            gssize y2 = y1 + 1;
 
-            double dx = x_src - x1;
-            double dy = y_src - y1;
+            double dx = x_src - ( double )x1;
+            double dy = y_src - ( double )y1;
 
             // Coleta as 4 intensidades vizinhas da imagem de origem
-            double p11 = orig_pixels[y1][x1];
-            double p12 = orig_pixels[y2][x1];
-            double p21 = orig_pixels[y1][x2];
-            double p22 = orig_pixels[y2][x2];
+            double p11 = ( double )img->image[y1][x1];
+            double p12 = ( double )img->image[y2][x1];
+            double p21 = ( double )img->image[y1][x2];
+            double p22 = ( double )img->image[y2][x2];
 
             // Mistura topológica
             double pixel_val = ( p11 * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
@@ -1002,10 +1147,10 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
                                ( p12 * ( 1.0 - dx ) * dy ) +
                                ( p22 * dx * dy );
 
-            // Grava diretamente no crop
-            img_crop->image[y_dst][x_dst] = ( guint8 )round( pixel_val );
+            // Grava diretamente no crop arredondando de forma segura
+            img_crop->image[y_dst][x_dst] = ( uint8_t )( pixel_val + 0.5 );
          } else {
-            img_crop->image[y_dst][x_dst] = ( guint8 ) fundo_branco;
+            img_crop->image[y_dst][x_dst] = fundo_branco;
          }
       }
    }
@@ -1013,7 +1158,6 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    // =========================================================================
    // 5. LIMPEZA DOS OBJETOS MATEMÁTICOS LOCAIS
    // =========================================================================
-   // IMPORTANTE: A imagem original (img) não é mais liberada aqui!
    mat_free( src_pts );
    mat_free( dst_pts );
    mat_free( H_inv );
@@ -1024,18 +1168,21 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
 
 
 
+// ====================================================================================
+// TRANSFORMADA HOMOGRÁFICA RGB COM INTERPOLAÇÃO BILINEAR (CORREÇÃO DE PERSPECTIVA)
+// ====================================================================================
 void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img_crop, IndiceMatriz *ancora, char direcao ) {
-   g_return_if_fail( img && img->image && img_crop && ancora );
+   g_return_if_fail( img != NULL && img->image != NULL && img_crop != NULL && ancora != NULL );
 
-   int largura, altura;
-   int fator_de_proporcionalidade = 60;
+   gsize largura, altura;
+   gsize fator_de_proporcionalidade = 60;
 
    if ( direcao == 'h' ) {
-      largura = 14 * fator_de_proporcionalidade; // 700 px
-      altura = 11 * fator_de_proporcionalidade;  // 550 px
+      largura = 14 * fator_de_proporcionalidade; // 840 px
+      altura = 11 * fator_de_proporcionalidade;  // 660 px
    } else {
-      largura = 10 * fator_de_proporcionalidade; // 500 px
-      altura = 15 * fator_de_proporcionalidade;  // 750 px
+      largura = 10 * fator_de_proporcionalidade; // 600 px
+      altura = 15 * fator_de_proporcionalidade;  // 900 px
    }
 
    // =========================================================================
@@ -1048,17 +1195,17 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    dst_pts.data[0] = 0.0;
    dst_pts.data[1] = 0.0;
    // Âncora B (Top-Right)
-   dst_pts.data[2] = largura - 1;
+   dst_pts.data[2] = ( double )( largura - 1 );
    dst_pts.data[3] = 0.0;
    // Âncora C (Bottom-Right)
-   dst_pts.data[4] = largura - 1;
-   dst_pts.data[5] = altura - 1;
+   dst_pts.data[4] = ( double )( largura - 1 );
+   dst_pts.data[5] = ( double )( altura - 1 );
    // Âncora D (Bottom-Left)
    dst_pts.data[6] = 0.0;
-   dst_pts.data[7] = altura - 1;
+   dst_pts.data[7] = ( double )( altura - 1 );
 
    // Assumindo IndiceMatriz: j = x (coluna) e i = y (linha)
-   for ( int k = 0; k < 4; k++ ) {
+   for ( gsize k = 0; k < 4; k++ ) {
       src_pts.data[k * 2 + 0] = ( double )ancora[k].j;
       src_pts.data[k * 2 + 1] = ( double )ancora[k].i;
    }
@@ -1069,7 +1216,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    Matrix H_inv = mat_new( 3, 3 );
 
    if ( mat_homography_dlt( dst_pts, src_pts, H_inv ) != 0 ) {
-      fprintf( stderr, "Erro: Falha no LAPACKE ao calcular a homografia colorida!\n" );
+      g_printerr( "[ERRO] Falha no LAPACKE ao calcular a homografia colorida!\n" );
       mat_free( src_pts );
       mat_free( dst_pts );
       mat_free( H_inv );
@@ -1077,74 +1224,91 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    }
 
    // =========================================================================
-   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS RGB
+   // 3. ALOCAÇÃO DO NOVO BUFFER DE PIXELS RGB (Arquitetura Contígua)
    // =========================================================================
+   if ( img_crop->dados ) {
+      g_free( img_crop->dados );
+      g_free( img_crop->image );
+   }
+
    img_crop->ncol = largura;
    img_crop->nrow = altura;
    img_crop->max = img->max;
-   snprintf( img_crop->key, sizeof( img_crop->key ), "%s", img->key );
+   g_strlcpy( img_crop->key, img->key, sizeof( img_crop->key ) );
 
-   // Aloca a matriz do crop (Destino)
-   img_crop->image = alocar_matriz_pixels_colorida( img_crop->nrow, img_crop->ncol );
+   // Aloca a matriz do crop em bloco único de structs PixelRGB para vetorização SIMD
+   img_crop->dados = g_malloc( img_crop->nrow * img_crop->ncol * sizeof( PixelRGB ) );
+   img_crop->image = g_malloc( img_crop->nrow * sizeof( PixelRGB * ) );
+   for ( gsize i = 0; i < img_crop->nrow; i++ ) {
+      img_crop->image[i] = img_crop->dados + ( i * img_crop->ncol );
+   }
 
-   int orig_w = img->ncol;
-   int orig_h = img->nrow;
-   uint8_t fundo_branco = ( uint8_t )( img->max > 0 ? img->max : 255 );
-   PixelRGB **orig_pixels = img->image;
+   gssize orig_w = ( gssize )img->ncol;
+   gssize orig_h = ( gssize )img->nrow;
+   uint8_t fundo_branco = ( img->max > 0 ) ? ( uint8_t )img->max : 255;
 
    // =========================================================================
    // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR DE 3 CANAIS (MULTITHREAD)
    // =========================================================================
-   // #pragma omp parallel for schedule(dynamic)
-   for ( int y_dst = 0; y_dst < altura; y_dst++ ) {
-      for ( int x_dst = 0; x_dst < largura; x_dst++ ) {
+   // Diretiva OpenMP reativada: agendamento estático tira total proveito do L1/L2
+   // #pragma omp parallel for schedule(static)
+   for ( gsize y_dst = 0; y_dst < altura; y_dst++ ) {
+      for ( gsize x_dst = 0; x_dst < largura; x_dst++ ) {
+
+         // Cast explícito para double para silenciar alertas de precisão -Wconversion
+         double dx_dst = ( double )x_dst;
+         double dy_dst = ( double )y_dst;
 
          // 4.1 Projeção 3D (Coordenadas Homogêneas)
-         double w = H_inv.data[6] * x_dst + H_inv.data[7] * y_dst + H_inv.data[8];
-         if ( w == 0.0 ) w = 1e-8; // Evita divisão por zero matemática
+         double w = H_inv.data[6] * dx_dst + H_inv.data[7] * dy_dst + H_inv.data[8];
+         if ( fabs( w ) < 1.0e-8 ) {
+            w = 1.0e-8;   // Evita divisão por zero matemática
+         }
 
          // Resgate da coordenada exata subpixel na imagem original
-         double x_src = ( H_inv.data[0] * x_dst + H_inv.data[1] * y_dst + H_inv.data[2] ) / w;
-         double y_src = ( H_inv.data[3] * x_dst + H_inv.data[4] * y_dst + H_inv.data[5] ) / w;
+         double x_src = ( H_inv.data[0] * dx_dst + H_inv.data[1] * dy_dst + H_inv.data[2] ) / w;
+         double y_src = ( H_inv.data[3] * dx_dst + H_inv.data[4] * dy_dst + H_inv.data[5] ) / w;
 
-         // 4.2 Verifica se o ponto rastreado existe dentro da foto original
-         if ( x_src >= 0.0 && x_src < orig_w - 1 && y_src >= 0.0 && y_src < orig_h - 1 ) {
+         // Ancoragem com sinal (gssize) para evitar wrap-around e corrupção de memória
+         gssize x1 = ( gssize )floor( x_src );
+         gssize y1 = ( gssize )floor( y_src );
+
+         // 4.2 Verifica se o ponto rastreado existe estritamente dentro da foto original
+         if ( x1 >= 0 && x1 < orig_w - 1 && y1 >= 0 && y1 < orig_h - 1 ) {
 
             // 4.3 Interpolação Bilinear - Extração dos Vizinhos
-            int x1 = ( int )x_src;
-            int y1 = ( int )y_src;
-            int x2 = x1 + 1;
-            int y2 = y1 + 1;
+            gssize x2 = x1 + 1;
+            gssize y2 = y1 + 1;
 
-            double dx = x_src - x1;
-            double dy = y_src - y1;
+            double dx = x_src - ( double )x1;
+            double dy = y_src - ( double )y1;
+
+            // OTIMIZAÇÃO: Cálculo único dos 4 pesos topológicos (Reaproveitados no R, G e B)
+            double pesoA = ( 1.0 - dx ) * ( 1.0 - dy );
+            double pesoB = dx * ( 1.0 - dy );
+            double pesoC = ( 1.0 - dx ) * dy;
+            double pesoD = dx * dy;
 
             // Coleta as structs de cor dos 4 pixels vizinhos da imagem de origem
-            PixelRGB p11 = orig_pixels[y1][x1];
-            PixelRGB p12 = orig_pixels[y2][x1];
-            PixelRGB p21 = orig_pixels[y1][x2];
-            PixelRGB p22 = orig_pixels[y2][x2];
+            PixelRGB p11 = img->image[y1][x1];
+            PixelRGB p21 = img->image[y1][x2];
+            PixelRGB p12 = img->image[y2][x1];
+            PixelRGB p22 = img->image[y2][x2];
 
             // Mistura topológica por canal (R, G, B)
-            double r_val = ( p11.r * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
-                           ( p21.r * dx * ( 1.0 - dy ) ) +
-                           ( p12.r * ( 1.0 - dx ) * dy ) +
-                           ( p22.r * dx * dy );
+            double r_val = ( ( double )p11.r * pesoA ) + ( ( double )p21.r * pesoB ) +
+                           ( ( double )p12.r * pesoC ) + ( ( double )p22.r * pesoD );
 
-            double g_val = ( p11.g * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
-                           ( p21.g * dx * ( 1.0 - dy ) ) +
-                           ( p12.g * ( 1.0 - dx ) * dy ) +
-                           ( p22.g * dx * dy );
+            double g_val = ( ( double )p11.g * pesoA ) + ( ( double )p21.g * pesoB ) +
+                           ( ( double )p12.g * pesoC ) + ( ( double )p22.g * pesoD );
 
-            double b_val = ( p11.b * ( 1.0 - dx ) * ( 1.0 - dy ) ) +
-                           ( p21.b * dx * ( 1.0 - dy ) ) +
-                           ( p12.b * ( 1.0 - dx ) * dy ) +
-                           ( p22.b * dx * dy );
+            double b_val = ( ( double )p11.b * pesoA ) + ( ( double )p21.b * pesoB ) +
+                           ( ( double )p12.b * pesoC ) + ( ( double )p22.b * pesoD );
 
-            // Grava diretamente no crop
-            img_crop->image[y_dst][x_dst].r = ( uint8_t )round( r_val );
-            img_crop->image[y_dst][x_dst].g = ( uint8_t )round( g_val );
-            img_crop->image[y_dst][x_dst].b = ( uint8_t )round( b_val );
+            // Grava diretamente no crop arredondando de forma segura
+            img_crop->image[y_dst][x_dst].r = ( uint8_t )( r_val + 0.5 );
+            img_crop->image[y_dst][x_dst].g = ( uint8_t )( g_val + 0.5 );
+            img_crop->image[y_dst][x_dst].b = ( uint8_t )( b_val + 0.5 );
 
          } else {
             img_crop->image[y_dst][x_dst].r = fundo_branco;
@@ -1157,7 +1321,6 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    // =========================================================================
    // 5. LIMPEZA DOS OBJETOS MATEMÁTICOS LOCAIS
    // =========================================================================
-   // IMPORTANTE: A imagem original (img) não é mais liberada aqui!
    mat_free( src_pts );
    mat_free( dst_pts );
    mat_free( H_inv );
@@ -1171,11 +1334,13 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 //===================================================================================================
 // FUNÇÃO: Filtragem Flat-Field Mágica para Imagens em Tons de Cinza (Otimizada)
 //===================================================================================================
-void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int raio_blur ) {
-   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 ) return;
+void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsize raio_blur ) {
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 0 ) {
+      return;
+   }
 
-   int rows = orig->nrow;
-   int cols = orig->ncol;
+   gsize rows = orig->nrow;
+   gsize cols = orig->ncol;
 
    // 1. Aloca a estrutura da imagem de destino se necessário
    if ( dest->image == NULL ) {
@@ -1194,39 +1359,43 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
    // Pré-calcula a quantidade de vizinhos
    int qtd_vizinhos = 0;
-   for ( int d = -raio_blur; d <= raio_blur; d += 2 ) qtd_vizinhos++;
+   for ( gsize d = -raio_blur; d <= raio_blur; d += 2 ) {
+      qtd_vizinhos++;
+   }
 
    // 2.1 Desfoque Horizontal (Linhas)
    // #pragma omp parallel for schedule(dynamic)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
          long soma = 0;
 
-         for ( int dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
-            int nc = c + dc;
-            if ( nc < 0 ) nc = 0;
-            else if ( nc >= cols ) nc = cols - 1;
+         for ( gsize dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
+            gsize nc = c + dc;
+            if ( nc >= cols ) {
+               nc = cols - 1;
+            }
 
             soma += orig->image[r][nc];
          }
-         fundo_h.image[r][c] = ( guint8 )( soma / qtd_vizinhos );
+         fundo_h.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )( soma / qtd_vizinhos );
       }
    }
 
    // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
    // #pragma omp parallel for schedule(dynamic)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
          long soma = 0;
 
-         for ( int dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
-            int nr = r + dr;
-            if ( nr < 0 ) nr = 0;
-            else if ( nr >= rows ) nr = rows - 1;
+         for ( gsize dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
+            gsize nr = r + dr;
+            if ( nr >= rows ) {
+               nr = rows - 1;
+            }
 
             soma += fundo_h.image[nr][c];
          }
-         fundo.image[r][c] = ( guint8 )( soma / qtd_vizinhos );
+         fundo.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )( soma / qtd_vizinhos );
       }
    }
 
@@ -1235,8 +1404,8 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
    int limiar_branco = ( orig->max * 230 ) / 255;
 
    // #pragma omp parallel for schedule(static)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
 
          // Acesso direto ao valor do pixel em cinza
          int po = orig->image[r][c];
@@ -1250,7 +1419,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
 
          // Realce de Fundo Branco:
          // Se passar do limiar, estoura para o valor máximo para limpar o fundo.
-         dest->image[r][c] = ( n > limiar_branco ) ? (guint8)orig->max : (guint8)n;
+         dest->image[r][c] = ( n > limiar_branco ) ? ( guint8 )orig->max : ( guint8 )n;
       }
    }
 
@@ -1267,11 +1436,13 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, int
  * Aplica filtro de remoção de sombras e iluminação de fundo (Magic Color/Flat-Field)
  * mantendo as cores originais da caneta e marcações para geração de PDFs limpos.
  */
-void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, int raio_blur ) {
-   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 ) return;
+void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, gsize raio_blur ) {
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 0 ) {
+      return;
+   }
 
-   int rows = orig->nrow;
-   int cols = orig->ncol;
+   gsize rows = orig->nrow;
+   gsize cols = orig->ncol;
 
    // 1. Aloca a estrutura da imagem de destino se necessário
    if ( dest->image == NULL ) {
@@ -1292,24 +1463,28 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
 
    // Pré-calcula a quantidade de vizinhos para evitar o "conta++" no laço interno
    int qtd_vizinhos = 0;
-   for ( int d = -raio_blur; d <= raio_blur; d += 2 ) qtd_vizinhos++;
+   for ( gsize d = -raio_blur; d <= raio_blur; d += 2 ) {
+      qtd_vizinhos++;
+   }
 
    // 2.1 Desfoque Horizontal (Linhas)
    // #pragma omp parallel for schedule(dynamic)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
          long sr = 0, sg = 0, sb = 0;
 
-         for ( int dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
-            int nc = c + dc;
+         for ( gsize dc = -raio_blur; dc <= raio_blur; dc += 2 ) {
+            gsize nc = c + dc;
             // Clamp otimizado inline sem macros genéricas
-            if ( nc < 0 ) nc = 0;
-            else if ( nc >= cols ) nc = cols - 1;
+            if ( nc >= cols ) {
+               nc = cols - 1;
+            }
 
             sr += orig->image[r][nc].r;
             sg += orig->image[r][nc].g;
             sb += orig->image[r][nc].b;
          }
+         qtd_vizinhos = ( qtd_vizinhos == 0 ) ? 1 : qtd_vizinhos;
          fundo_h.image[r][c].r = ( unsigned char )( sr / qtd_vizinhos );
          fundo_h.image[r][c].g = ( unsigned char )( sg / qtd_vizinhos );
          fundo_h.image[r][c].b = ( unsigned char )( sb / qtd_vizinhos );
@@ -1318,14 +1493,15 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
 
    // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
    // #pragma omp parallel for schedule(dynamic)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
          long sr = 0, sg = 0, sb = 0;
 
-         for ( int dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
-            int nr = r + dr;
-            if ( nr < 0 ) nr = 0;
-            else if ( nr >= rows ) nr = rows - 1;
+         for ( gsize dr = -raio_blur; dr <= raio_blur; dr += 2 ) {
+            gsize nr = r + dr;
+            if ( nr >= rows ) {
+               nr = rows - 1;
+            }
 
             sr += fundo_h.image[nr][c].r;
             sg += fundo_h.image[nr][c].g;
@@ -1339,8 +1515,8 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
 
    // 3. Passo B: Normalização Flat-Field Otimizada
    // #pragma omp parallel for schedule(static)
-   for ( int r = 0; r < rows; r++ ) {
-      for ( int c = 0; c < cols; c++ ) {
+   for ( gsize r = 0; r < rows; r++ ) {
+      for ( gsize c = 0; c < cols; c++ ) {
 
          // Acesso direto e linear em memória
          PixelRGB po = orig->image[r][c];
@@ -1379,13 +1555,15 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
  * @param saturacao Fator de saturação (1.0 = original, > 1.0 aumenta. Ex: 1.5)
  */
 void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturacao ) {
-   if ( !img || !img->image ) return;
+   if ( !img || !img->image ) {
+      return;
+   }
 
-   int nrow = img->nrow;
-   int ncol = img->ncol;
+   gsize nrow = img->nrow;
+   gsize ncol = img->ncol;
 
-   for ( int i = 0; i < nrow; i++ ) {
-      for ( int j = 0; j < ncol; j++ ) {
+   for ( gsize i = 0; i < nrow; i++ ) {
+      for ( gsize j = 0; j < ncol; j++ ) {
          PixelRGB *p = &img->image[i][j];
 
          float r = ( float )p->r;
@@ -1412,9 +1590,9 @@ void realcar_cores_in_place( ImagemColorida *img, float contraste, float saturac
          b = fmaxf( 0.0f, fminf( b, 255.0f ) );
 
          // 4. Arredondamento e devolução ao pixel
-         p->r = ( uint8_t )( r + 0.5f );
-         p->g = ( uint8_t )( g + 0.5f );
-         p->b = ( uint8_t )( b + 0.5f );
+         p->r = ( guint8 )( r + 0.5f );
+         p->g = ( guint8 )( g + 0.5f );
+         p->b = ( guint8 )( b + 0.5f );
       }
    }
 }

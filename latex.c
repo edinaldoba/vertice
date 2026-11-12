@@ -32,7 +32,7 @@ static gboolean executar_gerador_c_nativamente( const char *pasta_tema ) {
       if ( quantidade_arquivos_por_extensao( pasta_tema, ".h" ) == 1 ) {
 
          // O 'sh -c' gerencia o '&&' e garante que a execução ocorra estritamente dentro da pasta
-         g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+         g_auto( GStrv ) argv = g_new0( gchar *, ( gsize )4 );
          argv[0] = g_strdup( "sh" );
          argv[1] = g_strdup( "-c" );
          argv[2] = g_strdup( "gcc Q.c -lm -O3 -march=native -o Q && ./Q" );
@@ -166,7 +166,9 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
       // g_autofree evita memory leak atômico no loop
       g_autofree gchar *conteudo_arquivo = NULL;
-      if ( !g_file_get_contents( questao, &conteudo_arquivo, NULL, NULL ) ) continue;
+      if ( !g_file_get_contents( questao, &conteudo_arquivo, NULL, NULL ) ) {
+         continue;
+      }
 
       // Fatiamento nativo em matriz de strings baseada nas quebras de linha (\n)
       g_auto( GStrv ) linhas = g_strsplit( conteudo_arquivo, "\n", -1 );
@@ -218,7 +220,9 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
             i++; // Move o cursor para a primeira alternativa
             for ( int letra = 65; letra < 70; letra++ ) {
-               if ( linhas[i] == NULL ) break;
+               if ( linhas[i] == NULL ) {
+                  break;
+               }
 
                gchar letra_str[2] = { ( gchar )letra, '\0' };
 
@@ -253,7 +257,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
                     "\\end{document}\n" );
 
    GError *error = NULL;
-   if ( !g_file_set_contents( tema_pdf, tex->str, (guint)tex->len, &error ) ) {
+   if ( !g_file_set_contents( tema_pdf, tex->str, ( guint )tex->len, &error ) ) {
       g_printerr( "[ERRO] Não foi possível criar o arquivo de destino em: %s (%s)\n", pasta_tema, error->message );
       g_error_free( error );
    }
@@ -268,7 +272,9 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    const CaminhoDiretorio *caminho = &( ctx->caminho );
    const InterfaceProva *prova = &ctx->prova;
 
-   if ( prova->subtemas == NULL ) return;
+   if ( prova->subtemas == NULL ) {
+      return;
+   }
 
    // 1. Delega a construção dos arquivos .tex para o Motor LaTeX
    for ( int i = 0; i < prova->limite_subtemas; i++ ) {
@@ -307,7 +313,9 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
    const CaminhoDiretorio *caminho = &( ctx->caminho );
    const InterfaceProva *prova = &ctx->prova;
 
-   if ( prova->subtemas == NULL ) return;
+   if ( prova->subtemas == NULL ) {
+      return;
+   }
 
    gboolean mecanismo_executado = FALSE;
 

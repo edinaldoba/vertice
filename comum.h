@@ -109,29 +109,8 @@ typedef struct {
 } Ponto2D;
 
 typedef struct {
-   char str[8];
-} StringNota;
-
-typedef struct {
-   char str[32];
-} ItemTextoCurto;
-
-typedef struct {
-   uint8_t r, g, b;
-} PixelRGB;
-
-// typedef struct {
-//    char str[64];
-// } ItemCombo;
-
-typedef struct {
    int dia, mes, ano;
 } CalendarioData;
-
-typedef struct {
-   char aluno[64];
-   gboolean ativo;
-} FichaAuxiliar;
 //=========================================================================================================//
 
 
@@ -305,8 +284,8 @@ typedef enum {
 // ESTRUTURA BLINDADA PARA FICHA BINÁRIA (Tamanho fixo congelado)
 typedef struct {
    FlagsAtipicidade flags;     // Mapeamento de até 31 CIDs/Atipicidades combinadas (4 bytes)
-   uint8_t  nivel_suporte_tea; // 0 = N/A, 1 = Nível 1, 2 = Nível 2, 3 = Nível 3 (1 byte)
-   uint8_t  reservado1;        // Espaço reservado para expansões futuras (1 byte)
+   guint8  nivel_suporte_tea; // 0 = N/A, 1 = Nível 1, 2 = Nível 2, 3 = Nível 3 (1 byte)
+   guint8  reservado1;        // Espaço reservado para expansões futuras (1 byte)
    uint16_t reservado2;        // Espaço reservado para expansões futuras (2 bytes)
 } __attribute__( ( packed ) ) FichaAtipicidade;
 
@@ -393,9 +372,9 @@ typedef struct {
    SituacaoAluno sit;
    gboolean      ativo;
 
-   uint8_t  limite_corte;
-   uint8_t  idx_siaep;
-   uint8_t  lim_disc;
+   guint8  limite_corte;
+   guint8  idx_siaep;
+   guint8  lim_disc;
    gboolean ficha_modificada;
 
    // Array Flexível (Flexible Array Member) - DEVE ser sempre o último campo!
@@ -416,7 +395,7 @@ typedef struct {
 //    FichaAtipicidade atipico;
 //    SituacaoAluno sit;
 //    gboolean      ativo;
-//    uint8_t  limite_corte;
+//    guint8  limite_corte;
 //    uint16_t idx_siaep;
 //
 //    // Estrutura interna legada acoplada
@@ -487,30 +466,40 @@ typedef struct {
 
    StatusMapeamento status;
 
-   uint8_t id;
-   uint8_t turma;
-   uint8_t disc;
-   uint8_t per;
-   uint8_t seq;
+   guint8 id;
+   guint8 turma;
+   guint8 disc;
+   guint8 per;
+   guint8 seq;
 
    int acertos;
 
 } __attribute__( ( packed ) ) MapeamentoGabarito;
 
 
+// PixelRGB bem alinhado (3 bytes exatos, sem padding surpresa)
 typedef struct {
-   char key[5];      // Identificador do formato (ex: "P2", "P5")
-   int ncol, nrow;   // Dimensões da imagem (Largura e Altura)
-   int max;          // Valor máximo de intensidade do pixel
-   uint8_t **image;      // Matriz bidimensional de tons de cinza alocada dinamicamente
+   guint8 r;
+   guint8 g;
+   guint8 b;
+} PixelRGB;
+
+typedef struct {
+   gchar key[5];          // Identificador do formato ("P2", "P5")
+   gsize ncol;           // Largura (gsize elimina -Wsign-conversion em malloc/memcpy)
+   gsize nrow;           // Altura
+   guint16 max;          // Valor máximo de intensidade (suporta 8 e 16 bits sem desperdício)
+   guint8 *dados;       // Bloco único contíguo na memória (1D real)
+   guint8 **image;      // Ponteiros de linha (mantém 100% de compatibilidade com img->image[y][x]!)
 } ImagemCinza;
 
-
 typedef struct {
-   char key[5];         // Identificador do formato (ex: "P3", "P6")
-   int ncol, nrow;      // Dimensões da imagem
-   int max;             // Valor máximo para os canais de cor
-   PixelRGB **image;    // Matriz bidimensional de estruturas de pixel RGB
+   gchar key[5];          // Identificador do formato ("P3", "P6")
+   gsize ncol;           // Largura
+   gsize nrow;           // Altura
+   guint16 max;          // Valor máximo para os canais de cor
+   PixelRGB *dados;      // Bloco único contíguo na memória (1D real)
+   PixelRGB **image;     // Ponteiros de linha (mantém 100% de compatibilidade com img->image[y][x]!)
 } ImagemColorida;
 //=========================================================================================================//
 
