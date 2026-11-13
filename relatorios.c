@@ -60,7 +60,7 @@ static void gerar_arquivo_siaep_notas( const AppContext *ctx ) {
    int per = cabecalho->foco_periodo;
 
    // Construção em memória usando GString (Velocidade Extrema de I/O)
-   g_autoptr( GString ) siaep = g_string_sized_new( ( guint )qtd_alunos * 10 * 8 );
+   g_autoptr( GString ) siaep = g_string_sized_new( ( guint )( qtd_alunos * 10 * 8 ) );
 
    // 3. Exporta exatamente 10 linhas fixas (5 avaliações x 2: AV e REC)
    for ( int j = 0; j < 10; j++ ) {
@@ -246,8 +246,8 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 /**
  * Calcula a média de um ÚNICO PERÍODO com base nas avaliações marcadas como válidas.
  */
-static void _calcular_media_do_periodo( FichaAluno *ficha, const InterfaceAvaliacao *avaliacao,
-                                        const InterfaceCabecalho *cabecalho ) {
+static void calcular_media_do_periodo_aux( FichaAluno *ficha, const InterfaceAvaliacao *avaliacao,
+      const InterfaceCabecalho *cabecalho ) {
    float soma_notas = 0.0f;
    gboolean tem_nota_valida = FALSE;
    float divisor = ( avaliacao->qtd_validas > 0 ) ? ( float )avaliacao->qtd_validas : 1.0f;
@@ -290,7 +290,7 @@ void calcular_nota_periodo( const AppContext *ctx ) {
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
       FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
-      _calcular_media_do_periodo( ficha, avaliacao, cabecalho );
+      calcular_media_do_periodo_aux( ficha, avaliacao, cabecalho );
    }
 }
 
@@ -321,7 +321,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 // lançada para nenhum aluno da turma naquela disciplina.
 // Otimizada com early-exit (break) assim que descobre que o período já iniciou.
 //===================================================================================================
-static int _numero_de_periodos_sem_notas_registradas( GPtrArray *fichas, int foco_disc ) {
+static int numero_de_periodos_sem_notas_registradas_aux( GPtrArray *fichas, int foco_disc ) {
    gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
 
    for ( guint i = 0; i < fichas->len; i++ ) {
@@ -355,7 +355,7 @@ static int _numero_de_periodos_sem_notas_registradas( GPtrArray *fichas, int foc
 //---------------------------------------------------------------------------------------------------
 // FUNÇÃO AUXILIAR 2: Classifica o status de aprovação de acordo com o regimento (Conselho, Rec Final)
 //---------------------------------------------------------------------------------------------------
-static void _atribuir_observacao_aluno( RelatorioAnual *rel, int faltantes_globais ) {
+static void atribuir_observacao_aluno_aux( RelatorioAnual *rel, int faltantes_globais ) {
    if ( rel->soma < 0.0f ) {
       return;
    }
@@ -384,7 +384,7 @@ static void _atribuir_observacao_aluno( RelatorioAnual *rel, int faltantes_globa
 //---------------------------------------------------------------------------------------------------
 // FUNÇÃO AUXILIAR 3: Varre um único aluno e calcula a sua soma total de pontos
 //---------------------------------------------------------------------------------------------------
-static void _calcular_consolidado_anual_individual( FichaAluno *ficha, int foco_disciplina, int faltantes_globais ) {
+static void calcular_consolidado_anual_individual_aux( FichaAluno *ficha, int foco_disciplina, int faltantes_globais ) {
    if ( !ficha || !ficha->ativo ) {
       return;
    }
@@ -410,7 +410,7 @@ static void _calcular_consolidado_anual_individual( FichaAluno *ficha, int foco_
       rel->soma        = acumulador_soma;
       rel->media_anual = acumulador_soma / 4.0f;
 
-      _atribuir_observacao_aluno( rel, faltantes_globais );
+      atribuir_observacao_aluno_aux( rel, faltantes_globais );
       ficha->ficha_modificada = TRUE;
    }
 }
@@ -424,11 +424,11 @@ void calcular_consolidado_anual( GPtrArray *fichas, int foco_disciplina ) {
       return;
    }
 
-   int faltantes_globais = _numero_de_periodos_sem_notas_registradas( fichas, foco_disciplina );
+   int faltantes_globais = numero_de_periodos_sem_notas_registradas_aux( fichas, foco_disciplina );
 
    for ( guint i = 0; i < fichas->len; i++ ) {
       FichaAluno *ficha = g_ptr_array_index( fichas, i );
-      _calcular_consolidado_anual_individual( ficha, foco_disciplina, faltantes_globais );
+      calcular_consolidado_anual_individual_aux( ficha, foco_disciplina, faltantes_globais );
    }
 }
 //===================================================================================================
@@ -437,7 +437,9 @@ void calcular_consolidado_anual( GPtrArray *fichas, int foco_disciplina ) {
 
 
 
-//===================================================================================================
+// ====================================================================================
+// ESTRUTURA E DESTRUTOR AUTOMÁTICO DA LINHA DE RELATÓRIO TEX
+// ====================================================================================
 typedef struct {
    gchar *nome;
    gchar *notas[4];
@@ -448,10 +450,7 @@ typedef struct {
    gchar *obs;
 } LinhaRelatorioTeX;
 
-//---------------------------------------------------------------------------------------------------
-// FUNÇÃO DE LIMPEZA: Desaloca os ponteiros dinâmicos da linha
-//---------------------------------------------------------------------------------------------------
-static void _linha_relatorio_tex_limpar( LinhaRelatorioTeX *linha ) {
+static void linha_relatorio_tex_limpar_aux( LinhaRelatorioTeX *linha ) {
    if ( !linha ) {
       return;
    }
@@ -464,16 +463,39 @@ static void _linha_relatorio_tex_limpar( LinhaRelatorioTeX *linha ) {
    g_free( linha->rec );
    g_free( linha->cons );
    g_free( linha->obs );
-   memset( linha, 0, sizeof( LinhaRelatorioTeX ) );
+
+   // Zera a struct sem acionar o alerta do clang-tidy sobre memset
+   *linha = ( LinhaRelatorioTeX ) {
+      0
+   };
 }
 
-//===================================================================================================
-// FUNÇÃO AUXILIAR: Extrai os dados da FichaAluno (Memória) e aloca dinamicamente os campos TeX
-//===================================================================================================
-static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
-   // Zera e garante que não há lixo de memória
-   memset( linha, 0, sizeof( LinhaRelatorioTeX ) );
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC( LinhaRelatorioTeX, linha_relatorio_tex_limpar_aux )
 
+// ====================================================================================
+// HELPERS DE FORMATAÇÃO DE CÉLULAS LATEX (Alocação Única + Vírgula Decimal)
+// ====================================================================================
+static gchar* formatar_nota_tex( float valor, gboolean ativo, gboolean negrito, gboolean avaliar_corte ) {
+   if ( valor < 0.0f ) {
+      return g_strdup( "" );
+   }
+
+   const char *cor  = !ativo ? "gray!50" : ( ( avaliar_corte && valor < 6.0f ) ? "red" : "black" );
+   const char *pref = negrito ? "\\bf " : "";
+
+   gchar *str = g_strdup_printf( "\\textcolor{%s}{%s%.2f}", cor, pref, ( double )valor );
+   return g_strdelimit( str, ".", ',' );
+}
+
+// ====================================================================================
+// EXTRAÇÃO DOS DADOS DA FICHA E FORMATAÇÃO DAS COLUNAS TEX
+// ====================================================================================
+static void preencher_linha_relatorio_tex_aux( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
+   g_return_if_fail( ficha != NULL && linha != NULL );
+
+   *linha = ( LinhaRelatorioTeX ) {
+      0
+   };
    const RelatorioAnual *rel = &ficha->disciplina[disc].relatorio;
 
    // --- PASSO A: Nome do Aluno ---
@@ -485,98 +507,74 @@ static void _preencher_linha_relatorio_tex( const FichaAluno *ficha, int disc, L
 
    // --- PASSO B: Notas dos 4 Períodos ---
    for ( int k = 0; k < 4; k++ ) {
-      float med = rel->notas_periodos[k];
-      if ( med >= 0.0f ) {
-         const char *cor = ficha->ativo ? ( ( med < 6.0f ) ? "red" : "black" ) : "gray!50";
-         linha->notas[k] = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, ( double )med );
-      } else {
-         linha->notas[k] = g_strdup( "" ); // Mantém seguro para não quebrar a concatenação
-      }
+      linha->notas[k] = formatar_nota_tex( rel->notas_periodos[k], ficha->ativo, FALSE, TRUE );
    }
 
-   // --- PASSO C: Soma, Média, Recuperação e Conselho ---
-   linha->soma  = g_strdup( "" );
-   linha->media = g_strdup( "" );
-   linha->rec   = g_strdup( "" );
-   linha->cons  = g_strdup( "" );
-
+   // --- PASSO C: Soma, Média, Recuperação e Conselho (Alocação única, sem g_strdup("") prévio) ---
    if ( rel->soma >= 0.0f ) {
-      g_free( linha->soma );
-      g_free( linha->media );
-
-      if ( ficha->ativo ) {
-         linha->soma = g_strdup_printf( "{\\bf %.2f}", ( double )rel->soma );
-         const char *cor_media = ( rel->media_anual < 6.0f ) ? "red" : "black";
-         linha->media = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor_media, ( double )rel->media_anual );
-      } else {
-         linha->soma = g_strdup_printf( "\\textcolor{gray!50}{\\bf %.2f}", ( double )rel->soma );
-         linha->media = g_strdup_printf( "\\textcolor{gray!50}{%.2f}", ( double )rel->media_anual );
-      }
+      linha->soma  = formatar_nota_tex( rel->soma,        ficha->ativo, TRUE,  FALSE );
+      linha->media = formatar_nota_tex( rel->media_anual, ficha->ativo, FALSE, TRUE );
+   } else {
+      linha->soma  = g_strdup( "" );
+      linha->media = g_strdup( "" );
    }
 
-   if ( rel->rec_final >= 0.0f ) {
-      g_free( linha->rec );
-      const char *cor = ficha->ativo ? ( ( rel->rec_final < 6.0f ) ? "red" : "black" ) : "gray!50";
-      linha->rec = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, ( double )rel->rec_final );
+   linha->rec  = formatar_nota_tex( rel->rec_final, ficha->ativo, FALSE, TRUE );
+   linha->cons = formatar_nota_tex( rel->conselho,  ficha->ativo, FALSE, TRUE );
+
+   // --- PASSO D: Observação baseada no Enum consolidado na memória ---
+   if ( rel->soma < 0.0f ) {
+      linha->obs = g_strdup( "" );
+      return;
    }
 
-   if ( rel->conselho >= 0.0f ) {
-      g_free( linha->cons );
-      const char *cor = ficha->ativo ? ( ( rel->conselho < 6.0f ) ? "red" : "black" ) : "gray!50";
-      linha->cons = g_strdup_printf( "\\textcolor{%s}{%.2f}", cor, ( double )rel->conselho );
+   const char *obs_tex = "";
+   switch ( rel->obs ) {
+   case OBS_ALUNO_APROVADO_NO_CONSELHO:
+      obs_tex = "\\textcolor{RoyalBlue}{\\small\\bf Aprov Cons}";
+      break;
+   case OBS_ALUNO_REPROVADO:
+      obs_tex = "\\textcolor{BrickRed}{\\small\\bf Reprovado}";
+      break;
+   case OBS_ALUNO_APROVADO_NA_FINAL:
+      obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Final}";
+      break;
+   case OBS_ALUNO_EM_CONSELHO_CLASSE:
+      obs_tex = "\\textcolor{BurntOrange}{\\small\\bf Conselho}";
+      break;
+   case OBS_ALUNO_APROVADO_DIRETO:
+      obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Direto}";
+      break;
+   case OBS_ALUNO_EM_RECUPERACAO_FINAL:
+      obs_tex = "\\textcolor{BrickRed}{\\small\\bf Rec. Final}";
+      break;
+   case OBS_ALUNO_CURSANDO:
+   default:
+      obs_tex = ficha->ativo ? "Cursando" : "";
+      break;
    }
 
-   // --- PASSO D: Observação baseada no Enum já calculado na memória ---
-   linha->obs = g_strdup( "" );
-
-   if ( rel->soma >= 0.0f ) {
-      const char *obs_tex = ficha->ativo ? "Cursando" : ""; // Fallback padrão
-
-      // Traduz diretamente o Enum (Single Source of Truth)
-      switch ( rel->obs ) {
-      case OBS_ALUNO_APROVADO_NO_CONSELHO:
-         obs_tex = "\\textcolor{RoyalBlue}{\\small\\bf Aprov Cons}";
-         break;
-      case OBS_ALUNO_REPROVADO:
-         obs_tex = "\\textcolor{BrickRed}{\\small\\bf Reprovado}";
-         break;
-      case OBS_ALUNO_APROVADO_NA_FINAL:
-         obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Final}";
-         break;
-      case OBS_ALUNO_EM_CONSELHO_CLASSE:
-         obs_tex = "\\textcolor{BurntOrange}{\\small\\bf Conselho}";
-         break;
-      case OBS_ALUNO_APROVADO_DIRETO:
-         obs_tex = "\\textcolor{ForestGreen}{\\small\\bf Aprov. Direto}";
-         break;
-      case OBS_ALUNO_EM_RECUPERACAO_FINAL:
-         obs_tex = "\\textcolor{BrickRed}{\\small\\bf Rec. Final}"; // Destaque forte em vermelho tijolo
-         break;
-      case OBS_ALUNO_CURSANDO:
-      default:
-         obs_tex = ficha->ativo ? "Cursando" : "";
-         break;
-      }
-
-      g_free( linha->obs );
-      if ( ficha->ativo ) {
-         linha->obs = g_strdup( obs_tex );
-      } else {
-         linha->obs = g_strdup_printf( "\\textcolor{gray!50}{%s}", obs_tex );
-      }
+   if ( ficha->ativo || obs_tex[0] == '\0' ) {
+      linha->obs = g_strdup( obs_tex );
+   } else {
+      linha->obs = g_strdup_printf( "\\textcolor{gray!50}{%s}", obs_tex );
    }
 }
 
-//===================================================================================================
-// FUNÇÃO SECUNDÁRIA: Gera o arquivo LaTeX do Relatório Final diretamente na memória
-//===================================================================================================
+// ====================================================================================
+// GERAÇÃO DO ARQUIVO LATEX DO RELATÓRIO FINAL (RAM BUFFERED)
+// ====================================================================================
 static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *ctx ) {
-   g_return_if_fail( ctx != NULL );
-   const InterfaceDiario *diario = &ctx->diario;
-   const InterfaceDados *dados = &( ctx->dados );
-   int foco_disciplina = ctx->cabecalho.foco_disciplina;
+   g_return_if_fail( nome_base != NULL && ctx != NULL );
 
-   g_autofree gchar *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+   const InterfaceDiario *diario = &ctx->diario;
+   const InterfaceDados  *dados  = &ctx->dados;
+   int foco_disciplina           = ctx->cabecalho.foco_disciplina;
+
+   g_return_if_fail( diario->fichas != NULL && dados->qtd_alunos_total > 0 );
+   g_return_if_fail( foco_disciplina >= 0 && foco_disciplina < ctx->cabecalho.limite_disciplinas );
+
+   g_autofree gchar *nome_tex    = g_strdup_printf( "%s.tex", nome_base );
    g_autofree gchar *arquivo_tex = g_build_filename( dados->raiz, "dados", "temporarios", nome_tex, NULL );
 
    g_autoptr( GString ) tex = g_string_sized_new( 16384 );
@@ -607,77 +605,81 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
                     "\\pagestyle{empty}\n"
                     "\\begin{document}\n" );
 
-   // 2. Cálculo dinâmico do espaçamento vertical
-   double spacing = ( 297.0 - 6.5 - 6.5 - 4.0 * 7.0 ) / ( 4.96 * dados->qtd_alunos_total );
+   // 2. Cálculo dinâmico do espaçamento vertical (com proteção contra divisão por zero)
+   double total_alunos_f = ( double )MAX( dados->qtd_alunos_total, 1 );
+   double spacing = ( 297.0 - 6.5 - 6.5 - ( 4.0 * 7.0 ) ) / ( 4.96 * total_alunos_f );
    g_string_append_printf( tex, "\\begin{spacing}{%.4f}\n", spacing );
 
    // 3. Cabeçalho da Tabela
-   g_string_append_printf( tex,
-                           "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
-                           "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
-                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
-                           "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
-                           "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf 1º P} & "
-                           "\\multicolumn{1}{c|}{\\bf 2º P} & "
-                           "\\multicolumn{1}{c|}{\\bf 3º P} & "
-                           "\\multicolumn{1}{c|}{\\bf 4º P} & "
-                           "\\multicolumn{1}{c|}{\\bf Soma} & "
-                           "\\multicolumn{1}{c|}{\\bf Méd.} & "
-                           "\\multicolumn{1}{c|}{\\bf Final} & "
-                           "\\multicolumn{1}{c|}{\\bf Cons} & "
-                           "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
-                           dados->escola, dados->turma, dados->disciplina, dados->ano );
+   g_string_append_printf(
+      tex,
+      "\\noindent\\begin{tabular}{|c|p{5cm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|R{9.8mm}|R{9.1mm}|R{9.1mm}|R{9.1mm}|c|}\\hline\n"
+      "\\multicolumn{2}{|l|}{\\rule{0mm}{5.5mm}\\multirow{3}{50mm}{\\bf\\underline{SEDUC} / \\underline{São Luis $-$ MA}\\\\\\underline{%s}\\\\\\underline{%s}}}& \\multicolumn{9}{c|}{\\multirow{2}{130mm}{\\centering\\bf\\LARGE Relatório Final de %s / %s}}\\\\\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & \\multicolumn{9}{c|}{}\\\\\\cline{3-11}\n"
+      "\\multicolumn{2}{|c|}{\\rule{0mm}{5.5mm}} & "
+      "\\multicolumn{1}{c|}{\\rule[-2.5mm]{0mm}{3mm}\\bf 1º P} & "
+      "\\multicolumn{1}{c|}{\\bf 2º P} & "
+      "\\multicolumn{1}{c|}{\\bf 3º P} & "
+      "\\multicolumn{1}{c|}{\\bf 4º P} & "
+      "\\multicolumn{1}{c|}{\\bf Soma} & "
+      "\\multicolumn{1}{c|}{\\bf Méd.} & "
+      "\\multicolumn{1}{c|}{\\bf Final} & "
+      "\\multicolumn{1}{c|}{\\bf Cons} & "
+      "\\multicolumn{1}{c|}{\\bf Observação}\\\\\\hline\n",
+      dados->escola, dados->turma, dados->disciplina, dados->ano
+   );
 
-   // Dentro de gerar_tex_relatorio_final():
-   for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
-      const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
-      LinhaRelatorioTeX linha;
+   // 4. Linhas dos Alunos (Com g_auto gerenciando o ciclo de vida de LinhaRelatorioTeX)
+   guint limite_alunos = MIN( ( guint )dados->qtd_alunos_total, diario->fichas->len );
 
-      _preencher_linha_relatorio_tex( ficha, foco_disciplina, &linha );
-
-      // Troca imediata de ponto para vírgula in-place
-      for ( int k = 0; k < 4; k++ ) {
-         g_strdelimit( linha.notas[k], ".", ',' );
+   for ( guint j = 0; j < limite_alunos; j++ ) {
+      const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( diario->fichas, j );
+      if ( !ficha ) {
+         continue;
       }
-      g_strdelimit( linha.soma, ".", ',' );
-      g_strdelimit( linha.media, ".", ',' );
-      g_strdelimit( linha.rec, ".", ',' );
-      g_strdelimit( linha.cons, ".", ',' );
 
-      g_string_append_printf( tex, "%.2d & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
-                              j + 1, linha.nome,
-                              linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
-                              linha.soma, linha.media, linha.rec, linha.cons, linha.obs );
+      g_auto( LinhaRelatorioTeX ) linha = { 0 };
+      preencher_linha_relatorio_tex_aux( ficha, foco_disciplina, &linha );
 
-      _linha_relatorio_tex_limpar( &linha );
+      g_string_append_printf(
+         tex,
+         "%.2u & %s & %s & %s & %s & %s & %s & %s & %s & %s & %s \\\\\\hline\n",
+         j + 1U, linha.nome,
+         linha.notas[0], linha.notas[1], linha.notas[2], linha.notas[3],
+         linha.soma, linha.media, linha.rec, linha.cons, linha.obs
+      );
    }
 
    // 5. Rodapé Seguro e Encerramento
-   g_autofree gchar *datatex = g_strdup_printf( "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
-                               ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
+   g_autofree gchar *datatex = g_strdup_printf(
+                                  "\\underline{\\,%.2d\\,}/\\underline{\\,%.2d\\,}/\\underline{\\,%d\\,}",
+                                  ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano
+                               );
 
-   g_string_append_printf( tex,
-                           "\\multicolumn{11}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
-                           "\\end{tabular}\n"
-                           "\\end{spacing}\n"
-                           "\\end{document}\n",
-                           datatex );
+   g_string_append_printf(
+      tex,
+      "\\multicolumn{11}{|c|}{ {Data: %s} \\hspace{4cm} \\rule{0mm}{5.5mm}Professor(a): \\underline{\\includegraphics[width=0.28\\linewidth]{../informados/.assinatura.png}} }\\\\\\hline\n"
+      "\\end{tabular}\n"
+      "\\end{spacing}\n"
+      "\\end{document}\n",
+      datatex
+   );
 
-   // 6. Descarga no Disco O(1)
+   // 6. Descarga Atômica no Disco (gssize previne -Wsign-conversion)
    g_autoptr( GError ) error = NULL;
-   if ( !g_file_set_contents( arquivo_tex, tex->str, ( guint )tex->len, &error ) ) {
-      g_printerr( "Falha ao salvar o arquivo LaTeX: %s\n", error->message );
+   if ( !g_file_set_contents( arquivo_tex, tex->str, ( gssize )tex->len, &error ) ) {
+      g_printerr( "[ERRO] Falha ao salvar o arquivo LaTeX (%s): %s\n", arquivo_tex, error->message );
    }
 }
 
-//===================================================================================================
-// FUNÇÃO PRINCIPAL: Relatório Final
-//===================================================================================================
+// ====================================================================================
+// ENTRADA PÚBLICA: RELATÓRIO FINAL
+// ====================================================================================
 void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( painel != NULL && ctx != NULL );
 
-   const InterfaceDados *dados = &( ctx->dados );
-   const CaminhoDiretorio *caminho = &( ctx->caminho );
+   const InterfaceDados   *dados   = &ctx->dados;
+   const CaminhoDiretorio *caminho = &ctx->caminho;
 
    gerar_tex_relatorio_final( "Final", ctx );
    disparar_latex( "Final", caminho->relatorios_final, dados, caminho );
@@ -1285,17 +1287,17 @@ void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arqui
    char path_pdf_destino[768];
 
    if ( g_strcmp0( nome_arquivo_base, "Final" ) == 0 ) { // O Relatório final deve ser salvo junto as pastas dos períodos
-      snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo_final, nome_arquivo_base );
+      g_snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo_final, nome_arquivo_base );
    } else {
-      snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo, nome_arquivo_base );
+      g_snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo, nome_arquivo_base );
    }
 
    if ( copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
       fprintf( stderr, "ERRO CRÍTICO: Não foi possível salvar a cópia institucional na pasta da Escola!\n" );
    }
 
-   snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s/Relatório_%s - %s - %s_%c - %s.pdf",
-             caminho->externo_escola, nome_arquivo_base, nome_arquivo_base, dados->turma, dados->ano, dados->periodo[0], dados->disciplina );
+   g_snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s/Relatório_%s - %s - %s_%c - %s.pdf",
+               caminho->externo_escola, nome_arquivo_base, nome_arquivo_base, dados->turma, dados->ano, dados->periodo[0], dados->disciplina );
 
    if ( copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
       fprintf( stderr, "ERRO CRÍTICO: Não foi possível salvar a cópia institucional na pasta da Escola!\n" );

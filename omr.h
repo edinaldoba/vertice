@@ -16,8 +16,5 @@ void ler_respostas_gabarito( const ImagemCinza *IMG, char direcao, char *respost
 
 int ler_numero_aluno( const ImagemCinza *IMG, char direcao );
 
-void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, int n0,
-                             int n, unsigned char t, char *img, const InterfaceDados *dados );
-
 
 #endif

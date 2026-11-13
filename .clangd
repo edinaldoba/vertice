@@ -1,6 +1,9 @@
 CompileFlags:
   Add:
-    # --- [ Suas Flags Originais ] ---
+    # --- [ Padrão da Linguagem ] ---
+    - "-std=gnu11"
+
+    # --- [ Diagnósticos Base e Formatação ] ---
     - "-Wall"
     - "-Wextra"
     - "-Wpedantic"
@@ -9,60 +12,73 @@ CompileFlags:
     - "-Wundef"
     - "-Wformat=2"
     - "-Werror=implicit-function-declaration"
-    - "-Wstrict-prototypes"
-    - "-Wmissing-prototypes"
-    - "-Wconversion"
-    - "-Wsign-conversion"
-    - "-Wdouble-promotion"
     - "-Wnull-dereference"
     - "-Wwrite-strings"
     - "-Wswitch-enum"
-    - "-std=c11"
 
-    # --- [ Segurança e Tipagem ] ---
-    - "-Wcast-qual"           # Grita se remover o 'const' de um ponteiro.
-    - "-Wvla"                 # Proíbe Variable Length Arrays no stack (Evita Stack Overflow).
-    - "-Wpointer-arith"       # Alerta ao fazer matemática com ponteiros void*.
-    - "-Wfloat-equal"         # Alerta comparação direta de floats (==).
-    - "-Wuninitialized"       # Pega variáveis locais lidas antes de receberem valor.
-    - "-Wduplicated-cond"     # Detecta if (a > 0) {...} else if (a > 0) {...}.
-    - "-Wduplicated-branches" # Detecta if/else com blocos de código idênticos.
+    # --- [ Rigor de Protótipos e Escopo ] ---
+    - "-Wstrict-prototypes"
+    - "-Wmissing-prototypes"
+    - "-Wmissing-declarations"
+    - "-Wold-style-definition"
+    - "-Wredundant-decls"
 
-    # --- [ NOVAS: Sincronização Estrita com o Makefile ] ---
-    - "-Wmissing-declarations" # (NOVO) Exige que toda função pública (não-static) tenha um protótipo declarado num .h.
-    - "-Wold-style-definition" # (NOVO) Proíbe declarações de função na sintaxe K&R antiga do C.
-    - "-Wredundant-decls"      # (NOVO) Alerta se você declarar a mesma coisa duas vezes no mesmo escopo.
-    - "-Wstrict-aliasing=3"    # (NOVO) Nível máximo de rigor contra quebra de tipagem de ponteiros (segurança de memória).
+    # --- [ Segurança de Tipos, Ponteiros e Ponto Flutuante ] ---
+    - "-Wconversion"
+    - "-Wsign-conversion"
+    - "-Wdouble-promotion"
+    - "-Wcast-qual"
+    - "-Wvla"
+    - "-Wpointer-arith"
+    - "-Wfloat-equal"
+    - "-Wuninitialized"
+
+    # --- [ Compatibilidade Limpa com Macros GLib / GTK3 sob -Wpedantic ] ---
+    - "-Wno-overlength-strings"
+    - "-Wno-gnu-zero-variadic-macro-arguments"
+
+  Remove:
+    # Filtra flags exclusivas do GCC que possam vir do compile_commands.json (bear)
+    - "-Wduplicated-cond"
+    - "-Wduplicated-branches"
+    - "-Wstrict-aliasing=*"
+    - "-Wlogical-op"
 
 Diagnostics:
   UnusedIncludes: None
-  MissingIncludes: None
 
   ClangTidy:
     Add:
-      # --- [ Seus Checks Originais ] ---
-      - "clang-analyzer-core.*"
-      - "clang-analyzer-unix.*"
-      - "clang-analyzer-security.insecureAPI.*"
+      # --- [ Prevenção de Bugs de Memória e Macros ] ---
       - "bugprone-sizeof-expression"
       - "bugprone-branch-clone"
       - "bugprone-suspicious-memory-comparison"
       - "bugprone-macro-parentheses"
-      - "readability-inconsistent-declaration-parameter-name"
-      - "readability-redundant-declaration"
-      - "performance-*"
+      - "bugprone-unused-return-value"
 
       # --- [ Erros Lógicos Silenciosos e Matemática ] ---
-      - "bugprone-integer-division"             # Crucial! Alerta divisão int/int gerando truncamento indesejado.
-      - "bugprone-assignment-in-if-condition"   # Impede erro de atribuição no if: "if (ativo = TRUE)".
-      - "bugprone-narrowing-conversions"        # Reforça -Wconversion com detalhes do truncamento de bits.
-      - "misc-definitions-in-headers"           # Evita implementação de funções em .h (erro de linker).
-      - "misc-redundant-expression"             # Pega lógicas inúteis (ex: if (x == x)).
-      - "readability-braces-around-statements"  # Força uso de {} em if/for de 1 linha.
+      - "bugprone-integer-division"
+      - "bugprone-narrowing-conversions"
+      - "misc-definitions-in-headers"
+      - "misc-redundant-expression"
+
+      # --- [ Padronização, Leitura e Performance ] ---
+      - "readability-inconsistent-declaration-parameter-name"
+      - "readability-redundant-declaration"
+      - "readability-braces-around-statements"
+      - "performance-*"
 
     Remove:
+      # --- [ Redução de Ruído ] ---
       - "readability-identifier-length"
       - "bugprone-easily-swappable-parameters"
       - "misc-unused-parameters"
       - "performance-no-int-to-ptr"
-      - "clang-analyzer-security.insecureAPI.strcpy"
+      - "bugprone-reserved-identifier"
+
+---
+# Silencia completamente o clang-tidy em arquivos gerados automaticamente pelo glib-compile-resources
+If:
+  PathMatch: .*recursos\.c
+Diagnostics:
+  Suppress: "*"

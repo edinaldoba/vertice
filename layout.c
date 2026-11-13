@@ -11,7 +11,7 @@
 // 1. FUNÇÕES AUXILIARES DE ESTILIZAÇÃO E ALINHAMENTO
 // ======================================================================================
 
-static gboolean _detectar_ubuntu( void ) {
+static gboolean detectar_ubuntu_aux( void ) {
    FILE *fp = fopen( "/etc/os-release", "r" );
    if ( fp == NULL ) {
       // Se o arquivo não existir, provavelmente não é um Linux moderno
@@ -39,7 +39,7 @@ static gboolean _detectar_ubuntu( void ) {
 /**
  * @brief Extrai o GtkLabel interno de um botão configurado pelo Glade e aplica o espaçamento.
  */
-static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widget, gint quantidade_espacos ) {
+static void ui_button_label_aplicar_espacamento_manual_aux( GtkWidget *button_widget, gint quantidade_espacos ) {
    g_return_if_fail( GTK_IS_BUTTON( button_widget ) );
    GtkWidget *label_interno = gtk_bin_get_child( GTK_BIN( button_widget ) );
    if ( GTK_IS_LABEL( label_interno ) ) {
@@ -56,7 +56,7 @@ static void _ui_button_label_aplicar_espacamento_manual( GtkWidget *button_widge
  * @param pad_celula_x Espaçamento horizontal interno das células de dados (em pixels).
  * @param align_cabecalho Alinhamento horizontal do título no cabeçalho (0.0 = esquerda, 0.5 = centro, 1.0 = direita).
  */
-static void _treeview_configurar_alinhamento_coluna( GtkWidget *widget,
+static void treeview_configurar_alinhamento_coluna_aux( GtkWidget *widget,
       int coluna,
       double align_celula,
       guint pad_celula_x,
@@ -97,7 +97,7 @@ static void _treeview_configurar_alinhamento_coluna( GtkWidget *widget,
  * @param coluna Índice base zero da coluna a ser modificada.
  * @param font_features String de features OpenType (ex: "tnum=1, lnum=1, zero=1").
  */
-static void _treeview_configurar_font_features_col( GtkWidget *widget, int coluna, const char *font_features ) {
+static void treeview_configurar_font_features_col_aux( GtkWidget *widget, int coluna, const char *font_features ) {
    g_return_if_fail( GTK_IS_TREE_VIEW( widget ) );
    g_return_if_fail( font_features != NULL );
 
@@ -145,7 +145,7 @@ static void _treeview_configurar_font_features_col( GtkWidget *widget, int colun
 // FUNÇÃO VISUAL: Aplica a classe CSS no botão de cabeçalho da coluna NOTA
 // Chamar apenas UMA VEZ durante a inicialização (ex: layout.c)
 //===================================================================================================
-static void _destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
+static void destacar_cabecalho_nota_aux( GtkWidget *treeview_avaliacoes ) {
    g_return_if_fail( treeview_avaliacoes != NULL && GTK_IS_TREE_VIEW( treeview_avaliacoes ) );
 
    // 1. Obtém a coluna 12 (Nota do Período) da TreeView de Avaliações
@@ -174,13 +174,13 @@ static void _destacar_cabecalho_nota( GtkWidget *treeview_avaliacoes ) {
 // 2. FUNÇÕES DE MAPEAMENTO DE WIDGETS POR DOMÍNIO
 // ======================================================================================
 
-static void _mapear_janela_mestra( AppContext *ctx, GtkBuilder *builder, GtkApplication *app ) {
+static void mapear_janela_mestra_aux( AppContext *ctx, GtkBuilder *builder, GtkApplication *app ) {
    ctx->window   = GTK_WIDGET( gtk_builder_get_object( builder, "janela_principal" ) );
    ctx->notebook = GTK_WIDGET( gtk_builder_get_object( builder, "notebook_principal" ) );
 
    gtk_window_set_application( GTK_WINDOW( ctx->window ), app );
 
-   if ( _detectar_ubuntu() ) {
+   if ( detectar_ubuntu_aux() ) {
       gtk_window_set_position( GTK_WINDOW( ctx->window ), GTK_WIN_POS_CENTER );
    } else {
       gtk_window_move( GTK_WINDOW( ctx->window ), 1019, 141 );
@@ -194,7 +194,7 @@ static void _mapear_janela_mestra( AppContext *ctx, GtkBuilder *builder, GtkAppl
 }
 
 
-static void _mapear_cabecalho( AppContext *ctx, GtkBuilder *builder ) {
+static void mapear_cabecalho_aux( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceCabecalho *cab = &ctx->cabecalho;
 
    cab->combo_ano            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_ano" ) );
@@ -208,7 +208,7 @@ static void _mapear_cabecalho( AppContext *ctx, GtkBuilder *builder ) {
 }
 
 
-static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
+static void mapear_aba_diarios_aux( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceDiario     *diario     = &ctx->diario;
    InterfaceConteudo   *conteudo   = &ctx->diario.conteudo;
    InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
@@ -243,10 +243,10 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    conteudo->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
       if ( i < 2 ) {
-         _treeview_configurar_alinhamento_coluna( conteudo->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_aux( conteudo->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i < 2 ) {
-         _treeview_configurar_font_features_col( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_aux( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 
@@ -264,10 +264,10 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    frequencia->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 5; i++ ) {
       if ( i != 1 ) {
-         _treeview_configurar_alinhamento_coluna( frequencia->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_aux( frequencia->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i == 0 || i == 2 ) {
-         _treeview_configurar_font_features_col( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_aux( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 
@@ -285,13 +285,13 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    avaliacao->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 13; i++ ) {
       if ( i != 1 ) {
-         _treeview_configurar_alinhamento_coluna( avaliacao->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_aux( avaliacao->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i != 1 ) {
-         _treeview_configurar_font_features_col( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_aux( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
-   _destacar_cabecalho_nota( avaliacao->treeview );
+   destacar_cabecalho_nota_aux( avaliacao->treeview );
 
    // --- SUB-ABA: RELATÓRIO ---
    relatorio->btn_consolidar   = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
@@ -300,16 +300,16 @@ static void _mapear_aba_diarios( AppContext *ctx, GtkBuilder *builder ) {
    relatorio->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
       if ( i != 1 ) {
-         _treeview_configurar_alinhamento_coluna( relatorio->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_aux( relatorio->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i != 1 ) {
-         _treeview_configurar_font_features_col( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_aux( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 }
 
 
-static void _mapear_aba_latex( AppContext *ctx, GtkBuilder *builder ) {
+static void mapear_aba_latex_aux( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceLatex *latex = &ctx->latex;
 
    latex->combo_tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
@@ -331,25 +331,25 @@ static void _mapear_aba_latex( AppContext *ctx, GtkBuilder *builder ) {
 
    char id_string[64];
    for ( int i = 0; i < 2; i++ ) {
-      snprintf( id_string, sizeof( id_string ), "radio_colunas_%d", i + 1 );
+      g_snprintf( id_string, sizeof( id_string ), "radio_colunas_%d", i + 1 );
       latex->radio_qtd_colunas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
-      snprintf( id_string, sizeof( id_string ), "radio_separadores_%d", i + 1 );
+      g_snprintf( id_string, sizeof( id_string ), "radio_separadores_%d", i + 1 );
       latex->radio_separadores[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
-      snprintf( id_string, sizeof( id_string ), "radio_fonte_%d", i + 1 );
+      g_snprintf( id_string, sizeof( id_string ), "radio_fonte_%d", i + 1 );
       latex->radio_fonte_latex[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
-      snprintf( id_string, sizeof( id_string ), "radio_paginas_%d", i + 1 );
+      g_snprintf( id_string, sizeof( id_string ), "radio_paginas_%d", i + 1 );
       latex->radio_qtd_paginas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
-      snprintf( id_string, sizeof( id_string ), "radio_cabecalho_%d", i + 1 );
+      g_snprintf( id_string, sizeof( id_string ), "radio_cabecalho_%d", i + 1 );
       latex->radio_cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 }
 
 
-static void _mapear_aba_provas( AppContext *ctx, GtkBuilder *builder ) {
+static void mapear_aba_provas_aux( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceProva *prova = &ctx->prova;
 
    prova->combo_tema           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
@@ -369,7 +369,7 @@ static void _mapear_aba_provas( AppContext *ctx, GtkBuilder *builder ) {
 }
 
 
-static void _mapear_painel_feedback( AppContext *ctx, GtkBuilder *builder ) {
+static void mapear_painel_feedback_aux( AppContext *ctx, GtkBuilder *builder ) {
    ctx->painel.eventbox_painel = GTK_WIDGET( gtk_builder_get_object( builder, "eventbox_painel" ) );
    if ( ctx->painel.eventbox_painel ) {
       gtk_widget_add_events( ctx->painel.eventbox_painel, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK );
@@ -393,7 +393,7 @@ static void _mapear_painel_feedback( AppContext *ctx, GtkBuilder *builder ) {
 }
 
 
-static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builder ) {
+static void aplicar_espacamentos_interface_aux( AppContext *ctx, GtkBuilder *builder ) {
    // Acesso direto aos domínios perfeitamente estruturados
    const InterfaceDiario *diario = &ctx->diario;
    InterfaceLatex  *latex  = &ctx->latex;
@@ -439,7 +439,7 @@ static void _aplicar_espacamentos_interface( AppContext *ctx, GtkBuilder *builde
 
    for ( int i = 0; i < 17; i++ ) {
       if ( widgets_botoes[i] ) {
-         _ui_button_label_aplicar_espacamento_manual( widgets_botoes[i], 1 );
+         ui_button_label_aplicar_espacamento_manual_aux( widgets_botoes[i], 1 );
       }
    }
 }
@@ -468,15 +468,15 @@ void construir_interface( GtkApplication *app, AppContext *ctx ) {
    }
 
    // Despacho Modular Restrito por Domínio Visual
-   _mapear_janela_mestra( ctx, builder, app );
-   _mapear_cabecalho( ctx, builder );
-   _mapear_aba_diarios( ctx, builder );
-   _mapear_aba_latex( ctx, builder );
-   _mapear_aba_provas( ctx, builder );
-   _mapear_painel_feedback( ctx, builder );
+   mapear_janela_mestra_aux( ctx, builder, app );
+   mapear_cabecalho_aux( ctx, builder );
+   mapear_aba_diarios_aux( ctx, builder );
+   mapear_aba_latex_aux( ctx, builder );
+   mapear_aba_provas_aux( ctx, builder );
+   mapear_painel_feedback_aux( ctx, builder );
 
    // Aplica os estilos finais visuais via Pango/GtkLabel
-   _aplicar_espacamentos_interface( ctx, builder );
+   aplicar_espacamentos_interface_aux( ctx, builder );
 
    // Libera o objeto builder da memória de forma segura
    g_object_unref( builder );

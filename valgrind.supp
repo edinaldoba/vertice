@@ -1,0 +1,91 @@
+# =====================================================================
+# SUPRESSÕES DO VALGRIND PARA GTK3, PANGO, FONTCONFIG, HARFBUZZ E GIO
+# =====================================================================
+
+{
+   fontconfig_pattern_cache_realloc
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   fun:realloc
+   obj:*/libfontconfig.so*
+}
+
+{
+   fontconfig_xml_parse_malloc
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   fun:malloc
+   obj:*/libfontconfig.so*
+}
+
+{
+   harfbuzz_shape_plan_cache
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   fun:calloc
+   fun:hb_shape_plan_create*
+   obj:*/libharfbuzz.so*
+}
+
+{
+   pango_ft2_fontmap_cache
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   obj:*/libpangoft2-1.0.so*
+}
+
+{
+   pangocairo_font_map_default
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   fun:pango_cairo_font_map_get_default
+}
+
+{
+   gtk3_css_slice_alloc0
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   fun:g_slice_alloc0
+   obj:*/libgtk-3.so*
+}
+
+{
+   gio_gdbus_worker_thread_context
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   obj:*/libgio-2.0.so*
+   obj:*/libglib-2.0.so*
+   fun:start_thread
+}
+
+{
+   glib_charset_cache_omp
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   fun:g_get_charset
+   ...
+   fun:g_print
+}
+
+{
+   glib_gslice_openmp_fork_shadow
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   fun:g_slice_alloc
+   fun:g_string_sized_new
+}
+
+{
+   fontconfig_pattern_cache_calloc
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   fun:calloc
+   obj:*/libfontconfig.so*
+}
+

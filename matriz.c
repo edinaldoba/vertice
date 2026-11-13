@@ -252,7 +252,7 @@ void mat_centralizar_na_origem( Matrix X, Matrix media ) {
    // 3. Subtrai o vetor média de CADA LINHA da população usando a BLAS
    // cblas_daxpy executa: Y = alpha * X + Y (aqui: Linha = -1.0 * Media + Linha)
    for ( int i = 0; i < n_ind; i++ ) {
-      double *linha_i = &X.data[i * n_dim];
+      double *linha_i = &X.data[i * n_dim + 0];
       cblas_daxpy( n_dim, -1.0, media.data, 1, linha_i, 1 );
    }
 }
@@ -345,7 +345,7 @@ int mat_homography_dlt( Matrix src, Matrix dst, Matrix H ) {
       A_data[( 2 * i ) * 8 + 5] = 0.0;
       A_data[( 2 * i ) * 8 + 6] = -x * u;
       A_data[( 2 * i ) * 8 + 7] = -y * u;
-      B_data[2 * i] = u;
+      B_data[2 * i + 0] = u;
 
       // Linha ímpar: Equação correspondente à coordenada v
       A_data[( 2 * i + 1 ) * 8 + 0] = 0.0;

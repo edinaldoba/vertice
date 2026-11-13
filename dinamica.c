@@ -126,7 +126,7 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
       g_object_set_data( G_OBJECT( check ), "id_widget", GINT_TO_POINTER( i ) );
 
       char checa_id[256];
-      snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, prova->subtemas[i] );
+      g_snprintf( checa_id, sizeof( checa_id ), "%s/%s", tema_ativo, prova->subtemas[i] );
 
       GtkWidget *box_encontrado = buscar_widget_por_nome_interno( prova->flowbox_selecionados, checa_id );
       if ( box_encontrado != NULL ) {
@@ -173,7 +173,7 @@ static GtkWidget* criar_mini_card_stepper( InterfaceDinamica *montagem, const ch
    }
 
    char str_qtd[16];
-   snprintf( str_qtd, sizeof( str_qtd ), "%d", qtd_tex );
+   g_snprintf( str_qtd, sizeof( str_qtd ), "%d", qtd_tex );
    GtkWidget *label_qtd = gtk_label_new( str_qtd );
    gtk_style_context_add_class( gtk_widget_get_style_context( label_qtd ), "label-stepper" );
 
@@ -275,7 +275,7 @@ void logica_stepper_mais( GtkWidget *button, AppContext *ctx ) {
    if ( st.valor_atual < st.limite_max ) {
       st.valor_atual++;
       char str[16];
-      snprintf( str, sizeof( str ), "%d", st.valor_atual );
+      g_snprintf( str, sizeof( str ), "%d", st.valor_atual );
       gtk_label_set_text( GTK_LABEL( st.label_qtd ), str );
 
       if ( st.valor_atual == 2 ) {
@@ -315,7 +315,7 @@ void logica_stepper_menos( GtkWidget *button, AppContext *ctx ) {
    if ( st.valor_atual > 1 ) {
       st.valor_atual--;
       char str[16];
-      snprintf( str, sizeof( str ), "%d", st.valor_atual );
+      g_snprintf( str, sizeof( str ), "%d", st.valor_atual );
       gtk_label_set_text( GTK_LABEL( st.label_qtd ), str );
 
       if ( st.valor_atual == 1 ) {
@@ -429,7 +429,7 @@ void logica_subtema_toggled( GtkWidget *widget, AppContext *ctx ) {
    }
 
    char tag_id[256];
-   snprintf( tag_id, sizeof( tag_id ), "%s/%s", tema_ativo, subtema );
+   g_snprintf( tag_id, sizeof( tag_id ), "%s/%s", tema_ativo, subtema );
 
    if ( estado ) {
       GtkWidget *box_encontrado = buscar_widget_por_nome_interno( prova->flowbox_selecionados, tag_id );
@@ -548,7 +548,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
 
             if ( label_qtd ) {
                char str_qtd[16];
-               snprintf( str_qtd, sizeof( str_qtd ), "%d", rascunho->questoes[i].qtd );
+               g_snprintf( str_qtd, sizeof( str_qtd ), "%d", rascunho->questoes[i].qtd );
                gtk_label_set_text( GTK_LABEL( label_qtd ), str_qtd );
 
                if ( rascunho->questoes[i].qtd == 1 && btn_menos ) {

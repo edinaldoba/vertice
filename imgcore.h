@@ -27,9 +27,11 @@ int pdf_para_png_multiplo( const char *caminho_pdf, const char *pasta_destino, c
 gboolean pdf2png( const char *caminho_pdf, const char *caminho_png, double escala );
 
 void rgb2gray( const ImagemColorida *PPM, ImagemCinza *PGM );
-void imread_gray( ImagemCinza *IMG, const char *arquivo );
-void imread_pgm( ImagemCinza *IMG, const char *arquivo );
-void imread( ImagemColorida *img, const char *arquivo );
+
+
+// void imread_gray( ImagemCinza *IMG, const char *arquivo );
+// void imread_pgm( ImagemCinza *IMG, const char *arquivo );
+// void imread( ImagemColorida *img, const char *arquivo );
 
 
 

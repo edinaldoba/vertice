@@ -12,6 +12,7 @@
 #include <poppler.h>
 #include <cairo.h>
 #include <math.h>
+#include <omp.h>
 
 #include "comum.h"
 #include "glibconfig.h"
@@ -165,7 +166,7 @@ gboolean salvar_imagem_png_nativa( const char *caminho, const ImagemColorida *im
 // ====================================================================================
 // FUNÇÃO DE RECONSTRUÇÃO: Integra GdkPixbuf ao Padrão Contíguo (1D + 2D)
 // ====================================================================================
-static void _reconstruir_matriz_colorida( const guchar *pixels_1d, ImagemColorida *img,
+static void reconstruir_matriz_colorida_aux( const guchar *pixels_1d, ImagemColorida *img,
       gsize largura, gsize altura, gsize rowstride, guint16 canais ) {
 
    g_return_if_fail( pixels_1d != NULL );
@@ -201,14 +202,14 @@ static void _reconstruir_matriz_colorida( const guchar *pixels_1d, ImagemColorid
       memcpy( img->dados, pixels_1d, ( size_t )( altura * largura * 3 ) );
    } else if ( canais == 3 ) {
       // RGB com padding de alinhamento no rowstride
-      // #pragma omp parallel for schedule(static)
+      #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
       for ( gsize y = 0; y < altura; y++ ) {
          const guchar *origem_linha = pixels_1d + ( y * ( size_t )rowstride );
          memcpy( img->image[y], origem_linha, ( size_t )largura * 3 );
       }
    } else {
       // RGBA (4 canais) ou outros formatos: descarrega o canal Alpha em paralelo
-      // #pragma omp parallel for schedule(static)
+      #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
       for ( gsize y = 0; y < altura; y++ ) {
          const guchar *origem_linha = pixels_1d + ( y * ( size_t )rowstride );
          for ( gsize x = 0; x < largura; x++ ) {
@@ -244,7 +245,7 @@ gboolean carregar_imagem_colorida_nativa( const char *caminho, ImagemColorida *i
    const guchar *pixels_1d = gdk_pixbuf_read_pixels( pixbuf );
 
    // Reconstrói a matriz aplicando o mapeamento contíguo otimizado
-   _reconstruir_matriz_colorida( pixels_1d, img, largura, altura, rowstride, canais );
+   reconstruir_matriz_colorida_aux( pixels_1d, img, largura, altura, rowstride, canais );
 
    g_object_unref( pixbuf );
    return TRUE;
@@ -293,47 +294,47 @@ void salvar_imagem_pgm( const ImagemCinza *IMG, const char *arquivo_destino ) {
 // ====================================================================================
 // CORTE ORTOGONAL - ESCALA DE CINZA (Bounding Box)
 // ====================================================================================
-void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img, gsize x_ini, gsize y_ini, gsize largura, gsize altura ) {
+void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img,
+                              gsize x_ini, gsize y_ini, gsize largura, gsize altura ) {
    g_return_if_fail( IMG != NULL && IMG->image != NULL && img != NULL );
 
-   // Como gsize é unsigned (sem sinal), <= 0 é logicamente equivalente a == 0
-   if ( largura == 0 || altura == 0 ) {
+   // Proteção contra dimensões nulas ou coordenadas iniciais fora da imagem (evita underflow em gsize)
+   if ( largura == 0 || altura == 0 || x_ini >= IMG->ncol || y_ini >= IMG->nrow ) {
       return;
    }
 
-   // Proteção de limites rigorosa
-   if ( x_ini + largura > IMG->ncol ) {
+   // Ajuste seguro da caixa de corte aos limites da imagem original
+   if ( largura > IMG->ncol - x_ini ) {
       largura = IMG->ncol - x_ini;
    }
-   if ( y_ini + altura > IMG->nrow ) {
+   if ( altura > IMG->nrow - y_ini ) {
       altura = IMG->nrow - y_ini;
    }
 
-   // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   // Limpeza prévia caso a struct de destino já possua buffers alocados
    if ( img->dados ) {
-      g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( &img->dados, g_free );
+      g_clear_pointer( &img->image, g_free );
    }
 
    img->ncol = largura;
    img->nrow = altura;
-   img->max = IMG->max;
+   img->max  = IMG->max;
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
 
-   // Alocação em bloco único para vetorização SIMD
-   img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
-   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
-   for ( gsize i = 0; i < img->nrow; i++ ) {
-      img->image[i] = img->dados + ( i * img->ncol );
+   // Alocação contígua segura contra overflow de multiplicação
+   uint8_t  *dados = g_new( uint8_t, altura * largura );
+   uint8_t **image = g_new( uint8_t *, altura );
+
+   // Laço unificado: vincula o ponteiro da linha e copia a fatia correspondente
+   for ( gsize i = 0; i < altura; i++ ) {
+      uint8_t *linha_dest = dados + ( i * largura );
+      image[i] = linha_dest;
+      memcpy( linha_dest, &IMG->image[y_ini + i][x_ini], largura * sizeof( uint8_t ) );
    }
 
-   // Cópia ultra-rápida de blocos de memória linha a linha (Multithread)
-   // Diretiva OpenMP reativada com schedule(static)
-   // #pragma omp parallel for schedule(static)
-   for ( gsize i = 0; i < altura; i++ ) {
-      // CORREÇÃO CRÍTICA: sizeof( uint8_t ) no lugar de sizeof( int )
-      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( uint8_t ) );
-   }
+   img->dados = dados;
+   img->image = image;
 }
 
 
@@ -344,42 +345,43 @@ void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida
                                        gsize x_ini, gsize y_ini, gsize largura, gsize altura ) {
    g_return_if_fail( IMG != NULL && IMG->image != NULL && img != NULL );
 
-   if ( largura == 0 || altura == 0 ) {
+   // Proteção contra dimensões nulas ou coordenadas iniciais fora da imagem (evita underflow em gsize)
+   if ( largura == 0 || altura == 0 || x_ini >= IMG->ncol || y_ini >= IMG->nrow ) {
       return;
    }
 
-   // Proteção de limites rigorosa
-   if ( x_ini + largura > IMG->ncol ) {
+   // Ajuste seguro da caixa de corte aos limites da imagem original
+   if ( largura > IMG->ncol - x_ini ) {
       largura = IMG->ncol - x_ini;
    }
-   if ( y_ini + altura > IMG->nrow ) {
+   if ( altura > IMG->nrow - y_ini ) {
       altura = IMG->nrow - y_ini;
    }
 
-   // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
+   // Limpeza prévia caso a struct de destino já possua buffers alocados
    if ( img->dados ) {
-      g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( ( gpointer * )&img->dados, g_free );
+      g_clear_pointer( &img->image, g_free );
    }
 
    img->ncol = largura;
    img->nrow = altura;
-   img->max = IMG->max;
+   img->max  = IMG->max;
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
 
-   // Alocação em bloco único de structs PixelRGB
-   img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
-   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
-   for ( gsize i = 0; i < img->nrow; i++ ) {
-      img->image[i] = img->dados + ( i * img->ncol );
+   // Alocação contígua de structs PixelRGB
+   PixelRGB  *dados = g_new( PixelRGB, altura * largura );
+   PixelRGB **image = g_new( PixelRGB *, altura );
+
+   // Laço unificado: vincula o ponteiro da linha e copia a fatia RGB correspondente
+   for ( gsize i = 0; i < altura; i++ ) {
+      PixelRGB *linha_dest = dados + ( i * largura );
+      image[i] = linha_dest;
+      memcpy( linha_dest, &IMG->image[y_ini + i][x_ini], largura * sizeof( PixelRGB ) );
    }
 
-   // Cópia pura de memória, muito mais rápida que interpolação para cortes retos
-   // #pragma omp parallel for schedule(static)
-   for ( gsize i = 0; i < altura; i++ ) {
-      // Remoção do cast (guint) que causaria alertas -Wconversion. gsize -> size_t é direto.
-      memcpy( img->image[i], &IMG->image[y_ini + i][x_ini], largura * sizeof( PixelRGB ) );
-   }
+   img->dados = dados;
+   img->image = image;
 }
 
 
@@ -578,7 +580,7 @@ void rgb2gray( const ImagemColorida *PPM, ImagemCinza *PGM ) {
    // Com a memória contígua, o CPU ignora linhas/colunas e avança direto pelo buffer mestre
    gsize total_pixels = PGM->nrow * PGM->ncol;
 
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize i = 0; i < total_pixels; i++ ) {
       uint8_t r = PPM->dados[i].r;
       uint8_t g = PPM->dados[i].g;
@@ -588,145 +590,148 @@ void rgb2gray( const ImagemColorida *PPM, ImagemCinza *PGM ) {
    }
 }
 
-// ====================================================================================
-// LEITURA DIRETA DO DISCO PARA ESCALA DE CINZA (Conversão On-the-fly)
-// ====================================================================================
-void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
-   g_return_if_fail( IMG != NULL && arquivo != NULL );
-
-   FILE *p = fopen( arquivo, "rb" );
-   if ( !p ) {
-      g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
-      return;
-   }
-
-   if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
-                IMG->key, &IMG->ncol, &IMG->nrow, &IMG->max ) != 4 ) {
-      g_printerr( "[ERRO] Falha ao ler o cabeçalho PNM/PPM do arquivo.\n" );
-      fclose( p );
-      return;
-   }
-
-   g_strlcpy( IMG->key, "P5", sizeof( IMG->key ) );
-
-   if ( IMG->dados ) {
-      g_free( IMG->dados );
-      g_free( IMG->image );
-   }
-
-   // 1. Alocação Contígua Definitiva
-   IMG->dados = g_malloc( IMG->nrow * IMG->ncol * sizeof( uint8_t ) );
-   IMG->image = g_malloc( IMG->nrow * sizeof( uint8_t * ) );
-   for ( gsize i = 0; i < IMG->nrow; i++ ) {
-      IMG->image[i] = IMG->dados + ( i * IMG->ncol );
-   }
-
-   // 2. Buffer temporário de leitura para o arquivo colorido
-   gsize total_pixels = IMG->ncol * IMG->nrow;
-   g_autofree PixelRGB *buffer_rgb = g_malloc( total_pixels * sizeof( PixelRGB ) );
-
-   if ( fread( buffer_rgb, sizeof( PixelRGB ), total_pixels, p ) != total_pixels ) {
-      g_printerr( "[AVISO] Fim de arquivo inesperado. A imagem %s pode estar cortada.\n", arquivo );
-   }
-   fclose( p );
-
-   // 3. Conversão de Cor Imediata (1D puro e multithread)
-   // #pragma omp parallel for schedule(static)
-   for ( gsize i = 0; i < total_pixels; i++ ) {
-      uint8_t r = buffer_rgb[i].r;
-      uint8_t g = buffer_rgb[i].g;
-      uint8_t b = buffer_rgb[i].b;
-
-      IMG->dados[i] = ( uint8_t )( ( 2126 * r + 7152 * g + 722 * b ) / 10000 );
-   }
-}
-
-// ====================================================================================
-// LEITURA PURA DE IMAGEM PGM (ZERO-COPY DISCO -> RAM)
-// ====================================================================================
-void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
-   g_return_if_fail( IMG != NULL && arquivo != NULL );
-
-   FILE *p = fopen( arquivo, "rb" );
-   if ( !p ) {
-      g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
-      return;
-   }
-
-   if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
-                IMG->key, &IMG->ncol, &IMG->nrow, &IMG->max ) != 4 ) {
-      g_printerr( "[ERRO] Falha ao ler o cabeçalho PGM do arquivo.\n" );
-      fclose( p );
-      return;
-   }
-   g_strlcpy( IMG->key, "P5", sizeof( IMG->key ) );
-
-   if ( IMG->dados ) {
-      g_free( IMG->dados );
-      g_free( IMG->image );
-   }
-
-   // 1. Alocação Contígua
-   IMG->dados = g_malloc( IMG->nrow * IMG->ncol * sizeof( uint8_t ) );
-   IMG->image = g_malloc( IMG->nrow * sizeof( uint8_t * ) );
-   for ( gsize i = 0; i < IMG->nrow; i++ ) {
-      IMG->image[i] = IMG->dados + ( i * IMG->ncol );
-   }
-
-   // 2. Zero-Copy I/O: O disco injeta a imagem DIRETO no nosso bloco final da struct
-   gsize total_pixels = IMG->ncol * IMG->nrow;
-   if ( fread( IMG->dados, sizeof( uint8_t ), total_pixels, p ) != total_pixels ) {
-      g_printerr( "[AVISO] Fim de arquivo inesperado. A imagem %s pode estar cortada.\n", arquivo );
-   }
-
-   fclose( p );
-}
-
-// ====================================================================================
-// LEITURA PURA DE IMAGEM PPM COLORIDA (ZERO-COPY DISCO -> RAM)
-// ====================================================================================
-void imread( ImagemColorida *img, const char *arquivo ) {
-   g_return_if_fail( img != NULL && arquivo != NULL );
-
-   FILE *p = fopen( arquivo, "rb" );
-   if ( !p ) {
-      g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
-      return;
-   }
-
-   if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
-                img->key, &img->ncol, &img->nrow, &img->max ) != 4 ) {
-      g_printerr( "[ERRO] Falha ao ler o cabeçalho PPM do arquivo.\n" );
-      fclose( p );
-      return;
-   }
-
-   if ( img->dados ) {
-      g_free( img->dados );
-      g_free( img->image );
-   }
-
-   // 1. Alocação Contígua (O "Músculo" e o "Esqueleto")
-   img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
-   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
-   for ( gsize i = 0; i < img->nrow; i++ ) {
-      img->image[i] = img->dados + ( i * img->ncol );
-   }
-
-   // 2. Zero-Copy I/O: O disco injeta a imagem DIRETO no nosso bloco final da struct
-   gsize total_pixels = img->ncol * img->nrow;
-   if ( fread( img->dados, sizeof( PixelRGB ), total_pixels, p ) != total_pixels ) {
-      g_printerr( "[AVISO] Imagem truncada ou erro de leitura em %s.\n", arquivo );
-   }
-
-   fclose( p );
-}
 
 
 
-//========================================================================================================//
-
-
-
-
+// // ====================================================================================
+// // LEITURA DIRETA DO DISCO PARA ESCALA DE CINZA (Conversão On-the-fly)
+// // ====================================================================================
+// void imread_gray( ImagemCinza *IMG, const char *arquivo ) {
+//    g_return_if_fail( IMG != NULL && arquivo != NULL );
+//
+//    FILE *p = fopen( arquivo, "rb" );
+//    if ( !p ) {
+//       g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
+//       return;
+//    }
+//
+//    if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
+//                 IMG->key, &IMG->ncol, &IMG->nrow, &IMG->max ) != 4 ) {
+//       g_printerr( "[ERRO] Falha ao ler o cabeçalho PNM/PPM do arquivo.\n" );
+//       fclose( p );
+//       return;
+//    }
+//
+//    g_strlcpy( IMG->key, "P5", sizeof( IMG->key ) );
+//
+//    if ( IMG->dados ) {
+//       g_free( IMG->dados );
+//       g_free( IMG->image );
+//    }
+//
+//    // 1. Alocação Contígua Definitiva
+//    IMG->dados = g_malloc( IMG->nrow * IMG->ncol * sizeof( uint8_t ) );
+//    IMG->image = g_malloc( IMG->nrow * sizeof( uint8_t * ) );
+//    for ( gsize i = 0; i < IMG->nrow; i++ ) {
+//       IMG->image[i] = IMG->dados + ( i * IMG->ncol );
+//    }
+//
+//    // 2. Buffer temporário de leitura para o arquivo colorido
+//    gsize total_pixels = IMG->ncol * IMG->nrow;
+//    g_autofree PixelRGB *buffer_rgb = g_malloc( total_pixels * sizeof( PixelRGB ) );
+//
+//    if ( fread( buffer_rgb, sizeof( PixelRGB ), total_pixels, p ) != total_pixels ) {
+//       g_printerr( "[AVISO] Fim de arquivo inesperado. A imagem %s pode estar cortada.\n", arquivo );
+//    }
+//    fclose( p );
+//
+//    // 3. Conversão de Cor Imediata (1D puro e multithread)
+//    #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
+//    for ( gsize i = 0; i < total_pixels; i++ ) {
+//       uint8_t r = buffer_rgb[i].r;
+//       uint8_t g = buffer_rgb[i].g;
+//       uint8_t b = buffer_rgb[i].b;
+//
+//       IMG->dados[i] = ( uint8_t )( ( 2126 * r + 7152 * g + 722 * b ) / 10000 );
+//    }
+// }
+//
+// // ====================================================================================
+// // LEITURA PURA DE IMAGEM PGM (ZERO-COPY DISCO -> RAM)
+// // ====================================================================================
+// void imread_pgm( ImagemCinza *IMG, const char *arquivo ) {
+//    g_return_if_fail( IMG != NULL && arquivo != NULL );
+//
+//    FILE *p = fopen( arquivo, "rb" );
+//    if ( !p ) {
+//       g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
+//       return;
+//    }
+//
+//    if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
+//                 IMG->key, &IMG->ncol, &IMG->nrow, &IMG->max ) != 4 ) {
+//       g_printerr( "[ERRO] Falha ao ler o cabeçalho PGM do arquivo.\n" );
+//       fclose( p );
+//       return;
+//    }
+//    g_strlcpy( IMG->key, "P5", sizeof( IMG->key ) );
+//
+//    if ( IMG->dados ) {
+//       g_free( IMG->dados );
+//       g_free( IMG->image );
+//    }
+//
+//    // 1. Alocação Contígua
+//    IMG->dados = g_malloc( IMG->nrow * IMG->ncol * sizeof( uint8_t ) );
+//    IMG->image = g_malloc( IMG->nrow * sizeof( uint8_t * ) );
+//    for ( gsize i = 0; i < IMG->nrow; i++ ) {
+//       IMG->image[i] = IMG->dados + ( i * IMG->ncol );
+//    }
+//
+//    // 2. Zero-Copy I/O: O disco injeta a imagem DIRETO no nosso bloco final da struct
+//    gsize total_pixels = IMG->ncol * IMG->nrow;
+//    if ( fread( IMG->dados, sizeof( uint8_t ), total_pixels, p ) != total_pixels ) {
+//       g_printerr( "[AVISO] Fim de arquivo inesperado. A imagem %s pode estar cortada.\n", arquivo );
+//    }
+//
+//    fclose( p );
+// }
+//
+// // ====================================================================================
+// // LEITURA PURA DE IMAGEM PPM COLORIDA (ZERO-COPY DISCO -> RAM)
+// // ====================================================================================
+// void imread( ImagemColorida *img, const char *arquivo ) {
+//    g_return_if_fail( img != NULL && arquivo != NULL );
+//
+//    FILE *p = fopen( arquivo, "rb" );
+//    if ( !p ) {
+//       g_printerr( "[ERRO] Não foi possível abrir o arquivo %s.\n", arquivo );
+//       return;
+//    }
+//
+//    if ( fscanf( p, "%9s\n%" G_GSIZE_FORMAT " %" G_GSIZE_FORMAT "\n%hu\n",
+//                 img->key, &img->ncol, &img->nrow, &img->max ) != 4 ) {
+//       g_printerr( "[ERRO] Falha ao ler o cabeçalho PPM do arquivo.\n" );
+//       fclose( p );
+//       return;
+//    }
+//
+//    if ( img->dados ) {
+//       g_free( img->dados );
+//       g_free( img->image );
+//    }
+//
+//    // 1. Alocação Contígua (O "Músculo" e o "Esqueleto")
+//    img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
+//    img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+//    for ( gsize i = 0; i < img->nrow; i++ ) {
+//       img->image[i] = img->dados + ( i * img->ncol );
+//    }
+//
+//    // 2. Zero-Copy I/O: O disco injeta a imagem DIRETO no nosso bloco final da struct
+//    gsize total_pixels = img->ncol * img->nrow;
+//    if ( fread( img->dados, sizeof( PixelRGB ), total_pixels, p ) != total_pixels ) {
+//       g_printerr( "[AVISO] Imagem truncada ou erro de leitura em %s.\n", arquivo );
+//    }
+//
+//    fclose( p );
+// }
+//
+//
+//
+// //========================================================================================================//
+//
+//
+//
+//
 

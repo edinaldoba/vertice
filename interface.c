@@ -478,7 +478,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
       rascunho->questoes[i].qtd = dados->qtd_quest_subtema[i]; // ou dados->qtd_questoes[i]
 
       if ( dados->selecao_quest_prova[i] != NULL ) {
-         snprintf( rascunho->questoes[i].str, 128, "%s", dados->selecao_quest_prova[i] );
+         g_snprintf( rascunho->questoes[i].str, 128, "%s", dados->selecao_quest_prova[i] );
       }
    }
 
@@ -775,7 +775,7 @@ gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index ) {
 
 
 
-static void _atualizar_acervo_questoes_e_temas( AppContext *ctx ) {
+static void atualizar_acervo_questoes_e_temas_aux( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados    *dados    = &ctx->dados;
@@ -930,7 +930,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
 //==================================================================================================
 // Função auxiliar para criar arquivos ocultos vazios
-static void _criar_arquivo_oculto( const gchar *diretorio, const gchar *nome ) {
+static void criar_arquivo_oculto_aux( const gchar *diretorio, const gchar *nome ) {
    if ( !diretorio || !nome || nome[0] == '\0' ) {
       return;
    }
@@ -944,7 +944,7 @@ static void _criar_arquivo_oculto( const gchar *diretorio, const gchar *nome ) {
 }
 
 //--------------------------------------------------------------------------------------------------
-static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_periodo ) {
+static void carregar_escolas_e_turmas_aux( const char *raiz, GtkComboBox *combo_periodo ) {
    g_return_if_fail( raiz != NULL && combo_periodo != NULL );
 
    // =========================================================================
@@ -1005,7 +1005,7 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
       // Arquivo oculto do GESTOR (Raiz da escola)
       g_autofree gchar *gestor = g_key_file_get_string( keyfile, escola, "gestor", NULL );
       if ( gestor ) {
-         _criar_arquivo_oculto( dir_escola, gestor );
+         criar_arquivo_oculto_aux( dir_escola, gestor );
       }
 
       gsize n_turmas = 0;
@@ -1036,7 +1036,7 @@ static void _carregar_escolas_e_turmas( const char *raiz, GtkComboBox *combo_per
             g_autofree gchar *chave_prof = g_strdup_printf( "prof_%s", disc );
             g_autofree gchar *prof = g_key_file_get_string( keyfile, secao_turma, chave_prof, NULL );
             if ( prof ) {
-               _criar_arquivo_oculto( dir_disc, prof );
+               criar_arquivo_oculto_aux( dir_disc, prof );
             }
 
             // ---------------------------------------------------------------
@@ -1103,7 +1103,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "Vértice", NULL );
    dados->raiz = ctx->caminho.raiz;
 
-   _carregar_escolas_e_turmas( dados->raiz, combo_periodo );
+   carregar_escolas_e_turmas_aux( dados->raiz, combo_periodo );
 
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", NULL );
    cabecalho->limite_anos = quantidade_diretorios( diretorio );
@@ -1278,7 +1278,7 @@ void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gb
       g_clear_pointer( &dados->professor, g_free );
       dados->professor = professor_da_disciplina( diretorio, responsavel->professor );
 
-      _atualizar_acervo_questoes_e_temas( ctx );
+      atualizar_acervo_questoes_e_temas_aux( ctx );
 
    }
 }
@@ -1313,7 +1313,7 @@ void atualizar_periodo_interface( AppContext *ctx, gchar *novo_periodo ) {
 //
 //     // Primeiro cria a pasta raiz da turma/disciplina/periodo
 //     // Usamos caminhos_uteis_de_diretorios() para garantir que caminho->dados está atualizado
-//     snprintf(CaminhoDiretorio, sizeof(CaminhoDiretorio), "%s/Atividades Entregues", caminho->dados);
+//     g_snprintf(CaminhoDiretorio, sizeof(CaminhoDiretorio), "%s/Atividades Entregues", caminho->dados);
 //
 //     // Cria a pasta principal (ignora se já existir)
 //     mkdir(CaminhoDiretorio, 0777);
@@ -1321,7 +1321,7 @@ void atualizar_periodo_interface( AppContext *ctx, gchar *novo_periodo ) {
 //     for (int i = 0; i < dados->qtd_alunos_total; i++) {
 //         char pasta_aluno[1200];
 //         // Formata: "01 - NOME DO ALUNO"
-//         snprintf(pasta_aluno, sizeof(pasta_aluno), "%s/%.2d - %s",
+//         g_snprintf(pasta_aluno, sizeof(pasta_aluno), "%s/%.2d - %s",
 //                  CaminhoDiretorio, i + 1, ficha[i].aluno);
 //
 //         // Cria a pasta do aluno de forma nativa e ultra-rápida

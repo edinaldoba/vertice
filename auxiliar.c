@@ -132,7 +132,7 @@ void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, i
 
    int len = calcular_len_limpo( ficha->aluno, 30 );
    char aluno[64];
-   snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha->aluno );
+   g_snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha->aluno );
 
    gtk_list_store_set( store, iter,
                        0,  aluno,
@@ -205,7 +205,7 @@ int quantidade_diretorios( const char *diretorio ) {
       }
 
       // 4. Monta o caminho completo para que o 'stat' encontre os metadados corretos
-      snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
+      g_snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
 
       // 5. Interroga o sistema operacional sobre a natureza do item
       if ( stat( caminho_completo, &st ) == 0 ) {
@@ -324,7 +324,7 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
  *
  * @param caminho Ponteiro para a estrutura CaminhoDiretorio a ser liberada.
  */
-static void _caminho_diretorio_free( CaminhoDiretorio *caminho ) {
+static void caminho_diretorio_free_aux( CaminhoDiretorio *caminho ) {
    if ( !caminho ) {
       return;
    }
@@ -346,7 +346,7 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
    g_return_if_fail( caminho != NULL );
 
    // 1. Libera qualquer alocação anterior para evitar vazamento de memória (Memory Leak)
-   _caminho_diretorio_free( caminho );
+   caminho_diretorio_free_aux( caminho );
 
    // 2. Base Completa e Base Parcial (eliminando a necessidade do strrchr)
    // g_build_filename já aloca a string dinamicamente e coloca as barras '/' corretamente
@@ -398,14 +398,17 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
 // ====================================================================================
 // FUNÇÃO AUXILIAR: Embaralhamento Fisher-Yates (Thread-Safe)
 // ====================================================================================
-static void _chrperm( char *str, gsize n, GRand *rng ) {
+static void chrperm_aux( char *str, gsize n, GRand *rng ) {
    g_return_if_fail( str != NULL && n > 0 && rng != NULL );
 
-   // Algoritmo Fisher-Yates com navegação 100% GSize para evitar -Wsign-conversion
-   for ( gsize i = 0; i < n; i++ ) {
-      // Sorteia um índice entre a posição atual 'i' e o fim da string 'n' (exclusivo no limite superior)
+   if ( n < 2U ) {
+      return;
+   }
+
+   // Fisher-Yates canônico: percorre até n - 1 (o último elemento já estará definido)
+   for ( gsize i = 0; i < n - 1U; i++ ) {
       gint32 j_rand = g_rand_int_range( rng, ( gint32 )i, ( gint32 )n );
-      gsize j = ( gsize )j_rand;
+      gsize  j      = ( gsize )j_rand;
 
       char c = str[j];
       str[j] = str[i];
@@ -414,7 +417,7 @@ static void _chrperm( char *str, gsize n, GRand *rng ) {
 }
 
 // ====================================================================================
-// GERADOR DE GABARITOS (Motor Paralelizado em Bloco 1D Contíguo)
+// GERADOR DE GABARITOS (Motor em Bloco 1D Contíguo)
 // ====================================================================================
 void gerar_gabaritos( const gchar *arquivo, const int adicionados, const InterfaceDados *dados, const gchar *modo ) {
    g_return_if_fail( arquivo != NULL && dados != NULL && modo != NULL );
@@ -426,7 +429,7 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
    }
 
    if ( adicionados <= 0 ) {
-      return; // Nada a fazer
+      return;
    }
 
    FILE *p = g_fopen( arquivo, modo );
@@ -435,43 +438,30 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
       return;
    }
 
-   // Uniformização de tipos para a engine de memória
-   gsize num_provas = ( gsize )adicionados;
+   gsize num_provas  = ( gsize )adicionados;
    gsize total_quest = ( gsize )dados->total_quest_prova;
+   gsize max_len     = ( gsize )dados->max_quest_prova + 1U;
 
-   // Definimos o tamanho fixo de cada registro baseando-se no limite da prova (+1 para o \0)
-   gsize max_len = ( gsize )dados->max_quest_prova + 1;
-
-   // 2. Alocação Contígua Plana (Substitui completamente a ItemTextoCurto)
-   // Um bloco único na RAM substitui as matrizes. A memória já nasce preenchida com zeros (\0).
-   g_autofree char *bloco = g_malloc0( num_provas * max_len );
-
-
-   // Cada thread do processador cria sua própria "máquina de sorteio"
-   // Isso zera os travamentos de concorrência e garante entropia pura
+   // 2. Alocação Contígua Plana (já inicializada com '\0')
+   char *bloco = g_malloc0_n( num_provas, max_len );
    g_autoptr( GRand ) rng_local = g_rand_new();
 
+   // 3. Preenchimento Equilibrado e Embaralhamento por Prova
    for ( gsize i = 0; i < num_provas; i++ ) {
-
-      // Deslocamento aritmético de ponteiro: acessamos o "slot" da string no bloco gigante
-      char *gabarito = bloco + ( i * max_len );
-
-      // DISTRIBUIÇÃO UNIFORME DINÂMICA (0=A, 1=B, 2=C, 3=D, 4=E)
-      gint32 offset = g_rand_int_range( rng_local, 0, 5 );
+      gsize base_idx = i * max_len;
+      gint32 offset  = g_rand_int_range( rng_local, 0, 5 );
 
       for ( gsize q = 0; q < total_quest; q++ ) {
-         gabarito[q] = ( char )( 'A' + ( ( q + ( gsize )offset ) % 5 ) );
+         bloco[base_idx + q] = ( char )( 'A' + ( ( q + ( gsize )offset ) % 5U ) );
       }
 
-      // Encerra a string ativa exatamente no tamanho preenchido
-      gabarito[total_quest] = '\0';
+      bloco[base_idx + total_quest] = '\0';
 
-      // EMBARALHAMENTO (Bagunça a string perfeita de forma thread-safe)
-      _chrperm( gabarito, total_quest, rng_local );
+      // Embaralha a fatia atual passando o endereço indexado diretamente
+      chrperm_aux( &bloco[base_idx], total_quest, rng_local );
    }
 
-   // 4. I/O em Bloco (Disk-Bound de Zero Latência)
-   // Mandamos a matriz de caracteres puras para o disco, dispensando structs e padding.
+   // 4. I/O em Bloco Único
    gsize blocos_gravados = fwrite( bloco, max_len, num_provas, p );
 
    if ( blocos_gravados != num_provas ) {
@@ -479,7 +469,7 @@ void gerar_gabaritos( const gchar *arquivo, const int adicionados, const Interfa
                   blocos_gravados, num_provas );
    }
 
-   // O bloco gigante da heap evapora graças ao g_autofree.
+   g_free( bloco );
    fclose( p );
 }
 
@@ -570,7 +560,7 @@ void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
    g_hash_table_destroy( hash_status );
 }
 //--------------------------------------------------------------------------------------------------
-static void _copiar_acesso_bin( AppContext *ctx ) {
+static void copiar_acesso_bin_aux( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados *dados = &ctx->dados;
@@ -627,7 +617,7 @@ static void _copiar_acesso_bin( AppContext *ctx ) {
    gio_copiar_arquivo( arq_origem_valido, arq_target );
 }
 //--------------------------------------------------------------------------------------------------
-static gint _alfabetica_lista_de_alunos( gconstpointer a, gconstpointer b ) {
+static gint alfabetica_lista_de_alunos_aux( gconstpointer a, gconstpointer b ) {
    // Desempacota o ponteiro duplo
    const FichaAluno *f1 = *( const FichaAluno * const * )a;
    const FichaAluno *f2 = *( const FichaAluno * const * )b;
@@ -654,7 +644,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    EstadoArquivo estado = verificar_arquivo( arquivo_acesso );
    if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
       if ( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
-         _copiar_acesso_bin( ctx );
+         copiar_acesso_bin_aux( ctx );
       }
    }
 
@@ -728,7 +718,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    }
 
    // 6. Ordenação Alfabética do Array de Ponteiros
-   g_ptr_array_sort( diario->fichas, _alfabetica_lista_de_alunos );
+   g_ptr_array_sort( diario->fichas, alfabetica_lista_de_alunos_aux );
 }
 //----------------------------------------------------------------------------------------------------
 

@@ -479,9 +479,9 @@ typedef struct {
 
 // PixelRGB bem alinhado (3 bytes exatos, sem padding surpresa)
 typedef struct {
-   guint8 r;
-   guint8 g;
-   guint8 b;
+   guint8 r;     // Canal cor vermelha
+   guint8 g;     // Canal cor verde
+   guint8 b;     // Canal cor azul
 } PixelRGB;
 
 typedef struct {

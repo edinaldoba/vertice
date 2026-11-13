@@ -24,11 +24,11 @@
 
 void definir_titulo_documento( char *titulo_prova, const InterfaceDados *dados ) {
    if ( dados->periodo[0] == 'R' ) {
-      sprintf( titulo_prova, "%s de %s / %s",
-               dados->periodo, dados->disciplina, dados->ano );
+      g_snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s / %s",
+                  dados->periodo, dados->disciplina, dados->ano );
    } else {
-      sprintf( titulo_prova, "%s de %s do %s / %s",
-               dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
+      g_snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s do %s / %s",
+                  dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
    }
 }
 

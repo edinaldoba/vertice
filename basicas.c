@@ -175,7 +175,7 @@ void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina,
    if ( !nome || tam < 16 ) {
       return;
    }
-   snprintf( nome, tam, "%.3d%.2d%d%d.bin", turma, disciplina, periodo, prova );
+   g_snprintf( nome, tam, "%.3d%.2d%d%d.bin", turma, disciplina, periodo, prova );
 }
 
 
@@ -378,7 +378,7 @@ int quantidade_arquivos_por_extensao( const char *diretorio, const char *ext ) {
       }
 
       // 2. Monta o caminho completo necessário para o 'stat' funcionar corretamente
-      snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
+      g_snprintf( caminho_completo, sizeof( caminho_completo ), "%s/%s", diretorio, dp->d_name );
 
       // 3. Lê os metadados do arquivo/diretório
       if ( stat( caminho_completo, &st ) == 0 ) {
@@ -609,7 +609,7 @@ int copiar_arquivo( const char *origem, const char *destino ) {
 // Emula o `mkdir -p` do Bash
 int criar_diretorios_cascata( const char *caminho ) {
    char tmp[512];
-   snprintf( tmp, sizeof( tmp ), "%s", caminho );
+   g_strlcpy( tmp, caminho, sizeof( tmp ) );
    size_t len = strlen( tmp );
    if ( tmp[len - 1] == '/' ) {
       tmp[len - 1] = 0;
@@ -784,9 +784,9 @@ void preparar_ambiente_latex_no_disco( void ) {
    char caminho_destino_final[1014];
    char origem_completa[512];
 
-   snprintf( pasta_destino, sizeof( pasta_destino ), "%s/texmf/tex/latex/professor", home );
-   snprintf( caminho_destino_final, sizeof( caminho_destino_final ), "%s/professor.sty", pasta_destino );
-   snprintf( origem_completa, sizeof( origem_completa ), "%s/Documentos/LATEX/SEDUC/recursos/professor.sty", home );
+   g_snprintf( pasta_destino, sizeof( pasta_destino ), "%s/texmf/tex/latex/professor", home );
+   g_snprintf( caminho_destino_final, sizeof( caminho_destino_final ), "%s/professor.sty", pasta_destino );
+   g_snprintf( origem_completa, sizeof( origem_completa ), "%s/Documentos/LATEX/SEDUC/recursos/professor.sty", home );
 
    printf( "🔍 Verificando ambiente LaTeX...\n" );
 
@@ -810,7 +810,7 @@ void preparar_ambiente_latex_no_disco( void ) {
 
             // 4. Atualiza o banco do TeX (usando caminho seguro em vez de ~)
             char cmd_texhash[512];
-            snprintf( cmd_texhash, sizeof( cmd_texhash ), "texhash %s/texmf", home );
+            g_snprintf( cmd_texhash, sizeof( cmd_texhash ), "texhash %s/texmf", home );
             if ( system( cmd_texhash ) == -1 ) {
                fprintf( stderr, "Erro crítico: Não foi possível atualizar /texmf\n" );
             }

@@ -566,11 +566,12 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
    gboolean proc_ok = g_spawn_check_exit_status( wait_status, NULL );
 #endif
 
-   if ( proc_ok ) {
+   if ( proc_ok && async_data->qtd_subtemas > 0 && async_data->subtemas != NULL ) {
       g_print( "[SUCESSO] O tema '%s' foi compilado perfeitamente!\n", async_data->tema );
 
       // 1. Prepara o array dinâmico com os nomes exatos dos PDFs efetivamente gerados
-      g_auto( GStrv ) arquivos_pdf = g_new0( char *, ( gsize )async_data->qtd_subtemas + 1 );
+      gsize cap_pdfs     = ( gsize )async_data->qtd_subtemas + 1U;
+      char **arquivos_pdf = g_new0( char *, cap_pdfs );
       int qtd_sucessos_reais = 0;
 
       for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
@@ -579,11 +580,13 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
             continue;
          }
 
-         g_autofree char *nome_arquivo = g_strdup_printf( "%s.pdf", subtema_atual );
-         g_autofree char *path_teste   = g_build_filename( async_data->dir_compile, nome_arquivo, NULL );
+         char *nome_pdf             = g_strdup_printf( "%s.pdf", subtema_atual );
+         g_autofree char *path_teste = g_build_filename( async_data->dir_compile, nome_pdf, NULL );
 
          if ( g_file_test( path_teste, G_FILE_TEST_EXISTS ) ) {
-            arquivos_pdf[qtd_sucessos_reais++] = g_strdup( nome_arquivo );
+            arquivos_pdf[qtd_sucessos_reais++] = nome_pdf; // Transfere a posse diretamente (sem segundo g_strdup!)
+         } else {
+            g_free( nome_pdf );
          }
       }
 
@@ -615,7 +618,10 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
          }
       }
 
-   } else {
+      // Liberação explícita do vetor NULL-terminated (compreendida nativamente pelo clang-analyzer)
+      g_strfreev( arquivos_pdf );
+
+   } else if ( !proc_ok ) {
       g_printerr( "[AVISO] Compilação do tema '%s' interrompida ou com erros (status %d).\n",
                   async_data->tema, wait_status );
 

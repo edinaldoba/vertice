@@ -1,4 +1,20 @@
+# =====================================================================
+# SUPRESSÕES DO LEAKSANITIZER (ASan / LSan) - MODO DEBUG
+# =====================================================================
+# Bibliotecas gráficas e de fontes externas
 leak:libfontconfig.so
-leak:libglib-2.0.so
+leak:libharfbuzz.so
 leak:libgtk-3.so
+leak:libgdk-3.so
 leak:libpango
+leak:libcairo.so
+leak:libgio-2.0.so
+
+# Caches internos e tipos estáticos da GLib (NUNCA suprimir libglib-2.0.so inteira!)
+leak:g_type_register_static
+leak:g_type_register_fundamental
+leak:g_type_add_interface_static
+leak:g_quark_init
+leak:g_get_charset
+leak:g_get_language_names
+leak:g_slice_alloc

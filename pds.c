@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <omp.h>
 
 #include "glib.h"
 #include "glibconfig.h"
@@ -18,7 +19,9 @@
 
 
 
-// A Estrutura de Comunicação (O "Contrato" geométrico)
+// ====================================================================================
+// ESTRUTURA DE COMUNICAÇÃO (O "Contrato" Geométrico)
+// ====================================================================================
 typedef struct {
    float x_origem;
    float y_origem;
@@ -31,22 +34,92 @@ typedef struct {
 } MapeamentoAfim;
 
 // ====================================================================================
-// MOTOR GRÁFICO (Única função que faz a interpolação pesada e usa o OpenMP)
+// HELPERS GEOMÉTRICOS (Evitam duplicação entre os motores Cinza e RGB)
+// ====================================================================================
+static inline gboolean calcular_mapa_afim_ancoras( const IndiceMatriz *ancora, MapeamentoAfim *mapa ) {
+   g_return_val_if_fail( ancora != NULL && mapa != NULL, FALSE );
+
+   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
+   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
+   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
+
+   float dx_DC = x_C - x_D;
+   float dy_DC = y_C - y_D;
+   float dx_BC = x_C - x_B;
+   float dy_BC = y_C - y_B;
+
+   mapa->largura_destino = ( gsize )roundf( hypotf( dx_DC, dy_DC ) );
+   mapa->altura_destino  = ( gsize )roundf( hypotf( dx_BC, dy_BC ) );
+
+   if ( mapa->largura_destino == 0 || mapa->altura_destino == 0 ) {
+      return FALSE;
+   }
+
+   float inv_larg = 1.0f / ( float )mapa->largura_destino;
+   float inv_alt  = 1.0f / ( float )mapa->altura_destino;
+
+   mapa->x_origem = x_B + x_D - x_C;
+   mapa->y_origem = y_B + y_D - y_C;
+
+   mapa->ux = dx_DC * inv_larg;
+   mapa->uy = dy_DC * inv_larg;
+   mapa->vx = dx_BC * inv_alt;
+   mapa->vy = dy_BC * inv_alt;
+
+   return TRUE;
+}
+
+static inline gboolean calcular_mapa_afim_rotacao( gsize ncol, gsize nrow, float angulo_graus, MapeamentoAfim *mapa ) {
+   g_return_val_if_fail( ncol > 0 && nrow > 0 && mapa != NULL, FALSE );
+
+   // Matemática 100% em precisão simples (float) para evitar -Wdouble-promotion
+   float rad   = angulo_graus * ( ( float )G_PI / 180.0f );
+   float cos_a = cosf( rad );
+   float sin_a = sinf( rad );
+
+   float ncol_f = ( float )ncol;
+   float nrow_f = ( float )nrow;
+
+   mapa->largura_destino = ( gsize )roundf( ( fabsf( ncol_f * cos_a ) + fabsf( nrow_f * sin_a ) ) );
+   mapa->altura_destino  = ( gsize )roundf( ( fabsf( nrow_f * cos_a ) + fabsf( ncol_f * sin_a ) ) );
+
+   if ( mapa->largura_destino == 0 || mapa->altura_destino == 0 ) {
+      return FALSE;
+   }
+
+   mapa->ux =  cos_a;
+   mapa->uy = -sin_a;
+   mapa->vx =  sin_a;
+   mapa->vy =  cos_a;
+
+   float meia_larg_dst = ( float )mapa->largura_destino * 0.5f;
+   float meia_alt_dst  = ( float )mapa->altura_destino  * 0.5f;
+
+   mapa->x_origem = ( ncol_f * 0.5f ) - ( meia_larg_dst * mapa->ux ) - ( meia_alt_dst * mapa->vx );
+   mapa->y_origem = ( nrow_f * 0.5f ) - ( meia_larg_dst * mapa->uy ) - ( meia_alt_dst * mapa->vy );
+
+   return TRUE;
+}
+
+// ====================================================================================
+// MOTOR GRÁFICO EM TONS DE CINZA (Interpolação Bilinear Paralelizada)
 // ====================================================================================
 static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img, const MapeamentoAfim *mapa ) {
-   g_return_if_fail( IMG != NULL && img != NULL && mapa != NULL );
+   g_return_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL );
+   g_return_if_fail( img != NULL && mapa != NULL );
    g_return_if_fail( mapa->largura_destino > 0 && mapa->altura_destino > 0 );
 
-   // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
+   // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
       g_free( img->image );
+   } else if ( img->image ) {
+      liberar_matriz_pixels( img->image, img->nrow );
    }
 
    img->ncol = mapa->largura_destino;
    img->nrow = mapa->altura_destino;
 
-   // Aloca o bloco mestre de pixels e o vetor de atalhos de linha em chamadas únicas
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
    img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
@@ -56,83 +129,86 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   // O SEGREDO: Usar gssize (signed size) para garantir que coordenadas
-   // fora da imagem (negativas) sejam interpretadas corretamente.
    gssize x_lim = ( gssize )IMG->ncol - 1;
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
-      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+      // OTIMIZAÇÃO: Coordenadas base da linha e ponteiro de escrita içados para fora do laço X
+      float y_f = ( float )y_novo;
+      float x_linha_base = mapa->x_origem + ( y_f * mapa->vx );
+      float y_linha_base = mapa->y_origem + ( y_f * mapa->vy );
+      uint8_t *linha_dest = img->image[y_novo];
 
-         float x_orig = mapa->x_origem + ( ( float )y_novo * mapa->vx ) + ( ( float )x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( ( float )y_novo * mapa->vy ) + ( ( float )x_novo * mapa->uy );
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+         float x_f = ( float )x_novo;
+         float x_orig = x_linha_base + ( x_f * mapa->ux );
+         float y_orig = y_linha_base + ( x_f * mapa->uy );
 
          gssize x_base = ( gssize )floorf( x_orig );
          gssize y_base = ( gssize )floorf( y_orig );
 
          float dx = x_orig - ( float )x_base;
          float dy = y_orig - ( float )y_base;
+         float dx_inv = 1.0f - dx;
+         float dy_inv = 1.0f - dy;
 
-         // Presume-se fundo branco (255) para pontos fora da folha
-         int pA = 255, pB = 255, pC = 255, pD = 255;
+         uint8_t pA = 255, pB = 255, pC = 255, pD = 255;
 
-         // Caminho Rápido (Centro): Pixel está totalmente dentro da imagem de origem
+         // [FAST PATH] - Pixel totalmente dentro da imagem de origem
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
-            pA = IMG->image[y_base][x_base];
-            pB = IMG->image[y_base][x_base + 1];
-            pC = IMG->image[y_base + 1][x_base];
-            pD = IMG->image[y_base + 1][x_base + 1];
+            const uint8_t *linha_y0 = IMG->image[y_base];
+            const uint8_t *linha_y1 = IMG->image[y_base + 1];
+
+            pA = linha_y0[x_base];
+            pB = linha_y0[x_base + 1];
+            pC = linha_y1[x_base];
+            pD = linha_y1[x_base + 1];
          } else {
-            // Caminho Lento (Bordas): Lógica brutalmente simplificada.
-            // Sobrescreve o branco (255) apenas se o ponto específico cair dentro do limite.
+            // [SLOW PATH] - Tratamento individual das bordas
             if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
                pA = IMG->image[y_base][x_base];
             }
-
             if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
                pB = IMG->image[y_base][x_base + 1];
             }
-
             if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
                pC = IMG->image[y_base + 1][x_base];
             }
-
             if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
                pD = IMG->image[y_base + 1][x_base + 1];
             }
          }
 
-         float interpolado = ( float )pA * ( 1.0f - dx ) * ( 1.0f - dy ) +
-                             ( float )pB * dx * ( 1.0f - dy ) +
-                             ( float )pC * ( 1.0f - dx ) * dy +
-                             ( float )pD * dx * dy;
+         float interpolado = ( ( float )pA * dx_inv * dy_inv ) +
+                             ( ( float )pB * dx     * dy_inv ) +
+                             ( ( float )pC * dx_inv * dy ) +
+                             ( ( float )pD * dx     * dy );
 
-         img->image[y_novo][x_novo] = ( uint8_t )( interpolado + 0.5f );
+         linha_dest[x_novo] = ( uint8_t )( interpolado + 0.5f );
       }
    }
 }
 
-
-
-
 // ====================================================================================
-// MOTOR GRÁFICO RGB (Apenas executa a matemática definida no MapeamentoAfim)
+// MOTOR GRÁFICO RGB COLORIDO (Interpolação Bilinear Paralelizada)
 // ====================================================================================
 static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, ImagemColorida *img, const MapeamentoAfim *mapa ) {
-   g_return_if_fail( IMG != NULL && img != NULL && mapa != NULL );
+   g_return_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL );
+   g_return_if_fail( img != NULL && mapa != NULL );
    g_return_if_fail( mapa->largura_destino > 0 && mapa->altura_destino > 0 );
 
-   // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
+   // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
       g_free( img->image );
+   } else if ( img->image ) {
+      liberar_matriz_pixels_colorida( img->image, img->nrow );
    }
 
    img->ncol = mapa->largura_destino;
    img->nrow = mapa->altura_destino;
 
-   // Aloca o bloco mestre de pixels RGB e o vetor de atalhos de linha em chamadas únicas
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
    img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
@@ -142,195 +218,115 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
    g_strlcpy( img->key, IMG->key, sizeof( img->key ) );
    img->max = IMG->max;
 
-   // O SEGREDO: Usar gssize (signed size) para garantir que coordenadas
-   // fora da imagem (negativas) não sofram wrap-around e quebrem os limites.
    gssize x_lim = ( gssize )IMG->ncol - 1;
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
-   // Diretiva OpenMP reativada: tira proveito total da nova memória contígua
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
-      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+      float y_f = ( float )y_novo;
+      float x_linha_base = mapa->x_origem + ( y_f * mapa->vx );
+      float y_linha_base = mapa->y_origem + ( y_f * mapa->vy );
+      PixelRGB *linha_dest = img->image[y_novo];
 
-         float x_orig = mapa->x_origem + ( ( float )y_novo * mapa->vx ) + ( ( float )x_novo * mapa->ux );
-         float y_orig = mapa->y_origem + ( ( float )y_novo * mapa->vy ) + ( ( float )x_novo * mapa->uy );
+      for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
+         float x_f = ( float )x_novo;
+         float x_orig = x_linha_base + ( x_f * mapa->ux );
+         float y_orig = y_linha_base + ( x_f * mapa->uy );
 
          gssize x_base = ( gssize )floorf( x_orig );
          gssize y_base = ( gssize )floorf( y_orig );
 
          float dx = x_orig - ( float )x_base;
          float dy = y_orig - ( float )y_base;
+         float dx_inv = 1.0f - dx;
+         float dy_inv = 1.0f - dy;
 
-         // Inicia todos os pontos com o fundo branco seguro
-         PixelRGB pA = {255, 255, 255};
-         PixelRGB pB = {255, 255, 255};
-         PixelRGB pC = {255, 255, 255};
-         PixelRGB pD = {255, 255, 255};
+         PixelRGB pA = { 255, 255, 255 };
+         PixelRGB pB = { 255, 255, 255 };
+         PixelRGB pC = { 255, 255, 255 };
+         PixelRGB pD = { 255, 255, 255 };
 
-         // [FAST PATH] - Interior da imagem: Acesso direto e veloz
+         // [FAST PATH] - Interior da imagem
          if ( x_base >= 0 && x_base < x_lim && y_base >= 0 && y_base < y_lim ) {
-            pA = IMG->image[y_base][x_base];
-            pB = IMG->image[y_base][x_base + 1];
-            pC = IMG->image[y_base + 1][x_base];
-            pD = IMG->image[y_base + 1][x_base + 1];
+            const PixelRGB *linha_y0 = IMG->image[y_base];
+            const PixelRGB *linha_y1 = IMG->image[y_base + 1];
 
-            // [SLOW PATH] - Borda: Avalia cada vizinho isoladamente sem variáveis complexas
+            pA = linha_y0[x_base];
+            pB = linha_y0[x_base + 1];
+            pC = linha_y1[x_base];
+            pD = linha_y1[x_base + 1];
          } else {
+            // [SLOW PATH] - Borda
             if ( x_base >= 0 && x_base <= x_lim && y_base >= 0 && y_base <= y_lim ) {
                pA = IMG->image[y_base][x_base];
             }
-
             if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base >= 0 && y_base <= y_lim ) {
                pB = IMG->image[y_base][x_base + 1];
             }
-
             if ( x_base >= 0 && x_base <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
                pC = IMG->image[y_base + 1][x_base];
             }
-
             if ( x_base + 1 >= 0 && x_base + 1 <= x_lim && y_base + 1 >= 0 && y_base + 1 <= y_lim ) {
                pD = IMG->image[y_base + 1][x_base + 1];
             }
          }
 
-         // Cálculo dos pesos otimizado (calculado 1 vez, usado 3 vezes)
-         float pesoA = ( 1.0f - dx ) * ( 1.0f - dy );
-         float pesoB = dx * ( 1.0f - dy );
-         float pesoC = ( 1.0f - dx ) * dy;
-         float pesoD = dx * dy;
+         float pesoA = dx_inv * dy_inv;
+         float pesoB = dx     * dy_inv;
+         float pesoC = dx_inv * dy;
+         float pesoD = dx     * dy;
 
-         // Aplicação nos 3 canais de cor
-         float r_interp = ( float )pA.r * pesoA + ( float )pB.r * pesoB + ( float )pC.r * pesoC + ( float )pD.r * pesoD;
-         float g_interp = ( float )pA.g * pesoA + ( float )pB.g * pesoB + ( float )pC.g * pesoC + ( float )pD.g * pesoD;
-         float b_interp = ( float )pA.b * pesoA + ( float )pB.b * pesoB + ( float )pC.b * pesoC + ( float )pD.b * pesoD;
+         float r_interp = ( ( float )pA.r * pesoA ) + ( ( float )pB.r * pesoB ) +
+                          ( ( float )pC.r * pesoC ) + ( ( float )pD.r * pesoD );
+         float g_interp = ( ( float )pA.g * pesoA ) + ( ( float )pB.g * pesoB ) +
+                          ( ( float )pC.g * pesoC ) + ( ( float )pD.g * pesoD );
+         float b_interp = ( ( float )pA.b * pesoA ) + ( ( float )pB.b * pesoB ) +
+                          ( ( float )pC.b * pesoC ) + ( ( float )pD.b * pesoD );
 
-         img->image[y_novo][x_novo].r = ( uint8_t )( r_interp + 0.5f );
-         img->image[y_novo][x_novo].g = ( uint8_t )( g_interp + 0.5f );
-         img->image[y_novo][x_novo].b = ( uint8_t )( b_interp + 0.5f );
+         linha_dest[x_novo].r = ( uint8_t )( r_interp + 0.5f );
+         linha_dest[x_novo].g = ( uint8_t )( g_interp + 0.5f );
+         linha_dest[x_novo].b = ( uint8_t )( b_interp + 0.5f );
       }
    }
 }
 
-
-
-
-
+// ====================================================================================
+// INTERFACES PÚBLICAS DE RECORTE E ROTAÇÃO AFIM
+// ====================================================================================
 void extrair_regiao_por_ancoras( const ImagemCinza *IMG, ImagemCinza *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) {
-      return;
-   }
-
-   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
-   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
-   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
-
-   float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
-   float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
+   g_return_if_fail( IMG != NULL && img != NULL && ancora != NULL );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( gsize )roundf( sqrtf( dist_DC_quad ) );
-   mapa.altura_destino  = ( gsize )roundf( sqrtf( dist_BC_quad ) );
-
-   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) {
-      return;
+   if ( calcular_mapa_afim_ancoras( ancora, &mapa ) ) {
+      aplicar_transformacao_afim( IMG, img, &mapa );
    }
-
-   mapa.x_origem = x_B + x_D - x_C;
-   mapa.y_origem = y_B + y_D - y_C;
-
-   mapa.ux = ( x_C - x_D ) / ( float )mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / ( float )mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / ( float )mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / ( float )mapa.altura_destino;
-
-   aplicar_transformacao_afim( IMG, img, &mapa );
 }
-
-
-
 
 void extrair_regiao_colorida_por_ancoras( const ImagemColorida *IMG, ImagemColorida *img, const IndiceMatriz *ancora ) {
-   if ( !IMG || !img || !ancora ) {
-      return;
-   }
-
-   float x_B = ( float )ancora[1].j, y_B = ( float )ancora[1].i;
-   float x_C = ( float )ancora[2].j, y_C = ( float )ancora[2].i;
-   float x_D = ( float )ancora[3].j, y_D = ( float )ancora[3].i;
-
-   float dist_DC_quad = ( x_C - x_D ) * ( x_C - x_D ) + ( y_C - y_D ) * ( y_C - y_D );
-   float dist_BC_quad = ( x_C - x_B ) * ( x_C - x_B ) + ( y_C - y_B ) * ( y_C - y_B );
+   g_return_if_fail( IMG != NULL && img != NULL && ancora != NULL );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( gsize )roundf( sqrtf( dist_DC_quad ) );
-   mapa.altura_destino  = ( gsize )roundf( sqrtf( dist_BC_quad ) );
-
-   if ( mapa.largura_destino <= 0 || mapa.altura_destino <= 0 ) {
-      return;
+   if ( calcular_mapa_afim_ancoras( ancora, &mapa ) ) {
+      aplicar_transformacao_afim_colorida( IMG, img, &mapa );
    }
-
-   mapa.x_origem = x_B + x_D - x_C;
-   mapa.y_origem = y_B + y_D - y_C;
-
-   mapa.ux = ( x_C - x_D ) / ( float )mapa.largura_destino;
-   mapa.uy = ( y_C - y_D ) / ( float )mapa.largura_destino;
-   mapa.vx = ( x_C - x_B ) / ( float )mapa.altura_destino;
-   mapa.vy = ( y_C - y_B ) / ( float )mapa.altura_destino;
-
-   aplicar_transformacao_afim_colorida( IMG, img, &mapa );
 }
-
-
-
 
 void rotacionar_imagem( const ImagemCinza *IMG, ImagemCinza *img, float angulo_graus ) {
-   // Converte para radianos
-   double rad = ( double )angulo_graus * ( G_PI / 180.0 );
-   double cos_a = cos( rad );
-   double sin_a = sin( rad );
+   g_return_if_fail( IMG != NULL && img != NULL );
 
    MapeamentoAfim mapa;
-   // Em uma rotação pura, as dimensões da imagem destino mudam para acomodar as pontas
-   mapa.largura_destino = ( gsize )( fabs( ( guint16 )IMG->ncol * cos_a ) + fabs( ( guint16 )IMG->nrow * sin_a ) );
-   mapa.altura_destino  = ( gsize )( fabs( ( guint16 )IMG->nrow * cos_a ) + fabs( ( guint16 )IMG->ncol * sin_a ) );
-
-   // Vetores diretores simples baseados no ângulo
-   mapa.ux = ( float )cos_a;
-   mapa.uy = ( float ) - sin_a;
-   mapa.vx = ( float )sin_a;
-   mapa.vy = ( float )cos_a;
-
-   // Calcula a origem para centralizar
-   mapa.x_origem = ( ( float )IMG->ncol / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.ux - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( ( float )IMG->nrow / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.uy - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vy;
-
-   aplicar_transformacao_afim( IMG, img, &mapa );
+   if ( calcular_mapa_afim_rotacao( IMG->ncol, IMG->nrow, angulo_graus, &mapa ) ) {
+      aplicar_transformacao_afim( IMG, img, &mapa );
+   }
 }
 
-
-
-
-
-
-
 void rotacionar_imagem_colorida( const ImagemColorida *IMG, ImagemColorida *img, float angulo_graus ) {
-   double rad = ( double )angulo_graus * ( G_PI / 180.0 );
-   double cos_a = cos( rad );
-   double sin_a = sin( rad );
+   g_return_if_fail( IMG != NULL && img != NULL );
 
    MapeamentoAfim mapa;
-   mapa.largura_destino = ( gsize )( fabs( ( guint16 )IMG->ncol * cos_a ) + fabs( ( guint16 )IMG->nrow * sin_a ) );
-   mapa.altura_destino  = ( gsize )( fabs( ( guint16 )IMG->nrow * cos_a ) + fabs( ( guint16 )IMG->ncol * sin_a ) );
-
-   mapa.ux = ( float )cos_a;
-   mapa.uy = ( float ) - sin_a;
-   mapa.vx = ( float )sin_a;
-   mapa.vy = ( float )cos_a;
-
-   mapa.x_origem = ( ( float )IMG->ncol / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.ux - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vx;
-   mapa.y_origem = ( ( float )IMG->nrow / 2.0f ) - ( ( float )mapa.largura_destino / 2.0f ) * mapa.uy - ( ( float )mapa.altura_destino / 2.0f ) * mapa.vy;
-
-   aplicar_transformacao_afim_colorida( IMG, img, &mapa );
+   if ( calcular_mapa_afim_rotacao( IMG->ncol, IMG->nrow, angulo_graus, &mapa ) ) {
+      aplicar_transformacao_afim_colorida( IMG, img, &mapa );
+   }
 }
 
 
@@ -388,7 +384,7 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // 4. Mapeamento Reverso com Interpolação Bilinear
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
@@ -494,7 +490,7 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // 4. Mapeamento Reverso com Interpolação Bilinear RGB
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_novo = 0; y_novo < img->nrow; y_novo++ ) {
       for ( gsize x_novo = 0; x_novo < img->ncol; x_novo++ ) {
 
@@ -599,7 +595,7 @@ void redimensionar_imagem_bilinear( const ImagemCinza *origem, ImagemCinza *dest
 
    // 2. Mapeamento Reverso Paralelizado
    // schedule(static) é perfeito pois não há divergência de ramificação (branching)
-   #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize i = 0; i < destino->nrow; i++ ) {
       float src_y = y_ratio * ( float )i;
       gsize y = ( gsize )src_y;
@@ -675,7 +671,7 @@ void redimensionar_imagem_colorida_bilinear( const ImagemColorida *origem, Image
    float y_ratio = ( float )( origem->nrow - 1 ) / ( float )( destino->nrow > 1 ? destino->nrow - 1 : 1 );
 
    // 2. Mapeamento Reverso Paralelizado
-   #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize i = 0; i < destino->nrow; i++ ) {
       float src_y = y_ratio * ( float )i;
       gsize y = ( gsize )src_y;
@@ -782,7 +778,7 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
    gssize x_lim = ( gssize )IMG->ncol - 1;
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y = 0; y < IMG->nrow; y++ ) {
       for ( gsize x = 0; x < IMG->ncol; x++ ) {
 
@@ -876,7 +872,7 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
    gssize y_lim = ( gssize )IMG->nrow - 1;
 
    // Diretiva OpenMP reativada: tira proveito total da nova memória contígua
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y = 0; y < IMG->nrow; y++ ) {
       for ( gsize x = 0; x < IMG->ncol; x++ ) {
 
@@ -931,84 +927,73 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
 
 
 // ====================================================================================
-// BINARIZAÇÃO GLOBAL: MÉTODO DE OTSU (Arquitetura Contígua 1D)
+// BINARIZAÇÃO GLOBAL: MÉTODO DE OTSU (Arquitetura Contígua 1D + Vetorização SIMD)
 // ====================================================================================
 void binarizar_pgm_metodo_otsu( ImagemCinza *IMG ) {
    g_return_if_fail( IMG != NULL && IMG->dados != NULL && IMG->image != NULL );
    g_return_if_fail( IMG->nrow > 0 && IMG->ncol > 0 && IMG->max == 255 );
 
-   // O histograma possui 256 posições fixas (0 a 255)
-   const gsize num_bins = 256;
+   // 256 bins fixos na Stack (2 KB): Zero alocação na Heap e máxima localidade de cache L1
+   enum { NUM_BINS = 256 };
+   gsize histograma[NUM_BINS] = { 0 };
 
-   // Usamos gsize (64-bits) para as contagens, prevenindo overflow mesmo em imagens gigantes
-   g_autofree gsize *histograma = g_new0( gsize, num_bins );
-
-   gsize total_pixels = IMG->nrow * IMG->ncol;
+   const gsize total_pixels = IMG->nrow * IMG->ncol;
+   uint8_t * restrict dados = IMG->dados;
 
    // =================================================================================
-   // 1. CONSTRUÇÃO DO HISTOGRAMA (Varredura Linear Otimizada para Cache L1/L2)
+   // 1. CONSTRUÇÃO DO HISTOGRAMA (Varredura Linear 1D)
    // =================================================================================
-   // Como é uma leitura simples de 1D, não paralelizamos para evitar overhead
-   // de concorrência ou reduções atômicas em 256 bins. O acesso sequencial puro é muito rápido.
    for ( gsize i = 0; i < total_pixels; i++ ) {
-      uint8_t val = IMG->dados[i];
-      histograma[val]++;
+      histograma[dados[i]]++;
    }
 
    // =================================================================================
    // 2. MATEMÁTICA DO MÉTODO DE OTSU
    // =================================================================================
    double soma_total = 0.0;
-
-   for ( gsize i = 0; i < num_bins; i++ ) {
+   for ( gsize i = 0; i < NUM_BINS; i++ ) {
       soma_total += ( double )i * ( double )histograma[i];
    }
 
-   double soma_b = 0.0;
-   gsize w_b = 0;
-   gsize w_f = 0;
+   double soma_b           = 0.0;
+   double variancia_maxima = -1.0;
+   gsize  w_b              = 0;
+   uint8_t limiar_otsu     = 0;
 
-   double variancia_maxima = 0.0;
-   uint8_t limiar_otsu = 0;
-
-   // Varre todos os limiares possíveis (0 a 255)
-   for ( gsize t = 0; t < num_bins; t++ ) {
-      w_b += histograma[t];              // Peso da classe "Fundo" (Background)
+   for ( gsize t = 0; t < NUM_BINS; t++ ) {
+      w_b += histograma[t]; // Peso da classe "Fundo" (Background)
       if ( w_b == 0 ) {
-         continue;                       // Evita divisão por zero
+         continue;
       }
 
-      w_f = total_pixels - w_b;          // Peso da classe "Frente" (Foreground)
+      gsize w_f = total_pixels - w_b; // Peso da classe "Frente" (Foreground)
       if ( w_f == 0 ) {
-         break;                          // Fim dos dados úteis
+         break; // Todos os pixels restantes pertencem ao fundo
       }
 
       soma_b += ( double )t * ( double )histograma[t];
 
-      // Médias das intensidades do fundo e da frente
       double media_b = soma_b / ( double )w_b;
       double media_f = ( soma_total - soma_b ) / ( double )w_f;
+      double diff    = media_b - media_f;
 
-      // Variância Inter-Classes
-      double diff = media_b - media_f;
+      // Variância Inter-Classes: w_b * w_f * (media_b - media_f)^2
       double variancia_inter = ( double )w_b * ( double )w_f * diff * diff;
 
-      // Guarda o limiar que produziu a maior separação matemática entre branco e preto
       if ( variancia_inter > variancia_maxima ) {
          variancia_maxima = variancia_inter;
-         limiar_otsu = ( uint8_t )t;
+         limiar_otsu      = ( uint8_t )t;
       }
    }
 
    // =================================================================================
-   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (Paralelizada via OpenMP)
+   // 3. APLICAÇÃO DO LIMIAR NA IMAGEM (Vetorizada via SIMD sem Overhead de Threads)
    // =================================================================================
-   uint8_t max_val = ( uint8_t )IMG->max;
+   const uint8_t max_val = ( uint8_t )IMG->max;
 
-   // Substituição direta em 1D. schedule(static) distribui perfeitamente em blocos
-   #pragma omp parallel for schedule(static)
+   #pragma omp simd
    for ( gsize i = 0; i < total_pixels; i++ ) {
-      IMG->dados[i] = ( IMG->dados[i] > limiar_otsu ) ? max_val : 0;
+      dados[i] = ( dados[i] > limiar_otsu ) ? max_val : 0U;
    }
 }
 
@@ -1103,7 +1088,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR (MULTITHREAD)
    // =========================================================================
    // Diretiva OpenMP reativada: agendamento estático para blocos de memória contíguos
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_dst = 0; y_dst < altura; y_dst++ ) {
       for ( gsize x_dst = 0; x_dst < largura; x_dst++ ) {
 
@@ -1251,7 +1236,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    // 4. BACKWARD WARPING COM INTERPOLAÇÃO BILINEAR DE 3 CANAIS (MULTITHREAD)
    // =========================================================================
    // Diretiva OpenMP reativada: agendamento estático tira total proveito do L1/L2
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize y_dst = 0; y_dst < altura; y_dst++ ) {
       for ( gsize x_dst = 0; x_dst < largura; x_dst++ ) {
 
@@ -1335,7 +1320,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
 // FUNÇÃO: Filtragem Flat-Field Mágica para Imagens em Tons de Cinza (Otimizada)
 //===================================================================================================
 void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsize raio_blur ) {
-   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 0 ) {
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 5 ) {
       return;
    }
 
@@ -1347,7 +1332,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
       dest->nrow = orig->nrow;
       dest->ncol = orig->ncol;
       dest->max = orig->max;
-      snprintf( dest->key, sizeof( dest->key ), "%s", orig->key );
+      g_strlcpy( dest->key, orig->key, sizeof( dest->key ) );
       dest->image = alocar_matriz_pixels( rows, cols );
    }
 
@@ -1364,7 +1349,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
    }
 
    // 2.1 Desfoque Horizontal (Linhas)
-   // #pragma omp parallel for schedule(dynamic)
+   #pragma omp parallel for schedule(dynamic) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
          long soma = 0;
@@ -1377,12 +1362,13 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
 
             soma += orig->image[r][nc];
          }
-         fundo_h.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )( soma / qtd_vizinhos );
+         long razao = ( qtd_vizinhos > 0 ) ? soma / qtd_vizinhos : soma;
+         fundo_h.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )razao;
       }
    }
 
    // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
-   // #pragma omp parallel for schedule(dynamic)
+   #pragma omp parallel for schedule(dynamic) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
          long soma = 0;
@@ -1395,7 +1381,8 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
 
             soma += fundo_h.image[nr][c];
          }
-         fundo.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )( soma / qtd_vizinhos );
+         long razao = ( qtd_vizinhos > 0 ) ? soma / qtd_vizinhos : soma;
+         fundo.image[r][c] = ( qtd_vizinhos == 0 ) ? 0 : ( guint8 )razao;
       }
    }
 
@@ -1403,7 +1390,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
    // Calcula o limiar de branco (equivalente a 230 em uma escala de 255)
    int limiar_branco = ( orig->max * 230 ) / 255;
 
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
 
@@ -1437,7 +1424,7 @@ void filtrar_fundo_magico_cinza( const ImagemCinza *orig, ImagemCinza *dest, gsi
  * mantendo as cores originais da caneta e marcações para geração de PDFs limpos.
  */
 void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *dest, gsize raio_blur ) {
-   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 0 ) {
+   if ( !orig || !orig->image || !dest || orig->nrow <= 0 || orig->ncol <= 0 || raio_blur <= 5 ) {
       return;
    }
 
@@ -1449,7 +1436,7 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
       dest->nrow = orig->nrow;
       dest->ncol = orig->ncol;
       dest->max = orig->max;
-      snprintf( dest->key, sizeof( dest->key ), "%s", orig->key );
+      g_strlcpy( dest->key, orig->key, sizeof( dest->key ) );
       dest->image = alocar_matriz_pixels_colorida( rows, cols );
    }
 
@@ -1468,7 +1455,7 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
    }
 
    // 2.1 Desfoque Horizontal (Linhas)
-   // #pragma omp parallel for schedule(dynamic)
+   #pragma omp parallel for schedule(dynamic) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
          long sr = 0, sg = 0, sb = 0;
@@ -1492,7 +1479,7 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
    }
 
    // 2.2 Desfoque Vertical (Colunas) - Lê da fundo_h e escreve na fundo
-   // #pragma omp parallel for schedule(dynamic)
+   #pragma omp parallel for schedule(dynamic) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
          long sr = 0, sg = 0, sb = 0;
@@ -1514,7 +1501,7 @@ void filtrar_fundo_magico_colorido( const ImagemColorida *orig, ImagemColorida *
    }
 
    // 3. Passo B: Normalização Flat-Field Otimizada
-   // #pragma omp parallel for schedule(static)
+   #pragma omp parallel for schedule(static) if( !omp_in_parallel() )
    for ( gsize r = 0; r < rows; r++ ) {
       for ( gsize c = 0; c < cols; c++ ) {
 

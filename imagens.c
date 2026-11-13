@@ -184,7 +184,7 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 // ====================================================================================
 // FUNÇÕES AUXILIARES LOCAIS DE LIMPEZA (Evitam repetição e previnem vazamentos)
 // ====================================================================================
-static inline void _limpar_imagem_cinza_local( ImagemCinza *img ) {
+static inline void limpar_imagem_cinza_local_aux( ImagemCinza *img ) {
    if ( !img ) {
       return;
    }
@@ -201,7 +201,7 @@ static inline void _limpar_imagem_cinza_local( ImagemCinza *img ) {
    img->ncol = 0;
 }
 //------------------------------------------------------------------------------------------
-static inline void _limpar_imagem_colorida_local( ImagemColorida *img ) {
+static inline void limpar_imagem_colorida_local_aux( ImagemColorida *img ) {
    if ( !img ) {
       return;
    }
@@ -365,7 +365,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 );
 
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
-         _limpar_imagem_colorida_local( &img_rgb_limpa );
+         limpar_imagem_colorida_local_aux( &img_rgb_limpa );
 
       } else if ( img_rgb_orig.dados != NULL || img_rgb_orig.image != NULL ) {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
@@ -376,11 +376,11 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
 
       // FASE 6: Limpeza Segura de Memória
-      _limpar_imagem_cinza_local( &img_gray_crop );
-      _limpar_imagem_cinza_local( &img_gray_bin );
-      _limpar_imagem_cinza_local( &img_gray_alloc );
-      _limpar_imagem_colorida_local( &img_rgb_crop );
-      _limpar_imagem_colorida_local( &img_rgb_orig );
+      limpar_imagem_cinza_local_aux( &img_gray_crop );
+      limpar_imagem_cinza_local_aux( &img_gray_bin );
+      limpar_imagem_cinza_local_aux( &img_gray_alloc );
+      limpar_imagem_colorida_local_aux( &img_rgb_crop );
+      limpar_imagem_colorida_local_aux( &img_rgb_orig );
    }
 
    // =========================================================================
@@ -561,7 +561,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
 
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
-         _limpar_imagem_colorida_local( &img_rgb_limpa );
+         limpar_imagem_colorida_local_aux( &img_rgb_limpa );
       } else if ( img_rgb_orig.dados != NULL || img_rgb_orig.image != NULL ) {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
@@ -571,13 +571,13 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
 
       // FASE 6: Limpeza Segura de Memória
-      _limpar_imagem_cinza_local( &img_gray_fundo );
-      _limpar_imagem_cinza_local( &img_gray_blur );
-      _limpar_imagem_cinza_local( &img_gray_crop );
-      _limpar_imagem_cinza_local( &img_gray_bin );
-      _limpar_imagem_cinza_local( &img_gray_alloc );
-      _limpar_imagem_colorida_local( &img_rgb_crop );
-      _limpar_imagem_colorida_local( &img_rgb_orig );
+      limpar_imagem_cinza_local_aux( &img_gray_fundo );
+      limpar_imagem_cinza_local_aux( &img_gray_blur );
+      limpar_imagem_cinza_local_aux( &img_gray_crop );
+      limpar_imagem_cinza_local_aux( &img_gray_bin );
+      limpar_imagem_cinza_local_aux( &img_gray_alloc );
+      limpar_imagem_colorida_local_aux( &img_rgb_crop );
+      limpar_imagem_colorida_local_aux( &img_rgb_orig );
    }
 
    // =========================================================================
@@ -767,11 +767,11 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       }
 
       // Limpeza unificada e segura da memória de cada imagem na thread
-      _limpar_imagem_cinza_local( &img_gray_crop );
-      _limpar_imagem_cinza_local( &img_gray_bin );
-      _limpar_imagem_cinza_local( &img_gray_alloc );
-      _limpar_imagem_colorida_local( &img_rgb_crop );
-      _limpar_imagem_colorida_local( &img_rgb_orig );
+      limpar_imagem_cinza_local_aux( &img_gray_crop );
+      limpar_imagem_cinza_local_aux( &img_gray_bin );
+      limpar_imagem_cinza_local_aux( &img_gray_alloc );
+      limpar_imagem_colorida_local_aux( &img_rgb_crop );
+      limpar_imagem_colorida_local_aux( &img_rgb_orig );
    }
 
    // =========================================================================

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
+#include <omp.h>
 
 #include "comum.h"
 #include "omr.h"
@@ -65,10 +66,10 @@ static double calcular_correcao_cruzada_direta( const ImagemCinza *img, int star
    }
 
    int soma_margem = 0;
-   int soma_core = 0;
+   int soma_core   = 0;
 
-   const int ts = tpl->total_size;
-   const int ms = tpl->margin_size;
+   const int ts         = tpl->total_size;
+   const int ms         = tpl->margin_size;
    const int limit_core = ts - ms;
 
    // 1. Margem Superior (Apenas branco)
@@ -115,13 +116,13 @@ static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candid
    double raio_sq = ( double )( raio_supressao * raio_supressao );
 
    for ( int k = 0; k < *num_candidatos; k++ ) {
-      double dist_i = candidatos[k].blob.centro_i - nova_blob.centro_i;
-      double dist_j = candidatos[k].blob.centro_j - nova_blob.centro_j;
+      double dist_i  = candidatos[k].blob.centro_i - nova_blob.centro_i;
+      double dist_j  = candidatos[k].blob.centro_j - nova_blob.centro_j;
       double dist_sq = ( dist_i * dist_i ) + ( dist_j * dist_j );
 
       if ( dist_sq < raio_sq ) {
          if ( novo_score > candidatos[k].score ) {
-            candidatos[k].blob = nova_blob;
+            candidatos[k].blob  = nova_blob;
             candidatos[k].score = novo_score;
          }
          return; // Supressão ocorreu (atualizando ou descartando)
@@ -130,72 +131,54 @@ static void adicionar_candidato_nms( MatchCandidate *candidatos, int *num_candid
 
    // Adiciona novo candidato se houver espaço no buffer
    if ( *num_candidatos < MAX_CANDIDATOS ) {
-      candidatos[*num_candidatos].blob = nova_blob;
+      candidatos[*num_candidatos].blob  = nova_blob;
       candidatos[*num_candidatos].score = novo_score;
       ( *num_candidatos )++;
    }
 }
 
 // ============================================================================
-// MÓDULO 4: Função Principal de Extração por Template (Paralelizada com OpenMP)
+// MÓDULO 4: Função Principal de Extração por Template
 // ============================================================================
 static int blob_extrair_por_template( const ImagemCinza *img, BlobInfo *blobs, int core_size, int margin_size ) {
    const double limiar_correlacao = 0.5;
-   const int stride_busca = 1;
-   const int max_blobs_saida = MAX_CANDIDATOS;
+   const int stride_busca         = 1;
+   const int max_blobs_saida      = MAX_CANDIDATOS;
 
    MatchCandidate candidatos[MAX_CANDIDATOS];
    int num_candidatos = 0;
 
    TemplateParams tpl;
-   tpl.core_size = core_size;
+   tpl.core_size   = core_size;
    tpl.margin_size = margin_size;
-   tpl.total_size = core_size + ( 2 * margin_size );
+   tpl.total_size  = core_size + ( 2 * margin_size );
 
    // Pré-cálculo da energia máxima teórica para O(1) dentro do laço
    int pixels_margem = ( tpl.total_size * tpl.total_size ) - ( core_size * core_size );
-   tpl.max_energia = ( double )pixels_margem * 255.0;
+   tpl.max_energia   = ( double )pixels_margem * 255.0;
 
    int raio_nms = ( tpl.total_size * 70 ) / 100;
    int limite_i = ( int )img->nrow - tpl.total_size;
    int limite_j = ( int )img->ncol - tpl.total_size;
 
-   // Paralelização segura: cada thread acumula em seu buffer local sem contenção
-   // e funde os candidatos sobreviventes ao final via NMS global.
-   #pragma omp parallel
-   {
-      MatchCandidate candidatos_local[MAX_CANDIDATOS];
-      int num_local = 0;
+   // Acumula diretamente no buffer NMS da imagem atual (sem re-fusão redundante por linha)
+   for ( int i = 0; i <= limite_i; i += stride_busca ) {
+      for ( int j = 0; j <= limite_j; j += stride_busca ) {
 
-      #pragma omp for schedule(static) nowait
-      for ( int i = 0; i <= limite_i; i += stride_busca ) {
-         for ( int j = 0; j <= limite_j; j += stride_busca ) {
+         double score = calcular_correcao_cruzada_direta( img, i, j, &tpl );
 
-            double score = calcular_correcao_cruzada_direta( img, i, j, &tpl );
+         if ( score > limiar_correlacao ) {
+            BlobInfo blob;
+            blob.min_i = i + tpl.margin_size;
+            blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
+            blob.min_j = j + tpl.margin_size;
+            blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
 
-            if ( score > limiar_correlacao ) {
-               BlobInfo blob;
-               blob.min_i = i + tpl.margin_size;
-               blob.max_i = i + tpl.margin_size + tpl.core_size - 1;
-               blob.min_j = j + tpl.margin_size;
-               blob.max_j = j + tpl.margin_size + tpl.core_size - 1;
+            blob.area     = tpl.core_size * tpl.core_size;
+            blob.centro_i = ( double )( blob.min_i + blob.max_i ) * 0.5;
+            blob.centro_j = ( double )( blob.min_j + blob.max_j ) * 0.5;
 
-               blob.area = tpl.core_size * tpl.core_size;
-               blob.centro_i = ( double )( blob.min_i + blob.max_i ) * 0.5;
-               blob.centro_j = ( double )( blob.min_j + blob.max_j ) * 0.5;
-
-               adicionar_candidato_nms( candidatos_local, &num_local, blob, score, raio_nms );
-            }
-         }
-      }
-
-      if ( num_local > 0 ) {
-         #pragma omp critical
-         {
-            for ( int k = 0; k < num_local; k++ ) {
-               adicionar_candidato_nms( candidatos, &num_candidatos,
-                                        candidatos_local[k].blob, candidatos_local[k].score, raio_nms );
-            }
+            adicionar_candidato_nms( candidatos, &num_candidatos, blob, score, raio_nms );
          }
       }
    }
@@ -239,8 +222,8 @@ static void blob_ordenar_polar_inline( const BlobInfo *candidatos[4], const Blob
       for ( int j = i + 1; j < 4; j++ ) {
          if ( angulos[idx[i]] > angulos[idx[j]] ) {
             int tmp = idx[i];
-            idx[i] = idx[j];
-            idx[j] = tmp;
+            idx[i]  = idx[j];
+            idx[j]  = tmp;
          }
       }
    }
@@ -346,7 +329,7 @@ static void blob_aparar_riscos( BlobInfo *blob, const int *fila_i, const int *fi
    blob->max_i = novo_max_i;
    blob->min_j = novo_min_j;
    blob->max_j = novo_max_j;
-   blob->area = 0;
+   blob->area  = 0;
 
    int64_t soma_i = 0;
    int64_t soma_j = 0;
@@ -377,13 +360,15 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
    const int max_blobs_saida = 30;
 
    gsize total_pixels = img_bin->nrow * img_bin->ncol;
+   if ( total_pixels == 0 ) {
+      return 0;
+   }
 
-   g_autofree uint8_t *visitado = g_new0( uint8_t, total_pixels );
-   g_autofree int *fila_i = g_new( int, total_pixels );
-   g_autofree int *fila_j = g_new( int, total_pixels );
-
-   g_autofree int *proj_x = g_new( int, img_bin->ncol );
-   g_autofree int *proj_y = g_new( int, img_bin->nrow );
+   uint8_t *visitado = g_new0( uint8_t, total_pixels );
+   int     *fila_i   = g_new( int, total_pixels );
+   int     *fila_j   = g_new( int, total_pixels );
+   int     *proj_x   = g_new( int, img_bin->ncol );
+   int     *proj_y   = g_new( int, img_bin->nrow );
 
    uint8_t limiar_binario = ( uint8_t )( img_bin->max / 2 );
    int num_blobs = 0;
@@ -394,10 +379,10 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
          if ( img_bin->dados[idx_raiz] < limiar_binario && !visitado[idx_raiz] ) {
             int start_idx = 0;
-            int end_idx = 0;
+            int end_idx   = 0;
 
-            fila_i[end_idx] = i;
-            fila_j[end_idx] = j;
+            fila_i[end_idx]    = i;
+            fila_j[end_idx]    = j;
             end_idx++;
             visitado[idx_raiz] = 1;
 
@@ -432,8 +417,8 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
                      if ( nj >= 0 && nj < ncol ) {
                         gsize idx_viz = ( ( gsize )ni * img_bin->ncol ) + ( gsize )nj;
                         if ( img_bin->dados[idx_viz] < limiar_binario && !visitado[idx_viz] ) {
-                           fila_i[end_idx] = ni;
-                           fila_j[end_idx] = nj;
+                           fila_i[end_idx]   = ni;
+                           fila_j[end_idx]   = nj;
                            end_idx++;
                            visitado[idx_viz] = 1;
                         }
@@ -444,14 +429,14 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
             blob_aparar_riscos( &blob, fila_i, fila_j, end_idx, proj_x, proj_y );
 
-            double altura = ( double )( blob.max_i - blob.min_i + 1 );
-            double largura = ( double )( blob.max_j - blob.min_j + 1 );
+            double altura       = ( double )( blob.max_i - blob.min_i + 1 );
+            double largura      = ( double )( blob.max_j - blob.min_j + 1 );
             double aspect_ratio = largura / altura;
-            double fill_ratio = ( double )blob.area / ( largura * altura );
+            double fill_ratio   = ( double )blob.area / ( largura * altura );
 
             // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
             if ( blob.area > 50 && blob.area < 6000 &&
-                  aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
+                 aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
                if ( num_blobs < MAX_CANDIDATOS ) {
                   blobs[num_blobs++] = blob;
                }
@@ -459,6 +444,13 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
          }
       }
    }
+
+   // Desalocação imediata após a varredura de pixels (evita falsos positivos do Dead Symbol Reaper no Clang)
+   g_free( proj_y );
+   g_free( proj_x );
+   g_free( fila_j );
+   g_free( fila_i );
+   g_free( visitado );
 
    if ( num_blobs < 4 ) {
       return 0;
@@ -474,9 +466,9 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
 //------------------------------------------------------------------------------------------------------------
 static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
-      char *direcao_inferida, gboolean resgate ) {
-   double nrow_d = ( double )img_bin->nrow;
-   double ncol_d = ( double )img_bin->ncol;
+                                         char *direcao_inferida, gboolean resgate ) {
+   double nrow_d        = ( double )img_bin->nrow;
+   double ncol_d        = ( double )img_bin->ncol;
    double max_dist_quad = ( nrow_d * nrow_d ) + ( ncol_d * ncol_d );
 
    BlobInfo blobs[MAX_CANDIDATOS] = { 0 };
@@ -484,9 +476,9 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
 
    if ( resgate ) {
       // Valores otimizados para quadradinhos de 6 milímetros de lado
-      int core_size = 28;
+      int core_size   = 28;
       int margin_size = 7;
-      num_blobs = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
+      num_blobs       = blob_extrair_por_template( img_bin, blobs, core_size, margin_size );
    } else {
       num_blobs = blob_extrair_quadrados_pretos( img_bin, blobs );
    }
@@ -515,8 +507,8 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
                blob_ordenar_polar_inline( candidatos, ord );
 
                // Trava de Rotação (Máx 10 graus)
-               double dx_top = ord[1]->centro_j - ord[0]->centro_j;
-               double dy_top = ord[1]->centro_i - ord[0]->centro_i;
+               double dx_top           = ord[1]->centro_j - ord[0]->centro_j;
+               double dy_top           = ord[1]->centro_i - ord[0]->centro_i;
                double angulo_top_graus = fabs( atan2( dy_top, dx_top ) * ( 180.0 / G_PI ) );
 
                if ( angulo_top_graus > 10.0 && fabs( angulo_top_graus - 90.0 ) > 10.0 ) {
@@ -552,7 +544,7 @@ static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo an
 
                int soma_alt  = -ord[0]->min_i - ord[1]->min_i + ord[2]->max_i + ord[3]->max_i;
                int soma_larg = -ord[0]->min_j + ord[1]->max_j + ord[2]->max_j - ord[3]->min_j;
-               char dir = ( soma_alt < soma_larg ) ? 'h' : 'v';
+               char dir      = ( soma_alt < soma_larg ) ? 'h' : 'v';
 
                double proporcao_alvo = ( dir == 'h' ) ? ( 14.0 / 11.0 ) : ( 10.0 / 15.0 );
                double proporcao_real = larg / alt;
@@ -930,178 +922,4 @@ int ler_numero_aluno( const ImagemCinza *IMG, char direcao ) {
 
    return ( dezena_marcada * 10 ) + unidade_marcada;
 }
-
-
-
-
-
-
-
-
-
-//========================================================================================================//
-void mudar_numero_na_imagem( float l, float h, float pp, int rot, Ponto2D *C, int n0, int n, unsigned char t, char *img, const InterfaceDados *dados ) {
-
-   char str[2000], sx[100], sy[100];
-
-   if ( dados->periodo[0] == 'R' ) {
-      sprintf( str, "cp ./dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens Recuperação Final'/%s 'Relatórios e Provas'/", dados->ano, dados->disciplina, dados->escola, img );
-      if ( system( str ) == -1 ) {
-         fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
-      }
-   } else {
-      sprintf( str, "cp ./dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/%s 'Relatórios e Provas'/", dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->seq_prova, img );
-      if ( system( str ) == -1 ) {
-         fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
-      }
-   }
-
-   FILE *p = fopen( "Relatórios e Provas/img.tex", "w+" );
-
-   fprintf( p, "\\documentclass[11pt]{report}\n" );
-   fprintf( p, "\\usepackage[latin1]{inputenc}\n" );
-   fprintf( p, "\\usepackage[T1]{fontenc}\n" );
-   fprintf( p, "\\usepackage[brazil]{babel}\n" );
-   fprintf( p, "\\usepackage{cmbright,ifthen,setspace,tikz}\n" );
-   fprintf( p, "\\usetikzlibrary{calc}\n" );
-   fprintf( p, "\\usepackage{wallpaper}\n" );
-   fprintf( p, "\\pagestyle{empty}\n" );
-   fprintf( p, "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n" );
-
-   sprintf( sx, "%10.6f", ( double )l );
-   sx[3] = '.';
-   sprintf( sy, "%10.6f", ( double )h );
-   sy[3] = '.';
-   fprintf( p, "\\geometry{paperwidth=%scm,paperheight=%scm}\n", sx, sy );
-
-   fprintf( p, "\\pgfmathsetmacro{\\rot}{%d}\n", rot );
-   sprintf( str, "%10.6f", ( double )pp );
-   str[3] = '.';
-   fprintf( p, "\\pgfmathsetmacro{\\p}{%s}\n", str );
-
-   fprintf( p, "\\ThisULCornerWallPaper{1}{%s}\n", img );
-
-   fprintf( p, "\\makeatletter\n" );
-   fprintf( p, "\\newcommand{\\dist}[3]{\n" );
-   fprintf( p, "\\tikz@scan@one@point\\pgfutil@firstofone($#2-#3$)\\relax\n" );
-   fprintf( p, "\\pgfmathsetmacro{#1}{round(0.99626*veclen(\\the\\pgf@x,\\the\\pgf@y)/0.0283465)/1000}\n" );
-   fprintf( p, "}\n" );
-   fprintf( p, "\\makeatother\n" );
-
-   fprintf( p, "\\begin{document}\n" );
-
-   fprintf( p, "{\\noindent\\small\n" );
-   fprintf( p, "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n" );
-
-   sprintf( sx, "%10.6f", ( double )C[0].x );
-   sx[3] = '.';
-   sprintf( sy, "%10.6f", ( double )C[0].y );
-   sy[3] = '.';
-   fprintf( p, "\\coordinate (A) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", ( double )C[1].x );
-   sx[3] = '.';
-   sprintf( sy, "%10.6f", ( double )C[1].y );
-   sy[3] = '.';
-   fprintf( p, "\\coordinate (B) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", ( double )C[2].x );
-   sx[3] = '.';
-   sprintf( sy, "%10.6f", ( double )C[2].y );
-   sy[3] = '.';
-   fprintf( p, "\\coordinate (C) at (%s,-%s);\n", sy, sx );
-   sprintf( sx, "%10.6f", ( double )C[3].x );
-   sx[3] = '.';
-   sprintf( sy, "%10.6f", ( double )C[3].y );
-   sy[3] = '.';
-   fprintf( p, "\\coordinate (D) at (%s,-%s);\n", sy, sx );
-
-   fprintf( p, "\\ifthenelse{\\rot=90}{\n" );
-   fprintf( p, "\\coordinate (F) at (B);\n" );
-   fprintf( p, "\\coordinate (B) at (D);\n" );
-   fprintf( p, "\\coordinate (D) at (F);\n" );
-   fprintf( p, "}{}\n" );
-
-   fprintf( p, "\\dist{\\dAB}{(A)}{(B)};\n" );
-   fprintf( p, "\\dist{\\dBC}{(B)}{(C)};\n" );
-   fprintf( p, "\\dist{\\dCD}{(C)}{(D)};\n" );
-   fprintf( p, "\\dist{\\dAD}{(A)}{(D)};\n" );
-
-   fprintf( p, "\\fill (0,0) circle (0pt);\n" );
-
-   // Muda a dezena do número
-   fprintf( p, "\\pgfmathsetmacro{\\a}{0.75}\n" );
-   fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAD/(\\dBC/\\a+\\dAD-\\dBC)}\n" );
-   fprintf( p, "\\coordinate (X) at ($(A)!\\d!(B)$);\n" );
-   fprintf( p, "\\coordinate (Y) at ($(D)!\\d!(C)$);\n" );
-   if ( n0 / 10 != n / 10 && t >> 6 & 1 ) {
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n0 / 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=white] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n / 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=black] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-   }
-
-   // Insere a dezena do número quando este está ausente
-   if ( !( t >> 6 & 1 ) ) {
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n / 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=black] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-   }
-
-   // Muda a unidade do número
-   fprintf( p, "\\pgfmathsetmacro{\\a}{0.85}\n" );
-   fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAD/(\\dBC/\\a+\\dAD-\\dBC)}\n" );
-   fprintf( p, "\\coordinate (X) at ($(A)!\\d!(B)$);\n" );
-   fprintf( p, "\\coordinate (Y) at ($(D)!\\d!(C)$);\n" );
-   if ( n0 % 10 != n % 10 && t >> 7 & 1 ) {
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n0 % 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=white] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n % 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=black] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-   }
-
-   // Insere a unidade do número quando este está ausente
-   if ( !( t >> 7 & 1 ) ) {
-      fprintf( p, "\\pgfmathsetmacro{\\a}{7/28+%d/14}\n", n % 10 );
-      fprintf( p, "\\pgfmathsetmacro{\\d}{\\dAB/(\\dCD/\\a+\\dAB-\\dCD)}\n" );
-      fprintf( p, "\\fill[color=black] ($(X)!\\d!(Y)$) circle (0.24*\\p);\n" );
-   }
-
-   fprintf( p, "\\end{tikzpicture}}\n" );
-   fprintf( p, "\\end{document}\n" );
-
-   fclose( p );
-
-   if ( chdir( "Relatórios e Provas/" ) != 0 ) {
-      perror( "Erro ao acessar diretório de Relatórios" );
-   }
-   if ( system( "pdflatex -synctex=1 -interaction=nonstopmode img.tex" ) == -1 ) {
-      fprintf( stderr, "Erro crítico: Não foi possível executar o pdflatex\n" );
-   }
-   sprintf( str, "convert -density 300 img.pdf -quality 100 %s", img );
-   if ( system( str ) == -1 ) {
-      fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
-   }
-   if ( dados->periodo[0] == 'R' ) {
-      sprintf( str, "cp %s ../dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens Recuperação Final'/", img, dados->ano, dados->disciplina, dados->escola );
-   } else {
-      sprintf( str, "cp %s ../dados/'Gabaritos'/'%s'/'%s'/'%s'/'Imagens %s Prova%d'/", img, dados->ano, dados->disciplina, dados->escola, dados->periodo, dados->seq_prova );
-   }
-
-   if ( system( str ) == -1 ) {
-      fprintf( stderr, "Erro crítico: Não foi possível executar o comando: %s\n", str );
-   }
-   if ( system( "rm -f *.aux *.log *.synctex.gz *.tex *.pdf" ) == -1 ) {
-      fprintf( stderr, "Erro crítico: Não foi possível remover arquivos latex\n" );
-   }
-   if ( chdir( "../" ) != 0 ) {
-      perror( "Erro ao acessar diretório de Relatórios" );
-   }
-
-}
-//========================================================================================================//
-
-
 

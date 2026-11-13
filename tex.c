@@ -12,169 +12,187 @@
 
 
 
-/*
-* Função refinada para desenhar o payload binário dinamicamente em TikZ.
-*/
-static void gerar_matriz_identificacao( GString *tex, guint8 id, guint8 turma, guint8 disc, guint8 per, guint8 seq ) {
-   if ( !tex ) {
-      return;
-   }
+// ====================================================================================
+// CODIFICADOR E GERADOR TIKZ DA MATRIZ BINÁRIA OMR (27 BITS - GRADE 3x9)
+// ====================================================================================
+static void gerar_matriz_identificacao_aux( GString *tex, guint8 id, guint8 turma,
+      guint8 disc, guint8 per, guint8 seq ) {
+   g_return_if_fail( tex != NULL );
 
-   // 1. Empacotando 23 bits em um inteiro de 32 bits
-   uint32_t payload = 0;
-   payload |= ( ( uint32_t )id    & 0x3F );     // 6 bits (0 a 5)
-   payload |= ( ( uint32_t )turma & 0xFF ) << 6; // 8 bits (6 a 13)
-   payload |= ( ( uint32_t )disc  & 0x0F ) << 14; // 4 bits (14 a 17)
-   payload |= ( ( uint32_t )per   & 0x07 ) << 18; // 3 bits (18 a 20)
-   payload |= ( ( uint32_t )seq   & 0x03 ) << 21; // 2 bits (21 a 22)
+   // 1. Empacotamento de 23 bits de dados em uint32_t (Literais 'U' evitam -Wsign-conversion)
+   uint32_t payload = 0U;
+   payload |= ( ( uint32_t )id    & 0x3FU );        // 6 bits (0 a 5)
+   payload |= ( ( uint32_t )turma & 0xFFU ) << 6U;  // 8 bits (6 a 13)
+   payload |= ( ( uint32_t )disc  & 0x0FU ) << 14U; // 4 bits (14 a 17)
+   payload |= ( ( uint32_t )per   & 0x07U ) << 18U; // 3 bits (18 a 20)
+   payload |= ( ( uint32_t )seq   & 0x03U ) << 21U; // 2 bits (21 a 22)
 
-   // 2. Cálculo dos 4 bits de paridade (XOR de blocos de 4 bits)
-   uint32_t paridade = 0;
+   // 2. Cálculo dos 4 bits de paridade (XOR acumulado de nibbles de 4 bits)
+   uint32_t paridade = 0U;
    uint32_t temp = payload;
 
-   while ( temp > 0 ) {
-      paridade ^= ( temp & 0x0F );
-      temp >>= 4;
+   while ( temp > 0U ) {
+      paridade ^= ( temp & 0x0FU );
+      temp >>= 4U;
    }
 
-   // Insere os 4 bits de paridade calculados nos bits 23 a 26
-   payload |= ( paridade & 0x0F ) << 23;
+   // Insere os 4 bits de paridade nos bits 23 a 26
+   payload |= ( paridade & 0x0FU ) << 23U;
 
-   // 3. Desenhando a grade 3x9 no LaTeX (Total: 27 iterações)
-   for ( int i = 0; i < 27; i++ ) {
-      int linha = i / 3;
-      int coluna = i % 3;
+   // 3. Desenho da grade 3x9 no LaTeX (27 bits)
+   const double passo_celula = 2.0 / 3.0;
+   const double offset_ini   = 1.0 + ( 1.0 / 6.0 );
+   const double offset_fim   = 1.0 + ( 3.0 / 6.0 );
 
-      uint32_t bit_ativo = ( payload >> i ) & 1;
+   for ( guint i = 0U; i < 27U; i++ ) {
+      if ( ( payload >> i ) & 1U ) {
+         guint linha  = i / 3U;
+         guint coluna = i % 3U;
 
-      if ( bit_ativo ) {
-         // Fatores de deslocamento horizontal e vertical extraídos
-         double x_start = 1.0 + ( 1.0 / 6.0 ) + ( coluna * 4.0 / 6.0 );
-         double x_end   = 1.0 + ( 3.0 / 6.0 ) + ( coluna * 4.0 / 6.0 );
+         double desl_x = ( double )coluna * passo_celula;
+         double desl_y = ( double )linha  * passo_celula;
 
-         double y_start = -( 1.0 + ( 1.0 / 6.0 ) + ( linha * 2.0 / 3.0 ) );
-         double y_end   = -( 1.0 + ( 3.0 / 6.0 ) + ( linha * 2.0 / 3.0 ) );
+         double x_start = offset_ini + desl_x;
+         double x_end   = offset_fim + desl_x;
+         double y_start = -( offset_ini + desl_y );
+         double y_end   = -( offset_fim + desl_y );
 
-         // Injeção limpa e direta na GString (memória RAM)
          g_string_append_printf( tex, "\\fill (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x_start, y_start, x_end, y_end );
       }
    }
 }
 
-
-
-
-
-
-//========================================================================================================//
+// ====================================================================================
+// CONSTRUTOR DO QUADRO DE RESPOSTAS OMR EM TIKZ (RAM BUFFERED)
+// ====================================================================================
 void quadro_de_respostas( GString *tex, const char *aluno, int numero, const guint8 id, char direcao,
-                          gboolean assinalar_nome_numero, const InterfaceDados *dados, const InterfaceCabecalho *cabecalho ) {
+                          gboolean assinalar_nome_numero, const InterfaceDados *dados,
+                          const InterfaceCabecalho *cabecalho ) {
+   g_return_if_fail( tex != NULL && aluno != NULL && dados != NULL && cabecalho != NULL );
 
-   g_return_if_fail( aluno != NULL && dados != NULL && cabecalho != NULL && tex != NULL );
+   // 1. Parâmetros de Transformação e Orientação
+   int    rotacao = ( direcao == 'h' ) ? 0 : 90;
+   double xscale  = ( direcao == 'h' ) ? 0.6 : -0.6;
+   double yscale  = 0.6;
 
-   // 1. Lógica de Rotação transferida do LaTeX para o C
-   int   rotacao = ( direcao == 'h' ) ? 0 : 90;
-   double xscale = ( direcao == 'h' ) ? 0.6 : -0.6;
-   double yscale = 0.6;
+   g_string_append_printf(
+      tex,
+      "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n"
+      "\\node[color=CorSerie,rotate=%d,inner sep=0pt] at (0.32,-5) {\\bf\\Large RESPOSTAS};\n",
+      rotacao, xscale, yscale, 90 - rotacao
+   );
 
-   // Injeção direta dos valores calculados
-   g_string_append_printf( tex, "\\begin{tikzpicture}[baseline=(current bounding box.center), rotate=%d, xscale=%.4f, yscale=%.4f]\n",
-                           rotacao, xscale, yscale );
-
-   // Insere a palavra respostas
-   g_string_append_printf( tex, "\\node[color=CorSerie,rotate=%d,inner sep=0pt] at (0.32,-5) {\\bf\\Large RESPOSTAS};\n", 90 - rotacao );
-
-   // 2. Lógica if/else (antigo \ifthenelse) trazida para o C
+   // 2. Âncoras de Calibração (6,5 mm) e Assinatura do Estudante
    if ( direcao == 'h' ) {
       g_string_append( tex, "\\draw[CorSerie] (1,-10.3) -- (13,-10.3);\n" );
-      // if ( assinalar_nome_numero ) {
-      //    g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
-      // }
-      g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ESTUDANTE};\n" );
-
-      // g_string_append( tex, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] ( 0,-11) circle (0.45) ( 0,-11) circle (0.25); \\fill ( 0,-11) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] (14,-11) circle (0.45) (14,-11) circle (0.25); \\fill (14,-11) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] (14,  0) circle (0.45) (14,  0) circle (0.25); \\fill (14,  0) circle (0.1);\n" );
-
-      g_string_append( tex, "\\fill (0,0) rectangle (0.65,-0.65);\n" );
-      g_string_append( tex, "\\fill (0,-11) rectangle (0.65,-10.35);\n" );
-      g_string_append( tex, "\\fill (14,-11) rectangle (13.35,-10.35);\n" );
-      g_string_append( tex, "\\fill (14,0) rectangle (13.35,-0.65);\n" );
-
+      if ( assinalar_nome_numero ) {
+         g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (7,-9.9) {\\normalsize %s};\n", aluno );
+      }
+      g_string_append(
+         tex,
+         "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ESTUDANTE};\n"
+         "\\fill (0,0) rectangle (0.65,-0.65) (0,-11) rectangle (0.65,-10.35) "
+         "(14,-11) rectangle (13.35,-10.35) (14,0) rectangle (13.35,-0.65);\n"
+      );
    } else {
       g_string_append( tex, "\\draw[CorSerie] (14.3,-1.0) -- (14.3,-9.0);\n" );
-      // if ( assinalar_nome_numero ) {
-      //    g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %.32s};\n", aluno );
-      // }
-      g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ESTUDANTE};\n" );
-
-      // g_string_append( tex, "\\draw[line width=2] ( 0,  0) circle (0.45) ( 0,  0) circle (0.25); \\fill ( 0,  0) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] ( 0,-10) circle (0.45) ( 0,-10) circle (0.25); \\fill ( 0,-10) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] (15,-10) circle (0.45) (15,-10) circle (0.25); \\fill (15,-10) circle (0.1);\n" );
-      // g_string_append( tex, "\\draw[line width=2] (15,  0) circle (0.45) (15,  0) circle (0.25); \\fill (15,  0) circle (0.1);\n" );
-
-      g_string_append( tex, "\\fill (0,0) rectangle (0.65,-0.65);\n" );
-      g_string_append( tex, "\\fill (0,-10) rectangle (0.65,-9.35);\n" );
-      g_string_append( tex, "\\fill (15,-10) rectangle (14.35,-9.35);\n" );
-      g_string_append( tex, "\\fill (15,0) rectangle (14.35,-0.65);\n" );
+      if ( assinalar_nome_numero ) {
+         g_autofree char *aluno_curto = g_utf8_substring( aluno, 0, MIN( g_utf8_strlen( aluno, -1 ), 32 ) );
+         g_string_append_printf( tex, "\\node[inner sep=0pt,color=black] at (13.9,-5) {\\normalsize %s};\n", aluno_curto );
+      }
+      g_string_append(
+         tex,
+         "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ESTUDANTE};\n"
+         "\\fill (0,0) rectangle (0.65,-0.65) (0,-10) rectangle (0.65,-9.35) "
+         "(15,-10) rectangle (14.35,-9.35) (15,0) rectangle (14.35,-0.65);\n"
+      );
    }
 
-
+   // 3. Injeção do Payload Binário (27 bits)
    guint8 turma = ( guint8 )cabecalho->foco_turma;
    guint8 disc  = ( guint8 )cabecalho->foco_disciplina;
    guint8 per   = ( guint8 )cabecalho->foco_periodo;
-   guint8 seq   = ( guint8 )dados->seq_prova; // Mudei de seq_prova-1 para seq_prova apenas, para evitar payload válido nulo.
+   guint8 seq   = ( guint8 )dados->seq_prova;
 
-   // ATENÇÃO: gerar_matriz_identificacao também precisará receber GString *tex
-   gerar_matriz_identificacao( tex, id, turma, disc, per, seq );
+   gerar_matriz_identificacao_aux( tex, id, turma, disc, per, seq );
 
+   // 4. Estrutura da Grade Principal e Divisórias Verticais (Coordenadas pré-somadas em C)
+   g_string_append(
+      tex,
+      "\\draw[CorSerie] (1,-1) rectangle (13,-9) (1,-7) -- (13,-7) (3,-1) -- (3,-9) (3,-2) -- (13,-2) "
+      "(4,-1) -- (4,-7) (5,-1) -- (5,-7) (6,-1) -- (6,-7) (7,-1) -- (7,-7) (8,-1) -- (8,-7) "
+      "(9,-1) -- (9,-7) (10,-1) -- (10,-7) (11,-1) -- (11,-7) (12,-1) -- (12,-7);\n"
+      "\\node[color=CorSerie,inner sep=0pt] at (2,-8) {\\Huge{Nº}};\n"
+   );
 
-   // Retângulo e linhas básicas
-   g_string_append( tex, "\\draw[CorSerie] (1,-1) rectangle (13,-9);\n" );
-   g_string_append( tex, "\\draw[CorSerie] (1,-7) -- (13,-7);\n" );
-   g_string_append( tex, "\\draw[CorSerie] (3,-1) -- (3,-9);\n" );
-   g_string_append( tex, "\\draw[CorSerie] (3,-2) -- (13,-2);\n" );
+   // Indicadores visuais de Período e Sequência da Prova
+   g_string_append_printf(
+      tex,
+      "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n"
+      "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n",
+      cabecalho->foco_periodo + 1, dados->seq_prova
+   );
 
-   // Linhas verticais das alternativas
-   for ( int i = 0; i < 9; i++ ) {
-      g_string_append_printf( tex, "\\draw[CorSerie] (4+%d,-1) -- (4+%d,-7);\n", i, i );
-   }
+   // 5. Bolhas do Número de Chamada (Dezena: 0..6 | Unidade: 0..9)
+   for ( int col_num = 0; col_num < 10; col_num++ ) {
+      double x_pos = 3.5 + ( double )col_num;
 
-   // Indicação do número da chamada
-   g_string_append( tex, "\\node[color=CorSerie,inner sep=0pt] at (2,-8) {\\Huge{Nº}};\n" );
-
-   // Período
-   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n", cabecalho->foco_periodo + 1 );
-
-   // Prova
-   g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n", dados->seq_prova );
-
-   // Matriz principal de questões e alternativas
-   for ( int i = 0; i < dados->total_quest_prova; i++ ) { // NTI=10 questões
-
-      // Insere o número das questões
-      g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at (3.5+%d,-1.5) {\\small\\bf%.2d};\n", i, i + 1 );
-
-      for ( int j = 0; j < 2; j++ ) {
-         if ( j != 0 || i < 7 ) {
-            g_string_append_printf( tex, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-7.5-%d) circle (0.3);\n", i, j );
-            g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-7.5-%d) {\\tiny%d};\n", i, j, i );
-         }
+      // Linha da Dezena (-7.5): desenha apenas de 0 a 6
+      if ( col_num < 7 ) {
+         g_string_append_printf(
+            tex,
+            "\\draw[color=CorSerie,line width=0.75pt] (%.1f,-7.5) circle (0.3);\n"
+            "\\node[color=CorSerie,inner sep=0pt] at (%.1f,-7.5) {\\tiny%d};\n",
+            x_pos, x_pos, col_num
+         );
       }
 
-      for ( int j = 0; j < 5; j++ ) { // 5 alternativas
-         g_string_append_printf( tex, "\\draw[color=CorSerie,line width=0.75pt] (3.5+%d,-2.5-%d) circle (0.3);\n", i, j );
-         g_string_append_printf( tex, "\\node[color=CorSerie,inner sep=0pt] at  (3.5+%d,-2.5-%d) {\\tiny{%c}};\n", i, j, 65 + j );
+      // Linha da Unidade (-8.5): desenha de 0 a 9
+      g_string_append_printf(
+         tex,
+         "\\draw[color=CorSerie,line width=0.75pt] (%.1f,-8.5) circle (0.3);\n"
+         "\\node[color=CorSerie,inner sep=0pt] at (%.1f,-8.5) {\\tiny%d};\n",
+         x_pos, x_pos, col_num
+      );
+   }
+
+   // 6. Matriz de Questões e Alternativas (A..E)
+   int limite_questoes = CLAMP( dados->total_quest_prova, 0, 10 );
+
+   for ( int i = 0; i < limite_questoes; i++ ) {
+      double x_pos = 3.5 + ( double )i;
+
+      g_string_append_printf(
+         tex,
+         "\\node[color=CorSerie,inner sep=0pt] at (%.1f,-1.5) {\\small\\bf%.2d};\n",
+         x_pos, i + 1
+      );
+
+      for ( int j = 0; j < 5; j++ ) {
+         double y_pos = -2.5 - ( double )j;
+         char letra   = ( char )( 'A' + j );
+
+         g_string_append_printf(
+            tex,
+            "\\draw[color=CorSerie,line width=0.75pt] (%.1f,%.1f) circle (0.3);\n"
+            "\\node[color=CorSerie,inner sep=0pt] at (%.1f,%.1f) {\\tiny{%c}};\n",
+            x_pos, y_pos, x_pos, y_pos, letra
+         );
       }
 
       // Assinalar alternativas para teste
-      // float y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
+      // double y_aleatorio = -2.5 - g_random_int_range( 0, 4 );
       // g_string_append_printf( tex, "\\fill[color=black] (%.2f,%.2f) circle (0.24);\n", 3.5 + i, y_aleatorio );
    }
 
-   if ( assinalar_nome_numero ) {
-      g_string_append_printf( tex, "\\fill (3.5+%d,-7.5 ) circle (0.24) (3.5+%d,-8.5) circle (0.24);\n", numero / 10, numero % 10 );
+   // 7. Marcação Automática do Número de Chamada (Quando habilitada)
+   if ( assinalar_nome_numero && numero >= 0 && numero < 64 ) {
+      int dezena  = numero / 10;
+      int unidade = numero % 10;
+
+      double x_dez = 3.5 + ( double )dezena;
+      double x_uni = 3.5 + ( double )unidade;
+      g_string_append_printf( tex, "\\fill (%.1f,-7.5) circle (0.24) (%.1f,-8.5) circle (0.24);\n", x_dez, x_uni );
    }
 
    g_string_append( tex, "\\end{tikzpicture}\n" );
@@ -186,94 +204,110 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
 
 
 
-int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx,
-                        const char *nome_base ) {
+// ====================================================================================
+// GERADOR DE ESPELHO DE CORREÇÃO INDIVIDUAL EM LATEX/TIKZ (RAM BUFFERED)
+// ====================================================================================
+int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const AppContext *ctx, const char *nome_base ) {
+   g_return_val_if_fail( gab != NULL && map != NULL && ctx != NULL && nome_base != NULL, -1 );
 
-   if ( !gab || !map || !ctx ) {
-      return -1;
-   }
    const InterfaceDiario *diario = &ctx->diario;
+   const InterfaceDados  *dados  = &ctx->dados;
+   const CalendarioData  *hoje   = &ctx->hoje;
 
-   int largura = ( map->direcao == 'h' ) ? 18 : 14;
-   int altura  = ( map->direcao == 'h' ) ? 15 : 19;
-
-   // Pré-alocação otimizada (16KB) na RAM
-   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
-
-   // 2. INJEÇÃO DO CABEÇALHO LATEX
-   g_string_append_printf( tex,
-                           "\\documentclass[11pt]{report}\n"
-                           "\\usepackage[utf8]{inputenc}\n"
-                           "\\usepackage[T1]{fontenc}\n"
-                           "\\usepackage[brazil]{babel}\n"
-                           "\\usepackage{cmbright, xcolor, ifthen, setspace, graphicx, tikz}\n"
-                           "\\usetikzlibrary{calc}\n\n"
-                           "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n"
-                           "\\geometry{paperwidth=%dcm,paperheight=%dcm}\n\n"
-                           "\\pagestyle{empty}\n\n"
-                           "\\definecolor{NeonVerde}{cmyk}{0.65,0,1,0.2}\n"
-                           "\\definecolor{LimaoFluo}{cmyk}{0.40,0,1,0}\n"
-                           "\\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}\n"
-                           "\\definecolor{AzulProfessor}{cmyk} {1,0.50,0,0.33}\n"
-                           "\\definecolor{VerdeEscola}{cmyk} {1,0,1,0.47}\n\n"
-                           "%% MACRO: Símbolo de Correto\n"
-                           "\\def\\correto{\n"
-                           "  \\fill[rounded corners=6, bottom color=NeonVerde, top color=LimaoFluo] ($(-0.43,-0.43)+(P)$) rectangle ($(0.43,0.43)+(P)$);\n"
-                           "  \\fill[rounded corners=1, color=white] ($(-0.172,-0.258)+(P)$) -- ($(-0.0215,-0.258)+(P)$) -- ($(0.344,0.258)+(P)$) -- ($(0.1935,0.258)+(P)$) -- cycle;\n"
-                           "  \\fill[rounded corners=1, color=white] ($(-0.0215,-0.258)+(P)$) -- ($(-0.172,-0.258)+(P)$) -- ($(-0.344,0.00)+(P)$) -- ($(-0.1935,0.00)+(P)$) -- cycle;\n"
-                           "}\n\n"
-                           "%% MACRO: Símbolo de Incorreto\n"
-                           "\\def\\incorreto{\n"
-                           "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,-0.35)+(-45:0.0875)+(P)$) -- ($(-0.35,-0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(-45:0.0875)+(P)$) -- cycle;\n"
-                           "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,0.35)+(45:0.0875)+(P)$) -- ($(-0.35,0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(45:0.0875)+(P)$) -- cycle;\n"
-                           "}\n"
-                           "\\pagecolor{yellow!20}\n", largura, altura );
-
-   const InterfaceDados *dados  = &ctx->dados;
-   const CalendarioData *hoje   = &ctx->hoje;
-
-   // 1. BLINDAGEM DE MEMÓRIA: Previne acesso negativo ou além do limite na struct 'diario'
-   if ( map->num < 1 || map->num > dados->qtd_alunos_total ) {
+   // 1. BLINDAGEM DE MEMÓRIA: Previne acesso fora dos limites em 'diario->fichas'
+   if ( !diario->fichas || map->num < 1 ||
+         map->num > dados->qtd_alunos_total ||
+         ( guint )map->num > diario->fichas->len ) {
       g_printerr( "[ERRO CRÍTICO] Número do aluno (%d) inválido. Cancelando renderização LaTeX.\n", map->num );
       return -1;
    }
 
-   const char *meses[] = {
+   int largura   = ( map->direcao == 'h' ) ? 18 : 14;
+   int altura    = ( map->direcao == 'h' ) ? 15 : 19;
+   double larg_f = ( double )largura;
+   double alt_f  = ( double )altura;
+
+   // Pré-alocação otimizada (16KB) na RAM
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
+
+   // 2. INJEÇÃO DO CABEÇALHO E MACROS TIKZ
+   g_string_append_printf(
+      tex,
+      "\\documentclass[11pt]{report}\n"
+      "\\usepackage[utf8]{inputenc}\n"
+      "\\usepackage[T1]{fontenc}\n"
+      "\\usepackage[brazil]{babel}\n"
+      "\\usepackage{cmbright, xcolor, ifthen, setspace, graphicx, tikz}\n"
+      "\\usetikzlibrary{calc}\n\n"
+      "\\usepackage[bottom=0cm,top=0cm,left=0cm,right=0cm]{geometry}\n"
+      "\\geometry{paperwidth=%dcm,paperheight=%dcm}\n\n"
+      "\\pagestyle{empty}\n\n"
+      "\\definecolor{NeonVerde}{cmyk}{0.65,0,1,0.2}\n"
+      "\\definecolor{LimaoFluo}{cmyk}{0.40,0,1,0}\n"
+      "\\definecolor{VermelhoLaser}{cmyk}{0,1,1,0}\n"
+      "\\definecolor{AzulProfessor}{cmyk}{1,0.50,0,0.33}\n"
+      "\\definecolor{VerdeEscola}{cmyk}{1,0,1,0.47}\n\n"
+      "%% MACRO: Símbolo de Correto\n"
+      "\\def\\correto{\n"
+      "  \\fill[rounded corners=6, bottom color=NeonVerde, top color=LimaoFluo] ($(-0.43,-0.43)+(P)$) rectangle ($(0.43,0.43)+(P)$);\n"
+      "  \\fill[rounded corners=1, color=white] ($(-0.172,-0.258)+(P)$) -- ($(-0.0215,-0.258)+(P)$) -- ($(0.344,0.258)+(P)$) -- ($(0.1935,0.258)+(P)$) -- cycle;\n"
+      "  \\fill[rounded corners=1, color=white] ($(-0.0215,-0.258)+(P)$) -- ($(-0.172,-0.258)+(P)$) -- ($(-0.344,0.00)+(P)$) -- ($(-0.1935,0.00)+(P)$) -- cycle;\n"
+      "}\n\n"
+      "%% MACRO: Símbolo de Incorreto\n"
+      "\\def\\incorreto{\n"
+      "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,-0.35)+(-45:0.0875)+(P)$) -- ($(-0.35,-0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(135:0.0875)+(P)$) -- ($(0.35,0.35)+(-45:0.0875)+(P)$) -- cycle;\n"
+      "  \\fill[rounded corners=1, color=VermelhoLaser] ($(-0.35,0.35)+(45:0.0875)+(P)$) -- ($(-0.35,0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(225:0.0875)+(P)$) -- ($(0.35,-0.35)+(45:0.0875)+(P)$) -- cycle;\n"
+      "}\n"
+      "\\pagecolor{yellow!20}\n",
+      largura, altura
+   );
+
+   static const char * const meses[12] = {
       "janeiro", "fevereiro", "março", "abril", "maio", "junho",
       "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
    };
 
-   // Caminho do arquivo seguro com g_strdup_printf
-   g_autofree char *arquivo = g_strdup_printf( "%s/dados/temporarios/%s.tex", ctx->caminho.raiz, nome_base );
+   // Construção segura de caminhos usando a raiz configurada no contexto
+   g_autofree char *nome_tex = g_strdup_printf( "%s.tex", nome_base );
+   g_autofree char *arquivo  = g_build_filename( dados->raiz, "dados", "temporarios", nome_tex, NULL );
+   g_autofree char *imagem   = g_build_filename( dados->raiz, "dados", "gabaritos", dados->ano,
+                               dados->escola, "imagens", map->nome_img, NULL );
 
-   g_autofree gchar *raiz_projeto = g_get_current_dir();
-   g_autofree char *imagem = g_build_filename( raiz_projeto, "dados", "gabaritos", dados->ano,
-                             dados->escola, "imagens", map->nome_img, NULL );
+   g_string_append_printf(
+      tex,
+      "\\begin{document}\n"
+      "{\\noindent\\small\n"
+      "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n"
+      "\\node at (%.4f,%.4f) {\\includegraphics[width=%dcm, height=%dcm]{\"%s\"}};\n",
+      0.5 * larg_f, -0.5 * alt_f, largura - 4, altura - 4, imagem
+   );
 
-   g_string_append_printf( tex,
-                           "\\begin{document}\n"
-                           "{\\noindent\\small\n"
-                           "\\begin{tikzpicture}[baseline=(current bounding box.center)]\n"
-                           "\\node at (%.4f,%.4f) {\\includegraphics[width=%dcm, height=%dcm]{\"%s\"}};\n",
-                           0.5 * largura, -0.5 * altura, largura - 4, altura - 4, imagem );
+   // Camada de "Máscara" Branca sincronizada com as âncoras de 6,5 mm (0.7 cm) prevenção contra pequenos desalinhamentos
+   g_string_append_printf(
+      tex,
+      "\\filldraw[white] (2,-2) rectangle (2.7,-2.7) "
+      "(%d,-2) rectangle (%.4f,-2.7) "
+      "(%d,%d) rectangle (%.4f,%.4f) "
+      "(2,%d) rectangle (2.7,%.4f);\n",
+      largura - 2, larg_f - 2.7,
+      largura - 2, 2 - altura, larg_f - 2.7, 2.7 - alt_f,
+      2 - altura, 2.7 - alt_f
+   );
 
-   // Camada de "Máscara" Branca (Limpeza das bordas do escaneamento para âncoras de 7 mm)
-   g_string_append_printf( tex, "\\filldraw[white] (2,-2)rectangle(2.7,-2.7) (%d,-2)rectangle(%.4f,-2.7) (%d,%d)rectangle(%.4f,%.4f) (2,%d)rectangle(2.7,%.4f);\n", largura - 2, largura - 2.7, largura - 2, 2 - altura, largura - 2.7, 2.7 - altura, 2 - altura, 2.7 - altura );
+   // 3. GRADE DE QUADRADOS (Payload Visual - 27 bits)
+   // Variáveis inteiras separadas antes do cast evitam alerta bugprone-integer-division no clang-tidy
+   for ( guint i = 0U; i < 27U; i++ ) {
+      if ( ( map->payload >> i ) & 1U ) {
+         guint lin_idx = ( map->direcao == 'h' ) ? ( i / 3U ) : ( i % 3U );
+         guint col_idx = ( map->direcao == 'h' ) ? ( i % 3U ) : ( i / 3U );
 
-   // 3. GRADE DE QUADRADOS (Payload Visual)
-   for ( int i = 0; i < 27; i++ ) {
-      int linha  = ( map->direcao == 'h' ) ? i / 3 : i % 3;
-      int coluna = ( map->direcao == 'h' ) ? i % 3 : i / 3;
+         double lin_f = ( double )lin_idx;
+         double col_f = ( double )col_idx;
 
-      uint32_t bit_ativo = ( map->payload >> i ) & 1;
-
-      if ( bit_ativo ) {
-         // Multiplicação e soma exatas primeiro, divisão apenas no final
-         double x1 = ( 37.0 + 8.0 * coluna ) / 12.0;
-         double y1 = -( 37.0 + 8.0 * linha ) / 12.0;
-
-         double x3 = ( 43.0 + 8.0 * coluna ) / 12.0;
-         double y3 = -( 43.0 + 8.0 * linha ) / 12.0;
+         double x1 = ( 37.0 + ( 8.0 * col_f ) ) / 12.0;
+         double y1 = -( 37.0 + ( 8.0 * lin_f ) ) / 12.0;
+         double x3 = ( 43.0 + ( 8.0 * col_f ) ) / 12.0;
+         double y3 = -( 43.0 + ( 8.0 * lin_f ) ) / 12.0;
 
          g_string_append_printf( tex, "\\draw[red,thick] (%.4f,%.4f) rectangle (%.4f,%.4f);\n", x1, y1, x3, y3 );
       }
@@ -281,13 +315,17 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // 4. AVALIAÇÃO DAS RESPOSTAS E PINTURA DO GABARITO
    int acertos = 0;
+   int limite_q = CLAMP( dados->total_quest_prova, 0, 10 );
 
-   // Assumindo que NTI (Número Total de Itens) seja uma macro definida no escopo superior
-   for ( int j = 0; j < dados->total_quest_prova; j++ ) {
-      double linha  = ( map->direcao == 'h' ) ? -4.5 - gab[j] + 65 : -5.5 - j;
-      double coluna = ( map->direcao == 'h' ) ?  5.5 + j : 4.5 + gab[j] - 65;
-      double x      = ( map->direcao == 'h' ) ?  5.5 + j : 2.5;
-      double y      = ( map->direcao == 'h' ) ? -2.5 : -5.5 - j;
+   for ( int j = 0; j < limite_q; j++ ) {
+      int offset_letra = CLAMP( ( int )( gab[j] - 'A' ), 0, 4 );
+      double j_f       = ( double )j;
+      double letra_f   = ( double )offset_letra;
+
+      double linha  = ( map->direcao == 'h' ) ? ( -4.5 - letra_f ) : ( -5.5 - j_f );
+      double coluna = ( map->direcao == 'h' ) ? ( 5.5 + j_f )     : ( 4.5 + letra_f );
+      double x      = ( map->direcao == 'h' ) ? ( 5.5 + j_f )     :    2.5;
+      double y      = ( map->direcao == 'h' ) ?   -2.5             : ( -5.5 - j_f );
 
       g_string_append_printf( tex, "\\coordinate (P) at (%.4f,%.4f);\n", x, y );
 
@@ -300,44 +338,51 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
    }
 
    // 5. INJEÇÃO DOS METADADOS E TEXTOS INSTITUCIONAIS
+   int idx_mes = CLAMP( hoje->mes - 1, 0, 11 );
+
    g_string_append_printf( tex, "\\node[left] at (%d,-0.4) {\\Large São Luís, %d de %s de %d};\n",
-                           largura, hoje->dia, meses[hoje->mes - 1], hoje->ano );
-   g_string_append_printf( tex, "\\node[left] at (%d,-1.3) {\\Large IDENTIFICADOR $\\to$ \\bf\\Huge %d};\n", largura, map->id );
+                           largura, hoje->dia, meses[idx_mes], hoje->ano );
+   g_string_append_printf( tex, "\\node[left] at (%d,-1.3) {\\Large IDENTIFICADOR $\\to$ \\bf\\Huge %u};\n",
+                           largura, ( guint )map->id );
 
    g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-0.4) {\\Large\\bf %s};\n", dados->escola );
-   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.0) {\\Large\\textbf{Gest.} %s};\n", dados->gestor );
-   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.6) {\\Large\\textbf{Prof.} %s};\n\n", dados->professor );
+   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.0) {\\Large\\textbf{Gest.} %s};\n",
+                           dados->gestor );
+   g_string_append_printf( tex, "\\node[right,color=AzulProfessor] at (0.04,-1.6) {\\Large\\textbf{Prof.} %s};\n\n",
+                           dados->professor );
 
    // Formatação Dinâmica do Título da Prova
-   char titulo_prova[512];
+   char titulo_prova[512] = { 0 };
    if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
-      snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s / \\textbf{%s}",
-                dados->periodo, dados->disciplina, dados->ano );
+      g_snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s / \\textbf{%s}",
+                  dados->periodo, dados->disciplina, dados->ano );
    } else {
-      snprintf( titulo_prova, sizeof( titulo_prova ), "%s Prova de %s do \\textbf{%s / %s}",
-                dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
+      g_snprintf( titulo_prova, sizeof( titulo_prova ), "%s Prova de %s do \\textbf{%s / %s}",
+                  dados->prova_sequencia, dados->disciplina, dados->periodo, dados->ano );
    }
 
-   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s};\n", 1.6 - altura, titulo_prova );
-   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n", 1.0 - altura, dados->turma );
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s};\n",
+                           1.6 - alt_f, titulo_prova );
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large Turma: {\\bf %s}};\n",
+                           1.0 - alt_f, dados->turma );
 
-   // Uso seguro de memória com g_autofree para a string em UpperCase
-   const FichaAluno *ficha = g_ptr_array_index( diario->fichas, map->num - 1 );
-   g_autofree gchar *nome_aluno = g_utf8_strup( ficha->aluno, -1 );
-   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n", 0.4 - altura, nome_aluno, map->num );
+   const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( diario->fichas, ( guint )( map->num - 1 ) );
+   const char *aluno_str   = ( ficha != NULL ) ? ficha->aluno : "ALUNO NÃO IDENTIFICADO";
+   g_autofree gchar *nome_aluno = g_utf8_strup( aluno_str, -1 );
+
+   g_string_append_printf( tex, "\\node[right,color=VerdeEscola] at (0.04,%.4f) {\\Large %s $\\to$ Nº: {\\bf\\Huge %.2d}};\n",
+                           0.4 - alt_f, nome_aluno, map->num );
 
    // Resultado Final
-   g_string_append_printf( tex, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - altura, acertos );
+   g_string_append_printf( tex, "\\node[color=blue,left] at (%d,%.4f) {\\Large NOTA $\\to$ \\textbf{\\fontsize{12mm}{15mm}\\selectfont %d}};\n\n", largura, 1.3 - alt_f, acertos );
 
    // 6. FECHAMENTO DO ARQUIVO
-   g_string_append( tex, "\\end{tikzpicture}}\n" );
-   g_string_append( tex, "\\end{document}\n" );
+   g_string_append( tex, "\\end{tikzpicture}}\n\\end{document}\n" );
 
-   // 7. GRAVAÇÃO ATÔMICA E SEGURA NO DISCO
-   GError *error = NULL;
-   if ( !g_file_set_contents( arquivo, tex->str, ( guint )tex->len, &error ) ) {
-      g_printerr( "[ERRO] Não foi possível salvar o arquivo latex (%s): %s\n", arquivo, error->message );
-      g_error_free( error );
+   // 7. GRAVAÇÃO ATÔMICA E SEGURA NO DISCO (gssize evita -Wsign-conversion)
+   g_autoptr( GError ) error = NULL;
+   if ( !g_file_set_contents( arquivo, tex->str, ( gssize )tex->len, &error ) ) {
+      g_printerr( "[ERRO] Não foi possível salvar o arquivo LaTeX (%s): %s\n", arquivo, error->message );
       return -1;
    }
 
