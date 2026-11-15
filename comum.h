@@ -8,10 +8,9 @@
 
 
 // MEXER NESTA MACRO VAI CORROMPER AS FICHAS DOS ALUNOS
-#define QTD_DISC 2
 #define MAX_AVALIACOES 5
-
-
+#define MAX_QUEST_PROVA 20
+#define MAX_FLAGS_ATIPICIDADES 31
 
 //=========================================================================================================//
 //                                       E N U M E R A Ç Õ E S                                             //
@@ -141,7 +140,6 @@ typedef struct {
    // 5. Matriz do Acervo
    gint  *qtd_quest_subtema; // Quantidade de questões disponíveis por tema/subtema selecionado para prova
    int total_quest_prova; // Total de questões da prova (padrão: 10 questões)
-   int max_quest_prova;
 
    gchar **selecao_quest_prova;
 
@@ -172,22 +170,6 @@ typedef struct {
 } __attribute__( ( packed ) ) DadosRascunho;
 //=========================================================================================================//
 
-
-
-//-------------------------------------------------------------------------------------------//
-//          P L A N I L H A S    S I A E P                                                   //
-//-------------------------------------------------------------------------------------------//
-typedef struct {
-   char aluno[64];
-   char sexo; // M ou F
-   char nasc[16];
-} __attribute__( ( packed ) ) FichaSiaep;
-
-typedef struct {
-   uint32_t cod_aluno;
-   char sit[8];
-} __attribute__( ( packed ) ) AcessoTurmas;
-//-------------------------------------------------------------------------------------------//
 
 
 //=========================================================================================================//
@@ -256,37 +238,57 @@ typedef struct {
 } __attribute__( ( packed ) ) AcessoFicha;
 
 
-// MÁSCARA DE BITS PARA ATIPICIDADES (Até 31 flags expandíveis)
-// Compatível com as CIDs mapeadas na CE Poeta Cunha Santos
+// ====================================================================================
+// MÁSCARA DE BITS PARA ATIPICIDADES (32-bits expansíveis)
+// Organizada por categorias (MEC/AEE/SEDUC e Demandas de Sala de Aula)
+// ====================================================================================
 typedef enum {
    ATIPICO_NENHUM               = 0,          // Aluno Típico
 
-   // --- CIDs do Quadro da Escola ---
-   ATIPICO_TEA                  = 1 << 0,     // F84 / CID-11 6A02 (Autismo / Níveis 1, 2 e 3)
-   ATIPICO_TDAH                 = 1 << 1,     // F90 / CID-11 6A05 (DDA / TDAH)
-   ATIPICO_DEF_INTELECTUAL      = 1 << 2,     // F70, F71 / CID-11 6E60 (DI Leve/Moderada)
-   ATIPICO_TRANSTORNO_MENTAL    = 1 << 3,     // F31.6, F91.2 (Transtornos de Humor/Conduta)
-   ATIPICO_SINDROME_DOWN        = 1 << 4,     // Q90 (Trissomia 21)
-   ATIPICO_PARALISIA_CEREBRAL   = 1 << 5,     // G80.8 (Monoplegia / Deficiência Motora)
-   ATIPICO_TRANSTORNO_APRENDIZ  = 1 << 6,     // F81 (Dislexia, Discalculia, Disgrafia)
+   // --- 1. Neurodesenvolvimento e Aprendizagem ---
+   ATIPICO_TEA                  = 1U << 0,    // F84 / 6A02 (Autismo / Níveis 1, 2 e 3)
+   ATIPICO_TDAH                 = 1U << 1,    // F90 / 6A05 (DDA / TDAH)
+   ATIPICO_DEF_INTELECTUAL      = 1U << 2,    // F70, F71 / 6E60 (DI Leve/Moderada)
+   ATIPICO_TRANSTORNO_APRENDIZ  = 1U << 3,    // F81 (Dislexia, Discalculia, Disgrafia)
+   ATIPICO_TPAC                 = 1U << 4,    // Transtorno do Processamento Auditivo Central
+   ATIPICO_SUPERDOTACAO         = 1U << 5,    // AH/SD (Altas Habilidades / Superdotação)
 
-   // --- Expansões Preventivas (Novas CIDs sem quebra de binário) ---
-   ATIPICO_DEF_AUDITIVA         = 1 << 7,     // Deficiência Auditiva / Surdez
-   ATIPICO_DEF_VISUAL           = 1 << 8,     // Baixa Visão / Cegueira
-   ATIPICO_SUPERDOTACAO         = 1 << 9,     // AH/SD (Altas Habilidades / Superdotação)
+   // --- 2. Transtornos Mentais, Emocionais e Comportamentais ---
+   ATIPICO_TRANSTORNO_MENTAL    = 1U << 6,    // F31, F20 (Esquizofrenia, Bipolaridade)
+   ATIPICO_TOD                  = 1U << 7,    // F91.3 (Transtorno Opositor Desafiador)
+   ATIPICO_ANSIEDADE_DEPRESSAO  = 1U << 8,    // F41, F32 (Transtornos Emocionais / Ansiedade)
+   ATIPICO_MUTISMO_SELETIVO     = 1U << 9,    // F94.0 (Mutismo Seletivo)
 
-   // --- Metadados e Validação Pedagógica ---
-   ATIPICO_LAUDADO              = 1 << 28,    // Possui laudo médico anexado
-   ATIPICO_PROVA_ADAPTADA       = 1 << 29,    // Requer banco de questões paralelo/adaptado
-   ATIPICO_OBSERVACAO           = 1 << 30     // Possui anotação pedagógica específica
+   // --- 3. Deficiências Físicas, Sensoriais e Múltiplas (Censo Escolar / AEE) ---
+   ATIPICO_SINDROME_DOWN        = 1U << 10,   // Q90 (Trissomia 21)
+   ATIPICO_PARALISIA_CEREBRAL   = 1U << 11,   // G80 (Requer adaptação motora)
+   ATIPICO_DEF_FISICA           = 1U << 12,   // Outras deficiências motoras (ex: Cadeirante)
+   ATIPICO_DEF_AUDITIVA         = 1U << 13,   // Surdez / Baixa audição (LIBRAS)
+   ATIPICO_DEF_VISUAL           = 1U << 14,   // Cegueira / Baixa Visão (Braille / Fonte Ampliada)
+   ATIPICO_SURDOCEGUEIRA        = 1U << 15,   // Categoria AEE específica
+   ATIPICO_DEF_MULTIPLA         = 1U << 16,   // Associação de duas ou mais deficiências
+
+   // --- 4. Condições Médicas e Contexto Escolar ---
+   ATIPICO_EPILEPSIA            = 1U << 17,   // G40 (Requer protocolo de crise em sala)
+   ATIPICO_DOENCA_CRONICA       = 1U << 18,   // Diabetes, Cardiopatias, Alergias severas
+   ATIPICO_VULNERABILIDADE      = 1U << 19,   // Acompanhamento do Conselho Tutelar / CRAS
+
+   // Bits 20 a 27 livres para futuras expansões
+
+   // --- 5. Metadados e Validação Pedagógica do Vértice ---
+   ATIPICO_LAUDADO              = 1U << 28,   // Possui laudo médico formal anexado na pasta
+   ATIPICO_PROVA_ADAPTADA       = 1U << 29,   // Requer banco de questões paralelo/adaptado
+   ATIPICO_OBSERVACAO           = 1U << 30    // Possui anotação pedagógica específica da gestão
 } __attribute__( ( packed ) ) FlagsAtipicidade;
 
-// ESTRUTURA BLINDADA PARA FICHA BINÁRIA (Tamanho fixo congelado)
+// ====================================================================================
+// ESTRUTURA BLINDADA PARA FICHA BINÁRIA (Tamanho fixo congelado de 8 bytes)
+// ====================================================================================
 typedef struct {
-   FlagsAtipicidade flags;     // Mapeamento de até 31 CIDs/Atipicidades combinadas (4 bytes)
-   guint8  nivel_suporte_tea; // 0 = N/A, 1 = Nível 1, 2 = Nível 2, 3 = Nível 3 (1 byte)
-   guint8  reservado1;        // Espaço reservado para expansões futuras (1 byte)
-   uint16_t reservado2;        // Espaço reservado para expansões futuras (2 bytes)
+   FlagsAtipicidade flags;             // Mapeamento de até 31 atipicidades combinadas (4 bytes)
+   guint8           nivel_suporte_tea; // 0 = N/A, 1 = Nível 1, 2 = Nível 2, 3 = Nível 3 (1 byte)
+   guint8           reservado1;        // Espaço reservado para expansões futuras (1 byte)
+   guint16          reservado2;        // Espaço reservado para expansões futuras (2 bytes)
 } __attribute__( ( packed ) ) FichaAtipicidade;
 
 typedef enum {

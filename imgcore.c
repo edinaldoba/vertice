@@ -166,7 +166,7 @@ gboolean salvar_imagem_png_nativa( const char *caminho, const ImagemColorida *im
 // ====================================================================================
 // FUNÇÃO DE RECONSTRUÇÃO: Integra GdkPixbuf ao Padrão Contíguo (1D + 2D)
 // ====================================================================================
-static void reconstruir_matriz_colorida_aux( const guchar *pixels_1d, ImagemColorida *img,
+static void reconstruir_matriz_colorida_lc( const guchar *pixels_1d, ImagemColorida *img,
       gsize largura, gsize altura, gsize rowstride, guint16 canais ) {
 
    g_return_if_fail( pixels_1d != NULL );
@@ -245,7 +245,7 @@ gboolean carregar_imagem_colorida_nativa( const char *caminho, ImagemColorida *i
    const guchar *pixels_1d = gdk_pixbuf_read_pixels( pixbuf );
 
    // Reconstrói a matriz aplicando o mapeamento contíguo otimizado
-   reconstruir_matriz_colorida_aux( pixels_1d, img, largura, altura, rowstride, canais );
+   reconstruir_matriz_colorida_lc( pixels_1d, img, largura, altura, rowstride, canais );
 
    g_object_unref( pixbuf );
    return TRUE;

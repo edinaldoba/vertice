@@ -262,8 +262,16 @@ typedef struct {
 
 // Sub-aba: Atribuição de Atipicidades e CIDs dos Alunos
 typedef struct {
-   GtkWidget *btn_salvar;
-   // Adicione aqui os widgets de seleção de turmas, alunos e flags atípicas...
+   GtkWidget *combo_alunos;          // GtkComboBox associado ao GtkListStore da função mapear_alunos()
+   gulong     handler_combo_alunos;
+
+   GtkWidget *combo_suporte_tea;     // GtkComboBoxText (0=N/A, 1=Nível 1, 2=Nível 2, 3=Nível 3)
+   gulong     handler_combo_suporte_tea;
+
+   GtkWidget *flowbox;               // GtkFlowBox dos cards de alunos atípicos
+
+   GtkWidget *checks[MAX_FLAGS_ATIPICIDADES];
+   gulong     handlers_check[MAX_FLAGS_ATIPICIDADES];
 } InterfaceAtipicidade;
 
 // Sub-aba: Gerenciamento do Acervo de Questões (TeX)
@@ -275,6 +283,10 @@ typedef struct {
 // Contêiner Mestre: Aba CONFIG (Notebook Page 4)
 typedef struct {
    GtkWidget *stack_pages;       // Sub-páginas: Geral, Atipicidades, Acervo
+
+   GtkWidget *btn_sub_aba_geral;
+   GtkWidget *btn_sub_aba_atipicidades;
+   GtkWidget *btn_sub_aba_acervo;
 
    InterfaceGeral       geral;
    InterfaceAtipicidade atipicidade;
@@ -353,8 +365,6 @@ void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantida
 gboolean carregar_estado_aplicativo( AppContext *ctx );
 
 void atualizar_tema( AppContext *ctx, char *tema );
-
-void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx );
 
 gboolean mostrar_popup_confirmacao( GtkWindow *parent, const char *titulo, const char *mensagem );
 

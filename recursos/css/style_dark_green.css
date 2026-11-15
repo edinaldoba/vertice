@@ -1,29 +1,26 @@
 /*
+ * PROJETO VÉRTICE - Folha de Estilo GTK3
+ * Arquivo: style_dark_green.css (Tema Dark Green)
+ *
  * Copyright (C) 2026 Edinaldo Barbosa de Alencar
  * Este programa é software livre; você pode redistribuí-lo e/ou
- * modificá-lo sob os termos da Licença Pública Geral GNU...
- * Baseado no[cite: 1]
+ * modificá-lo sob os termos da Licença Pública Geral GNU (GPLv3+).
  */
-
-/* ==========================================================================
-   APLICATIVO PROVAS - TEMA DARK VERDE (estilo_dark_verde.css)
-   ========================================================================== */
 
 /* ==========================================================================
    1. REGRAS GLOBAIS E TIPOGRAFIA BASE
    ========================================================================== */
 label {
-    font-family: 'Ubuntu', 'Inter', sans-serif;
+    font-family: "Ubuntu", "Inter", sans-serif;
     font-size: 20px;
     color: #E0E0E0;
 }
 
-/* Dica de Ferramenta (Tooltip) - Dark Green */
 tooltip {
-    background-color: #121E16; /* Fundo verde-escuro profundo */
-    color: #E0E0E0;            /* Texto claro legível */
-    border: 1px solid #33553e; /* Borda discreta no tom do tema */
-    border-radius: 6px;        /* Cantos suaves arredondados */
+    background-color: #121E16;
+    color: #E0E0E0;
+    border: 1px solid #33553E;
+    border-radius: 6px;
     padding: 6px 10px;
 }
 
@@ -32,7 +29,6 @@ tooltip label {
     font-size: 20px;
 }
 
-/* Controle do contorno de foco do sistema */
 *:focus {
     outline-style: none;
 }
@@ -58,30 +54,29 @@ window headerbar.titlebar {
     background-image: none;
     background-color: #11171C;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.50);
     border-radius: 6px 6px 0 0;
-    box-shadow: inset 0 1px 4px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 1px 4px 0 rgba(0, 0, 0, 0.50);
 }
 
 headerbar label,
 .titlebar label,
 headerbar .title {
     color: #ECEFF1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.80);
 }
 
 /* ==========================================================================
    3. NAVEGAÇÃO (NOTEBOOK E ABAS)
    ========================================================================== */
-notebook,
+notebook {
+    background-color: #1C2421;
+    border: 1px solid #37474F;
+}
+
 notebook > stack {
     background-color: transparent;
     border-style: none;
-}
-
-notebook {
-    background-color: #1c2421;
-    border: 1px solid #37474F;
 }
 
 notebook > header {
@@ -101,7 +96,7 @@ notebook > header > tabs > tab {
 }
 
 notebook > header > tabs > tab:hover {
-    border-bottom: 4px solid #00aa00;
+    border-bottom: 4px solid #00AA00;
     box-shadow: none;
 }
 
@@ -110,7 +105,7 @@ notebook > header > tabs > tab:active {
     background-color: #131816;
     color: #FFFFFF;
     font-weight: bold;
-    border-bottom: 5px solid #00ff00;
+    border-bottom: 5px solid #00FF00;
     box-shadow: none;
 }
 
@@ -141,6 +136,8 @@ row {
     background-color: transparent;
     border-style: none;
     box-shadow: none;
+    padding: 6px;
+    color: #E0E0E0;
 }
 
 listrow:hover,
@@ -148,9 +145,9 @@ row:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-listrow:selected,
-row:selected {
-    background-color: rgba(255, 255, 255, 0.1);
+.listrow-atipico,
+.listrow-atipico row {
+    padding: 0px 3px;
 }
 
 scrolledwindow {
@@ -158,7 +155,8 @@ scrolledwindow {
     border: 1px solid #1A3020;
     border-radius: 6px;
     padding: 6px;
-    box-shadow: inset 0 2px 8px 0 rgba(10, 25, 15, 0.6), inset 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 2px 8px 0 rgba(10, 25, 15, 0.60),
+                inset 0 1px 3px 0 rgba(0, 0, 0, 0.40);
 }
 
 scrolledwindow viewport {
@@ -168,7 +166,8 @@ scrolledwindow viewport {
 flowboxchild:selected,
 flowboxchild:selected:focus,
 flowboxchild:selected:hover,
-flowboxchild:active {
+flowboxchild:active,
+flowboxchild:selected:backdrop {
     background-color: transparent;
     background-image: none;
     border-color: transparent;
@@ -176,16 +175,9 @@ flowboxchild:active {
     box-shadow: none;
 }
 
-flowboxchild:selected:backdrop {
-    background-color: transparent;
-    background-image: none;
-    border-color: transparent;
-    box-shadow: none;
-}
-
 scrollbar.vertical trough,
 scrollbar.horizontal trough {
-    background-color: rgba(13, 19, 16, 0.6);
+    background-color: rgba(13, 19, 16, 0.60);
     border-radius: 5px;
     margin: 2px;
 }
@@ -195,7 +187,7 @@ scrollbar slider {
     border-radius: 5px;
     min-width: 10px;
     min-height: 10px;
-    border: 1px solid #465a64;
+    border: 1px solid #465A64;
 }
 
 scrollbar slider:hover {
@@ -226,7 +218,7 @@ separator {
    ========================================================================== */
 .cabecalho,
 .cabecalho label {
-    color: #00e300;
+    color: #00E300;
     font-weight: bold;
 }
 
@@ -235,21 +227,19 @@ separator {
     color: rgba(255, 255, 255, 0.85);
     font-size: 26px;
     font-weight: bold;
-
-    border: 1px solid #00aa00;
+    border: 1px solid #00AA00;
     border-radius: 12px;
-    padding: 5px 12px 5px 12px;
+    padding: 5px 12px;
 }
 
 .titulo-secao,
 .titulo-secao label {
     color: rgba(255, 255, 255, 0.85);
     font-weight: bold;
-
 }
 
 .indicador-item-subtema {
-    color: #00ff00;
+    color: #00FF00;
     font-size: 23px;
     font-weight: bold;
     margin-left: 7px;
@@ -261,12 +251,12 @@ separator {
 /* --- Botões Gerais --- */
 button {
     background-image: none;
-    background-color: #1e2b32;
-    color: #00ff00;
+    background-color: #1E2B32;
+    color: #00FF00;
     font-weight: bold;
-    border: 1px solid #364c5a;
+    border: 1px solid #364C5A;
     border-radius: 10px;
-    box-shadow: inset 0 0 6px #364c5a;
+    box-shadow: inset 0 0 6px #364C5A;
     text-shadow: none;
 }
 
@@ -277,8 +267,8 @@ button label {
 
 button:hover {
     background-color: #009400;
-    border: 1px solid #00ff00;
-    box-shadow: inset 0 0 6px #00ff00;
+    border: 1px solid #00FF00;
+    box-shadow: inset 0 0 6px #00FF00;
 }
 
 button:hover label {
@@ -298,10 +288,10 @@ button:hover label {
 /* --- Campos de Texto (GtkEntry) --- */
 entry {
     background-color: #37474F;
-    font-size: 20px;
     color: #FFFFFF;
-    caret-color: #00aa00;
-    font-family: 'Ubuntu Mono', monospace;
+    caret-color: #00AA00;
+    font-family: "Ubuntu Mono", monospace;
+    font-size: 20px;
     font-weight: normal;
     padding: 4px 12px;
     border: 1px solid #455A64;
@@ -310,21 +300,21 @@ entry {
 
 entry:focus {
     background-image: none;
-    border: 1px solid #00aa00;
+    border: 1px solid #00AA00;
     outline: none;
-    box-shadow: 0 0 5px #00aa00;
+    box-shadow: 0 0 5px #00AA00;
 }
 
 entry label {
     color: #FFFFFF;
+    font-family: "Ubuntu Mono", monospace;
     font-size: 20px;
-    font-family: 'Ubuntu Mono', monospace;
     font-weight: normal;
 }
 
 entry selection {
-    background-color: #6b8a6b;
-    color: #ffffff;
+    background-color: #6B8A6B;
+    color: #FFFFFF;
 }
 
 .entry-qtd-questoes-subtema {
@@ -403,54 +393,42 @@ combobox cellview:disabled,
     font-weight: normal;
 }
 
-
 popover,
 popover arrow {
     background-image: none;
     background-color: #005500;
-    border: 1px solid #00aa00;
+    border: 1px solid #00AA00;
 }
 
 /* --- CheckButtons e RadioButtons --- */
-check {
+check,
+radio {
     background-image: none;
-    color: #ffffff;
+    color: #FFFFFF;
     background-color: #000000;
     border: 1px solid #455A64;
+}
+
+check {
     border-radius: 4px;
 }
 
-check:hover {
-    border-color: #00ff00;
-}
-
-check:checked {
-    background-image: none;
-    background-color: #00dc00;
-    border-color: #00dc00;
-}
-
-radio {
-    background-image: none;
-    color: #ffffff;
-    background-color: #000000;
-    border: 1px solid #455A64;
-}
-
+check:hover,
 radio:hover {
-    border-color: #00ff00;
+    border-color: #00FF00;
 }
 
+check:checked,
 radio:checked {
     background-image: none;
-    background-color: #00dc00;
-    border-color: #00dc00;
+    background-color: #00DC00;
+    border-color: #00DC00;
 }
 
 /* --- Calendário --- */
 calendar {
     background-color: #1A232A;
-    color: #f0f0f0;
+    color: #F0F0F0;
     border-radius: 6px;
     padding: 6px;
     border: 1px solid #005500;
@@ -461,16 +439,16 @@ calendar:indeterminate {
 }
 
 calendar:selected {
-    background-color: #003d00;
+    background-color: #003D00;
     border-radius: 4px;
-    border: 1px solid #aaff00;
-    box-shadow: inset 0 0 4px #00ff00;
+    border: 1px solid #AAFF00;
+    box-shadow: inset 0 0 4px #00FF00;
 }
 
 /* --- Tabelas (TreeView) --- */
 treeview {
-    background-color: #1c2421;
-    color: #ffffff;
+    background-color: #1C2421;
+    color: #FFFFFF;
     font-size: 20px;
     border-color: #008200;
     padding-left: 6px;
@@ -490,83 +468,96 @@ treeview header label {
 }
 
 treeview header button {
-    background-color: rgba(0, 100, 0, 0.2);
+    background-color: rgba(0, 100, 0, 0.20);
     border: none;
     padding: 6px;
     margin-left: 2px;
     margin-right: 2px;
     margin-bottom: 3px;
     border-radius: 6px;
-    box-shadow: inset 0 0 6px rgba(0, 100, 0, 1.0);
+    box-shadow: inset 0 0 6px rgba(0, 100, 0, 1.00);
 }
 
-/* Destaque para o cabeçalho da coluna NOTA */
 .cabecalho-destaque-nota {
     background-color: #325500;
-    border: 1px solid #4d8000;
+    border: 1px solid #4D8000;
     padding: 5px;
     border-radius: 6px;
-    box-shadow: inset 0 0 6px #4d8000;
-}
-.cabecalho-destaque-nota label {
-    color: #ffffff;
+    box-shadow: inset 0 0 6px #4D8000;
 }
 
+.cabecalho-destaque-nota label {
+    color: #FFFFFF;
+}
 
 /* ==========================================================================
-   7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)
+   7. PAINÉIS DE STATUS E FEEDBACK (MINI-CARDS, STEPPER E TOAST)
    ========================================================================== */
 /* --- Mini Cards --- */
+.card-aluno-atipico {
+    background-color: #1A232A;
+    padding: 10px;
+    border: 1px solid #37474F;
+    border-radius: 8px;
+}
+
+.card-atipico-destaque {
+    background-color: #1E2B24;
+    border: 2px solid #00FF00;
+    box-shadow: inset 0 0 8px rgba(0, 255, 0, 0.35);
+}
+
 .mini-card,
 .mini-card-flowbox {
-    background-color: #242f35;
+    background-color: #242F35;
+    font-size: 16px;
     padding: 4px 8px;
     border: 1px solid #37474F;
     border-radius: 6px;
 }
 
 .mini-card-avaliacoes {
-    background-color: #002f00;
+    background-color: #002F00;
     padding: 4px 8px;
-    border: 1px solid #006d00;
+    border: 1px solid #006D00;
     border-radius: 6px;
 }
 
 /* --- Stepper (Seletor Numérico) --- */
 .stepper-container {
-    background-color: #303f47;
-    padding: 0px 5px;
+    background-color: #303F47;
+    padding: 0 5px;
     border-radius: 12px;
 }
 
 .label-stepper {
-    color: #ffffff;
+    color: #FFFFFF;
     font-size: 15px;
     font-weight: bold;
     min-width: 17px;
 }
 
 .btn-stepper {
-    background-color: #242f35;
-    padding: 0px 0px;
-    box-shadow: inset 0 0 3px #364c5a;
+    background-color: #242F35;
+    padding: 0;
+    box-shadow: inset 0 0 3px #364C5A;
 }
 
 .btn-stepper label {
-    font-weight: bold;
     font-size: 24px;
-    color: #00aa00;
+    font-weight: bold;
+    color: #00AA00;
 }
 
 .btn-stepper:hover {
-    background-color: #2c3c47;
+    background-color: #2C3C47;
     border-radius: 50%;
-    border-color: #00aa00;
+    border-color: #00AA00;
     box-shadow: inset 0 0 3px #009400;
 }
 
 .btn-stepper:hover label {
-    color: #00ff00;
+    color: #00FF00;
 }
 
 /* --- Botões Especiais --- */
@@ -582,7 +573,7 @@ treeview header button {
     background-image: url("./icones/trash_green_hover.svg");
 }
 
-/* --- Painel de Feedback --- */
+/* --- Painel de Feedback e Toast --- */
 .painel-feedback {
     background-color: #1A232A;
     padding: 13px;
@@ -590,68 +581,68 @@ treeview header button {
     border-radius: 13px;
 }
 
-/* --- Painel de Feedback (Toast Moderno) --- */
 .painel-feedback-revealer {
-    background-color: rgba(26, 35, 42, 0.95); /* Escuro profundo translúcido */
-    border: 1px solid rgba(0, 230, 150, 0.4);  /* Borda fina acentuada */
-    border-left: 5px solid #00E696;            /* Barra lateral verde vibrante */
-    border-radius: 10px;                       /* Curvatura moderna nos cantos */
+    background-color: rgba(26, 35, 42, 0.95);
+    border: 1px solid rgba(0, 230, 150, 0.40);
+    border-left: 5px solid #00E696;
+    border-radius: 10px;
     padding: 12px 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);/* Profundidade sobre o overlay */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-
-/* A orelhinha estilo Samsung Edge ancorada no rodapé */
 .box-orelhinha {
     background-color: rgba(255, 255, 255, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.25);
-    border-bottom: none; /* Gruda no limite inferior da janela */
-    border-radius: 8px 8px 0 0; /* Arredondado apenas na parte superior */
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
     padding: 1px 16px;
     min-height: 4px;
     transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Quando passa o mouse sobre a orelhinha no rodapé */
 .eventbox-orelhinha:hover .box-orelhinha {
-    background-color: rgba(0, 230, 150, 0.85); /* Verde vibrante do tema */
-    min-height: 8px; /* Expande levemente para cima indicando interatividade */
-    box-shadow: 0 -2px 8px rgba(0, 230, 150, 0.4);
+    background-color: rgba(0, 230, 150, 0.85);
+    border-color: rgba(0, 230, 150, 1.00);
+    min-height: 8px;
+    box-shadow: 0 -2px 8px rgba(0, 230, 150, 0.40);
 }
 
-/* O traço/indicador horizontal dentro da orelhinha */
 .label-traco {
     color: rgba(255, 255, 255, 0.85);
     font-size: 10px;
     font-weight: bold;
 }
 
-.sucesso-titulo { color: #a5d6a7; font-size: 28px; font-weight: bold; }
+.eventbox-orelhinha:hover .label-traco {
+    color: #FFFFFF;
+}
+
+/* --- Mensagens de Status --- */
+.sucesso-titulo    { color: #A5D6A7; font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.sucesso-instrucao { color: #00e300; font-size: 20px; font-weight: normal; }
+.sucesso-instrucao { color: #00E300; font-size: 20px; font-weight: normal; }
 
-.aviso-titulo { color: #FFD54F; font-size: 28px; font-weight: bold; }
-.aviso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.aviso-instrucao { color: #FFB300; font-size: 20px; font-weight: normal; }
+.aviso-titulo      { color: #FFD54F; font-size: 28px; font-weight: bold; }
+.aviso-subtitulo   { color: #90A4AE; font-size: 24px; font-style: italic; }
+.aviso-instrucao   { color: #FFB300; font-size: 20px; font-weight: normal; }
 
-.erro-titulo { color: #E57373; font-size: 28px; font-weight: bold; }
-.erro-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.erro-instrucao { color: #EF5350; font-size: 20px; font-weight: normal; }
+.erro-titulo       { color: #E57373; font-size: 28px; font-weight: bold; }
+.erro-subtitulo    { color: #90A4AE; font-size: 24px; font-style: italic; }
+.erro-instrucao    { color: #EF5350; font-size: 20px; font-weight: normal; }
 
-.info-titulo { color: #4DD0E1; font-size: 28px; font-weight: bold; }
-.info-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.info-instrucao { color: #26C6DA; font-size: 20px; font-weight: normal; }
+.info-titulo       { color: #4DD0E1; font-size: 28px; font-weight: bold; }
+.info-subtitulo    { color: #90A4AE; font-size: 24px; font-style: italic; }
+.info-instrucao    { color: #26C6DA; font-size: 20px; font-weight: normal; }
 
 /* ==========================================================================
    8. DIÁLOGOS E MODAIS (GtkMessageDialog)
    ========================================================================== */
-/* --- Message Dialog: Dark Green --- */
 messagedialog {
     background-color: #172026;
     border: 1px solid #263238;
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.60);
 }
 
 messagedialog headerbar,
@@ -665,14 +656,14 @@ messagedialog .titlebar {
 
 messagedialog headerbar .title,
 messagedialog .titlebar .title {
-    color: #00E696; /* Verde do tema para o título */
+    color: #00E696;
     font-weight: bold;
     text-shadow: none;
 }
 
 messagedialog label {
     color: #B2BEC3;
-    font-size: 20px; /* Ajustado para melhor ergonomia (23px era muito grande) */
+    font-size: 20px;
 }
 
 messagedialog button {
@@ -685,11 +676,10 @@ messagedialog button {
 }
 
 messagedialog button:hover {
-    background-color: #24303a;
+    background-color: #24303A;
     border: 1px solid #00E696;
 }
 
 messagedialog button:hover label {
-    color: #ffffff;
+    color: #FFFFFF;
 }
-

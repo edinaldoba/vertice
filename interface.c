@@ -17,6 +17,7 @@
 #include "mensagens.h"
 #include "dinamica.h"
 #include "diarios.h"
+#include "config.h"
 
 // Esta é a única inclusão deste arquivo em todo o projeto
 #include "auxiliar.h"
@@ -276,119 +277,6 @@ void atualizar_tema( AppContext *ctx, char *tema ) {
 
 }
 
-
-
-
-
-
-
-// =================================================================================================================
-// GERENCIAMENTO DE FLUXO DE GABARITOS - Versão Otimizada (Painel de Feedback)
-// =================================================================================================================
-void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, const AppContext *ctx ) {
-   g_return_if_fail( widget != NULL && painel != NULL && ctx != NULL );
-
-   const InterfaceDados     *dados     = &ctx->dados;
-   const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
-
-   if ( dados->qtd_alunos_ativos <= 0 || dados->max_quest_prova <= 0 ) {
-      g_printerr( "[ERRO] Não é possível gerenciar gabaritos com %d alunos ativos ou %d máximo de questões.\n",
-                  dados->qtd_alunos_ativos, dados->max_quest_prova );
-      return;
-   }
-
-   g_autofree char *destino = g_build_filename(
-                                 dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "gabaritos", NULL
-                              );
-
-   if ( g_mkdir_with_parents( destino, 0755 ) != 0 ) {
-      g_printerr( "[ERRO CRÍTICO] Não foi possível criar os diretórios de destino: %s\n", destino );
-      return;
-   }
-
-   char nome[64] = { 0 };
-   nome_base_gabaritos_bin( nome, sizeof( nome ), cabecalho->foco_turma, cabecalho->foco_disciplina,
-                            cabecalho->foco_periodo, dados->seq_prova );
-
-   g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
-
-   // Cenário A: O arquivo não existe (Primeira compilação da prova)
-   if ( !g_file_test( arquivo, G_FILE_TEST_EXISTS ) ) {
-      gerar_gabaritos( arquivo, dados->qtd_alunos_ativos, dados, "wb" );
-      return;
-   }
-
-   // O tamanho de 1 registro equivale à capacidade máxima de caracteres + 1 (para o '\0')
-   gsize tamanho_registro = ( gsize )dados->max_quest_prova + 1;
-   int contador = contar_registros_binarios( arquivo, tamanho_registro );
-
-   // Sub-cenário B1: Alunos adicionados (Seguro - Não sobrescreve, apenas anexa)
-   if ( contador > 0 && contador < dados->qtd_alunos_ativos ) {
-      int adicionados = dados->qtd_alunos_ativos - contador;
-
-      gerar_gabaritos( arquivo, adicionados, dados, "ab" );
-
-      painel->format_titulo    = meu_gerador_variadico( "⚠ Lista de Alunos Expandida" );
-      painel->format_subtitulo = meu_gerador_variadico( "%d novos alunos ativos foram adicionados desde a última compilação.", adicionados );
-      painel->format_instrucao = meu_gerador_variadico( "%d novos gabaritos foram anexados mantendo os antigos intactos.", adicionados );
-      criar_mensagem_painel( AVISO, painel );
-
-      gchar *f_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *f_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
-      gchar *f_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
-      agendar_ou_exibir_mensagem_painel( INFO, painel, f_titulo, f_subtitulo, f_instrucao );
-   }
-   // Sub-cenário B2: Risco de Perda de Dados (Alunos removidos, qtde idêntica, ou erro de leitura)
-   else {
-      GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
-      char *msg_gabarito = NULL;
-
-      if ( contador > dados->qtd_alunos_ativos ) {
-         int removidos = contador - dados->qtd_alunos_ativos;
-         msg_gabarito = meu_gerador_variadico(
-                           "<b>ESCOLA:</b> %s\n"
-                           "<b>TURMA:</b> %s\n\n"
-                           "A turma atual possui <b>%d aluno(s) a menos</b> que o arquivo de gabaritos existente.\n\n"
-                           "Deseja sobrescrever o arquivo para refletir a nova quantidade exata da turma?",
-                           dados->escola, dados->turma, removidos
-                        );
-      } else if ( contador == 0 ) {
-         msg_gabarito = meu_gerador_variadico(
-                           "<b>Atenção:</b> O arquivo de gabaritos %s parece estar corrompido ou vazio.\n"
-                           "Deseja gerar um novo arquivo substituindo-o?", nome
-                        );
-      } else {
-         msg_gabarito = meu_gerador_variadico(
-                           "<b>ESCOLA:</b> %s\n"
-                           "<b>TURMA:</b> %s\n\n"
-                           "O arquivo de <b>Gabaritos</b> da <b>%s Prova</b> do <b>%s</b> já existe.\n\n"
-                           "Deseja criar um novo arquivo e sobrescrever o anterior?",
-                           dados->escola, dados->turma, dados->prova_sequencia, dados->periodo
-                        );
-      }
-
-      gboolean emitir_gabarito = mostrar_popup_confirmacao( janela_principal, "Aviso de Sobrescrita", msg_gabarito );
-      g_free( msg_gabarito );
-
-      if ( !emitir_gabarito && contador > 0 ) {
-         painel->format_titulo    = meu_gerador_variadico( "✔ Reaproveitando Histórico" );
-         painel->format_subtitulo = meu_gerador_variadico( "Gerando provas com o uso de gabaritos gerados em compilação anterior." );
-         painel->format_instrucao = meu_gerador_variadico( "Os dados originais dos alunos foram preservados com sucesso." );
-      } else {
-         gerar_gabaritos( arquivo, dados->qtd_alunos_ativos, dados, "wb" );
-         painel->format_titulo    = meu_gerador_variadico( "✔ Novos Gabaritos Alocados" );
-         painel->format_subtitulo = meu_gerador_variadico( "Gerando provas com o uso de uma nova sequência de gabaritos." );
-         painel->format_instrucao = meu_gerador_variadico( "O arquivo anterior foi sobrescrito conforme solicitado." );
-      }
-
-      criar_mensagem_painel( SUCESSO, painel );
-
-      gchar *f_titulo    = meu_gerador_variadico( "⚙️ Gerando Provas e Gabaritos" );
-      gchar *f_subtitulo = meu_gerador_variadico( "O processo leva aproximadamente 9 segundos." );
-      gchar *f_instrucao = meu_gerador_variadico( "Compilando lote para <b>%s</b> (%s)... Por favor, aguarde.", ctx->dados.escola, ctx->dados.ano );
-      agendar_ou_exibir_mensagem_painel( INFO, painel, f_titulo, f_subtitulo, f_instrucao );
-   }
-}
 
 
 
@@ -775,7 +663,7 @@ gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index ) {
 
 
 
-static void atualizar_acervo_questoes_e_temas_aux( AppContext *ctx ) {
+static void atualizar_acervo_questoes_e_temas_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados    *dados    = &ctx->dados;
@@ -866,10 +754,11 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    }
 
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceDados      *dados      = &ctx->dados;
-   InterfaceConteudo   *conteudo   = &ctx->diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
-   InterfaceAvaliacao  *avaliacao = &ctx->diario.avaliacao;
+   InterfaceDados       *dados       = &ctx->dados;
+   InterfaceConteudo    *conteudo    = &ctx->diario.conteudo;
+   InterfaceFrequencia  *frequencia  = &ctx->diario.frequencia;
+   InterfaceAvaliacao   *avaliacao   = &ctx->diario.avaliacao;
+   InterfaceAtipicidade *atipicidade = &ctx->config.atipicidade;
 
    ui_restaurar_registros_de_aula( ctx, TRUE );
    conteudo->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
@@ -890,6 +779,18 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    popular_combo_box_generico( frequencia->combo_alunos, diario->fichas, limite, foco,
                                frequencia->handler_combo_alunos, mapear_alunos );
+   renderizar_combo_box_ellipsize( frequencia->combo_alunos, 30 );
+
+   popular_combo_box_generico( atipicidade->combo_alunos, diario->fichas, limite, foco,
+                               atipicidade->handler_combo_alunos, mapear_alunos );
+   renderizar_combo_box_ellipsize( atipicidade->combo_alunos, 42 );
+
+   // ========================================================================
+   // RECONSTRUÇÃO DA ABA CONFIG -> ATIPICIDADES PARA A NOVA TURMA
+   // ========================================================================
+   // Sincroniza os check buttons da interface e recria todos os mini-cards do
+   // flowbox dinamicamente para garantir que a UI reflita os dados reais da RAM.
+   inicializar_aba_atipicidades( ctx );
 
    // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
@@ -930,7 +831,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
 //==================================================================================================
 // Função auxiliar para criar arquivos ocultos vazios
-static void criar_arquivo_oculto_aux( const gchar *diretorio, const gchar *nome ) {
+static void criar_arquivo_oculto_lc( const gchar *diretorio, const gchar *nome ) {
    if ( !diretorio || !nome || nome[0] == '\0' ) {
       return;
    }
@@ -944,7 +845,7 @@ static void criar_arquivo_oculto_aux( const gchar *diretorio, const gchar *nome 
 }
 
 //--------------------------------------------------------------------------------------------------
-static void carregar_escolas_e_turmas_aux( const char *raiz, GtkComboBox *combo_periodo ) {
+static void carregar_escolas_e_turmas_lc( const char *raiz, GtkComboBox *combo_periodo ) {
    g_return_if_fail( raiz != NULL && combo_periodo != NULL );
 
    // =========================================================================
@@ -1005,7 +906,7 @@ static void carregar_escolas_e_turmas_aux( const char *raiz, GtkComboBox *combo_
       // Arquivo oculto do GESTOR (Raiz da escola)
       g_autofree gchar *gestor = g_key_file_get_string( keyfile, escola, "gestor", NULL );
       if ( gestor ) {
-         criar_arquivo_oculto_aux( dir_escola, gestor );
+         criar_arquivo_oculto_lc( dir_escola, gestor );
       }
 
       gsize n_turmas = 0;
@@ -1036,7 +937,7 @@ static void carregar_escolas_e_turmas_aux( const char *raiz, GtkComboBox *combo_
             g_autofree gchar *chave_prof = g_strdup_printf( "prof_%s", disc );
             g_autofree gchar *prof = g_key_file_get_string( keyfile, secao_turma, chave_prof, NULL );
             if ( prof ) {
-               criar_arquivo_oculto_aux( dir_disc, prof );
+               criar_arquivo_oculto_lc( dir_disc, prof );
             }
 
             // ---------------------------------------------------------------
@@ -1063,9 +964,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
-   dados->max_quest_prova = 20;
-   dados->total_quest_prova = 10; // Esse valor deverá ser escolhido na interface em breve.
-   dados->selecao_quest_prova = g_new0( gchar*, ( gsize )( dados->total_quest_prova + 1 ) );
+   dados->selecao_quest_prova = g_new0( gchar*, ( gsize )dados->total_quest_prova + 1U );
    dados->qtd_quest_subtema = g_new0( gint, ( gsize )dados->total_quest_prova );
    avaliacao->validas = g_new0( gboolean, ( gsize )MAX_AVALIACOES );
 
@@ -1103,7 +1002,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "Vértice", NULL );
    dados->raiz = ctx->caminho.raiz;
 
-   carregar_escolas_e_turmas_aux( dados->raiz, combo_periodo );
+   carregar_escolas_e_turmas_lc( dados->raiz, combo_periodo );
 
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", NULL );
    cabecalho->limite_anos = quantidade_diretorios( diretorio );
@@ -1278,7 +1177,7 @@ void atualizar_disciplina_interface( AppContext *ctx, gchar *nova_disciplina, gb
       g_clear_pointer( &dados->professor, g_free );
       dados->professor = professor_da_disciplina( diretorio, responsavel->professor );
 
-      atualizar_acervo_questoes_e_temas_aux( ctx );
+      atualizar_acervo_questoes_e_temas_lc( ctx );
 
    }
 }
@@ -1320,7 +1219,7 @@ void atualizar_periodo_interface( AppContext *ctx, gchar *novo_periodo ) {
 //
 //     for (int i = 0; i < dados->qtd_alunos_total; i++) {
 //         char pasta_aluno[1200];
-//         // Formata: "01 - NOME DO ALUNO"
+//         // Formata: "01 - NOME  DO  ESTUDANTE"
 //         g_snprintf(pasta_aluno, sizeof(pasta_aluno), "%s/%.2d - %s",
 //                  CaminhoDiretorio, i + 1, ficha[i].aluno);
 //

@@ -183,6 +183,7 @@ void inicializacao_app_context( AppContext *ctx ) {
          .seq_prova          = 1,
          .qtd_alunos_ativos  = 0,
          .qtd_alunos_total   = 0,
+         .total_quest_prova  = 10, // Quantidade de questões da prova (padrão)
 
          .qtd_paginas        = 1,
          .qtd_colunas        = 2,
@@ -250,6 +251,14 @@ void inicializacao_app_context( AppContext *ctx ) {
             .btn_mais        = NULL,
             .handlers_check  = NULL,
             .handler_scrolled = 0
+         }
+      },
+
+      .config = {
+         .atipicidade = {
+            .handler_combo_alunos = 0,
+            .handler_combo_suporte_tea = 0,
+            .handlers_check = { 0 }
          }
       },
 

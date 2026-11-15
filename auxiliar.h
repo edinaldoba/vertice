@@ -25,8 +25,6 @@ gboolean diretorio_existe( const char *caminhodir );
 
 gchar **carregar_diretorios_temas( int qtd_dir, const char *diretorio, int ( *comparadora )( const void *, const void * ) );
 
-void gerar_gabaritos( const char *arquivo, const int adicionados, const InterfaceDados *dados, const char *modo );
-
 void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres );
 
 void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *caminho );

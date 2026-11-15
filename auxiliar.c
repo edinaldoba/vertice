@@ -130,14 +130,14 @@ void mapear_alunos( GtkListStore *store, GtkTreeIter *iter, const void *dados, i
 
    const FichaAluno *ficha = g_ptr_array_index( fichas, i );
 
-   int len = calcular_len_limpo( ficha->aluno, 30 );
-   char aluno[64];
-   g_snprintf( aluno, 64, "%.2d-%.*s", i + 1, len, ficha->aluno );
+   g_autofree gchar *nome_aluno = g_strdup_printf( "%.2d-%s", i + 1, ficha->aluno );
 
    gtk_list_store_set( store, iter,
-                       0,  aluno,
-                       1,  ficha->ativo,          // Sensibilidade
-                       2, !ficha->ativo, -1 );   // Riscar nome
+                       0,  nome_aluno,
+                       1,  ficha->ativo,         // Sensibilidade
+                       2, !ficha->ativo,         // Riscar nome
+                       3,  ficha->atipico.flags, // Flags atipicidades
+                       -1 );
 }
 
 
@@ -324,7 +324,7 @@ void renderizar_combo_box_ellipsize( GtkWidget *widget, int qtd_caracteres ) {
  *
  * @param caminho Ponteiro para a estrutura CaminhoDiretorio a ser liberada.
  */
-static void caminho_diretorio_free_aux( CaminhoDiretorio *caminho ) {
+static void caminho_diretorio_free_lc( CaminhoDiretorio *caminho ) {
    if ( !caminho ) {
       return;
    }
@@ -346,7 +346,7 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
    g_return_if_fail( caminho != NULL );
 
    // 1. Libera qualquer alocação anterior para evitar vazamento de memória (Memory Leak)
-   caminho_diretorio_free_aux( caminho );
+   caminho_diretorio_free_lc( caminho );
 
    // 2. Base Completa e Base Parcial (eliminando a necessidade do strrchr)
    // g_build_filename já aloca a string dinamicamente e coloca as barras '/' corretamente
@@ -390,88 +390,6 @@ void caminhos_uteis_de_diretorios( InterfaceDados *dados, CaminhoDiretorio *cami
 }
 
 
-
-
-
-
-
-// ====================================================================================
-// FUNÇÃO AUXILIAR: Embaralhamento Fisher-Yates (Thread-Safe)
-// ====================================================================================
-static void chrperm_aux( char *str, gsize n, GRand *rng ) {
-   g_return_if_fail( str != NULL && n > 0 && rng != NULL );
-
-   if ( n < 2U ) {
-      return;
-   }
-
-   // Fisher-Yates canônico: percorre até n - 1 (o último elemento já estará definido)
-   for ( gsize i = 0; i < n - 1U; i++ ) {
-      gint32 j_rand = g_rand_int_range( rng, ( gint32 )i, ( gint32 )n );
-      gsize  j      = ( gsize )j_rand;
-
-      char c = str[j];
-      str[j] = str[i];
-      str[i] = c;
-   }
-}
-
-// ====================================================================================
-// GERADOR DE GABARITOS (Motor em Bloco 1D Contíguo)
-// ====================================================================================
-void gerar_gabaritos( const gchar *arquivo, const int adicionados, const InterfaceDados *dados, const gchar *modo ) {
-   g_return_if_fail( arquivo != NULL && dados != NULL && modo != NULL );
-
-   // 1. Defesa rigorosa de limites
-   if ( dados->total_quest_prova <= 0 || dados->total_quest_prova > dados->max_quest_prova ) {
-      g_printerr( "[ERRO] Quantidade de questões (%d) inválida.\n", dados->total_quest_prova );
-      return;
-   }
-
-   if ( adicionados <= 0 ) {
-      return;
-   }
-
-   FILE *p = g_fopen( arquivo, modo );
-   if ( !p ) {
-      g_printerr( "[ERRO] Não foi possível abrir o arquivo binário para gravação: %s\n", arquivo );
-      return;
-   }
-
-   gsize num_provas  = ( gsize )adicionados;
-   gsize total_quest = ( gsize )dados->total_quest_prova;
-   gsize max_len     = ( gsize )dados->max_quest_prova + 1U;
-
-   // 2. Alocação Contígua Plana (já inicializada com '\0')
-   char *bloco = g_malloc0_n( num_provas, max_len );
-   g_autoptr( GRand ) rng_local = g_rand_new();
-
-   // 3. Preenchimento Equilibrado e Embaralhamento por Prova
-   for ( gsize i = 0; i < num_provas; i++ ) {
-      gsize base_idx = i * max_len;
-      gint32 offset  = g_rand_int_range( rng_local, 0, 5 );
-
-      for ( gsize q = 0; q < total_quest; q++ ) {
-         bloco[base_idx + q] = ( char )( 'A' + ( ( q + ( gsize )offset ) % 5U ) );
-      }
-
-      bloco[base_idx + total_quest] = '\0';
-
-      // Embaralha a fatia atual passando o endereço indexado diretamente
-      chrperm_aux( &bloco[base_idx], total_quest, rng_local );
-   }
-
-   // 4. I/O em Bloco Único
-   gsize blocos_gravados = fwrite( bloco, max_len, num_provas, p );
-
-   if ( blocos_gravados != num_provas ) {
-      g_printerr( "[ERRO CRÍTICO] Falha de I/O: Apenas %" G_GSIZE_FORMAT " de %" G_GSIZE_FORMAT " registros foram salvos.\n",
-                  blocos_gravados, num_provas );
-   }
-
-   g_free( bloco );
-   fclose( p );
-}
 
 
 
@@ -560,7 +478,7 @@ void sincronizar_registro_aula_com_turma_siaep( AppContext *ctx ) {
    g_hash_table_destroy( hash_status );
 }
 //--------------------------------------------------------------------------------------------------
-static void copiar_acesso_bin_aux( AppContext *ctx ) {
+static void copiar_acesso_bin_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados *dados = &ctx->dados;
@@ -617,7 +535,7 @@ static void copiar_acesso_bin_aux( AppContext *ctx ) {
    gio_copiar_arquivo( arq_origem_valido, arq_target );
 }
 //--------------------------------------------------------------------------------------------------
-static gint alfabetica_lista_de_alunos_aux( gconstpointer a, gconstpointer b ) {
+static gint alfabetica_lista_de_alunos_lc( gconstpointer a, gconstpointer b ) {
    // Desempacota o ponteiro duplo
    const FichaAluno *f1 = *( const FichaAluno * const * )a;
    const FichaAluno *f2 = *( const FichaAluno * const * )b;
@@ -644,7 +562,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    EstadoArquivo estado = verificar_arquivo( arquivo_acesso );
    if ( estado & ( ARQUIVO_INEXISTENTE | ARQUIVO_VAZIO ) ) {
       if ( !siaep_atualizar_alunos( &ctx->painel, ctx ) ) {
-         copiar_acesso_bin_aux( ctx );
+         copiar_acesso_bin_lc( ctx );
       }
    }
 
@@ -718,7 +636,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
    }
 
    // 6. Ordenação Alfabética do Array de Ponteiros
-   g_ptr_array_sort( diario->fichas, alfabetica_lista_de_alunos_aux );
+   g_ptr_array_sort( diario->fichas, alfabetica_lista_de_alunos_lc );
 }
 //----------------------------------------------------------------------------------------------------
 

@@ -96,7 +96,7 @@ void on_button_siaep_atualizar_alunos_clicked( GtkWidget *widget, gpointer user_
 // 3. CURADORIA E COMPILAÇÃO DE Acervo
 // =========================================================================
 // Manipulam o banco de dados pedagógico de temas e tópicos específicos
-void on_button_config_acervo_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_latex_config_acervo_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_abrir_tema_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_compilar_questoes_clicked( GtkWidget *widget, gpointer user_data );
 void on_button_atualizar_questoes_clicked( GtkWidget *widget, gpointer user_data );
@@ -133,7 +133,7 @@ void on_entry_atualizar_tema_changed( GtkWidget *widget, gpointer user_data );
 
 // --- EMBRULHOS GTK INTERFACE DINÂMICA ---
 
-void on_subtema_check_toggled( GtkWidget *widget, gpointer user_data );
+void on_check_logica_subtema_toggled( GtkWidget *widget, gpointer user_data );
 
 void on_stepper_mais_clicked( GtkWidget *widget, gpointer user_data );
 
@@ -146,6 +146,19 @@ void on_scrolled_rolar_para_o_fim_sizeallocate( GtkWidget *widget, GdkRectangle 
 
 
 void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data );
+
+// ABA NOTEBOOK CONFIG
+void on_button_config_geral_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_config_atipicidade_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_config_acervo_clicked( GtkWidget *widget, gpointer user_data );
+
+// Sub aba Atipicidades
+void on_check_logica_atipicidades_toggled( GtkWidget *widget, gpointer user_data );
+void on_combo_logica_alunos_atipicos_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_suporte_tea_changed( GtkWidget *widget, gpointer user_data );
+void on_flowbox_atipicidades_child_activated( GtkFlowBox *flowbox, GtkFlowBoxChild *child, gpointer user_data );
+
+
 
 gboolean on_painel_feedback_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );
 gboolean on_painel_feedback_leave_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data );

@@ -436,7 +436,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
             // Filtro rigoroso: Apenas Quadrados Sólidos (Descarta bolhas de 6mm cujo limite natural é ~0.785)
             if ( blob.area > 50 && blob.area < 6000 &&
-                 aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
+                  aspect_ratio >= 0.5 && aspect_ratio <= 2.0 && fill_ratio > 0.6 ) {
                if ( num_blobs < MAX_CANDIDATOS ) {
                   blobs[num_blobs++] = blob;
                }
@@ -466,7 +466,7 @@ static int blob_extrair_quadrados_pretos( const ImagemCinza *img_bin, BlobInfo *
 
 //------------------------------------------------------------------------------------------------------------
 static gboolean blob_busca_combinatoria( const ImagemCinza *img_bin, BlobInfo ancora_final[4],
-                                         char *direcao_inferida, gboolean resgate ) {
+      char *direcao_inferida, gboolean resgate ) {
    double nrow_d        = ( double )img_bin->nrow;
    double ncol_d        = ( double )img_bin->ncol;
    double max_dist_quad = ( nrow_d * nrow_d ) + ( ncol_d * ncol_d );

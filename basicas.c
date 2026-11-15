@@ -171,14 +171,6 @@ void file_permute( FILE **pb, int nquest ) {
 
 
 
-void nome_base_gabaritos_bin( char *nome, size_t tam, int turma, int disciplina, int periodo, int prova ) {
-   if ( !nome || tam < 16 ) {
-      return;
-   }
-   g_snprintf( nome, tam, "%.3d%.2d%d%d.bin", turma, disciplina, periodo, prova );
-}
-
-
 
 
 // =========================================================================
@@ -256,38 +248,26 @@ int comparar_item_combo( const void* a, const void* b ) {
 
 
 
+// ====================================================================================
+// 1. MOTOR GENÉRICO: Busca Binária Retornando Índice (Qualquer Vetor Contíguo)
+// ====================================================================================
+gint buscar_indice_bsearch( const void *chave, const void *vetor, gsize n, gsize tamanho_elemento, GCompareFunc comparador ) {
+   g_return_val_if_fail( chave != NULL && comparador != NULL && tamanho_elemento > 0, -1 );
 
-int comparar_mapeamento_gabarito( const void* a, const void* b ) {
-   const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
-   const MapeamentoGabarito *arg2 = ( const MapeamentoGabarito * )b;
-
-   if ( arg1->num < arg2->num ) {
+   // Vetor vazio ou nulo simplesmente retorna "não encontrado" (-1) sem poluir o log com CRITICAL
+   if ( vetor == NULL || n == 0 ) {
       return -1;
    }
-   if ( arg1->num > arg2->num ) {
-      return 1;
-   }
-   return 0;
-}
-
-
-
-
-int buscar_indice_bsearch( const void *chave, const void *vetor, size_t n, size_t tamanho_elemento,
-                           int ( *comparador )( const void *, const void * ) ) {
-   // Defesa contra ponteiros nulos ou tamanhos inválidos
-   g_return_val_if_fail( chave != NULL && vetor != NULL && comparador != NULL && n > 0 && tamanho_elemento > 0, -1 );
 
    const void *encontrado = bsearch( chave, vetor, n, tamanho_elemento, comparador );
 
    if ( encontrado != NULL ) {
-      // 1. Converte os ponteiros void para char* (para trabalhar a nível de byte)
-      // 2. Subtrai o endereço base do endereço encontrado
-      // 3. Divide pelo tamanho do elemento para descobrir a posição exata no array
-      return ( int )( ( guint )( ( const char * )encontrado - ( const char * )vetor ) / tamanho_elemento );
+      // Aritmética em gsize (64-bits puro) antes de converter o índice final para gint
+      gsize offset_bytes = ( gsize )( ( const char * )encontrado - ( const char * )vetor );
+      return ( gint )( offset_bytes / tamanho_elemento );
    }
 
-   return -1; // Não encontrado
+   return -1;
 }
 
 

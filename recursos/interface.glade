@@ -47,6 +47,8 @@
       <column type="gboolean"/>
       <!-- column-name riscar -->
       <column type="gboolean"/>
+      <!-- column-name atipico -->
+      <column type="gulong"/>
     </columns>
   </object>
   <object class="GtkListStore" id="liststore_combo_avaliacoes">
@@ -913,7 +915,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkTreeViewColumn">
-                                        <property name="title" translatable="yes">NOME  DO  ALUNO</property>
+                                        <property name="title" translatable="yes">NOME  DO  ESTUDANTE</property>
                                         <property name="expand">1</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -1157,7 +1159,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="fixed-width">280</property>
-                                        <property name="title" translatable="yes">NOME DO ALUNO</property>
+                                        <property name="title" translatable="yes">NOME  DO  ESTUDANTE</property>
                                         <property name="expand">1</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
@@ -1438,7 +1440,7 @@
                                     <child>
                                       <object class="GtkTreeViewColumn">
                                         <property name="fixed-width">275</property>
-                                        <property name="title" translatable="yes">NOME DO ALUNO</property>
+                                        <property name="title" translatable="yes">NOME  DO  ESTUDANTE</property>
                                         <child>
                                           <object class="GtkCellRendererText"/>
                                           <attributes>
@@ -2612,9 +2614,588 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="box_config">
+                  <object class="GtkBox" id="box_aba_config">
                     <property name="visible">1</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <property name="margin-top">15</property>
+                    <property name="margin-bottom">10</property>
                     <property name="orientation">vertical</property>
+                    <property name="spacing">15</property>
+                    <child>
+                      <object class="GtkBox" id="box_nav_config">
+                        <property name="height-request">45</property>
+                        <property name="visible">1</property>
+                        <property name="halign">center</property>
+                        <property name="spacing">15</property>
+                        <property name="homogeneous">1</property>
+                        <child>
+                          <object class="GtkButton" id="btn_config_geral">
+                            <property name="label">GERAL</property>
+                            <property name="visible">1</property>
+                            <property name="can-focus">1</property>
+                            <property name="receives-default">1</property>
+                            <style>
+                              <class name="button-travado"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="btn_config_atipicidades">
+                            <property name="label">ATIPICIDADES</property>
+                            <property name="visible">1</property>
+                            <property name="can-focus">1</property>
+                            <property name="receives-default">1</property>
+                          </object>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="btn_config_acervo">
+                            <property name="label">ACERVO</property>
+                            <property name="visible">1</property>
+                            <property name="can-focus">1</property>
+                            <property name="receives-default">1</property>
+                          </object>
+                          <packing>
+                            <property name="position">2</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkStack" id="stack_config">
+                        <property name="visible">1</property>
+                        <property name="transition-type">crossfade</property>
+                        <child>
+                          <object class="GtkBox" id="box_config_geral">
+                            <property name="visible">1</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">1</property>
+                                <property name="label">Configurações Gerais (Em Breve)</property>
+                              </object>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="name">page_geral</property>
+                            <property name="title">Geral</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="box_config_atipicidades">
+                            <property name="visible">1</property>
+                            <property name="spacing">10</property>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="visible">1</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">15</property>
+                                <child>
+                                  <object class="GtkComboBox" id="combo_alunos_atipicos">
+                                    <property name="visible">1</property>
+                                    <property name="model">liststore_combo_aluno</property>
+                                    <child>
+                                      <object class="GtkCellRendererText"/>
+                                      <attributes>
+                                        <attribute name="sensitive">1</attribute>
+                                        <attribute name="strikethrough">2</attribute>
+                                        <attribute name="text">0</attribute>
+                                      </attributes>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkScrolledWindow" id="scrolled_atipicidades">
+                                    <property name="visible">1</property>
+                                    <property name="can-focus">1</property>
+                                    <property name="max-content-width">540</property>
+                                    <property name="max-content-height">0</property>
+                                    <property name="propagate-natural-width">1</property>
+                                    <property name="propagate-natural-height">1</property>
+                                    <child>
+                                      <object class="GtkViewport">
+                                        <property name="visible">1</property>
+                                        <property name="margin-end">17</property>
+                                        <child>
+                                          <object class="GtkListBox" id="listbox_atipicidades">
+                                            <property name="visible">1</property>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkBox">
+                                                    <property name="visible">1</property>
+                                                    <property name="spacing">10</property>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="check_atipico_1">
+                                                        <property name="label" translatable="yes">TEA - Transtorno do Espectro Autista</property>
+                                                        <property name="visible">1</property>
+                                                        <property name="can-focus">1</property>
+                                                        <property name="tooltip-text" translatable="yes">TEA (CID-10: F84 / CID-11: 6A02 — Níveis 1, 2 e 3)</property>
+                                                        <property name="draw-indicator">1</property>
+                                                      </object>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkComboBoxText" id="combo_suporte_tea">
+                                                        <property name="visible">1</property>
+                                                        <property name="tooltip-text" translatable="yes">Nível Suporte TEA</property>
+                                                        <property name="active">0</property>
+                                                        <items>
+                                                          <item translatable="yes">N/A</item>
+                                                          <item translatable="yes">Nível 1</item>
+                                                          <item translatable="yes">Nível 2</item>
+                                                          <item translatable="yes">Nível 3</item>
+                                                        </items>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_2">
+                                                    <property name="label" translatable="yes">TDAH - Transtorno do Déficit de Atenção com Hiperatividade</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TDAH (CID-10: F90 / CID-11: 6A05)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_3">
+                                                    <property name="label" translatable="yes">DI - Deficiência Intelectual</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DI (CID-10: F70–F79 / CID-11: 6A00) — DI (Leve/Moderada)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_4">
+                                                    <property name="label" translatable="yes">TA - Transtorno Específico de Aprendizagem</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TA (CID-10: F81 / CID-11: 6A03 — Dislexia, Discalculia, Disgrafia)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_5">
+                                                    <property name="label" translatable="yes">TPAC - Transtorno do Processamento Auditivo Central</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TPAC (CID-10: H93.25 / CID-11: AB5Y)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_6">
+                                                    <property name="label" translatable="yes">AH/SD - Altas Habilidades / Superdotação</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">AH/SD (Classificação MEC / Censo Escolar)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_7">
+                                                    <property name="label" translatable="yes">TM - Transtorno Mental Grave</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TM (CID-10: F20, F31 / CID-11: 6A20, 6A60 — Esquizofrenia, Bipolaridade)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_8">
+                                                    <property name="label" translatable="yes">TOD - Transtorno Opositivo-Desafiador</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TOD (CID-10: F91.3 / CID-11: 6C90)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_9">
+                                                    <property name="label" translatable="yes">TE - Transtornos Emocionais: Ansiedade / Depressão</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">TE (CID-10: F32, F41 / CID-11: 6A70, 6B00)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_10">
+                                                    <property name="label" translatable="yes">MS - Mutismo Seletivo</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">MS (CID-10: F94.0 / CID-11: 6B06)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_11">
+                                                    <property name="label" translatable="yes">DOWN - Síndrome de Down / Trissomia 21</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DOWN (CID-10: Q90 / CID-11: LD40.0)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_12">
+                                                    <property name="label" translatable="yes">PC - Paralisia Cerebral</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">PC (CID-10: G80 / CID-11: 8D20 — Requer adaptação motora)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_13">
+                                                    <property name="label" translatable="yes">DF - Deficiência Física / Motora</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DF (CID-10: G81–G83, M00–M99 / CID-11: 8B40–8D8Z — ex.: Cadeirante)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_14">
+                                                    <property name="label" translatable="yes">DA - Deficiência Auditiva / Surdez</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DA (CID-10: H90 / CID-11: AB51 — LIBRAS / Leitura Labial)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_15">
+                                                    <property name="label" translatable="yes">DV - Deficiência Visual / Baixa Visão / Cegueira</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DV (CID-10: H54 / CID-11: 9D90 — Braille / Fonte Ampliada)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_16">
+                                                    <property name="label" translatable="yes">SC - Surdocegueira</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">SC (CID-10: H90 + H54 / CID-11: AB51 + 9D90 — Categoria AEE específica)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_17">
+                                                    <property name="label" translatable="yes">DM - Deficiência Múltipla</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DM (Associação de duas ou mais deficiências primárias — Censo MEC)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_18">
+                                                    <property name="label" translatable="yes">EP - Epilepsia</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">EP (CID-10: G40 / CID-11: 8A60 — Requer protocolo de crise em sala)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_19">
+                                                    <property name="label" translatable="yes">DC - Doença Crônica</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">DC (CID-10: E10–E14, I00–I99, T78.4 — Diabetes, Cardiopatias, Alergias severas)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_20">
+                                                    <property name="label" translatable="yes">VS - Vulnerabilidade Social</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">VS (CID-10: Z59–Z60 / CID-11: QD50–QD8Z — Acompanhamento Conselho Tutelar / CRAS)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_29">
+                                                    <property name="label" translatable="yes">LAUDO - Laudado</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">LAUDO (Possui laudo médico formal anexado na pasta do estudante)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_30">
+                                                    <property name="label" translatable="yes">ADAPT - Prova Adaptada</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">ADAPT (Requer banco de questões paralelo / avaliação adaptada)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">1</property>
+                                                <property name="can-focus">1</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_31">
+                                                    <property name="label" translatable="yes">OBS - Observação Pedagógica</property>
+                                                    <property name="visible">1</property>
+                                                    <property name="can-focus">1</property>
+                                                    <property name="tooltip-text" translatable="yes">OBS (Possui anotação específica da coordenação / gestão)</property>
+                                                    <property name="draw-indicator">1</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <style>
+                                              <class name="listrow-atipico"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">1</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="visible">1</property>
+                                <property name="orientation">vertical</property>
+                                <child>
+                                  <object class="GtkScrolledWindow" id="scrolled_atipicidades_atribuidas">
+                                    <property name="width-request">380</property>
+                                    <property name="visible">1</property>
+                                    <property name="can-focus">1</property>
+                                    <property name="max-content-width">0</property>
+                                    <property name="max-content-height">0</property>
+                                    <property name="propagate-natural-width">1</property>
+                                    <property name="propagate-natural-height">1</property>
+                                    <child>
+                                      <object class="GtkViewport">
+                                        <property name="width-request">380</property>
+                                        <property name="visible">1</property>
+                                        <child>
+                                          <object class="GtkFlowBox" id="flowbox_atipicidades">
+                                            <property name="visible">1</property>
+                                            <property name="column-spacing">10</property>
+                                            <property name="row-spacing">10</property>
+                                            <property name="max-children-per-line">2</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">1</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">1</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="name">page_atipicidades</property>
+                            <property name="title">Atipicidades</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="box_config_acervo">
+                            <property name="visible">1</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">1</property>
+                                <property name="label">Gerenciamento do Acervo (Em Breve)</property>
+                              </object>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="name">page_acervo</property>
+                            <property name="title">Acervo</property>
+                            <property name="position">2</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">1</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="position">3</property>

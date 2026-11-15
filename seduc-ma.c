@@ -20,7 +20,23 @@
 #include <inttypes.h>
 
 
-static int quantidade_diretorios_aux( const char *diretorio ) {
+//-------------------------------------------------------------------------------------------//
+//          P L A N I L H A S    S I A E P                                                   //
+//-------------------------------------------------------------------------------------------//
+typedef struct {
+   char aluno[64];
+   char sexo; // M ou F
+   char nasc[16];
+} __attribute__( ( packed ) ) FichaSiaep;
+
+typedef struct {
+   uint32_t cod_aluno;
+   char sit[8];
+} __attribute__( ( packed ) ) AcessoTurmas;
+//-------------------------------------------------------------------------------------------//
+
+
+static int quantidade_diretorios_lc( const char *diretorio ) {
    g_return_val_if_fail( diretorio != NULL, 0 );
 
    GError *error = NULL;
@@ -317,7 +333,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
    g_return_if_fail( nome_turma_padrao != NULL && diretorio != NULL && raiz != NULL );
 
    EspelhamentoDiretorios *paths = criar_estrutura_diretorios( diretorio, raiz, nome_turma_padrao );
-   int lim_disc = quantidade_diretorios_aux( paths->dir_turma );
+   int lim_disc = quantidade_diretorios_lc( paths->dir_turma );
 
    g_autofree gchar *nome_bin = g_strdup_printf( "%s.bin", nome_turma_padrao );
    g_autofree gchar *arquivo_acesso_destino = g_build_filename( paths->dest_acesso, nome_bin, NULL );

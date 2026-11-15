@@ -167,7 +167,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    for ( int j = 0; j < dados->qtd_alunos_total; j++ ) {
       const FichaAluno *ficha = g_ptr_array_index( diario->fichas, j );
 
-      // PASSO A: Nome do Aluno
+      // PASSO A: NOME  DO  ESTUDANTE
       g_autofree gchar *s_nome = ficha->ativo
                                  ? g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno )
                                  : g_strdup_printf( "\\textcolor{gray!70}{%.*s}", ficha->limite_corte, ficha->aluno );
@@ -246,7 +246,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
 /**
  * Calcula a média de um ÚNICO PERÍODO com base nas avaliações marcadas como válidas.
  */
-static void calcular_media_do_periodo_aux( FichaAluno *ficha, const InterfaceAvaliacao *avaliacao,
+static void calcular_media_do_periodo_lc( FichaAluno *ficha, const InterfaceAvaliacao *avaliacao,
       const InterfaceCabecalho *cabecalho ) {
    float soma_notas = 0.0f;
    gboolean tem_nota_valida = FALSE;
@@ -290,7 +290,7 @@ void calcular_nota_periodo( const AppContext *ctx ) {
    // 2. Processa o cálculo chamando o núcleo matemático (Limpo e Direto)
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
       FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
-      calcular_media_do_periodo_aux( ficha, avaliacao, cabecalho );
+      calcular_media_do_periodo_lc( ficha, avaliacao, cabecalho );
    }
 }
 
@@ -321,7 +321,7 @@ void relatorio_de_avaliacoes( InterfacePainel *painel, const AppContext *ctx ) {
 // lançada para nenhum aluno da turma naquela disciplina.
 // Otimizada com early-exit (break) assim que descobre que o período já iniciou.
 //===================================================================================================
-static int numero_de_periodos_sem_notas_registradas_aux( GPtrArray *fichas, int foco_disc ) {
+static int numero_de_periodos_sem_notas_registradas_lc( GPtrArray *fichas, int foco_disc ) {
    gboolean periodo_iniciado[4] = {FALSE, FALSE, FALSE, FALSE};
 
    for ( guint i = 0; i < fichas->len; i++ ) {
@@ -355,7 +355,7 @@ static int numero_de_periodos_sem_notas_registradas_aux( GPtrArray *fichas, int 
 //---------------------------------------------------------------------------------------------------
 // FUNÇÃO AUXILIAR 2: Classifica o status de aprovação de acordo com o regimento (Conselho, Rec Final)
 //---------------------------------------------------------------------------------------------------
-static void atribuir_observacao_aluno_aux( RelatorioAnual *rel, int faltantes_globais ) {
+static void atribuir_observacao_aluno_lc( RelatorioAnual *rel, int faltantes_globais ) {
    if ( rel->soma < 0.0f ) {
       return;
    }
@@ -384,7 +384,7 @@ static void atribuir_observacao_aluno_aux( RelatorioAnual *rel, int faltantes_gl
 //---------------------------------------------------------------------------------------------------
 // FUNÇÃO AUXILIAR 3: Varre um único aluno e calcula a sua soma total de pontos
 //---------------------------------------------------------------------------------------------------
-static void calcular_consolidado_anual_individual_aux( FichaAluno *ficha, int foco_disciplina, int faltantes_globais ) {
+static void calcular_consolidado_anual_individual_lc( FichaAluno *ficha, int foco_disciplina, int faltantes_globais ) {
    if ( !ficha || !ficha->ativo ) {
       return;
    }
@@ -410,7 +410,7 @@ static void calcular_consolidado_anual_individual_aux( FichaAluno *ficha, int fo
       rel->soma        = acumulador_soma;
       rel->media_anual = acumulador_soma / 4.0f;
 
-      atribuir_observacao_aluno_aux( rel, faltantes_globais );
+      atribuir_observacao_aluno_lc( rel, faltantes_globais );
       ficha->ficha_modificada = TRUE;
    }
 }
@@ -424,11 +424,11 @@ void calcular_consolidado_anual( GPtrArray *fichas, int foco_disciplina ) {
       return;
    }
 
-   int faltantes_globais = numero_de_periodos_sem_notas_registradas_aux( fichas, foco_disciplina );
+   int faltantes_globais = numero_de_periodos_sem_notas_registradas_lc( fichas, foco_disciplina );
 
    for ( guint i = 0; i < fichas->len; i++ ) {
       FichaAluno *ficha = g_ptr_array_index( fichas, i );
-      calcular_consolidado_anual_individual_aux( ficha, foco_disciplina, faltantes_globais );
+      calcular_consolidado_anual_individual_lc( ficha, foco_disciplina, faltantes_globais );
    }
 }
 //===================================================================================================
@@ -450,7 +450,7 @@ typedef struct {
    gchar *obs;
 } LinhaRelatorioTeX;
 
-static void linha_relatorio_tex_limpar_aux( LinhaRelatorioTeX *linha ) {
+static void linha_relatorio_tex_limpar_lc( LinhaRelatorioTeX *linha ) {
    if ( !linha ) {
       return;
    }
@@ -470,7 +470,7 @@ static void linha_relatorio_tex_limpar_aux( LinhaRelatorioTeX *linha ) {
    };
 }
 
-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC( LinhaRelatorioTeX, linha_relatorio_tex_limpar_aux )
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC( LinhaRelatorioTeX, linha_relatorio_tex_limpar_lc )
 
 // ====================================================================================
 // HELPERS DE FORMATAÇÃO DE CÉLULAS LATEX (Alocação Única + Vírgula Decimal)
@@ -490,7 +490,7 @@ static gchar* formatar_nota_tex( float valor, gboolean ativo, gboolean negrito, 
 // ====================================================================================
 // EXTRAÇÃO DOS DADOS DA FICHA E FORMATAÇÃO DAS COLUNAS TEX
 // ====================================================================================
-static void preencher_linha_relatorio_tex_aux( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
+static void preencher_linha_relatorio_tex_lc( const FichaAluno *ficha, int disc, LinhaRelatorioTeX *linha ) {
    g_return_if_fail( ficha != NULL && linha != NULL );
 
    *linha = ( LinhaRelatorioTeX ) {
@@ -498,7 +498,7 @@ static void preencher_linha_relatorio_tex_aux( const FichaAluno *ficha, int disc
    };
    const RelatorioAnual *rel = &ficha->disciplina[disc].relatorio;
 
-   // --- PASSO A: Nome do Aluno ---
+   // --- PASSO A: NOME  DO  ESTUDANTE ---
    if ( ficha->ativo ) {
       linha->nome = g_strdup_printf( "%.*s", ficha->limite_corte, ficha->aluno );
    } else {
@@ -639,7 +639,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
       }
 
       g_auto( LinhaRelatorioTeX ) linha = { 0 };
-      preencher_linha_relatorio_tex_aux( ficha, foco_disciplina, &linha );
+      preencher_linha_relatorio_tex_lc( ficha, foco_disciplina, &linha );
 
       g_string_append_printf(
          tex,

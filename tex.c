@@ -15,7 +15,7 @@
 // ====================================================================================
 // CODIFICADOR E GERADOR TIKZ DA MATRIZ BINÁRIA OMR (27 BITS - GRADE 3x9)
 // ====================================================================================
-static void gerar_matriz_identificacao_aux( GString *tex, guint8 id, guint8 turma,
+static void gerar_matriz_identificacao_lc( GString *tex, guint8 id, guint8 turma,
       guint8 disc, guint8 per, guint8 seq ) {
    g_return_if_fail( tex != NULL );
 
@@ -90,7 +90,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
       }
       g_string_append(
          tex,
-         "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME DO ESTUDANTE};\n"
+         "\\node[color=CorSerie,inner sep=0pt] at (7,-10.6) {\\scriptsize NOME  DO  ESTUDANTE};\n"
          "\\fill (0,0) rectangle (0.65,-0.65) (0,-11) rectangle (0.65,-10.35) "
          "(14,-11) rectangle (13.35,-10.35) (14,0) rectangle (13.35,-0.65);\n"
       );
@@ -102,7 +102,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
       }
       g_string_append(
          tex,
-         "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME DO ESTUDANTE};\n"
+         "\\node[color=CorSerie,inner sep=0pt] at (14.6,-5) {\\scriptsize NOME  DO  ESTUDANTE};\n"
          "\\fill (0,0) rectangle (0.65,-0.65) (0,-10) rectangle (0.65,-9.35) "
          "(15,-10) rectangle (14.35,-9.35) (15,0) rectangle (14.35,-0.65);\n"
       );
@@ -114,7 +114,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
    guint8 per   = ( guint8 )cabecalho->foco_periodo;
    guint8 seq   = ( guint8 )dados->seq_prova;
 
-   gerar_matriz_identificacao_aux( tex, id, turma, disc, per, seq );
+   gerar_matriz_identificacao_lc( tex, id, turma, disc, per, seq );
 
    // 4. Estrutura da Grade Principal e Divisórias Verticais (Coordenadas pré-somadas em C)
    g_string_append(

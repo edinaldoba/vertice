@@ -20,8 +20,8 @@
 #include "glib_gio.h"
 #include "tex.h"
 #include "pds.h"
-#include "gas.h"
 #include "assincrono.h"
+#include "gabaritos.h"
 
 
 
@@ -57,9 +57,24 @@ static char* gerar_nome_aleatorio_thread( gsize tam, GRand *rng ) {
    return nome;
 }
 
-/* Wrapper padrão para ordenar ou buscar strings em GPtrArray / bsearch */
-static gint cmp_str_ptr( gconstpointer a, gconstpointer b ) {
-   return g_strcmp0( *( const char * const * )a, *( const char * const * )b );
+// ====================================================================================
+// 2. COMPARADOR INTERNO E WRAPPER PARA GPtrArray DE STRINGS
+// ====================================================================================
+static int cmp_str_ptr_lc( const void *a, const void *b ) {
+   const char *str_a = *( const char * const * )a;
+   const char *str_b = *( const char * const * )b;
+   return g_strcmp0( str_a, str_b );
+}
+
+static gint buscar_indice_gptrarray_str_lc( const GPtrArray *array, const char *chave ) {
+   g_return_val_if_fail( chave != NULL, -1 );
+
+   if ( array == NULL || array->len == 0 || array->pdata == NULL ) {
+      return -1;
+   }
+
+   return buscar_indice_bsearch( &chave, array->pdata, ( gsize )array->len,
+                                 sizeof( char * ), cmp_str_ptr_lc );
 }
 
 // ====================================================================================
@@ -184,7 +199,7 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 // ====================================================================================
 // FUNÇÕES AUXILIARES LOCAIS DE LIMPEZA (Evitam repetição e previnem vazamentos)
 // ====================================================================================
-static inline void limpar_imagem_cinza_local_aux( ImagemCinza *img ) {
+static inline void limpar_imagem_cinza_local_lc( ImagemCinza *img ) {
    if ( !img ) {
       return;
    }
@@ -201,7 +216,7 @@ static inline void limpar_imagem_cinza_local_aux( ImagemCinza *img ) {
    img->ncol = 0;
 }
 //------------------------------------------------------------------------------------------
-static inline void limpar_imagem_colorida_local_aux( ImagemColorida *img ) {
+static inline void limpar_imagem_colorida_local_lc( ImagemColorida *img ) {
    if ( !img ) {
       return;
    }
@@ -260,7 +275,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    }
 
    g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   g_ptr_array_sort( resp_bin, cmp_str_ptr );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr_lc );
 
    g_autofree FILE **f = g_new0( FILE *, ( gsize )resp_bin->len );
    for ( guint i = 0; i < resp_bin->len; i++ ) {
@@ -322,18 +337,12 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
 
       // FASE 4: Processamento de Dados (Gravação Binária)
       if ( sucesso ) {
-         char chave_buf[256] = { 0 };
-         const char *chave_ptr = chave_buf;
+         g_autofree gchar *chave = nome_base_gabaritos_bin( map.turma, map.disc, map.per, map.seq );
 
-         nome_base_gabaritos_bin( chave_buf, sizeof( chave_buf ), map.turma, map.disc, map.per, map.seq );
+         gint idx_encontrado = buscar_indice_gptrarray_str_lc( resp_bin, chave );
 
-         const char * const *base_pdata = ( const char * const * )resp_bin->pdata;
-         const char * const *found = ( const char * const * )bsearch(
-                                        &chave_ptr, base_pdata, ( gsize )resp_bin->len, sizeof( char * ), cmp_str_ptr
-                                     );
-
-         if ( found != NULL ) {
-            gsize idx_arq = ( gsize )( found - base_pdata );
+         if ( idx_encontrado >= 0 ) {
+            gsize idx_arq = ( gsize )idx_encontrado;
 
             if ( f[idx_arq] != NULL ) {
                ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
@@ -347,11 +356,11 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
                   }
                }
             } else {
-               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave_buf, img_str );
+               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave, img_str );
                sucesso = FALSE;
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave_buf, img_str );
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
             sucesso = FALSE;
          }
       }
@@ -365,7 +374,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          filtrar_fundo_magico_colorido( &img_rgb_crop, &img_rgb_limpa, 15 );
 
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
-         limpar_imagem_colorida_local_aux( &img_rgb_limpa );
+         limpar_imagem_colorida_local_lc( &img_rgb_limpa );
 
       } else if ( img_rgb_orig.dados != NULL || img_rgb_orig.image != NULL ) {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
@@ -376,11 +385,11 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
 
       // FASE 6: Limpeza Segura de Memória
-      limpar_imagem_cinza_local_aux( &img_gray_crop );
-      limpar_imagem_cinza_local_aux( &img_gray_bin );
-      limpar_imagem_cinza_local_aux( &img_gray_alloc );
-      limpar_imagem_colorida_local_aux( &img_rgb_crop );
-      limpar_imagem_colorida_local_aux( &img_rgb_orig );
+      limpar_imagem_cinza_local_lc( &img_gray_crop );
+      limpar_imagem_cinza_local_lc( &img_gray_bin );
+      limpar_imagem_cinza_local_lc( &img_gray_alloc );
+      limpar_imagem_colorida_local_lc( &img_rgb_crop );
+      limpar_imagem_colorida_local_lc( &img_rgb_orig );
    }
 
    // =========================================================================
@@ -444,7 +453,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
    }
 
    g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   g_ptr_array_sort( resp_bin, cmp_str_ptr );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr_lc );
 
    g_autofree FILE **f = g_new0( FILE *, ( gsize )resp_bin->len );
    for ( guint i = 0; i < resp_bin->len; i++ ) {
@@ -517,18 +526,12 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
 
       // FASE 4: Processamento de Dados (Gravação Binária)
       if ( sucesso ) {
-         char chave_buf[256] = { 0 };
-         const char *chave_ptr = chave_buf;
+         g_autofree gchar *chave = nome_base_gabaritos_bin( map.turma, map.disc, map.per, map.seq );
 
-         nome_base_gabaritos_bin( chave_buf, sizeof( chave_buf ), map.turma, map.disc, map.per, map.seq );
+         gint idx_encontrado = buscar_indice_gptrarray_str_lc( resp_bin, chave );
 
-         const char * const *base_pdata = ( const char * const * )resp_bin->pdata;
-         const char * const *found = ( const char * const * )bsearch(
-                                        &chave_ptr, base_pdata, ( gsize )resp_bin->len, sizeof( char * ), cmp_str_ptr
-                                     );
-
-         if ( found != NULL ) {
-            gsize idx_arq = ( gsize )( found - base_pdata );
+         if ( idx_encontrado >= 0 ) {
+            gsize idx_arq = ( gsize )idx_encontrado;
 
             if ( f[idx_arq] != NULL ) {
                ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
@@ -542,11 +545,11 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
                   }
                }
             } else {
-               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave_buf, img_str );
+               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave, img_str );
                sucesso = FALSE;
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave_buf, img_str );
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
             sucesso = FALSE;
          }
       }
@@ -561,7 +564,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
          realcar_cores_in_place( &img_rgb_limpa, 1.3f, 1.6f );
 
          salvar_imagem_png_nativa( path_png, &img_rgb_limpa );
-         limpar_imagem_colorida_local_aux( &img_rgb_limpa );
+         limpar_imagem_colorida_local_lc( &img_rgb_limpa );
       } else if ( img_rgb_orig.dados != NULL || img_rgb_orig.image != NULL ) {
          g_autofree char *path_erro = g_build_filename( dir_rejeitadas, img_png, NULL );
          salvar_imagem_png_nativa( path_erro, &img_rgb_orig );
@@ -571,13 +574,13 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       }
 
       // FASE 6: Limpeza Segura de Memória
-      limpar_imagem_cinza_local_aux( &img_gray_fundo );
-      limpar_imagem_cinza_local_aux( &img_gray_blur );
-      limpar_imagem_cinza_local_aux( &img_gray_crop );
-      limpar_imagem_cinza_local_aux( &img_gray_bin );
-      limpar_imagem_cinza_local_aux( &img_gray_alloc );
-      limpar_imagem_colorida_local_aux( &img_rgb_crop );
-      limpar_imagem_colorida_local_aux( &img_rgb_orig );
+      limpar_imagem_cinza_local_lc( &img_gray_fundo );
+      limpar_imagem_cinza_local_lc( &img_gray_blur );
+      limpar_imagem_cinza_local_lc( &img_gray_crop );
+      limpar_imagem_cinza_local_lc( &img_gray_bin );
+      limpar_imagem_cinza_local_lc( &img_gray_alloc );
+      limpar_imagem_colorida_local_lc( &img_rgb_crop );
+      limpar_imagem_colorida_local_lc( &img_rgb_orig );
    }
 
    // =========================================================================
@@ -644,7 +647,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
    }
 
    g_autoptr( GPtrArray ) resp_bin = carregar_arquivos_por_extensao( gabaritos, ".bin", qtd_bin );
-   g_ptr_array_sort( resp_bin, cmp_str_ptr );
+   g_ptr_array_sort( resp_bin, cmp_str_ptr_lc );
 
    // Vetor dinâmico para os arquivos binários abertos em modo append
    g_autofree FILE **f = g_new0( FILE *, ( gsize )resp_bin->len );
@@ -718,19 +721,12 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       }
 
       if ( sucesso ) {
-         // Buffer local na stack da thread (evita malloc/free repetitivo a cada imagem)
-         char chave_buf[256] = { 0 };
-         const char *chave_ptr = chave_buf;
+         g_autofree gchar *chave = nome_base_gabaritos_bin( map.turma, map.disc, map.per, map.seq );
 
-         nome_base_gabaritos_bin( chave_buf, sizeof( chave_buf ), map.turma, map.disc, map.per, map.seq );
+         gint idx_encontrado = buscar_indice_gptrarray_str_lc( resp_bin, chave );
 
-         const char * const *base_pdata = ( const char * const * )resp_bin->pdata;
-         const char * const *found = ( const char * const * )bsearch(
-                                        &chave_ptr, base_pdata, ( gsize )resp_bin->len, sizeof( char * ), cmp_str_ptr
-                                     );
-
-         if ( found != NULL ) {
-            gsize idx_arq = ( gsize )( found - base_pdata );
+         if ( idx_encontrado >= 0 ) {
+            gsize idx_arq = ( gsize )idx_encontrado;
 
             if ( f[idx_arq] != NULL ) {
                ler_respostas_gabarito( &img_gray_crop, map.direcao, map.resp );
@@ -745,11 +741,11 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
                   }
                }
             } else {
-               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave_buf, img_str );
+               g_printerr( "[ERRO] Descritor de arquivo inválido para o binário '%s' (%s)\n", chave, img_str );
                sucesso = FALSE;
             }
          } else {
-            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave_buf, img_str );
+            g_printerr( "[ALERTA] Binário '%s' não encontrado para: %s\n", chave, img_str );
             sucesso = FALSE;
          }
       }
@@ -767,11 +763,11 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       }
 
       // Limpeza unificada e segura da memória de cada imagem na thread
-      limpar_imagem_cinza_local_aux( &img_gray_crop );
-      limpar_imagem_cinza_local_aux( &img_gray_bin );
-      limpar_imagem_cinza_local_aux( &img_gray_alloc );
-      limpar_imagem_colorida_local_aux( &img_rgb_crop );
-      limpar_imagem_colorida_local_aux( &img_rgb_orig );
+      limpar_imagem_cinza_local_lc( &img_gray_crop );
+      limpar_imagem_cinza_local_lc( &img_gray_bin );
+      limpar_imagem_cinza_local_lc( &img_gray_alloc );
+      limpar_imagem_colorida_local_lc( &img_rgb_crop );
+      limpar_imagem_colorida_local_lc( &img_rgb_orig );
    }
 
    // =========================================================================
@@ -845,6 +841,19 @@ static gint comparar_por_cod_aluno( gconstpointer a, gconstpointer b ) {
    return ( m1->cod_aluno > m2->cod_aluno ) - ( m1->cod_aluno < m2->cod_aluno );
 }
 
+static int comparar_mapeamento_gabarito_lc( const void* a, const void* b ) {
+   const MapeamentoGabarito *arg1 = ( const MapeamentoGabarito * )a;
+   const MapeamentoGabarito *arg2 = ( const MapeamentoGabarito * )b;
+
+   if ( arg1->num < arg2->num ) {
+      return -1;
+   }
+   if ( arg1->num > arg2->num ) {
+      return 1;
+   }
+   return 0;
+}
+
 // ====================================================================================
 // MOTOR DE CORREÇÃO DE PROVAS E LANÇAMENTO AUTOMÁTICO DE NOTAS
 // ====================================================================================
@@ -855,16 +864,16 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
    const InterfaceDados     *dados     = &ctx->dados;
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
-   if ( dados->total_quest_prova <= 0 || dados->max_quest_prova <= 0 || dados->qtd_alunos_ativos <= 0 ) {
+   if ( dados->total_quest_prova <= 0 ||
+         dados->total_quest_prova > MAX_QUEST_PROVA ||
+         dados->qtd_alunos_ativos <= 0 ) {
       g_printerr( "[ERRO] Configuração de questões (%d/%d) ou alunos ativos (%d) inválida.\n",
-                  dados->total_quest_prova, dados->max_quest_prova, dados->qtd_alunos_ativos );
+                  dados->total_quest_prova, MAX_QUEST_PROVA, dados->qtd_alunos_ativos );
       return;
    }
 
-   char nome_bin[64] = { 0 };
-   nome_base_gabaritos_bin( nome_bin, sizeof( nome_bin ),
-                            cabecalho->foco_turma, cabecalho->foco_disciplina,
-                            cabecalho->foco_periodo, dados->seq_prova );
+   g_autofree gchar *nome_bin = nome_base_gabaritos_bin( cabecalho->foco_turma, cabecalho->foco_disciplina,
+                                cabecalho->foco_periodo, dados->seq_prova );
 
    g_autofree char *path_resp = g_build_filename(
                                    dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "respostas", nome_bin, NULL
@@ -924,7 +933,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
    // Alocação Contígua 1D para os gabaritos (idêntica à usada em gerar_gabaritos e thread_gerar_prova)
    gsize num_ativos = ( gsize )dados->qtd_alunos_ativos;
-   gsize max_len    = ( gsize )dados->max_quest_prova + 1;
+   gsize max_len    = ( gsize )MAX_QUEST_PROVA + 1U;
 
    g_autofree char *G = g_malloc0( num_ativos * max_len );
    gsize lidos_gab = fread( G, max_len, num_ativos, fg );
@@ -981,7 +990,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       }
    }
 
-   g_array_sort( map_array, comparar_mapeamento_gabarito );
+   g_array_sort( map_array, comparar_mapeamento_gabarito_lc );
 
    // =================================================================================
    // 5. LAÇO PARALELO BLINDADO COM INJEÇÃO DIRETA NA MEMÓRIA

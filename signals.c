@@ -16,7 +16,7 @@
 /**
  * @brief Atribui metadados GObject (categoria e valor) aos radio buttons e nomeia widgets para o CSS.
  */
-static void configurar_nomes_dos_widgets_aux( AppContext *ctx ) {
+static void configurar_nomes_dos_widgets_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    InterfaceLatex  *latex  = &ctx->latex;
    InterfaceProva  *prova  = &ctx->prova;
@@ -79,7 +79,7 @@ static void configurar_nomes_dos_widgets_aux( AppContext *ctx ) {
  * @param col_inicio Índice numérico da primeira coluna editável.
  * @param col_fim Índice numérico da última coluna editável.
  */
-static void configurar_colunas_editaveis_aux( AppContext *ctx, GtkTreeView *treeview, int col_inicio, int col_fim ) {
+static void configurar_colunas_editaveis_lc( AppContext *ctx, GtkTreeView *treeview, int col_inicio, int col_fim ) {
    g_return_if_fail( GTK_IS_TREE_VIEW( treeview ) );
 
    for ( int col_idx = col_inicio; col_idx <= col_fim; col_idx++ ) {
@@ -140,7 +140,7 @@ static void configurar_colunas_editaveis_aux( AppContext *ctx, GtkTreeView *tree
  * Aplica o padrão zebrado descobrindo automaticamente a linha (row) atual.
  * Retorna TRUE se a cor foi aplicada.
  */
-static gboolean cor_fundo_linha_zebrada_modelo_aux( GtkTreeModel *model, GtkTreeIter *iter, int tema_ativo, GdkRGBA *cor_out ) {
+static gboolean cor_fundo_linha_zebrada_modelo_lc( GtkTreeModel *model, GtkTreeIter *iter, int tema_ativo, GdkRGBA *cor_out ) {
    GtkTreePath *path = gtk_tree_model_get_path( model, iter );
    if ( !path ) {
       return FALSE;
@@ -156,7 +156,7 @@ static gboolean cor_fundo_linha_zebrada_modelo_aux( GtkTreeModel *model, GtkTree
  * Utilitário para injetar o índice da coluna em todos os renderizadores de um intervalo
  * e conectar a função de CellDataFunc. Elimina a repetição dos 4 loops.
  */
-static void vincular_renderizadores_em_massa_aux( GtkTreeView *tree_view, int col_inicio, int col_fim,
+static void vincular_renderizadores_em_massa_lc( GtkTreeView *tree_view, int col_inicio, int col_fim,
       GtkTreeCellDataFunc callback, AppContext *ctx ) {
    if ( !tree_view ) {
       return;
@@ -184,7 +184,7 @@ static void vincular_renderizadores_em_massa_aux( GtkTreeView *tree_view, int co
 /**
  * Utilitário para aplicar ou remover a cor de fundo nativa no renderer.
  */
-static inline void aplicar_cor_fundo_aux( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
+static inline void aplicar_cor_fundo_lc( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
    if ( usar ) {
       g_object_set( cell, "cell-background-rgba", cor, "cell-background-set", TRUE, NULL );
    } else {
@@ -195,7 +195,7 @@ static inline void aplicar_cor_fundo_aux( GtkCellRenderer *cell, gboolean usar, 
 /**
  * Utilitário para aplicar ou remover a cor de fonte nativa no renderer.
  */
-static inline void aplicar_cor_texto_aux( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
+static inline void aplicar_cor_texto_lc( GtkCellRenderer *cell, gboolean usar, const GdkRGBA *cor ) {
    if ( usar ) {
       g_object_set( cell, "foreground-rgba", cor, "foreground-set", TRUE, NULL );
    } else {
@@ -207,7 +207,7 @@ static inline void aplicar_cor_texto_aux( GtkCellRenderer *cell, gboolean usar, 
 //===================================================================================================
 // 2. MÓDULO: DIÁRIO DE CONTEÚDO
 //===================================================================================================
-static void on_renderizar_cores_conteudo_aux( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+static void on_renderizar_cores_conteudo_lc( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
@@ -215,8 +215,8 @@ static void on_renderizar_cores_conteudo_aux( GtkTreeViewColumn *col, GtkCellRen
 
    // 1. Fundo da linha (Zebrado)
    GdkRGBA cor;
-   // gboolean zebrado = cor_fundo_linha_zebrada_modelo_aux( model, iter, tema_ativo, &cor );
-   // aplicar_cor_fundo_aux( cell, zebrado, &cor );
+   // gboolean zebrado = cor_fundo_linha_zebrada_modelo_lc( model, iter, tema_ativo, &cor );
+   // aplicar_cor_fundo_lc( cell, zebrado, &cor );
 
    // 2. Identificação da coluna e aplicação condicional da fonte
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
@@ -226,23 +226,23 @@ static void on_renderizar_cores_conteudo_aux( GtkTreeViewColumn *col, GtkCellRen
       gtk_tree_model_get( model, iter, 4, &tipo_registro, -1 );
 
       gboolean tem_cor = cor_texto_tipo_registro( tipo_registro, tema_ativo, &cor );
-      aplicar_cor_texto_aux( cell, tem_cor, &cor );
+      aplicar_cor_texto_lc( cell, tem_cor, &cor );
    } else {
-      aplicar_cor_texto_aux( cell, FALSE, NULL );
+      aplicar_cor_texto_lc( cell, FALSE, NULL );
    }
 }
 
-static void inicializar_renderizadores_conteudo_aux( AppContext *ctx ) {
+static void inicializar_renderizadores_conteudo_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   vincular_renderizadores_em_massa_aux( GTK_TREE_VIEW( ctx->diario.conteudo.treeview ),
-                                         0, 3, on_renderizar_cores_conteudo_aux, ctx );
+   vincular_renderizadores_em_massa_lc( GTK_TREE_VIEW( ctx->diario.conteudo.treeview ),
+                                        0, 3, on_renderizar_cores_conteudo_lc, ctx );
 }
 
 
 //===================================================================================================
 // 3. MÓDULO: DIÁRIO DE FREQUÊNCIA
 //===================================================================================================
-static void on_renderizar_cores_frequencia_aux( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+static void on_renderizar_cores_frequencia_lc( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
@@ -250,8 +250,8 @@ static void on_renderizar_cores_frequencia_aux( GtkTreeViewColumn *col, GtkCellR
 
    // 1. Fundo da linha (Zebrado)
    GdkRGBA cor;
-   gboolean zebrado = cor_fundo_linha_zebrada_modelo_aux( model, iter, tema_ativo, &cor );
-   aplicar_cor_fundo_aux( cell, zebrado, &cor );
+   gboolean zebrado = cor_fundo_linha_zebrada_modelo_lc( model, iter, tema_ativo, &cor );
+   aplicar_cor_fundo_lc( cell, zebrado, &cor );
 
    gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( cell ), "col_model_idx" ) );
 
@@ -261,23 +261,23 @@ static void on_renderizar_cores_frequencia_aux( GtkTreeViewColumn *col, GtkCellR
       gtk_tree_model_get( model, iter, 6, &status, -1 );
 
       gboolean tem_cor = cor_texto_linha_frequencia( status, tema_ativo, &cor );
-      aplicar_cor_texto_aux( cell, tem_cor, &cor );
+      aplicar_cor_texto_lc( cell, tem_cor, &cor );
    } else {
-      aplicar_cor_texto_aux( cell, FALSE, NULL );
+      aplicar_cor_texto_lc( cell, FALSE, NULL );
    }
 }
 
-static void inicializar_renderizadores_frequencia_aux( AppContext *ctx ) {
+static void inicializar_renderizadores_frequencia_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   vincular_renderizadores_em_massa_aux( GTK_TREE_VIEW( ctx->diario.frequencia.treeview ),
-                                         0, 4, on_renderizar_cores_frequencia_aux, ctx );
+   vincular_renderizadores_em_massa_lc( GTK_TREE_VIEW( ctx->diario.frequencia.treeview ),
+                                        0, 4, on_renderizar_cores_frequencia_lc, ctx );
 }
 
 
 //===================================================================================================
 // 4. MÓDULO: AVALIAÇÕES / NOTAS
 //===================================================================================================
-static void aplicar_cor_condicional_nota_aux( GtkCellRenderer *cell, gboolean eh_inativo,
+static void aplicar_cor_condicional_nota_lc( GtkCellRenderer *cell, gboolean eh_inativo,
       const gchar *texto_nota, int tema_ativo ) {
 
    double nota_val = 10.0;
@@ -296,18 +296,18 @@ static void aplicar_cor_condicional_nota_aux( GtkCellRenderer *cell, gboolean eh
    gboolean usar_cor = cor_texto_aluno_inativo( eh_inativo, tema_ativo, &cor ) ||
                        cor_texto_nota_vermelha( nota_val, tema_ativo, &cor );
 
-   aplicar_cor_texto_aux( cell, usar_cor, &cor );
+   aplicar_cor_texto_lc( cell, usar_cor, &cor );
 }
 
-static void on_renderizar_cores_notas_aux( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
+static void on_renderizar_cores_notas_lc( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *model,
       GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
    int tema_ativo = ctx->cabecalho.foco_estilo;
 
    GdkRGBA cor;
-   gboolean zebrado = cor_fundo_linha_zebrada_modelo_aux( model, iter, tema_ativo, &cor );
-   aplicar_cor_fundo_aux( cell, zebrado, &cor );
+   gboolean zebrado = cor_fundo_linha_zebrada_modelo_lc( model, iter, tema_ativo, &cor );
+   aplicar_cor_fundo_lc( cell, zebrado, &cor );
 
    gboolean eh_inativo = FALSE;
    gtk_tree_model_get( model, iter, 13, &eh_inativo, -1 );
@@ -316,15 +316,15 @@ static void on_renderizar_cores_notas_aux( GtkTreeViewColumn *col, GtkCellRender
 
    // Fonte e Editabilidade
    if ( col_idx == 0 ) {
-      aplicar_cor_texto_aux( cell, FALSE, NULL );
+      aplicar_cor_texto_lc( cell, FALSE, NULL );
       g_object_set( cell, "editable", FALSE, NULL );
    } else if ( col_idx == 1 ) {
-      aplicar_cor_condicional_nota_aux( cell, eh_inativo, "", tema_ativo );
+      aplicar_cor_condicional_nota_lc( cell, eh_inativo, "", tema_ativo );
       g_object_set( cell, "editable", FALSE, NULL );
    } else {
       gchar *texto = NULL;
       g_object_get( cell, "text", &texto, NULL );
-      aplicar_cor_condicional_nota_aux( cell, eh_inativo, texto, tema_ativo );
+      aplicar_cor_condicional_nota_lc( cell, eh_inativo, texto, tema_ativo );
       g_free( texto );
 
       // Média final (12) é negrito e não editável. Notas normais (2 a 11) são editáveis se ativo.
@@ -335,17 +335,17 @@ static void on_renderizar_cores_notas_aux( GtkTreeViewColumn *col, GtkCellRender
    g_object_set( cell, "weight", PANGO_WEIGHT_BOLD, "weight-set", ( col_idx == 12 ), NULL );
 }
 
-static void inicializar_renderizadores_avaliacoes_aux( AppContext *ctx ) {
+static void inicializar_renderizadores_avaliacoes_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   vincular_renderizadores_em_massa_aux( GTK_TREE_VIEW( ctx->diario.avaliacao.treeview ),
-                                         0, 12, on_renderizar_cores_notas_aux, ctx );
+   vincular_renderizadores_em_massa_lc( GTK_TREE_VIEW( ctx->diario.avaliacao.treeview ),
+                                        0, 12, on_renderizar_cores_notas_lc, ctx );
 }
 
 
 //===================================================================================================
 // 5. MÓDULO: RELATÓRIOS
 //===================================================================================================
-static void on_renderizar_cores_relatorio_aux( GtkTreeViewColumn *col, GtkCellRenderer *cell,
+static void on_renderizar_cores_relatorio_lc( GtkTreeViewColumn *col, GtkCellRenderer *cell,
       GtkTreeModel *model, GtkTreeIter *iter, gpointer data ) {
    ( void )col;
    AppContext *ctx = ( AppContext * )data;
@@ -400,10 +400,10 @@ static void on_renderizar_cores_relatorio_aux( GtkTreeViewColumn *col, GtkCellRe
 
    // Zebrado como fallback do fundo
    if ( !usar_fundo ) {
-      usar_fundo = cor_fundo_linha_zebrada_modelo_aux( model, iter, tema_ativo, &cor_fundo );
+      usar_fundo = cor_fundo_linha_zebrada_modelo_lc( model, iter, tema_ativo, &cor_fundo );
    }
 
-   aplicar_cor_fundo_aux( cell, usar_fundo, &cor_fundo );
+   aplicar_cor_fundo_lc( cell, usar_fundo, &cor_fundo );
    g_object_set( cell, "editable", editavel, NULL );
 
    // Lógica de Fonte
@@ -420,20 +420,18 @@ static void on_renderizar_cores_relatorio_aux( GtkTreeViewColumn *col, GtkCellRe
       if ( ( col_idx >= 2 && col_idx <= 5 ) || ( col_idx >= 7 && col_idx <= 9 ) ) {
          g_object_get( cell, "text", &texto, NULL );
       }
-      aplicar_cor_condicional_nota_aux( cell, eh_inativo, texto, tema_ativo );
+      aplicar_cor_condicional_nota_lc( cell, eh_inativo, texto, tema_ativo );
       g_object_set( cell, "weight-set", FALSE, NULL );
       g_free( texto );
    }
 }
 
-static void inicializar_renderizadores_relatorio_aux( AppContext *ctx ) {
+static void inicializar_renderizadores_relatorio_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   vincular_renderizadores_em_massa_aux( GTK_TREE_VIEW( ctx->diario.relatorio.treeview ),
-                                         0, 10, on_renderizar_cores_relatorio_aux, ctx );
+   vincular_renderizadores_em_massa_lc( GTK_TREE_VIEW( ctx->diario.relatorio.treeview ),
+                                        0, 10, on_renderizar_cores_relatorio_lc, ctx );
 }
 //============================================================================================================
-
-
 
 
 
@@ -444,7 +442,7 @@ static void inicializar_renderizadores_relatorio_aux( AppContext *ctx ) {
 // CONEXÃO DE SINAIS MODULARIZADA POR DOMÍNIO
 // ======================================================================================
 
-static void conectar_sinais_cabecalho_aux( AppContext *ctx ) {
+static void conectar_sinais_cabecalho_lc( AppContext *ctx ) {
    InterfaceCabecalho *cab = &ctx->cabecalho;
 
    cab->handler_ano        = g_signal_connect( cab->combo_ano, "changed",
@@ -462,7 +460,7 @@ static void conectar_sinais_cabecalho_aux( AppContext *ctx ) {
 }
 
 
-static void conectar_sinais_aba_diarios_aux( AppContext *ctx ) {
+static void conectar_sinais_aba_diarios_lc( AppContext *ctx ) {
    InterfaceDiario     *diario     = &ctx->diario;
    InterfaceConteudo   *conteudo   = &diario->conteudo;
    InterfaceFrequencia *frequencia = &diario->frequencia;
@@ -514,7 +512,7 @@ static void conectar_sinais_aba_diarios_aux( AppContext *ctx ) {
    g_signal_connect( sel_conteudo, "changed",
                      G_CALLBACK( on_diario_selection_changed ), ctx );
 
-   inicializar_renderizadores_conteudo_aux( ctx );
+   inicializar_renderizadores_conteudo_lc( ctx );
 
    // --- SUB-ABA: FREQUÊNCIA ---
    frequencia->handler_combo_data = g_signal_connect( frequencia->combo_data, "changed",
@@ -531,7 +529,7 @@ static void conectar_sinais_aba_diarios_aux( AppContext *ctx ) {
    // Atalho de teclado global focado na janela principal
    g_signal_connect( ctx->window, "key-press-event", G_CALLBACK( on_key_presente_ou_ausente_key_press_event ), ctx );
    g_signal_connect( frequencia->treeview, "cursor-changed", G_CALLBACK( on_treeview_frequencia_cursor_changed ), ctx );
-   inicializar_renderizadores_frequencia_aux( ctx );
+   inicializar_renderizadores_frequencia_lc( ctx );
 
    // --- SUB-ABA: AVALIAÇÕES ---
    avaliacao->handler_combo_avaliacao = g_signal_connect( avaliacao->combo_avaliacao, "changed", G_CALLBACK( on_combo_selecionar_avaliacao_changed ), ctx );
@@ -544,28 +542,28 @@ static void conectar_sinais_aba_diarios_aux( AppContext *ctx ) {
                      G_CALLBACK( on_entry_popover_nomear_avaliacao_activate ), ctx );
    g_signal_connect( avaliacao->btn_salvar, "clicked", G_CALLBACK( on_button_salvar_avaliacoes_clicked ), ctx );
 
-   configurar_colunas_editaveis_aux( ctx, GTK_TREE_VIEW( avaliacao->treeview ), 2, 11 );
+   configurar_colunas_editaveis_lc( ctx, GTK_TREE_VIEW( avaliacao->treeview ), 2, 11 );
    g_signal_connect( avaliacao->treeview, "cursor-changed", G_CALLBACK( on_treeview_avaliacao_notas_cursor_changed ), ctx );
-   inicializar_renderizadores_avaliacoes_aux( ctx );
+   inicializar_renderizadores_avaliacoes_lc( ctx );
 
    // --- SUB-ABA: RELATÓRIO ---
    g_signal_connect( relatorio->check_pendencias, "toggled",
                      G_CALLBACK( on_check_pendencias_excecoes_relatorio_toggled ), ctx );
    g_signal_connect( relatorio->btn_consolidar, "clicked", G_CALLBACK( on_button_consolidar_relatorio_clicked ), ctx );
 
-   configurar_colunas_editaveis_aux( ctx, GTK_TREE_VIEW( relatorio->treeview ), 2, 4 );
-   configurar_colunas_editaveis_aux( ctx, GTK_TREE_VIEW( relatorio->treeview ), 8, 9 );
-   inicializar_renderizadores_relatorio_aux( ctx );
+   configurar_colunas_editaveis_lc( ctx, GTK_TREE_VIEW( relatorio->treeview ), 2, 4 );
+   configurar_colunas_editaveis_lc( ctx, GTK_TREE_VIEW( relatorio->treeview ), 8, 9 );
+   inicializar_renderizadores_relatorio_lc( ctx );
 }
 
 
-static void conectar_sinais_aba_latex_aux( AppContext *ctx ) {
+static void conectar_sinais_aba_latex_lc( AppContext *ctx ) {
    InterfaceLatex *latex = &ctx->latex;
 
    latex->handler_combo_tema_espelho = g_signal_connect( latex->combo_tema_espelho, "changed",
                                        G_CALLBACK( on_entry_atualizar_tema_changed ), ctx );
 
-   g_signal_connect( latex->btn_config, "clicked", G_CALLBACK( on_button_config_acervo_clicked ), ctx );
+   g_signal_connect( latex->btn_config, "clicked", G_CALLBACK( on_button_latex_config_acervo_clicked ), ctx );
 
    for ( int i = 0; i < 2; i++ ) {
       g_signal_connect( latex->radio_qtd_colunas[i], "toggled",
@@ -589,7 +587,7 @@ static void conectar_sinais_aba_latex_aux( AppContext *ctx ) {
 }
 
 
-static void conectar_sinais_aba_provas_aux( AppContext *ctx ) {
+static void conectar_sinais_aba_provas_lc( AppContext *ctx ) {
    InterfaceProva *prova = &ctx->prova;
 
    g_signal_connect( prova->check_validar_ciclos, "toggled",
@@ -613,7 +611,34 @@ static void conectar_sinais_aba_provas_aux( AppContext *ctx ) {
 }
 
 
-static void conectar_sinais_painel_feedback_aux( AppContext *ctx ) {
+static void conectar_sinais_aba_config_lc( AppContext *ctx ) {
+   InterfaceConfig      *config = &ctx->config;
+   InterfaceAtipicidade *atip   = &config->atipicidade;
+
+   g_signal_connect( config->btn_sub_aba_geral,        "clicked", G_CALLBACK( on_button_config_geral_clicked ),        ctx );
+   g_signal_connect( config->btn_sub_aba_atipicidades, "clicked", G_CALLBACK( on_button_config_atipicidade_clicked ),  ctx );
+   g_signal_connect( config->btn_sub_aba_acervo,       "clicked", G_CALLBACK( on_button_config_acervo_clicked ),       ctx );
+
+   for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
+      if ( atip->checks[i] == NULL ) {
+         continue;
+      }
+      atip->handlers_check[i] = g_signal_connect( atip->checks[i], "toggled",
+                                G_CALLBACK( on_check_logica_atipicidades_toggled ), ctx );
+   }
+
+   atip->handler_combo_alunos = g_signal_connect( atip->combo_alunos, "changed",
+                                G_CALLBACK( on_combo_logica_alunos_atipicos_changed ), ctx );
+
+   atip->handler_combo_suporte_tea = g_signal_connect( atip->combo_suporte_tea, "changed",
+                                     G_CALLBACK( on_combo_suporte_tea_changed ), ctx );
+
+   g_signal_connect( atip->flowbox, "child-activated",
+                     G_CALLBACK( on_flowbox_atipicidades_child_activated ), ctx );
+}
+
+
+static void conectar_sinais_painel_feedback_lc( AppContext *ctx ) {
    InterfacePainel *painel = &ctx->painel;
 
    g_signal_connect( painel->eventbox_painel, "enter-notify-event", G_CALLBACK( on_painel_feedback_enter_notify_event ), ctx );
@@ -638,16 +663,17 @@ void app_signals_connect( gpointer user_data ) {
    g_return_if_fail( ctx != NULL );
 
    // 1. Inicializa metadados (GObject set_data) para uso genérico nos callbacks
-   configurar_nomes_dos_widgets_aux( ctx );
+   configurar_nomes_dos_widgets_lc( ctx );
 
    // 2. Conexões de navegação Global
    g_signal_connect( ctx->notebook, "switch-page", G_CALLBACK( on_notebook_principal_switch_page ), ctx );
 
    // 3. Despacho modular
-   conectar_sinais_cabecalho_aux( ctx );
-   conectar_sinais_aba_diarios_aux( ctx );
-   conectar_sinais_aba_latex_aux( ctx );
-   conectar_sinais_aba_provas_aux( ctx );
-   conectar_sinais_painel_feedback_aux( ctx );
+   conectar_sinais_cabecalho_lc( ctx );
+   conectar_sinais_aba_diarios_lc( ctx );
+   conectar_sinais_aba_latex_lc( ctx );
+   conectar_sinais_aba_provas_lc( ctx );
+   conectar_sinais_aba_config_lc( ctx );
+   conectar_sinais_painel_feedback_lc( ctx );
 }
 

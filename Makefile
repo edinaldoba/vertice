@@ -34,7 +34,7 @@ SH_SCRIPTS    := $(wildcard *.sh)
 # Fontes autorais separados do código autogerado
 USER_SOURCES := \
    main.c layout.c signals.c callbacks.c auxiliar.c \
-   interface.c diarios.c latex.c provas.c config.c \
+   interface.c diarios.c latex.c gabaritos.c provas.c config.c \
    dinamica.c assincrono.c relatorios.c imagens.c \
    pds.c omr.c gas.c seduc-ma.c tex.c mensagens.c \
    basicas.c rgba.c matriz.c glib_gio.c imgcore.c

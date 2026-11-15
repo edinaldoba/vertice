@@ -1,39 +1,35 @@
 /*
+ * PROJETO VÉRTICE - Folha de Estilo GTK3
+ * Arquivo: style_light.css (Tema Light)
+ *
  * Copyright (C) 2026 Edinaldo Barbosa de Alencar
  * Este programa é software livre; você pode redistribuí-lo e/ou
- * modificá-lo sob os termos da Licença Pública Geral GNU...
- * Baseado no[cite: 3]
+ * modificá-lo sob os termos da Licença Pública Geral GNU (GPLv3+).
  */
-
-/* ==========================================================================
-   APLICATIVO PROVAS - TEMA LIGHT (estilo_light.css)
-   ========================================================================== */
 
 /* ==========================================================================
    1. REGRAS GLOBAIS E TIPOGRAFIA BASE
    ========================================================================== */
 label {
-    font-family: 'Ubuntu', 'Inter', sans-serif;
+    font-family: "Ubuntu", "Inter", sans-serif;
     font-size: 20px;
     color: #333333;
 }
 
-/* Dica de Ferramenta (Tooltip) - Light */
 tooltip {
-    background-color: rgba(245,245,245,1.0); /* Cinza-claro suave (Light Slate) */
-    border: 1px solid #b2babd;   /* Borda fina de contorno discreta */
-    color: #1E293B;            /* Texto cinza-escuro/grafite */
+    background-color: #F5F5F5;
+    color: #1E293B;
+    border: 1px solid #B2BABD;
     border-radius: 6px;
     padding: 6px 10px;
 }
 
 tooltip label {
-    color: rgba(0,0,0,1.0);
+    color: #000000;
     font-weight: 300;
     font-size: 20px;
 }
 
-/* Controle do contorno de foco do sistema */
 *:focus {
     outline-style: none;
 }
@@ -45,8 +41,8 @@ window,
 .window,
 window.main-window {
     background-image: none;
-    background-color: #ECEFF1; /* Cinza-claro suave (Light Slate) */
-    border: 1px solid #CFD8DC;   /* Borda fina de contorno discreta */
+    background-color: #ECEFF1;
+    border: 1px solid #CFD8DC;
     border-radius: 8px;
     padding: 6px;
     box-shadow: inset 0 2px 6px 0 rgba(0, 0, 0, 0.08),
@@ -57,7 +53,7 @@ window headerbar,
 .window headerbar,
 window headerbar.titlebar {
     background-image: none;
-    background-color: #DFE4E7; /* Ligeiramente mais escuro para destacar o topo */
+    background-color: #DFE4E7;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-bottom: 1px solid #B0BEC5;
     border-radius: 6px 6px 0 0;
@@ -67,22 +63,21 @@ window headerbar.titlebar {
 headerbar label,
 .titlebar label,
 headerbar .title {
-    color: #263238; /* Texto escuro de alto contraste */
+    color: #263238;
     text-shadow: none;
 }
 
 /* ==========================================================================
    3. NAVEGAÇÃO (NOTEBOOK E ABAS)
    ========================================================================== */
-notebook,
+notebook {
+    background-color: #FFFFFF;
+    border: 1px solid #B0BEC5;
+}
+
 notebook > stack {
     background-color: transparent;
     border-style: none;
-}
-
-notebook {
-    background-color: #ffffff;
-    border: 1px solid #B0BEC5;
 }
 
 notebook > header {
@@ -102,16 +97,16 @@ notebook > header > tabs > tab {
 }
 
 notebook > header > tabs > tab:hover {
-    border-bottom: 4px solid #2a39c5;
+    border-bottom: 4px solid #2A39C5;
     box-shadow: none;
 }
 
 notebook > header > tabs > tab:checked,
 notebook > header > tabs > tab:active {
-    background-color: #ffffff;
-    color: #1b2580;
+    background-color: #FFFFFF;
+    color: #1B2580;
     font-weight: bold;
-    border-bottom: 5px solid #1b2580;
+    border-bottom: 5px solid #1B2580;
     box-shadow: none;
 }
 
@@ -142,7 +137,8 @@ row {
     background-color: transparent;
     border-style: none;
     box-shadow: none;
-    color: #2c3e50;
+    padding: 6px;
+    color: #2C3E50;
 }
 
 listrow:hover,
@@ -150,16 +146,14 @@ row:hover {
     background-color: rgba(26, 35, 126, 0.05);
 }
 
-listrow:selected,
-row:selected {
-    background-color: rgba(26, 35, 126, 0.1);
-    color: #1b2580;
-    font-weight: bold;
+.listrow-atipico,
+.listrow-atipico row {
+    padding: 0px 3px;
 }
 
 scrolledwindow {
-    background-color: #ffffff;
-    border: 1px solid #d1d9e6;
+    background-color: #FFFFFF;
+    border: 1px solid #D1D9E6;
     border-radius: 6px;
     padding: 6px;
     box-shadow: inset 0 1px 5px 0 rgba(26, 35, 126, 0.08);
@@ -172,18 +166,12 @@ scrolledwindow viewport {
 flowboxchild:selected,
 flowboxchild:selected:focus,
 flowboxchild:selected:hover,
-flowboxchild:active {
-    background-color: transparent;
-    background-image: none;
-    border-color: transparent;
-    border-style: none;
-    box-shadow: none;
-}
-
+flowboxchild:active,
 flowboxchild:selected:backdrop {
     background-color: transparent;
     background-image: none;
     border-color: transparent;
+    border-style: none;
     box-shadow: none;
 }
 
@@ -221,7 +209,7 @@ scrollbar button {
 }
 
 separator {
-    background-color: #1b2580;
+    background-color: #1B2580;
     min-height: 1px;
 }
 
@@ -230,30 +218,28 @@ separator {
    ========================================================================== */
 .cabecalho,
 .cabecalho label {
-    color: #1b2580;
+    color: #1B2580;
     font-weight: bold;
 }
 
 .titulo-secao-principal,
 .titulo-secao-principal label {
-    color: #1b2580;
+    color: #1B2580;
     font-size: 26px;
     font-weight: bold;
-
-    border: 1px solid #1b2580;
+    border: 1px solid #1B2580;
     border-radius: 12px;
-    padding: 5px 12px 5px 12px;
+    padding: 5px 12px;
 }
 
 .titulo-secao,
 .titulo-secao label {
-    color: #1b2580;
+    color: #1B2580;
     font-weight: bold;
-
 }
 
 .indicador-item-subtema {
-    color: #1b2580;
+    color: #1B2580;
     font-size: 23px;
     font-weight: bold;
     margin-left: 7px;
@@ -266,7 +252,7 @@ separator {
 button {
     background-image: none;
     background-color: #ECEFF1;
-    color: #1b2580;
+    color: #1B2580;
     font-weight: bold;
     border: 1px solid #B0BEC5;
     border-radius: 10px;
@@ -276,13 +262,12 @@ button {
 
 button label {
     font-size: 24px;
-    color: #1b2580;
-
+    color: #1B2580;
 }
 
 button:hover {
-    background-color: #2533b0;
-    border: 1px solid #1b2580;
+    background-color: #2533B0;
+    border: 1px solid #1B2580;
     box-shadow: inset 0 0 6px #111850;
 }
 
@@ -290,24 +275,23 @@ button:hover label {
     color: #FFFFFF;
 }
 
-/* Estado ativo/travado com destaque e animação suave */
 .button-travado {
-    background-color: #ffffff;
-    border: 1px solid #1b2580;
-    box-shadow: inset 0 0 6px #1b2580;
+    background-color: #FFFFFF;
+    border: 1px solid #1B2580;
+    box-shadow: inset 0 0 6px #1B2580;
 }
 
 .button-travado label {
-    color: #1b2580;
+    color: #1B2580;
 }
 
 /* --- Campos de Texto (GtkEntry) --- */
 entry {
     background-color: #FFFFFF;
-    font-size: 20px;
     color: #000000;
-    caret-color: #a1aeb4;
-    font-family: 'Ubuntu Mono', monospace;
+    caret-color: #A1AEB4;
+    font-family: "Ubuntu Mono", monospace;
+    font-size: 20px;
     font-weight: normal;
     padding: 4px 12px;
     border: 1px solid #B0BEC5;
@@ -316,20 +300,20 @@ entry {
 
 entry:focus {
     background-image: none;
-    border: 1px solid #55aaff;
+    border: 1px solid #55AAFF;
     outline: none;
-    box-shadow: 0 0 5px #55aaff;
+    box-shadow: 0 0 5px #55AAFF;
 }
 
 entry label {
     color: #000000;
+    font-family: "Ubuntu Mono", monospace;
     font-size: 20px;
-    font-family: 'Ubuntu Mono', monospace;
     font-weight: normal;
 }
 
 entry selection {
-    background-color: #a0c4ff;
+    background-color: #A0C4FF;
     color: #000000;
 }
 
@@ -389,6 +373,7 @@ window.popup menu menuitem:hover cellview,
 window.popup menu menuitem:selected cellview {
     color: #FFFFFF;
     font-weight: bold;
+    border: 1px solid #f5f5f5;
 }
 
 combobox cellview:disabled,
@@ -408,47 +393,36 @@ combobox cellview:disabled,
     font-weight: normal;
 }
 
-
 popover,
 popover arrow {
     background-image: none;
-    background-color: #55aaff;
-    border: 1px solid #0055ff;
+    background-color: #55AAFF;
+    border: 1px solid #0055FF;
 }
 
 /* --- CheckButtons e RadioButtons --- */
-check {
-    background-image: none;
-    background-color: #FFFFFF;
-    border: 1px solid #B0BEC5;
-    border-radius: 4px;
-    color: #ffffff;
-}
-
-check:hover {
-    border-color: #455A64;
-}
-
-check:checked {
-    background-image: none;
-    background-color: #0055ff;
-    border-color: #0055ff;
-}
-
+check,
 radio {
     background-image: none;
+    color: #FFFFFF;
     background-color: #FFFFFF;
     border: 1px solid #B0BEC5;
 }
 
+check {
+    border-radius: 4px;
+}
+
+check:hover,
 radio:hover {
     border-color: #455A64;
 }
 
+check:checked,
 radio:checked {
     background-image: none;
-    background-color: #0055ff;
-    border-color: #0055ff;
+    background-color: #0055FF;
+    border-color: #0055FF;
 }
 
 /* --- Calendário --- */
@@ -457,44 +431,44 @@ calendar {
     color: #000000;
     border-radius: 6px;
     padding: 6px;
-    border: 1px solid #55aaff;
+    border: 1px solid #55AAFF;
 }
 
 calendar:indeterminate {
-    color: #8ea1af;
+    color: #8EA1AF;
 }
 
 calendar:selected {
-    background-color: #b2f5ff;
+    background-color: #B2F5FF;
     border-radius: 4px;
-    border: 1px solid #1b2580;
-    box-shadow: inset 0 0 4px #0055ff;
+    border: 1px solid #1B2580;
+    box-shadow: inset 0 0 4px #0055FF;
 }
 
 /* --- Tabelas (TreeView) --- */
 treeview {
-    background-color: #f3f6f8;
+    background-color: #F3F6F8;
     color: #000000;
     font-size: 20px;
-    border-color: #8394a1;
+    border-color: #8394A1;
     padding-left: 6px;
     padding-right: 6px;
 }
 
 treeview:selected {
-    background-color: #d7dadc;
+    background-color: #D7DADC;
 }
 
 treeview header label {
     font-size: 20px;
     font-weight: bold;
-    color: #00007f;
+    color: #00007F;
     padding-left: 6px;
     padding-right: 6px;
 }
 
 treeview header button {
-    background-color: #dce6ea;
+    background-color: #DCE6EA;
     border: none;
     padding: 6px;
     margin-left: 2px;
@@ -503,35 +477,47 @@ treeview header button {
     border-radius: 6px;
 }
 
-/* Destaque para o cabeçalho da coluna NOTA */
 .cabecalho-destaque-nota {
-    background-color: #d2dcff;
-    border: 1px solid #949cb4;
+    background-color: #D2DCFF;
+    border: 1px solid #949CB4;
     padding: 5px;
     border-radius: 6px;
-    box-shadow: inset 0 0 6px #949cb4;
+    box-shadow: inset 0 0 6px #949CB4;
 }
 
-/*.cabecalho-destaque-nota label {
-    color: #ffffff;
-}*/
+.cabecalho-destaque-nota label {
+    color: #1B2580;
+}
 
 /* ==========================================================================
-   7. PAINÉIS DE STATUS E FEEDBACK (Mini-Cards e Alertas)
+   7. PAINÉIS DE STATUS E FEEDBACK (MINI-CARDS, STEPPER E TOAST)
    ========================================================================== */
 /* --- Mini Cards --- */
+.card-aluno-atipico {
+    background-color: #FFFFFF;
+    padding: 10px;
+    border: 1px solid #B0BEC5;
+    border-radius: 8px;
+}
+
+.card-atipico-destaque {
+    background-color: #EDF2FF;
+    border: 2px solid #0055FF;
+    box-shadow: inset 0 0 8px rgba(0, 85, 255, 0.25);
+}
+
 .mini-card,
 .mini-card-flowbox {
-    background-color: #f5f7fa;
-    color: #1b2580;
+    background-color: #F5F7FA;
+    color: #1B2580;
     font-size: 16px;
     padding: 4px 8px;
-    border: 1px solid #d1d9e6;
+    border: 1px solid #D1D9E6;
     border-radius: 6px;
 }
 
 .mini-card-avaliacoes {
-    background-color: #f5f7fa;
+    background-color: #F5F7FA;
     padding: 4px 8px;
     border: 1px solid #B0BEC5;
     border-radius: 6px;
@@ -540,37 +526,38 @@ treeview header button {
 /* --- Stepper (Seletor Numérico) --- */
 .stepper-container {
     background-color: rgba(26, 35, 126, 0.10);
-    padding: 0px 5px;
+    padding: 0 5px;
     border-radius: 12px;
 }
 
 .label-stepper {
-    color: #2c3e50;
+    color: #2C3E50;
     font-size: 15px;
     font-weight: bold;
     min-width: 17px;
 }
 
 .btn-stepper {
-    padding: 0px 0px;
+    background-color: #ECEFF1;
+    padding: 0;
     box-shadow: inset 0 0 3px #B0BEC5;
 }
 
 .btn-stepper label {
     font-size: 24px;
     font-weight: bold;
-    color: #0055ff;
+    color: #0055FF;
 }
 
 .btn-stepper:hover {
-    background-color: #c6d5dd;
-    border-color: #0055ff;
+    background-color: #C6D5DD;
     border-radius: 50%;
+    border-color: #0055FF;
     box-shadow: inset 0 0 3px #B0BEC5;
 }
 
 .btn-stepper:hover label {
-    color: #ffffff;
+    color: #FFFFFF;
 }
 
 /* --- Botões Especiais --- */
@@ -586,7 +573,7 @@ treeview header button {
     background-image: url("./icones/trash_light_hover.svg");
 }
 
-/* --- Painel de Feedback --- */
+/* --- Painel de Feedback e Toast --- */
 .painel-feedback {
     background-color: #FAFAFA;
     padding: 13px;
@@ -594,71 +581,63 @@ treeview header button {
     border-radius: 13px;
 }
 
-/* --- Painel de Feedback: Modo Light --- */
 .painel-feedback-revealer {
-    background-color: rgba(255, 255, 255, 0.96); /* Branco quase opaco translúcido */
-    border: 1px solid rgba(0, 0, 0, 0.12);        /* Borda suave de definição */
-    border-left: 5px solid #0055ff;               /* Verde institucional (Dark Green) */
+    background-color: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-left: 5px solid #0055FF;
     border-radius: 10px;
     padding: 12px 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);   /* Sombra difusa e limpa */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-
-/* A orelhinha estilo Samsung Edge ancorada no rodapé (Modo Light) */
 .box-orelhinha {
-    background-color: rgba(0, 0, 0, 0.08); /* Sombra suave translúcida */
-    border: 1px solid rgba(0, 0, 0, 0.15);  /* Contorno escuro sutil */
-    border-bottom: none;                    /* Gruda na borda inferior */
-    border-radius: 8px 8px 0 0;             /* Canto superior arredondado */
+    background-color: rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
     padding: 1px 16px;
     min-height: 4px;
     transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Quando passa o mouse sobre a orelhinha no rodapé (Hover no Light) */
 .eventbox-orelhinha:hover .box-orelhinha {
-    background-color: rgba(16, 124, 65, 0.90); /* Verde escuro do tema (Dark Green) */
-    border-color: rgba(16, 124, 65, 1.0);
-    min-height: 8px;                           /* Expande levemente para cima */
-    box-shadow: 0 -2px 8px rgba(16, 124, 65, 0.35);
+    background-color: rgba(0, 85, 255, 0.90);
+    border-color: rgba(0, 85, 255, 1.00);
+    min-height: 8px;
+    box-shadow: 0 -2px 8px rgba(0, 85, 255, 0.35);
 }
 
-/* O traço/indicador horizontal dentro da orelhinha (Modo Light) */
 .label-traco {
-    color: rgba(40, 40, 40, 0.75);             /* Escuro no estado de repouso */
+    color: rgba(40, 40, 40, 0.75);
     font-size: 10px;
     font-weight: bold;
 }
 
-/* Garante texto branco no traço quando a aba acender em verde */
 .eventbox-orelhinha:hover .label-traco {
-    color: #ffffff;
+    color: #FFFFFF;
 }
 
-
-
-.sucesso-titulo { color: #202C9A; font-size: 28px; font-weight: bold; }
+/* --- Mensagens de Status --- */
+.sucesso-titulo    { color: #202C9A; font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #455A64; font-size: 24px; font-style: italic; }
-.sucesso-instrucao { color: #1b2580; font-size: 20px; font-weight: normal; }
+.sucesso-instrucao { color: #1B2580; font-size: 20px; font-weight: normal; }
 
-.aviso-titulo { color: #9d7c19; font-size: 28px; font-weight: bold; }
-.aviso-subtitulo { color: #5D4037; font-size: 24px; font-style: italic; }
-.aviso-instrucao { color: #E65100; font-size: 20px; font-weight: normal; }
+.aviso-titulo      { color: #9D7C19; font-size: 28px; font-weight: bold; }
+.aviso-subtitulo   { color: #5D4037; font-size: 24px; font-style: italic; }
+.aviso-instrucao   { color: #E65100; font-size: 20px; font-weight: normal; }
 
-.erro-titulo { color: #C62828; font-size: 28px; font-weight: bold; }
-.erro-subtitulo { color: #455A64; font-size: 24px; font-style: italic; }
-.erro-instrucao { color: #B71C1C; font-size: 20px; font-weight: normal; }
+.erro-titulo       { color: #C62828; font-size: 28px; font-weight: bold; }
+.erro-subtitulo    { color: #455A64; font-size: 24px; font-style: italic; }
+.erro-instrucao    { color: #B71C1C; font-size: 20px; font-weight: normal; }
 
-.info-titulo { color: #00838F; font-size: 28px; font-weight: bold; }
-.info-subtitulo { color: #455A64; font-size: 24px; font-style: italic; }
-.info-instrucao { color: #006064; font-size: 20px; font-weight: normal; }
+.info-titulo       { color: #00838F; font-size: 28px; font-weight: bold; }
+.info-subtitulo    { color: #455A64; font-size: 24px; font-style: italic; }
+.info-instrucao    { color: #006064; font-size: 20px; font-weight: normal; }
 
 /* ==========================================================================
    8. DIÁLOGOS E MODAIS (GtkMessageDialog)
    ========================================================================== */
-/* --- Message Dialog: Light --- */
 messagedialog {
     background-color: #ECEFF1;
     border: 1px solid #CFD8DC;
@@ -677,7 +656,7 @@ messagedialog .titlebar {
 
 messagedialog headerbar .title,
 messagedialog .titlebar .title {
-    color: #1b2580; /* Título escuro para contraste */
+    color: #1B2580;
     font-weight: bold;
     text-shadow: none;
 }
@@ -697,11 +676,10 @@ messagedialog button {
 }
 
 messagedialog button:hover {
-    background-color: #ffffff;
-    border: 1px solid #0055ff;
+    background-color: #FFFFFF;
+    border: 1px solid #0055FF;
 }
 
 messagedialog button:hover label {
     color: #000000;
 }
-

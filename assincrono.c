@@ -17,6 +17,7 @@
 #include "imagens.h"
 #include "glib_gio.h"
 #include "imgcore.h"
+#include "gabaritos.h"
 
 
 
@@ -234,9 +235,8 @@ void* thread_gerar_prova_background( void *data ) {
    g_print( "[Thread] Iniciando compilação com contexto clonado...\n" );
 
    // Validação defensiva das dimensões antes de calcular o bloco contíguo
-   if ( snap->dados.qtd_alunos_ativos <= 0 || snap->dados.max_quest_prova <= 0 ) {
-      g_printerr( "[ERRO] Parâmetros de alunos (%d) ou máximo de questões (%d) inválidos.\n",
-                  snap->dados.qtd_alunos_ativos, snap->dados.max_quest_prova );
+   if ( snap->dados.qtd_alunos_ativos <= 0 ) {
+      g_printerr( "[ERRO] Parâmetros de alunos (%d) inválidos.\n", snap->dados.qtd_alunos_ativos );
       g_idle_add( reativar_botao_gerar_prova, args );
       return NULL;
    }
@@ -245,8 +245,7 @@ void* thread_gerar_prova_background( void *data ) {
                                  snap->caminho.raiz, "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL
                               );
 
-   char nome[64] = { 0 };
-   nome_base_gabaritos_bin( nome, sizeof( nome ), snap->cabecalho.foco_turma, snap->cabecalho.foco_disciplina,
+   g_autofree gchar *nome = nome_base_gabaritos_bin( snap->cabecalho.foco_turma, snap->cabecalho.foco_disciplina,
                             snap->cabecalho.foco_periodo, snap->dados.seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
@@ -262,7 +261,7 @@ void* thread_gerar_prova_background( void *data ) {
    // LEITURA EM BLOCO 1D CONTÍGUO (Sem ItemTextoCurto)
    // =========================================================================
    gsize num_alunos = ( gsize )snap->dados.qtd_alunos_ativos;
-   gsize max_len    = ( gsize )snap->dados.max_quest_prova + 1; // +1 para o '\0'
+   gsize max_len    = ( gsize )MAX_QUEST_PROVA + 1U; // +1 para o '\0'
 
    g_autofree char *G = g_malloc0( num_alunos * max_len );
    gsize lidos = fread( G, max_len, num_alunos, p );

@@ -133,7 +133,7 @@ void atualizar_listbox_subtemas( AppContext *ctx ) {
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), TRUE );
       }
 
-      gulong handler_id = g_signal_connect( check, "toggled", G_CALLBACK( on_subtema_check_toggled ), ctx );
+      gulong handler_id = g_signal_connect( check, "toggled", G_CALLBACK( on_check_logica_subtema_toggled ), ctx );
 
       if ( prova->limite_subtemas > 0 && montagem->handlers_check != NULL ) {
          montagem->handlers_check[i] = handler_id;
