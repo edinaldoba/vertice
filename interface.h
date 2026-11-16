@@ -268,6 +268,7 @@ typedef struct {
    GtkWidget *combo_suporte_tea;     // GtkComboBoxText (0=N/A, 1=Nível 1, 2=Nível 2, 3=Nível 3)
    gulong     handler_combo_suporte_tea;
 
+   GtkWidget *btn_relatorio;
    GtkWidget *flowbox;               // GtkFlowBox dos cards de alunos atípicos
 
    GtkWidget *checks[MAX_FLAGS_ATIPICIDADES];

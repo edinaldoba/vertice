@@ -20,5 +20,11 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo );
 
 GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos );
 
+char* trocar_extensao_arquivo( const char *caminho_orig, const char *nova_ext );
+
+void apagar_temporarios_latex_serial( const gchar *diretorio, const gchar *nome_base, gint n_tipos );
+
+void apagar_temporarios_latex_paralelo( const gchar *diretorio, GStrv nomes_base, gint n_tipos );
+
 
 #endif

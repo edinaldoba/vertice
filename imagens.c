@@ -28,21 +28,6 @@
 // ====================================================================================
 // FUNÇÕES UTILITÁRIAS REFATORADAS
 // ====================================================================================
-
-/* Substitui a extensão de um arquivo retornando uma nova string alocada na Heap */
-static char* trocar_extensao( const char *caminho_orig, const char *nova_ext ) {
-   g_return_val_if_fail( caminho_orig != NULL && nova_ext != NULL, NULL );
-
-   const char *ponto = g_strrstr( caminho_orig, "." );
-   const char *barra = g_strrstr( caminho_orig, G_DIR_SEPARATOR_S );
-
-   // Garante que o ponto pertence ao nome do arquivo e não a uma pasta oculta anterior
-   if ( ponto != NULL && ( barra == NULL || ponto > barra ) ) {
-      return g_strdup_printf( "%.*s.%s", ( int )( ponto - caminho_orig ), caminho_orig, nova_ext );
-   }
-   return g_strdup_printf( "%s.%s", caminho_orig, nova_ext );
-}
-
 /* Gera identificadores alfanuméricos na Heap (Usa GRand local para evitar lock contention no OpenMP) */
 static char* gerar_nome_aleatorio_thread( gsize tam, GRand *rng ) {
    static const char alfanumerico[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -308,7 +293,7 @@ int gas_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       const char *img_str = ( const char * )g_ptr_array_index( imgs_orig, i );
 
       g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
-      g_autofree char *img_png   = trocar_extensao( img_str, "png" );
+      g_autofree char *img_png   = trocar_extensao_arquivo( img_str, "png" );
       g_autofree char *path_png  = g_build_filename( destino, img_png, NULL );
 
       if ( carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig ) ) {
@@ -486,7 +471,7 @@ int omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabecalho
       const char *img_str = ( const char * )g_ptr_array_index( imgs_orig, i );
 
       g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
-      g_autofree char *img_png   = trocar_extensao( img_str, "png" );
+      g_autofree char *img_png   = trocar_extensao_arquivo( img_str, "png" );
       g_autofree char *path_png  = g_build_filename( destino, img_png, NULL );
 
       if ( carregar_imagem_colorida_nativa( path_orig, &img_rgb_orig ) ) {
@@ -679,7 +664,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
       const char *img_str = ( const char * )g_ptr_array_index( imgs_orig, i );
 
       g_autofree char *path_orig = g_build_filename( destino, img_str, NULL );
-      g_autofree char *img_png   = trocar_extensao( img_str, "png" );
+      g_autofree char *img_png   = trocar_extensao_arquivo( img_str, "png" );
       g_autofree char *path_png  = g_build_filename( destino, img_png, NULL );
 
       // Verifica se a imagem original carregou com integridade antes de prosseguir
@@ -707,7 +692,7 @@ int cs_omr_processar_imagens( const InterfaceDados *dados, const InterfaceCabeca
                // transformada_homografica já limpa/realoca img_gray_crop internamente
                transformada_homografica( &img_gray_alloc, &img_gray_crop, ancora, map.direcao );
 
-               // g_autofree char *img_ppm   = trocar_extensao( img_png, "ppm" );
+               // g_autofree char *img_ppm   = trocar_extensao_arquivo( img_png, "ppm" );
                // salvar_imagem_pgm( &img_gray_alloc, img_ppm );
 
                map.payload = extrair_payload_matriz( &img_gray_crop, map.direcao );

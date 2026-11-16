@@ -10,7 +10,6 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 
-#include "glib-unix.h"
 #include "glib_gio.h"
 #include "glibconfig.h"
 #include "interface.h"
@@ -220,7 +219,7 @@ static void copiar_arquivos_prova_nao_presencial( const GPtrArray *fichas, const
       const FichaAluno *ficha = g_ptr_array_index( fichas, aluno_idx );
 
       // Exportação do PDF da Prova
-      g_autofree char *thread_origem = g_strdup_printf( "%s/dados/temporarios/prova%.2d.pdf", caminho->raiz, i );
+      g_autofree char *thread_origem = g_strdup_printf( "%s/prova%.2d.pdf", caminho->temp, i );
       g_autofree char *nome_arquivo_pdf = g_strdup_printf( "%.2d - %s.pdf", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_destino = g_build_filename( diretorio_provas, nome_arquivo_pdf, NULL );
 
@@ -229,7 +228,7 @@ static void copiar_arquivos_prova_nao_presencial( const GPtrArray *fichas, const
       }
 
       // Conversão e exportação da Imagem (A conversão consome CPU, por isso brilha no OpenMP)
-      g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/dados/temporarios/img%.2d.pdf", caminho->raiz, i );
+      g_autofree char *thread_caminho_pdf = g_strdup_printf( "%s/img%.2d.pdf", caminho->temp, i );
       g_autofree char *nome_arquivo_png = g_strdup_printf( "%.2d - %s.png", aluno_idx + 1, ficha->aluno );
       g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
@@ -239,8 +238,7 @@ static void copiar_arquivos_prova_nao_presencial( const GPtrArray *fichas, const
 
       // Limpeza imediata do temporário individual da imagem (economiza espaço em disco na hora)
       g_autofree char *thread_nome_base = g_strdup_printf( "img%.2d", i );
-      g_autofree char *temp = g_strdup_printf( "%s/dados/temporarios", caminho->raiz );
-      apagar_arquivos_temporarios_latex_nativamente( temp, thread_nome_base, 5 );
+      apagar_temporarios_latex_serial( caminho->temp, thread_nome_base, -1 );
    }
 
 }
@@ -255,8 +253,7 @@ static void compilacao_latex_e_manipulacao_de_arquivos_lc( const GPtrArray *fich
       const CaminhoDiretorio *caminho ) {
 
    // 1. Compilação paralela do LaTeX
-   g_autofree char *temp = g_strdup_printf( "%s/dados/temporarios", caminho->raiz );
-   g_pdflatex_parallel( temp, "" );
+   g_pdflatex_parallel( caminho->temp, "" );
 
    if ( dados->nao_presencial ) {
       copiar_arquivos_prova_nao_presencial( fichas, dados, caminho );
@@ -289,25 +286,9 @@ static void compilacao_latex_e_manipulacao_de_arquivos_lc( const GPtrArray *fich
    g_remove( destino_relatorio );
 
    // Geração unificada direto na pasta Relatórios (Elimina o gio_mover_arquivo)
-   g_pdfunite( temp, arquivos_pdf, qtd_pdfs, destino_relatorio );
+   g_pdfunite( caminho->temp, arquivos_pdf, qtd_pdfs, destino_relatorio );
 
-   // =========================================================================
-   // LIMPEZA PARALELA DE ARQUIVOS NATIVOS
-   // =========================================================================
-   apagar_arquivos_temporarios_latex_nativamente( temp, "frequencia", 5 );
-   // #pragma omp parallel for schedule(static)
-   for ( int i = 0; i < dados->qtd_alunos_ativos; i++ ) {
-      // if ( i==0 || i==6 || i==39 ) continue; // m100
-      // if ( i==37 ) continue; // m101
-      // if ( i==0 || i==8 || i==11 || i==3 || i==31 || i==38 || i==34 ) continue; // m102
-      // if ( i==18 || i==32 || i==39 ) continue; // m200cns
-      // if ( i==6 || i==14 ) continue; // m300ett
-      // if ( i==1 || i==14 || i==16 ) continue; // v300chl
-      // if ( i==13 ) continue; // v300cns
-      // if ( i==20 || i==28 ) continue; // v300ett
-      g_autofree char *nome_base = g_strdup_printf( "prova%.2d", i );
-      apagar_arquivos_temporarios_latex_nativamente( temp, nome_base, 5 );
-   }
+   apagar_temporarios_latex_paralelo( caminho->temp, arquivos_pdf, -1 );
 
    // =========================================================================
    // CÓPIA INSTITUCIONAL (ESCOLA)
@@ -341,7 +322,7 @@ static void imagens_para_prova_lc( const int i, int numero, const GPtrArray *fic
 
    // 1. Caminho seguro construído via g_build_filename
    g_autofree char *nome_arq = g_strdup_printf( "img%02d.tex", i );
-   g_autofree char *arquivo  = g_build_filename( dados->raiz, "dados", "temporarios", nome_arq, NULL );
+   g_autofree char *arquivo  = g_build_filename( dados->temp, nome_arq, NULL );
 
    // 2. Pré-aloca a GString com limpeza automática no fim do escopo
    g_autoptr( GString ) tex = g_string_sized_new( 1024 );
@@ -716,7 +697,7 @@ void prova( const MotorProvaSnapshot *snap, const char *G ) {
 
    g_return_if_fail( fichas != NULL && dados->total_quest_prova > 0 );
 
-   g_autofree gchar *freq_tex = g_build_filename( caminho->raiz, "dados", "temporarios", "frequencia.tex", NULL );
+   g_autofree gchar *freq_tex = g_build_filename( caminho->temp, "frequencia.tex", NULL );
    g_autofree gchar *titulo_prova = gerar_tex_lista_frequencia_lc( freq_tex, fichas, dados, hoje );
 
    // 1. Pré-execução dos geradores paramétricos em C do Banco de Questões
@@ -770,7 +751,7 @@ void prova( const MotorProvaSnapshot *snap, const char *G ) {
 
       // 3. Montagem Atômica do Arquivo .tex em RAM
       g_autofree char *nome_prova_tex = g_strdup_printf( "prova%.2d.tex", num_ativo );
-      g_autofree char *caminho_tex    = g_build_filename( caminho->raiz, "dados", "temporarios", nome_prova_tex, NULL );
+      g_autofree char *caminho_tex    = g_build_filename( caminho->temp, nome_prova_tex, NULL );
 
       g_autoptr( GString ) tex_corpo = g_string_sized_new( 16384 );
 

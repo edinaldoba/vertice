@@ -275,7 +275,8 @@ void inicializacao_app_context( AppContext *ctx ) {
          .relatorios_final   = NULL,
          .gabaritos          = NULL,
          .relatorios         = NULL,
-         .recursos_prefix    = NULL
+         .recursos_prefix    = NULL,
+         .temp               = NULL
       }
    };
 }
@@ -312,6 +313,7 @@ void limpeza_final( AppContext *ctx ) {
 
    // 2. Liberação dos Caminhos de Diretórios
    g_clear_pointer( &ctx->caminho.raiz, g_free );
+   g_clear_pointer( &ctx->caminho.temp, g_free );
    g_clear_pointer( &ctx->caminho.dados, g_free );
    g_clear_pointer( &ctx->caminho.gabaritos, g_free );
    g_clear_pointer( &ctx->caminho.relatorios, g_free );

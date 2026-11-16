@@ -50,7 +50,6 @@ void preparar_ambiente_latex( const char *recursos_prefix );
 void preparar_ambiente_latex_no_disco( void );
 
 void apagar_arquivos_temporarios_latex( void );
-void apagar_arquivos_temporarios_latex_nativamente( const char *diretorio, const char *nome_base, int n_tipos );
 
 void obter_resolucao_tela( GtkWidget *widget, int *largura, int *altura );
 void obter_resolucao_global( int *largura, int *altura );

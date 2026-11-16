@@ -4,19 +4,50 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-
 #include <gtk/gtk.h>
 #include "config.h"
 #include "comum.h"
 #include "auxiliar.h"
+#include "diarios.h"
+#include "tex.h"
+#include "glib_gio.h"
+
+// ========================================================================
+// ROLAGEM AUTOMÁTICA (SCROLL-TO-VIEW) PARA O CARD DESTACADO
+// ========================================================================
+static void rolagem_automatica_scrolled_window_atipicidades_lc( GtkWidget *flowbox, GtkWidget *card_para_rolar ) {
+   if ( card_para_rolar == NULL ) {
+      return;
+   }
+
+   // 1. Busca a janela de rolagem ancestral que envolve o FlowBox
+   GtkWidget *scrolled_window = gtk_widget_get_ancestor( flowbox, GTK_TYPE_SCROLLED_WINDOW );
+
+   if ( scrolled_window ) {
+      GtkAdjustment *v_adj = gtk_scrolled_window_get_vadjustment( GTK_SCROLLED_WINDOW( scrolled_window ) );
+      gint y_pos;
+
+      // 2. Traduz a coordenada do card para a coordenada relativa ao FlowBox
+      if ( gtk_widget_translate_coordinates( card_para_rolar, flowbox, 0, 0, NULL, &y_pos ) ) {
+         GtkAllocation alloc;
+         gtk_widget_get_allocation( card_para_rolar, &alloc );
+
+         // 3. Ajusta a barra vertical para garantir que o topo (y_pos)
+         // e a base (y_pos + altura) do card estejam perfeitamente visíveis
+         gtk_adjustment_clamp_page( v_adj, y_pos, y_pos + alloc.height );
+      }
+   }
+}
+
 
 // ====================================================================================
 // 1. DESTAQUE VISUAL DO CARD DO ALUNO SELECIONADO NO FLOWBOX
 // ====================================================================================
-static void destacar_card_aluno_selecionado_aux( InterfaceAtipicidade *atip, int idx_aluno_ativo ) {
+static void destacar_card_aluno_selecionado_lc( InterfaceAtipicidade *atip, int idx_aluno_ativo ) {
    g_return_if_fail( atip != NULL && GTK_IS_FLOW_BOX( atip->flowbox ) );
 
    GList *children = gtk_container_get_children( GTK_CONTAINER( atip->flowbox ) );
+   GtkWidget *card_para_rolar = NULL;
 
    for ( GList *l = children; l != NULL; l = l->next ) {
       GtkWidget *flow_child = GTK_WIDGET( l->data );
@@ -31,18 +62,20 @@ static void destacar_card_aluno_selecionado_aux( InterfaceAtipicidade *atip, int
       if ( idx_card == idx_aluno_ativo ) {
          gtk_style_context_add_class( sc, "card-atipico-destaque" );
          gtk_flow_box_select_child( GTK_FLOW_BOX( atip->flowbox ), GTK_FLOW_BOX_CHILD( flow_child ) );
+         card_para_rolar = flow_child; // Guarda a referência do card que precisa ficar visível
       } else {
          gtk_style_context_remove_class( sc, "card-atipico-destaque" );
       }
    }
-
    g_list_free( children );
+
+   rolagem_automatica_scrolled_window_atipicidades_lc( atip->flowbox, card_para_rolar );
 }
 
 // ====================================================================================
 // 2. SINCRONIZAÇÃO DOS CHECKBUTTONS E COMBO TEA PARA O ALUNO ATUAL DO COMBO
 // ====================================================================================
-static void sincronizar_checks_com_ficha_aux( AppContext *ctx, int idx_aluno ) {
+static void sincronizar_checks_com_ficha_lc( AppContext *ctx, int idx_aluno ) {
    InterfaceAtipicidade *atip   = &ctx->config.atipicidade;
    GPtrArray            *fichas = ctx->diario.fichas;
 
@@ -94,12 +127,12 @@ static void sincronizar_checks_com_ficha_aux( AppContext *ctx, int idx_aluno ) {
 }
 
 // Forward declaration para a callback do botão de lixeira
-static void reconstruir_flowbox_atipicidades_aux( AppContext *ctx );
+static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx );
 
 // ====================================================================================
 // 3. CALLBACK DO BOTÃO DE REMOVER MINI-CARD (.botao-remover-ifood)
 // ====================================================================================
-static void on_btn_remover_mini_card_clicked_aux( GtkWidget *btn, gpointer user_data ) {
+static void on_btn_remover_mini_card_clicked_lc( GtkWidget *btn, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( ctx != NULL && GTK_IS_BUTTON( btn ) );
 
@@ -142,14 +175,14 @@ static void on_btn_remover_mini_card_clicked_aux( GtkWidget *btn, gpointer user_
       g_signal_handler_unblock( atip->combo_alunos, atip->handler_combo_alunos );
    }
 
-   sincronizar_checks_com_ficha_aux( ctx, idx_aluno );
-   reconstruir_flowbox_atipicidades_aux( ctx );
+   sincronizar_checks_com_ficha_lc( ctx, idx_aluno );
+   reconstruir_flowbox_atipicidades_lc( ctx );
 }
 
 // ====================================================================================
 // 4. CONSTRUÇÃO DOS CARDS E MINI-CARDS NO FLOWBOX
 // ====================================================================================
-static void reconstruir_flowbox_atipicidades_aux( AppContext *ctx ) {
+static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
    InterfaceAtipicidade *atip = &ctx->config.atipicidade;
    g_return_if_fail( GTK_IS_FLOW_BOX( atip->flowbox ) );
 
@@ -174,9 +207,10 @@ static void reconstruir_flowbox_atipicidades_aux( AppContext *ctx ) {
       }
 
       // 1. Card Maior do Aluno (GtkBox Vertical)
-      GtkWidget *card_aluno = gtk_box_new( GTK_ORIENTATION_VERTICAL, 6 );
+      GtkWidget *card_aluno = gtk_box_new( GTK_ORIENTATION_VERTICAL, 9 );
 
       // FIX: Impede que o card seja esticado verticalmente pelo GTK
+      gtk_widget_set_vexpand( card_aluno, FALSE );
       gtk_widget_set_valign( card_aluno, GTK_ALIGN_START );
 
       GtkStyleContext *sc_card = gtk_widget_get_style_context( card_aluno );
@@ -225,11 +259,13 @@ static void reconstruir_flowbox_atipicidades_aux( AppContext *ctx ) {
          gtk_button_set_relief( GTK_BUTTON( btn_remover ), GTK_RELIEF_NONE );
          gtk_widget_set_valign( btn_remover, GTK_ALIGN_CENTER );
          gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "botao-remover-ifood" );
+         gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "btn-stepper" );
+         gtk_widget_set_size_request( btn_remover, 34, 34 );
 
          // Guarda idx_aluno (+1) e bit (+1) no GObject sem alocar memória dinâmica
          g_object_set_data( G_OBJECT( btn_remover ), "idx_aluno", GINT_TO_POINTER( ( int )i + 1 ) );
          g_object_set_data( G_OBJECT( btn_remover ), "bit_idx",   GINT_TO_POINTER( bit + 1 ) );
-         g_signal_connect( btn_remover, "clicked", G_CALLBACK( on_btn_remover_mini_card_clicked_aux ), ctx );
+         g_signal_connect( btn_remover, "clicked", G_CALLBACK( on_btn_remover_mini_card_clicked_lc ), ctx );
 
          gtk_box_pack_end( GTK_BOX( mini_card ), btn_remover, FALSE, FALSE, 0 );
          gtk_box_pack_start( GTK_BOX( card_aluno ), mini_card, FALSE, FALSE, 0 );
@@ -254,18 +290,20 @@ static void reconstruir_flowbox_atipicidades_aux( AppContext *ctx ) {
 // ====================================================================================
 
 // Chamada ao abrir a sub-aba ATIPICIDADES ou ao trocar de turma no cabeçalho
-void inicializar_aba_atipicidades( AppContext *ctx ) {
+void inicializar_flowbox_atipicidades( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
-   // InterfaceAtipicidade *atip   = &ctx->config.atipicidade;
-   GPtrArray            *fichas = ctx->diario.fichas;
-   int                   limite = ( fichas != NULL ) ? ( int )fichas->len : 0;
-   /*
-      popular_combo_box_generico( atip->combo_alunos, fichas, limite, 0,
-                                  atip->handler_combo_alunos, mapear_alunos );*/
+   // Não esquecer que ( ctx->diario.fichas->len == ctx->dados.qtd_alunos_total ) = TRUE
+   sincronizar_checks_com_ficha_lc( ctx, ( ctx->diario.fichas->len > 0U ) ? 0 : -1 );
+   reconstruir_flowbox_atipicidades_lc( ctx );
 
-   sincronizar_checks_com_ficha_aux( ctx, ( limite > 0 ) ? 0 : -1 );
-   reconstruir_flowbox_atipicidades_aux( ctx );
+   GtkWidget *scrolled_window = gtk_widget_get_ancestor( ctx->config.atipicidade.flowbox, GTK_TYPE_SCROLLED_WINDOW );
+   GtkAdjustment *vadjustment = gtk_scrolled_window_get_vadjustment( GTK_SCROLLED_WINDOW( scrolled_window ) );
+
+   if ( vadjustment ) {
+      // Define o valor da rolagem para o topo absoluto (0.0 ou o lower do adjustment)
+      gtk_adjustment_set_value( vadjustment, 0.0 );
+   }
 }
 
 // Executada quando o usuário seleciona outro aluno no combo_alunos_atipicos
@@ -275,8 +313,8 @@ void logica_alunos_atipicos( AppContext *ctx ) {
    InterfaceAtipicidade *atip = &ctx->config.atipicidade;
    int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
 
-   sincronizar_checks_com_ficha_aux( ctx, idx_aluno );
-   destacar_card_aluno_selecionado_aux( atip, idx_aluno );
+   sincronizar_checks_com_ficha_lc( ctx, idx_aluno );
+   destacar_card_aluno_selecionado_lc( atip, idx_aluno );
 }
 
 // Executada quando qualquer CheckButton de atipicidade é marcado/desmarcado
@@ -330,7 +368,7 @@ void logica_atipicidades( GtkWidget *widget, AppContext *ctx ) {
    ficha->ficha_modificada       = TRUE;
    ctx->diario.dados_modificados = TRUE;
 
-   reconstruir_flowbox_atipicidades_aux( ctx );
+   reconstruir_flowbox_atipicidades_lc( ctx );
 }
 
 // Executada quando o usuário altera o Nível de Suporte TEA no combo_suporte_tea
@@ -376,6 +414,93 @@ void logica_suporte_tea( GtkWidget *widget, AppContext *ctx ) {
    ficha->ficha_modificada       = TRUE;
    ctx->diario.dados_modificados = TRUE;
 
-   reconstruir_flowbox_atipicidades_aux( ctx );
+   reconstruir_flowbox_atipicidades_lc( ctx );
+}
+
+
+// ====================================================================================
+// FUNÇÃO AUXILIAR DE DIÁLOGO DE ERRO NATIVO (GTK3)
+// ====================================================================================
+static void exibir_erro_relatorio_aux( GtkWindow   *parent,
+                                       const gchar *titulo,
+                                       const gchar *detalhe ) {
+   g_warning( "Vértice [%s]: %s", titulo, detalhe );
+
+   GtkWidget *dialog = gtk_message_dialog_new(
+                          parent,
+                          GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                          GTK_MESSAGE_ERROR,
+                          GTK_BUTTONS_OK,
+                          "%s", titulo
+                       );
+
+   if ( detalhe != NULL && *detalhe != '\0' ) {
+      gtk_message_dialog_format_secondary_text( GTK_MESSAGE_DIALOG( dialog ), "%s", detalhe );
+   }
+
+   gtk_window_set_title( GTK_WINDOW( dialog ), "Vértice — Erro na Geração de Documento" );
+   gtk_dialog_run( GTK_DIALOG( dialog ) );
+   gtk_widget_destroy( dialog );
+}
+
+// ====================================================================================
+// PIPELINE COMPLETO DO RELATÓRIO DE ATIPICIDADES COM TRATAMENTO DE FALHAS
+// ====================================================================================
+void relatorio_atipicidades( const AppContext *ctx ) {
+   g_return_if_fail( ctx != NULL );
+
+   const CaminhoDiretorio *caminho = &ctx->caminho;
+   GtkWindow *janela_pai = GTK_IS_WINDOW( ctx->window )
+                           ? GTK_WINDOW( ctx->window )
+                           : NULL;
+
+   const gchar *nome_base = "cards_atipicidades";
+   g_autofree gchar *nome_base_tex = g_strconcat( nome_base, ".tex", NULL );
+   g_autofree gchar *arq_tex       = g_build_filename( caminho->temp, nome_base_tex, NULL );
+
+   // 1. Geração do código-fonte LaTeX/TikZ
+   if ( !gerar_latex_cards_atipicidades( ctx, arq_tex ) ) {
+      exibir_erro_relatorio_aux(
+         janela_pai,
+         "Falha ao gerar o arquivo LaTeX dos cartões de atipicidades.",
+         "Verifique se há espaço em disco e permissão de escrita no diretório temporário do Vértice."
+      );
+      return;
+   }
+
+   // 2. Compilação serial via pdflatex
+   g_pdflatex_serial( caminho->temp, arq_tex );
+
+   g_autofree gchar *nome_base_pdf = g_strconcat( nome_base, ".pdf", NULL );
+   g_autofree gchar *orig_arq_pdf = g_build_filename( caminho->temp, nome_base_pdf, NULL );
+
+   // Valida se o PDF realmente foi produzido pelo pdflatex antes de prosseguir
+   if ( !g_file_test( orig_arq_pdf, G_FILE_TEST_IS_REGULAR ) ) {
+      exibir_erro_relatorio_aux(
+         janela_pai,
+         "Falha na compilação do documento PDF.",
+         "O pdflatex não gerou o arquivo final. Verifique o log de compilação ou a instalação do pacote professor.sty."
+      );
+      apagar_temporarios_latex_serial( caminho->temp, nome_base, -1 );
+      return;
+   }
+
+   // 3. Cópia para o diretório definitivo de relatórios e limpeza
+   g_autofree gchar *dest_arq_pdf = g_build_filename( caminho->relatorios, nome_base_pdf, NULL );
+
+   if ( !gio_copiar_arquivo( orig_arq_pdf, dest_arq_pdf ) ) {
+      exibir_erro_relatorio_aux(
+         janela_pai,
+         "Erro ao salvar o relatório na pasta de destino.",
+         "Não foi possível copiar o PDF compilado para o diretório de relatórios."
+      );
+      apagar_temporarios_latex_serial( caminho->temp, nome_base, -1 );
+      return;
+   }
+
+   apagar_temporarios_latex_serial( caminho->temp, nome_base, -1 );
+
+   // 4. Abertura no visualizador de PDF padrão do sistema
+   g_xdg_open( dest_arq_pdf );
 }
 

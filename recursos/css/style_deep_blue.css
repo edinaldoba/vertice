@@ -234,7 +234,7 @@ separator {
 
 .titulo-secao,
 .titulo-secao label {
-    color: rgba(255, 255, 255, 0.85);
+    color: #91e1ff;
     font-weight: bold;
 }
 
@@ -503,7 +503,7 @@ treeview header button {
 
 .card-atipico-destaque {
     background-color: #0F2544;
-    border: 2px solid #00FFFF;
+    border: 1px solid #00FFFF;
     box-shadow: inset 0 0 8px rgba(0, 255, 255, 0.35);
 }
 
@@ -619,9 +619,9 @@ treeview header button {
 }
 
 /* --- Mensagens de Status --- */
-.sucesso-titulo    { color: rgba(255, 255, 255, 0.85); font-size: 28px; font-weight: bold; }
+.sucesso-titulo    { color: #91e1ff; font-size: 28px; font-weight: bold; }
 .sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.sucesso-instrucao { color: #00FFFF; font-size: 20px; font-weight: normal; }
+.sucesso-instrucao { color: #00d2ff; font-size: 20px; font-weight: normal; }
 
 .aviso-titulo      { color: #FFCA28; font-size: 28px; font-weight: bold; }
 .aviso-subtitulo   { color: #90A4AE; font-size: 24px; font-style: italic; }

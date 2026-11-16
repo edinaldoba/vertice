@@ -604,12 +604,8 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
             g_pdfunite( async_data->dir_compile, arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
          }
 
-         // 4. Limpeza dos arquivos temporários de cada subtema
-         for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
-            if ( async_data->subtemas[i] != NULL ) {
-               apagar_arquivos_temporarios_latex_nativamente( async_data->dir_compile, async_data->subtemas[i], 5 );
-            }
-         }
+         // Apagar arquivos temporários adivindos da compilação latex
+         apagar_temporarios_latex_paralelo( async_data->dir_compile, async_data->subtemas, -1 );
 
          if ( async_data->widget == async_data->btn_pdflatex &&
                g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
@@ -886,14 +882,7 @@ static void ao_terminar_correcao_prova( GPid pid, gint wait_status, gpointer use
       }
 
       // Limpeza paralela dos arquivos temporários (.tex, .aux, .log, .synctex.gz, .pdf)
-      #pragma omp parallel for schedule(static)
-      for ( guint i = 0; i < total_provas; i++ ) {
-         const MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
-         if ( map->status & ( STATUS_PROVA_OK | AVISO_ALUNO_INATIVO ) ) {
-            g_autofree gchar *nome_base = g_strdup_printf( "%.2d", map->num );
-            apagar_arquivos_temporarios_latex_nativamente( async->dir_compile, nome_base, 5 );
-         }
-      }
+      apagar_temporarios_latex_paralelo( async->dir_compile, arquivos_pdf, -1 );
 
       // 3. Exibição automática e notificação na UI
       if ( qtd_sucessos > 0 && g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {

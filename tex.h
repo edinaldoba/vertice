@@ -37,5 +37,7 @@ void anexar_cabecalho_questao_circulos( GString *tex, gint k, gint num_questao )
 void anexar_tema_pagina_hexagonos( GString *tex, gint k );
 void anexar_cabecalho_questao_hexagonos( GString *tex, gint k, gint num_questao );
 
+gboolean gerar_latex_cards_atipicidades( const AppContext *ctx, gchar *arq_tex );
+
 
 #endif

@@ -1333,12 +1333,12 @@ void disparar_latex( const char *nome_base, const char *pasta_destino,
    }
 
    // 2. Mover nativamente com a API do GIO
-   if ( !gio_mover_arquivo( path_pdf_temp, path_pdf_final ) ) {
+   if ( !gio_copiar_arquivo( path_pdf_temp, path_pdf_final ) ) {
       g_printerr( "Falha ao mover o PDF final de '%s' para '%s'.\n", path_pdf_temp, path_pdf_final );
    }
 
    // 3. Limpeza seletiva e nativa
-   apagar_arquivos_temporarios_latex_nativamente( dir_temp, nome_base, 4 );
+   apagar_temporarios_latex_serial( dir_temp, nome_base, -1 );
 
    // 4. Abertura do documento usando a função assíncrona xdg-open wrapper
    g_xdg_open( path_pdf_final );

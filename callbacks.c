@@ -2025,7 +2025,7 @@ void on_button_config_atipicidade_clicked( GtkWidget *widget, gpointer user_data
 
    if ( ui_diario_mudar_aba_lc( config->stack_pages, "page_atipicidades" ) ) {
       config_atualizar_css_botoes( config, widget );
-      // inicializar_aba_atipicidades( ctx );
+      // inicializar_flowbox_atipicidades( ctx );
    }
 }
 //-----------------------------------------------------------------------------------------
@@ -2069,6 +2069,16 @@ void on_combo_suporte_tea_changed( GtkWidget *widget, gpointer user_data ) {
    }
 
    logica_suporte_tea( widget, ctx );
+}
+//-------------------------------------------------------------------------
+void on_button_relatorio_atipicidades_clicked( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( widget != NULL && GTK_IS_BUTTON( widget ) );
+   AppContext *ctx = ( AppContext * )user_data;
+   if ( !ctx ) {
+      return;
+   }
+
+   relatorio_atipicidades( ctx );
 }
 //-------------------------------------------------------------------------
 // Executada quando o usuário clica em qualquer card dentro do FlowBox

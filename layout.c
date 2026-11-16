@@ -391,6 +391,7 @@ static const MapaCheckAtipico MAPA_CHECKS_ATIPICOS[] = {
    {  7, ATIPICO_TOD,                 "check_atipico_8"  },
    {  8, ATIPICO_ANSIEDADE_DEPRESSAO, "check_atipico_9"  },
    {  9, ATIPICO_MUTISMO_SELETIVO,    "check_atipico_10" },
+   { 20, ATIPICO_TRANSTORNO_CONDUTA,  "check_atipico_21" },
 
    // 3. Deficiências Físicas, Sensoriais e Múltiplas
    { 10, ATIPICO_SINDROME_DOWN,       "check_atipico_11" },
@@ -424,6 +425,7 @@ static void mapear_aba_config_lc( AppContext *ctx, GtkBuilder *builder ) {
    gtk_widget_set_sensitive( config->btn_sub_aba_geral, FALSE );
 
    // Widgets internos da sub-aba Atipicidades
+   config->atipicidade.btn_relatorio     = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_atipicidades" ) );
    config->atipicidade.flowbox           = GTK_WIDGET( gtk_builder_get_object( builder, "flowbox_atipicidades" ) );
    config->atipicidade.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos_atipicos" ) );
    config->atipicidade.combo_suporte_tea = GTK_WIDGET( gtk_builder_get_object( builder, "combo_suporte_tea" ) );
@@ -439,6 +441,12 @@ static void mapear_aba_config_lc( AppContext *ctx, GtkBuilder *builder ) {
 
       if ( chk != NULL ) {
          config->atipicidade.checks[bit_idx] = chk;
+
+         // GtkWidget *label = gtk_bin_get_child( GTK_BIN( chk ) );
+         // if ( GTK_IS_LABEL( label ) ) {
+         //    gtk_label_set_ellipsize( GTK_LABEL( label ), PANGO_ELLIPSIZE_END );
+         // }
+
          // Embute o índice do bit diretamente no GObject para acesso O(1) na callback
          g_object_set_data( G_OBJECT( chk ), "bit_idx", GINT_TO_POINTER( bit_idx + 1 ) );
       }
@@ -495,7 +503,7 @@ static void aplicar_espacamentos_interface_lc( AppContext *ctx, GtkBuilder *buil
    }
 
    // Espaçamento nos Labels Internos dos Botões (Usando a nova topologia)
-   GtkWidget *widgets_botoes[22] = {
+   GtkWidget *widgets_botoes[23] = {
       diario->relatorio.btn_consolidar,
       diario->avaliacao.btn_nova_avaliacao,
       diario->avaliacao.btn_salvar,
@@ -517,10 +525,11 @@ static void aplicar_espacamentos_interface_lc( AppContext *ctx, GtkBuilder *buil
       config->acervo.btn_salvar,
       config->btn_sub_aba_atipicidades,
       config->btn_sub_aba_geral,
-      config->geral.btn_salvar
+      config->geral.btn_salvar,
+      config->atipicidade.btn_relatorio
    };
 
-   for ( int i = 0; i < 22; i++ ) {
+   for ( int i = 0; i < 23; i++ ) {
       if ( widgets_botoes[i] ) {
          ui_button_label_aplicar_espacamento_manual_lc( widgets_botoes[i], 1 );
       }

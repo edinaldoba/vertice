@@ -286,4 +286,60 @@ GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista
 
 
 
+/* Substitui a extensão de um arquivo retornando uma nova string alocada na Heap */
+char* trocar_extensao_arquivo( const char *caminho_orig, const char *nova_ext ) {
+   g_return_val_if_fail( caminho_orig != NULL && nova_ext != NULL, NULL );
 
+   const char *ponto = g_strrstr( caminho_orig, "." );
+   const char *barra = g_strrstr( caminho_orig, G_DIR_SEPARATOR_S );
+
+   // Garante que o ponto pertence ao nome do arquivo e não a uma pasta oculta anterior
+   if ( ponto != NULL && ( barra == NULL || ponto > barra ) ) {
+      return g_strdup_printf( "%.*s.%s", ( int )( ponto - caminho_orig ), caminho_orig, nova_ext );
+   }
+   return g_strdup_printf( "%s.%s", caminho_orig, nova_ext );
+}
+
+
+
+
+// =======================================================================================================
+void apagar_temporarios_latex_serial( const gchar *diretorio, const gchar *nome_base, gint n_tipos ) {
+   g_return_if_fail( diretorio != NULL && *diretorio != '\0' );
+   g_return_if_fail( nome_base != NULL && *nome_base != '\0' );
+
+   static const gchar * const EXTENSOES[] = {
+      "aux", "log", "tex", "synctex.gz", "pdf"
+   };
+
+   const gint max_tipos = ( gint )G_N_ELEMENTS( EXTENSOES );
+   const gint limite    = ( n_tipos < 0 ) ? max_tipos : CLAMP( n_tipos, 0, max_tipos );
+
+   for ( gint i = 0; i < limite; i++ ) {
+      g_autofree gchar *nome_arquivo = trocar_extensao_arquivo( nome_base, EXTENSOES[i] );
+      g_autofree gchar *caminho_completo = g_build_filename( diretorio, nome_arquivo, NULL );
+
+      if ( g_file_test( caminho_completo, G_FILE_TEST_IS_REGULAR ) ) {
+         g_remove( caminho_completo );
+      }
+   }
+}
+//-----------------------------------------------------------------------------------------------------
+void apagar_temporarios_latex_paralelo( const gchar *diretorio, GStrv nomes_base, gint n_tipos ) {
+   g_return_if_fail( diretorio != NULL && *diretorio != '\0' );
+   g_return_if_fail( nomes_base != NULL );
+
+   if ( n_tipos == 0 ) {
+      return;
+   }
+
+   for ( guint i = 0; nomes_base[i] != NULL; i++ ) {
+      if ( *nomes_base[i] == '\0' ) {
+         continue;
+      }
+
+      // 3. Reutiliza a versão serial para remover os artefatos daquela instância
+      apagar_temporarios_latex_serial( diretorio, nomes_base[i], n_tipos );
+   }
+}
+// =======================================================================================================

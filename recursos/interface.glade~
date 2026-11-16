@@ -1955,7 +1955,6 @@
                         <property name="spacing">10</property>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">380</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="margin-top">3</property>
@@ -2002,14 +2001,14 @@
                             </child>
                             <child>
                               <object class="GtkScrolledWindow" id="scrolled_subtemas_disponiveis1">
-                                <property name="width-request">380</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="min-content-width">390</property>
+                                <property name="max-content-width">390</property>
                                 <property name="propagate-natural-width">True</property>
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">380</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -2036,7 +2035,6 @@
                         </child>
                         <child>
                           <object class="GtkBox" id="box_configuracoes">
-                            <property name="width-request">797</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="margin-top">3</property>
@@ -2663,8 +2661,8 @@
                             </child>
                           </object>
                           <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">False</property>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
@@ -2769,7 +2767,6 @@
                         <property name="spacing">10</property>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">380</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="margin-top">3</property>
@@ -2816,14 +2813,14 @@
                             </child>
                             <child>
                               <object class="GtkScrolledWindow" id="scrolled_subtemas_disponiveis">
-                                <property name="width-request">380</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="min-content-width">390</property>
+                                <property name="max-content-width">390</property>
                                 <property name="propagate-natural-width">True</property>
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">380</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -2850,7 +2847,6 @@
                         </child>
                         <child>
                           <object class="GtkBox">
-                            <property name="width-request">783</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="margin-top">3</property>
@@ -2998,7 +2994,6 @@
                             </child>
                             <child>
                               <object class="GtkScrolledWindow" id="scrolled_subtemas_selecionados">
-                                <property name="width-request">783</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="shadow-type">in</property>
@@ -3006,7 +3001,6 @@
                                 <property name="propagate-natural-height">True</property>
                                 <child>
                                   <object class="GtkViewport">
-                                    <property name="width-request">783</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -3030,8 +3024,8 @@
                             </child>
                           </object>
                           <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">False</property>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
@@ -3135,17 +3129,17 @@
                 </child>
                 <child>
                   <object class="GtkBox" id="box_aba_config">
+                    <property name="width-request">1201</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="margin-start">10</property>
                     <property name="margin-end">10</property>
                     <property name="margin-top">15</property>
-                    <property name="margin-bottom">10</property>
+                    <property name="margin-bottom">15</property>
                     <property name="orientation">vertical</property>
-                    <property name="spacing">15</property>
+                    <property name="spacing">20</property>
                     <child>
                       <object class="GtkBox" id="box_nav_config">
-                        <property name="height-request">45</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="halign">center</property>
@@ -3232,17 +3226,21 @@
                           <object class="GtkBox" id="box_config_atipicidades">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="spacing">10</property>
+                            <property name="spacing">15</property>
                             <child>
                               <object class="GtkBox">
+                                <property name="width-request">540</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="orientation">vertical</property>
                                 <property name="spacing">15</property>
                                 <child>
                                   <object class="GtkComboBox" id="combo_alunos_atipicos">
+                                    <property name="height-request">45</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
+                                    <property name="margin-start">3</property>
+                                    <property name="margin-end">3</property>
                                     <property name="model">liststore_combo_aluno</property>
                                     <child>
                                       <object class="GtkCellRendererText"/>
@@ -3263,6 +3261,7 @@
                                   <object class="GtkScrolledWindow" id="scrolled_atipicidades">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="min-content-width">540</property>
                                     <property name="max-content-width">540</property>
                                     <property name="max-content-height">0</property>
                                     <property name="propagate-natural-width">True</property>
@@ -3292,7 +3291,7 @@
                                                         <property name="visible">True</property>
                                                         <property name="can-focus">True</property>
                                                         <property name="receives-default">False</property>
-                                                        <property name="tooltip-text" translatable="yes">TEA (CID-10: F84 / CID-11: 6A02 — Níveis 1, 2 e 3)</property>
+                                                        <property name="tooltip-text" translatable="yes">TEA (CID-10: F84, F84.0 / CID-11: 6A02, 6A02.0 — Níveis 1, 2 e 3)</property>
                                                         <property name="draw-indicator">True</property>
                                                       </object>
                                                       <packing>
@@ -3305,7 +3304,7 @@
                                                       <object class="GtkComboBoxText" id="combo_suporte_tea">
                                                         <property name="visible">True</property>
                                                         <property name="can-focus">False</property>
-                                                        <property name="tooltip-text" translatable="yes">Nível Suporte TEA</property>
+                                                        <property name="tooltip-text" translatable="yes">Nível de Suporte TEA (1, 2 ou 3)</property>
                                                         <property name="active">0</property>
                                                         <items>
                                                           <item translatable="yes">N/A</item>
@@ -3335,7 +3334,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TDAH (CID-10: F90 / CID-11: 6A05)</property>
+                                                    <property name="tooltip-text" translatable="yes">TDAH (CID-10: F90, F90.0 / CID-11: 6A05 — DDA / TDAH)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3352,7 +3351,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DI (CID-10: F70–F79 / CID-11: 6A00) — DI (Leve/Moderada)</property>
+                                                    <property name="tooltip-text" translatable="yes">DI (CID-10: F70, F70.0, F70.1, F71, F71.0, F71.8, F72–F79 / CID-11: 6A00, 6E60 — DI Leve/Moderada)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3369,7 +3368,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TA (CID-10: F81 / CID-11: 6A03 — Dislexia, Discalculia, Disgrafia)</property>
+                                                    <property name="tooltip-text" translatable="yes">TA (CID-10: F81, F81.0–F81.9 / CID-11: 6A03 — Dislexia, Discalculia, Disgrafia)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3386,7 +3385,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TPAC (CID-10: H93.25 / CID-11: AB5Y)</property>
+                                                    <property name="tooltip-text" translatable="yes">TPAC (CID-10: H93.25 / CID-11: AB5Y — Dificuldade de Processamento Auditivo)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3403,7 +3402,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">AH/SD (Classificação MEC / Censo Escolar)</property>
+                                                    <property name="tooltip-text" translatable="yes">AH/SD (CID-10: Z55.8 / Classificação MEC — Censo Escolar / AEE)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3416,11 +3415,11 @@
                                                 <property name="can-focus">True</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="check_atipico_7">
-                                                    <property name="label" translatable="yes">TM - Transtorno Mental Grave</property>
+                                                    <property name="label" translatable="yes">TM - Transtorno Mental</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TM (CID-10: F20, F31 / CID-11: 6A20, 6A60 — Esquizofrenia, Bipolaridade)</property>
+                                                    <property name="tooltip-text" translatable="yes">TM (CID-10: F31, F31.6, F20 / CID-11: 6A60, 6A20 — Transtorno Bipolar, Esquizofrenia)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3437,7 +3436,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TOD (CID-10: F91.3 / CID-11: 6C90)</property>
+                                                    <property name="tooltip-text" translatable="yes">TOD (CID-10: F91.3 / CID-11: 6C90 — Comportamento Opositor/Desafiador)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3454,7 +3453,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">TE (CID-10: F32, F41 / CID-11: 6A70, 6B00)</property>
+                                                    <property name="tooltip-text" translatable="yes">TE (CID-10: F32, F41, F41.0 / CID-11: 6A70, 6B00, 6B01 — Depressão, Ansiedade, Pânico)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3471,7 +3470,24 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">MS (CID-10: F94.0 / CID-11: 6B06)</property>
+                                                    <property name="tooltip-text" translatable="yes">MS (CID-10: F94.0 / CID-11: 6B06 — Mutismo Seletivo)</property>
+                                                    <property name="draw-indicator">True</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="height-request">45</property>
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">True</property>
+                                                <child>
+                                                  <object class="GtkCheckButton" id="check_atipico_21">
+                                                    <property name="label" translatable="yes">TC - Transtorno de Conduta</property>
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">True</property>
+                                                    <property name="receives-default">False</property>
+                                                    <property name="tooltip-text" translatable="yes">TC (CID-10: F91.0, F91.1, F91.2 / CID-11: 6C91 — Transtorno de Conduta Socializado/Regras)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3488,7 +3504,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DOWN (CID-10: Q90 / CID-11: LD40.0)</property>
+                                                    <property name="tooltip-text" translatable="yes">DOWN (CID-10: Q90, Q90.0–Q90.9 / CID-11: LD40.0 — Trissomia 21)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3505,7 +3521,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">PC (CID-10: G80 / CID-11: 8D20 — Requer adaptação motora)</property>
+                                                    <property name="tooltip-text" translatable="yes">PC (CID-10: G80, G80.0–G80.9, G80.8 / CID-11: 8D20 — Monoplégica / Adaptação Motora)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3522,7 +3538,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DF (CID-10: G81–G83, M00–M99 / CID-11: 8B40–8D8Z — ex.: Cadeirante)</property>
+                                                    <property name="tooltip-text" translatable="yes">DF (CID-10: G81–G83, M00–M99 / CID-11: 8B40–8D8Z — ex.: Cadeirante / Mobilidade Reduzida)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3539,7 +3555,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DA (CID-10: H90 / CID-11: AB51 — LIBRAS / Leitura Labial)</property>
+                                                    <property name="tooltip-text" translatable="yes">DA (CID-10: H90, H91 / CID-11: AB50, AB51 — LIBRAS / Leitura Labial)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3556,7 +3572,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DV (CID-10: H54 / CID-11: 9D90 — Braille / Fonte Ampliada)</property>
+                                                    <property name="tooltip-text" translatable="yes">DV (CID-10: H54, H54.0–H54.9 / CID-11: 9D90 — Braille / Fonte Ampliada)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3573,7 +3589,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">SC (CID-10: H90 + H54 / CID-11: AB51 + 9D90 — Categoria AEE específica)</property>
+                                                    <property name="tooltip-text" translatable="yes">SC (CID-10: H90 + H54 / CID-11: AB51 + 9D90 — Categoria AEE Específica)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3590,7 +3606,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DM (Associação de duas ou mais deficiências primárias — Censo MEC)</property>
+                                                    <property name="tooltip-text" translatable="yes">DM (CID-10: F84/F70 + G80/H90/H54 — Associação de duas ou mais deficiências primárias / Censo MEC)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3607,7 +3623,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">EP (CID-10: G40 / CID-11: 8A60 — Requer protocolo de crise em sala)</property>
+                                                    <property name="tooltip-text" translatable="yes">EP (CID-10: G40, G40.3 / CID-11: 8A60 — Requer protocolo de crise em sala)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3624,7 +3640,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
-                                                    <property name="tooltip-text" translatable="yes">DC (CID-10: E10–E14, I00–I99, T78.4 — Diabetes, Cardiopatias, Alergias severas)</property>
+                                                    <property name="tooltip-text" translatable="yes">DC (CID-10: E10–E14, I00–I99, J45, T78.4 / CID-11: 5A10, CA23 — Diabetes, Cardiopatias, Asma, Alergias severas)</property>
                                                     <property name="draw-indicator">True</property>
                                                   </object>
                                                 </child>
@@ -3709,7 +3725,7 @@
                                   <packing>
                                     <property name="expand">True</property>
                                     <property name="fill">True</property>
-                                    <property name="position">1</property>
+                                    <property name="position">2</property>
                                   </packing>
                                 </child>
                               </object>
@@ -3724,9 +3740,37 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="orientation">vertical</property>
+                                <property name="spacing">15</property>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="width-request">0</property>
+                                    <property name="height-request">45</property>
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="halign">center</property>
+                                    <child>
+                                      <object class="GtkButton" id="button_relatorio_atipicidades">
+                                        <property name="label" translatable="yes">GERAR  DOCUMENTO</property>
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">True</property>
+                                        <property name="tooltip-text" translatable="yes">Gerar relatório de atipicidades diagramado em tikz latex.</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">True</property>
+                                        <property name="fill">False</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
                                 <child>
                                   <object class="GtkScrolledWindow" id="scrolled_atipicidades_atribuidas">
-                                    <property name="width-request">380</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="max-content-width">0</property>
@@ -3742,6 +3786,7 @@
                                           <object class="GtkFlowBox" id="flowbox_atipicidades">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
+                                            <property name="valign">start</property>
                                             <property name="column-spacing">10</property>
                                             <property name="row-spacing">10</property>
                                             <property name="max-children-per-line">2</property>

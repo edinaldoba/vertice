@@ -633,6 +633,9 @@ static void conectar_sinais_aba_config_lc( AppContext *ctx ) {
    atip->handler_combo_suporte_tea = g_signal_connect( atip->combo_suporte_tea, "changed",
                                      G_CALLBACK( on_combo_suporte_tea_changed ), ctx );
 
+   g_signal_connect( config->atipicidade.btn_relatorio, "clicked",
+                     G_CALLBACK( on_button_relatorio_atipicidades_clicked ), ctx );
+
    g_signal_connect( atip->flowbox, "child-activated",
                      G_CALLBACK( on_flowbox_atipicidades_child_activated ), ctx );
 }

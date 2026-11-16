@@ -156,6 +156,7 @@ void on_button_config_acervo_clicked( GtkWidget *widget, gpointer user_data );
 void on_check_logica_atipicidades_toggled( GtkWidget *widget, gpointer user_data );
 void on_combo_logica_alunos_atipicos_changed( GtkWidget *widget, gpointer user_data );
 void on_combo_suporte_tea_changed( GtkWidget *widget, gpointer user_data );
+void on_button_relatorio_atipicidades_clicked( GtkWidget *widget, gpointer user_data );
 void on_flowbox_atipicidades_child_activated( GtkFlowBox *flowbox, GtkFlowBoxChild *child, gpointer user_data );
 
 

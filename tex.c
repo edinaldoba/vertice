@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <math.h>
 
+#include "comum.h"
 #include "tex.h"
 
 
@@ -1043,4 +1044,353 @@ void anexar_cabecalho_questao_hexagonos( GString *tex, gint k, gint num_questao 
    g_string_append( tex, "}}\\\\\n" );
 }
 //=======================================================================================================
+
+
+
+
+
+
+/*** RELÁTÓRIO TEX DE ALUNOS ATÍPICOS ***/
+
+// Converte "AAAA/MM/DD" para "DD/MM/AAAA"
+static char *converter_data_para_ptbr_lc( const char *data_aaaa_mm_dd ) {
+   if ( !data_aaaa_mm_dd || strlen( data_aaaa_mm_dd ) < 10 ) {
+      return NULL;
+   }
+
+   // A string original tem posições fixas:
+   // AAAA (0-3), / (4), MM (5-6), / (7), DD (8-9)
+   // Queremos montar: DD (8-9) + '/' + MM (5-6) + '/' + AAAA (0-3)
+
+   return g_strdup_printf( "%.2s/%.2s/%.4s",
+                           data_aaaa_mm_dd + 8, // Dia
+                           data_aaaa_mm_dd + 5, // Mês
+                           data_aaaa_mm_dd );   // Ano
+}
+
+
+// ====================================================================================
+// 1. SANITIZAÇÃO DE STRINGS PARA LATEX (USO INTENSIVO DE GString)
+// Escapa caracteres especiais (&, %, $, #, _, {, }) caso ocorram em nomes/textos
+// ====================================================================================
+static gchar *escapar_texto_latex_lc( const gchar *texto ) {
+   if ( !texto || *texto == '\0' ) {
+      return g_strdup( "---" );
+   }
+
+   GString *str = g_string_sized_new( strlen( texto ) + 16 );
+
+   for ( const gchar *p = texto; *p != '\0'; p++ ) {
+      switch ( *p ) {
+      case '&':
+         g_string_append( str, "\\&" );
+         break;
+      case '%':
+         g_string_append( str, "\\%" );
+         break;
+      case '$':
+         g_string_append( str, "\\$" );
+         break;
+      case '#':
+         g_string_append( str, "\\#" );
+         break;
+      case '_':
+         g_string_append( str, "\\_" );
+         break;
+      case '{':
+         g_string_append( str, "\\{" );
+         break;
+      case '}':
+         g_string_append( str, "\\}" );
+         break;
+      default:
+         g_string_append_c( str, *p );
+         break;
+      }
+   }
+
+   return g_string_free( str, FALSE );
+}
+
+// ====================================================================================
+// 2. MAPEAMENTO DE COR DA SÉRIE (SINCRONIZADO COM O professor.sty)
+// ====================================================================================
+static const gchar *obter_opcao_cor_serie_lc( int foco_cor_serie ) {
+   static const gchar * const OPCOES_SERIE[] = {
+      "primeiro", // 0: Padrão (AzulProfessor)
+      "segundo",  // 1: VerdeEscola
+      "terceiro", // 2: VinhoDestaque
+      "sexto",    // 3: LaranjaSexto
+      "setimo",   // 4: TurquesaSetimo
+      "oitavo",   // 5: RoxoOitavo
+      "nono"      // 6: GrafiteNono
+   };
+
+   if ( foco_cor_serie >= 0 && ( gsize )foco_cor_serie < G_N_ELEMENTS( OPCOES_SERIE ) ) {
+      return OPCOES_SERIE[foco_cor_serie];
+   }
+   return "primeiro";
+}
+
+// ====================================================================================
+// 3. COR DO MINI-CARD TIKZ POR CATEGORIA DE ATIPICIDADE (PALETA professor.sty)
+// ====================================================================================
+static const gchar *obter_cor_categoria_bit_lc( int bit ) {
+   if ( bit >= 0 && bit <= 5 ) {
+      return "CorSerie";       // 1. Neurodesenvolvimento e Aprendizagem
+   }
+   if ( ( bit >= 6 && bit <= 9 ) || bit == 20 ) {
+      return "RoxoElegante";   // 2. Transtornos Mentais, Emocionais e Comportamentais
+   }
+   if ( bit >= 10 && bit <= 16 ) {
+      return "VerdeSucesso";   // 3. Deficiências Físicas, Sensoriais e Múltiplas
+   }
+   if ( bit >= 17 && bit <= 19 ) {
+      return "LaranjaAlerta";  // 4. Condições Médicas e Contexto Escolar
+   }
+   return "VermelhoProva";     // 5. Metadados e Validação Pedagógica (LAUDO, ADAPT, OBS)
+}
+
+// ====================================================================================
+// 4. GERADOR DO ARQUIVO .TEX DE CARDS TIKZ DOS ALUNOS ATÍPICOS
+// Grava em ./dados/temporarios/cards_atipicidades.tex (ou a partir de dados->raiz)
+// ====================================================================================
+gboolean gerar_latex_cards_atipicidades( const AppContext *ctx, gchar *arq_tex ) {
+   g_return_val_if_fail( ctx != NULL, FALSE );
+
+   const InterfaceDados       *dados   = &ctx->dados;
+   const InterfaceAtipicidade *atip    = &ctx->config.atipicidade;
+   const GPtrArray            *fichas  = ctx->diario.fichas;
+
+   // 2. Sanitiza metadados do cabeçalho oriundos de ctx->dados
+   g_autofree gchar *esc_escola     = escapar_texto_latex_lc( dados->escola );
+   g_autofree gchar *esc_turma      = escapar_texto_latex_lc( dados->turma );
+   g_autofree gchar *esc_disciplina = escapar_texto_latex_lc( dados->disciplina );
+   g_autofree gchar *esc_periodo    = escapar_texto_latex_lc( dados->periodo );
+   g_autofree gchar *esc_ano        = escapar_texto_latex_lc( dados->ano );
+   g_autofree gchar *esc_professor  = escapar_texto_latex_lc( dados->professor );
+
+   g_autoptr( GDateTime ) agora = g_date_time_new_now_local();
+   g_autofree gchar *data_hora  = g_date_time_format( agora, "%d/%m/%Y às %H:%M" );
+
+   const gchar *opcao_serie = obter_opcao_cor_serie_lc( dados->foco_cor_serie );
+
+   // 3. Contabiliza o total de alunos atípicos ativos na turma
+   guint qtd_atipicos = 0;
+   if ( fichas != NULL ) {
+      for ( guint i = 0; i < fichas->len; i++ ) {
+         const FichaAluno *f = ( const FichaAluno * )g_ptr_array_index( fichas, i );
+         if ( f && f->ativo && f->atipico.flags != ATIPICO_NENHUM ) {
+            qtd_atipicos++;
+         }
+      }
+   }
+
+   // 4. Monta o código LaTeX completo em memória usando GString
+   g_autoptr( GString ) tex = g_string_sized_new( 16384 );
+
+   g_string_append_printf( tex,
+                           "%% ============================================================================\n"
+                           "%% PROJETO VÉRTICE - MAPEAMENTO DE ATIPICIDADES E EDUCAÇÃO INCLUSIVA (AEE)\n"
+                           "%% Gerado automaticamente em %s\n"
+                           "%% ============================================================================\n"
+                           "\\documentclass[10pt,a4paper]{article}\n"
+                           "\\usepackage[utf8]{inputenc}\n"
+                           "\\usepackage[T1]{fontenc}\n"
+                           "\\usepackage[brazil]{babel}\n"
+                           "\\usepackage[top=1.4cm,bottom=1.6cm,left=1.2cm,right=1.2cm]{geometry}\n"
+                           "\\usepackage{helvet}\n"
+                           "\\renewcommand{\\familydefault}{\\sfdefault}\n"
+                           "\\usepackage[%s]{professor}\n"
+                           "\\usepackage{fancyhdr}\n\n"
+                           "%% --- Configuração de Rodapé Institucional ---\n"
+                           "\\pagestyle{fancy}\n"
+                           "\\fancyhf{}\n"
+                           "\\renewcommand{\\headrulewidth}{0pt}\n"
+                           "\\renewcommand{\\footrulewidth}{0.4pt}\n"
+                           "\\lfoot{\\footnotesize \\textbf{Projeto Vértice} --- Mapeamento AEE / Educação Inclusiva}\n"
+                           "\\cfoot{\\footnotesize %s}\n"
+                           "\\rfoot{\\footnotesize %s --- Pág. \\thepage}\n\n"
+                           "%% --- Estilos TikZ para os Cards e Mini-Cards ---\n"
+                           "\\tikzset{\n"
+                           "  cardaluno/.style={\n"
+                           "    draw=CorSerie!85!black,\n"
+                           "    line width=1.1pt,\n"
+                           "    rounded corners=5pt,\n"
+                           "    fill=CorSerie!4,\n"
+                           "    inner sep=7pt\n"
+                           "  },\n"
+                           "  minicard/.style={\n"
+                           "    draw=#1!75!black,\n"
+                           "    line width=0.6pt,\n"
+                           "    rounded corners=3pt,\n"
+                           "    fill=#1!10,\n"
+                           "    inner xsep=6pt,\n"
+                           "    inner ysep=4pt\n"
+                           "  },\n"
+                           "  badgetipo/.style={\n"
+                           "    fill=#1,\n"
+                           "    text=white,\n"
+                           "    rounded corners=2pt,\n"
+                           "    inner xsep=4pt,\n"
+                           "    inner ysep=1.5pt,\n"
+                           "    font=\\fontsize{7}{8}\\selectfont\\bfseries\n"
+                           "  }\n"
+                           "}\n\n"
+                           "\\begin{document}\n\n",
+                           data_hora ? data_hora : "",
+                           opcao_serie,
+                           esc_disciplina,
+                           esc_escola
+                         );
+
+   // 5. Cabeçalho Principal em TikZ
+   g_string_append_printf( tex,
+                           "%% --- CABEÇALHO DA TURMA EM TIKZ ---\n"
+                           "\\noindent\n"
+                           "\\begin{tikzpicture}\n"
+                           "  \\node[draw=CorSerie, line width=1.3pt, rounded corners=6pt, fill=CorSerie!8,\n"
+                           "        inner sep=9pt, text width=\\dimexpr\\textwidth-20pt\\relax] (cab) {\n"
+                           "    \\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}ll@{}}\n"
+                           "      {\\Large\\bfseries\\color{CorSerie} %s} & "
+                           "{\\normalsize\\bfseries Ano Let.: %s --- %s} \\\\[4pt]\n"
+                           "      {\\small\\textbf{Turma:} %s \\quad|\\quad \\textbf{Disciplina:} %s \\quad|\\quad \\textbf{Prof.:} %s} & "
+                           "{\\small\\textbf{Ativos:} %d \\quad|\\quad \\textbf{Atípicos:} \\textcolor{VermelhoProva}{\\textbf{%u}}}\n"
+                           "    \\end{tabular*}\n"
+                           "  };\n"
+                           "\\end{tikzpicture}\n\n"
+                           "\\vspace{0.25cm}\n",
+                           esc_escola, esc_ano, esc_periodo,
+                           esc_turma, esc_disciplina, esc_professor,
+                           dados->qtd_alunos_ativos, qtd_atipicos
+                         );
+
+   // 6. Caso a turma não possua estudantes atípicos ativos
+   if ( qtd_atipicos == 0 ) {
+      g_string_append( tex,
+                       "\\vspace{1cm}\n"
+                       "\\begin{center}\n"
+                       "  \\begin{tikzpicture}\n"
+                       "    \\node[draw=CinzaLinha, dashed, rounded corners=5pt, fill=black!3, inner sep=14pt] {\n"
+                       "      \\large\\textbf{Nenhum estudante atípico ativo registrado nesta turma.}\n"
+                       "    };\n"
+                       "  \\end{tikzpicture}\n"
+                       "\\end{center}\n"
+                     );
+   } else {
+      // 7. Diagramação dos Cards em 2 Colunas (Espelhando o GtkFlowBox)
+      g_string_append( tex,
+                       "\\setlength{\\columnsep}{12pt}\n"
+                       "\\begin{multicols}{2}\n"
+                       "\\raggedcolumns\n\n"
+                     );
+
+      for ( guint i = 0; i < fichas->len; i++ ) {
+         const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( fichas, i );
+         if ( !ficha || !ficha->ativo || ficha->atipico.flags == ATIPICO_NENHUM ) {
+            continue;
+         }
+
+         g_autofree gchar *esc_nome = escapar_texto_latex_lc( ficha->aluno );
+         // g_autofree gchar *esc_nasc = escapar_texto_latex_lc( ficha->nasc );
+         g_autofree gchar *esc_nasc = converter_data_para_ptbr_lc( ficha->nasc );
+
+         // Badges rápidos de cabeçalho (Laudado / Prova Adaptada)
+         gboolean tem_laudo = ( ( ficha->atipico.flags & ATIPICO_LAUDADO ) != 0 );
+         gboolean tem_adapt = ( ( ficha->atipico.flags & ATIPICO_PROVA_ADAPTADA ) != 0 );
+
+         g_string_append_printf( tex,
+                                 "%% --- Card do Aluno %.2u ---\n"
+                                 "\\noindent\\begin{minipage}{\\columnwidth}\n"
+                                 "\\vspace{2pt}\n"
+                                 "\\begin{tikzpicture}\n"
+                                 "  \\node[cardaluno, text width=\\dimexpr\\columnwidth-16pt\\relax] {\n"
+                                 "    %% Barra de Título do Card\n"
+                                 "    \\begin{tikzpicture}\n"
+                                 "      \\node[fill=CorSerie, text=white, rounded corners=3pt, inner xsep=6pt, inner ysep=4pt,\n"
+                                 "            text width=\\dimexpr\\linewidth-12pt\\relax] {\n"
+                                 "        \\textbf{%.2u --- %s}\\hfill\n"
+                                 "        {\\scriptsize %s%s}\n"
+                                 "      };\n"
+                                 "    \\end{tikzpicture}\\\\[4pt]\n"
+                                 "    {\\scriptsize\\color{black!70} \\textbf{Cód. SIAEP:} %u \\hfill \\textbf{Nasc.:} %s}\\\\[5pt]\n",
+                                 i + 1U,
+                                 i + 1U, esc_nome,
+                                 tem_laudo ? "[LAUDO] " : "",
+                                 tem_adapt ? "[ADAPTADA]" : "",
+                                 ficha->cod_aluno, esc_nasc
+                               );
+
+         // Mini-cards internos para cada bit ativo na máscara de 31 bits
+         for ( int bit = 0; bit < MAX_FLAGS_ATIPICIDADES; bit++ ) {
+            if ( ( ( guint32 )ficha->atipico.flags & ( 1U << ( guint )bit ) ) == 0U ) {
+               continue;
+            }
+
+            GtkWidget   *chk_ref     = atip->checks[bit];
+            const gchar *label_bruto = ( chk_ref != NULL )
+                                       ? gtk_button_get_label( GTK_BUTTON( chk_ref ) )
+                                       : "Atipicidade Registrada";
+            g_autofree gchar *tooltip_bruto = ( chk_ref != NULL )
+                                              ? gtk_widget_get_tooltip_text( chk_ref )
+                                              : NULL;
+
+            g_autofree gchar *texto_principal = NULL;
+            if ( bit == 0 && ficha->atipico.nivel_suporte_tea >= 1 && ficha->atipico.nivel_suporte_tea <= 3 ) {
+               texto_principal = g_strdup_printf( "%s (Nível %u)", label_bruto, ( guint )ficha->atipico.nivel_suporte_tea );
+            } else {
+               texto_principal = g_strdup( label_bruto );
+            }
+
+            g_autofree gchar *esc_label   = escapar_texto_latex_lc( texto_principal );
+            g_autofree gchar *esc_tooltip = tooltip_bruto ? escapar_texto_latex_lc( tooltip_bruto ) : NULL;
+
+            const gchar *cor_cat = obter_cor_categoria_bit_lc( bit );
+
+            g_string_append_printf( tex,
+                                    "    \\begin{tikzpicture}\n"
+                                    "      \\node[minicard=%s, text width=\\dimexpr\\linewidth-14pt\\relax] {\n"
+                                    "        {\\footnotesize\\bfseries\\color{%s!85!black} $\\bullet$ %s}",
+                                    cor_cat, cor_cat, esc_label
+                                  );
+
+            // Acrescenta a dica de ferramenta (CID-10 / CID-11) em fonte discreta logo abaixo do título do mini-card
+            if ( esc_tooltip != NULL && *esc_tooltip != '\0' ) {
+               g_string_append_printf( tex,
+                                       "\\\\[1pt]\n"
+                                       "        {\\scriptsize\\color{black!75} %s}\n",
+                                       esc_tooltip
+                                     );
+            } else {
+               g_string_append( tex, "\n" );
+            }
+
+            g_string_append( tex,
+                             "      };\n"
+                             "    \\end{tikzpicture}\\\\[3pt]\n"
+                           );
+         }
+
+         g_string_append( tex,
+                          "  };\n"
+                          "\\end{tikzpicture}\n"
+                          "\\vspace{6pt}\n"
+                          "\\end{minipage}\n\n"
+                        );
+      }
+
+      g_string_append( tex, "\\end{multicols}\n" );
+   }
+
+   g_string_append( tex, "\n\\end{document}\n" );
+
+   // 8. Gravação atômica no disco via GLib
+   g_autoptr( GError ) erro = NULL;
+   if ( !g_file_set_contents( arq_tex, tex->str, ( gssize )tex->len, &erro ) ) {
+      g_warning( "Vértice: Erro ao gravar '%s': %s", arq_tex, erro ? erro->message : "desconhecido" );
+      return FALSE;
+   }
+
+   return TRUE;
+}
 

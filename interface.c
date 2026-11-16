@@ -790,7 +790,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    // ========================================================================
    // Sincroniza os check buttons da interface e recria todos os mini-cards do
    // flowbox dinamicamente para garantir que a UI reflita os dados reais da RAM.
-   inicializar_aba_atipicidades( ctx );
+   inicializar_flowbox_atipicidades( ctx );
 
    // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
@@ -1001,6 +1001,8 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    // ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "LATEX", "SEDUC", NULL );
    ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "Vértice", NULL );
    dados->raiz = ctx->caminho.raiz;
+   ctx->caminho.temp = g_build_filename( ctx->caminho.raiz, "dados", "temporarios", NULL );
+   dados->temp = ctx->caminho.temp;
 
    carregar_escolas_e_turmas_lc( dados->raiz, combo_periodo );
 

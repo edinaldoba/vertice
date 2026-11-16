@@ -830,40 +830,6 @@ void apagar_arquivos_temporarios_latex( void ) {
 
 
 
-void apagar_arquivos_temporarios_latex_nativamente( const char *diretorio, const char *nome_base, int n_tipos ) {
-   // 1. Validação defensiva dos ponteiros
-   g_return_if_fail( diretorio != NULL );
-   g_return_if_fail( nome_base != NULL );
-
-   const char *extensoes[] = {".aux", ".log", ".tex", ".synctex.gz", ".pdf"};
-
-   // 2. Macro da GLib para descobrir dinamicamente o tamanho do array
-   int max_tipos = G_N_ELEMENTS( extensoes );
-
-   // 3. Trava de segurança contra Buffer Over-read
-   if ( n_tipos > max_tipos ) {
-      n_tipos = max_tipos;
-   }
-
-   for ( int i = 0; i < n_tipos; i++ ) {
-      // 4. Concatena o nome base com a extensão
-      g_autofree char *nome_arquivo = g_strdup_printf( "%s%s", nome_base, extensoes[i] );
-
-      // 5. Monta o caminho seguro resolvendo as barras do sistema operacional automaticamente
-      g_autofree char *caminho_completo = g_build_filename( diretorio, nome_arquivo, NULL );
-
-      // 6. g_remove é o wrapper da GLib para o remove() do C
-      g_remove( caminho_completo );
-   }
-}
-
-
-
-
-
-
-
-
 
 void obter_resolucao_tela( GtkWidget *widget, int *largura, int *altura ) {
    // 1. Pega a estrutura do display padrão do sistema

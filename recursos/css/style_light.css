@@ -502,7 +502,7 @@ treeview header button {
 
 .card-atipico-destaque {
     background-color: #EDF2FF;
-    border: 2px solid #0055FF;
+    border: 1px solid #0055FF;
     box-shadow: inset 0 0 8px rgba(0, 85, 255, 0.25);
 }
 

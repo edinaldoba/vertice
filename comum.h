@@ -124,7 +124,7 @@ typedef struct {
    // 1. Textos do Cabeçalho da Prova
    gchar *ano, *disciplina, *escola, *turma, *periodo, *gestor, *professor;
 
-   const gchar *raiz;
+   const gchar *raiz, *temp;
 
    // 2. Textos do Estilo Visual da Prova
    gchar *tema, *prova_sequencia;
@@ -242,26 +242,31 @@ typedef struct {
 // MÁSCARA DE BITS PARA ATIPICIDADES (32-bits expansíveis)
 // Organizada por categorias (MEC/AEE/SEDUC e Demandas de Sala de Aula)
 // ====================================================================================
+// ====================================================================================
+// MÁSCARA DE BITS PARA ATIPICIDADES (32-bits expansíveis)
+// Organizada por categorias (MEC/AEE/SEDUC e Demandas de Sala de Aula)
+// ====================================================================================
 typedef enum {
    ATIPICO_NENHUM               = 0,          // Aluno Típico
 
    // --- 1. Neurodesenvolvimento e Aprendizagem ---
-   ATIPICO_TEA                  = 1U << 0,    // F84 / 6A02 (Autismo / Níveis 1, 2 e 3)
-   ATIPICO_TDAH                 = 1U << 1,    // F90 / 6A05 (DDA / TDAH)
-   ATIPICO_DEF_INTELECTUAL      = 1U << 2,    // F70, F71 / 6E60 (DI Leve/Moderada)
+   ATIPICO_TEA                  = 1U << 0,    // F84, F84.0 / 6A02 (Autismo / Níveis 1, 2 e 3)
+   ATIPICO_TDAH                 = 1U << 1,    // F90, F90.0 / 6A05 (DDA / TDAH)
+   ATIPICO_DEF_INTELECTUAL      = 1U << 2,    // F70.0 a F71.8 / 6E60 (DI Leve/Moderada)
    ATIPICO_TRANSTORNO_APRENDIZ  = 1U << 3,    // F81 (Dislexia, Discalculia, Disgrafia)
    ATIPICO_TPAC                 = 1U << 4,    // Transtorno do Processamento Auditivo Central
    ATIPICO_SUPERDOTACAO         = 1U << 5,    // AH/SD (Altas Habilidades / Superdotação)
 
    // --- 2. Transtornos Mentais, Emocionais e Comportamentais ---
-   ATIPICO_TRANSTORNO_MENTAL    = 1U << 6,    // F31, F20 (Esquizofrenia, Bipolaridade)
-   ATIPICO_TOD                  = 1U << 7,    // F91.3 (Transtorno Opositor Desafiador)
-   ATIPICO_ANSIEDADE_DEPRESSAO  = 1U << 8,    // F41, F32 (Transtornos Emocionais / Ansiedade)
+   ATIPICO_TRANSTORNO_MENTAL    = 1U << 6,    // F31.6, F20 (Transtorno Bipolar, Esquizofrenia)
+   ATIPICO_TOD                  = 1U << 7,    // F91.3 / 6C90 (Transtorno Opositor Desafiador)
+   ATIPICO_ANSIEDADE_DEPRESSAO  = 1U << 8,    // F41, F32, 6B01 (Ansiedade, Depressão, Pânico)
    ATIPICO_MUTISMO_SELETIVO     = 1U << 9,    // F94.0 (Mutismo Seletivo)
+   ATIPICO_TRANSTORNO_CONDUTA   = 1U << 20,   // F91.0 a F91.2 / 6C91 (Transtorno de Conduta - Regras/Direitos)
 
    // --- 3. Deficiências Físicas, Sensoriais e Múltiplas (Censo Escolar / AEE) ---
    ATIPICO_SINDROME_DOWN        = 1U << 10,   // Q90 (Trissomia 21)
-   ATIPICO_PARALISIA_CEREBRAL   = 1U << 11,   // G80 (Requer adaptação motora)
+   ATIPICO_PARALISIA_CEREBRAL   = 1U << 11,   // G80.8 (Monoplégica / Requer adaptação motora)
    ATIPICO_DEF_FISICA           = 1U << 12,   // Outras deficiências motoras (ex: Cadeirante)
    ATIPICO_DEF_AUDITIVA         = 1U << 13,   // Surdez / Baixa audição (LIBRAS)
    ATIPICO_DEF_VISUAL           = 1U << 14,   // Cegueira / Baixa Visão (Braille / Fonte Ampliada)
@@ -269,11 +274,11 @@ typedef enum {
    ATIPICO_DEF_MULTIPLA         = 1U << 16,   // Associação de duas ou mais deficiências
 
    // --- 4. Condições Médicas e Contexto Escolar ---
-   ATIPICO_EPILEPSIA            = 1U << 17,   // G40 (Requer protocolo de crise em sala)
+   ATIPICO_EPILEPSIA            = 1U << 17,   // G40, G40.3 (Requer protocolo de crise em sala)
    ATIPICO_DOENCA_CRONICA       = 1U << 18,   // Diabetes, Cardiopatias, Alergias severas
    ATIPICO_VULNERABILIDADE      = 1U << 19,   // Acompanhamento do Conselho Tutelar / CRAS
 
-   // Bits 20 a 27 livres para futuras expansões
+   // Bits 21 a 27 livres para futuras expansões
 
    // --- 5. Metadados e Validação Pedagógica do Vértice ---
    ATIPICO_LAUDADO              = 1U << 28,   // Possui laudo médico formal anexado na pasta
@@ -385,31 +390,6 @@ typedef struct {
 } __attribute__( ( packed ) ) FichaAluno;
 
 
-// ============================================================================
-// ESTRUTURA PRINCIPAL DO ALUNO (LEGADO / FIXA)
-// ============================================================================
-// typedef struct {
-//    uint32_t cod_aluno;
-//    char     aluno[64];
-//    char     sexo[16];
-//    char     nasc[16];
-//
-//    FichaAtipicidade atipico;
-//    SituacaoAluno sit;
-//    gboolean      ativo;
-//    guint8  limite_corte;
-//    uint16_t idx_siaep;
-//
-//    // Estrutura interna legada acoplada
-//    struct {
-//       PeriodoLetivo  periodo[4];
-//       RelatorioAnual relatorio;
-//    } disciplina[QTD_DISC];
-//
-//    gboolean ficha_modificada;
-// } __attribute__( ( packed ) ) FichaAluno;
-
-
 
 // Estrutura para descrever o "Cabeçalho" de cada avaliação
 typedef struct {
@@ -442,6 +422,7 @@ typedef struct {
    gchar *banco_questoes;   // Caminho para a pasta do Acervo da disciplina
    gchar *base;             // Caminho base da aplicação/execução
    gchar *questoes_tex;     // Caminho para os arquivos .tex das questões
+   gchar *temp;     // Caminho para os arquivos .tex das questões
 
    const gchar *recursos_prefix; // Ponteiro constante (string literal não alocada)
 } CaminhoDiretorio;
