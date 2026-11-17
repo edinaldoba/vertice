@@ -783,14 +783,14 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    popular_combo_box_generico( atipicidade->combo_alunos, diario->fichas, limite, foco,
                                atipicidade->handler_combo_alunos, mapear_alunos );
-   renderizar_combo_box_ellipsize( atipicidade->combo_alunos, 42 );
+   renderizar_combo_box_ellipsize( atipicidade->combo_alunos, 25 );
 
    // ========================================================================
    // RECONSTRUÇÃO DA ABA CONFIG -> ATIPICIDADES PARA A NOVA TURMA
    // ========================================================================
    // Sincroniza os check buttons da interface e recria todos os mini-cards do
    // flowbox dinamicamente para garantir que a UI reflita os dados reais da RAM.
-   inicializar_flowbox_atipicidades( ctx );
+   mapear_sub_aba_atipicidades( ctx );
 
    // Precisa que a lista de alunos já esteja populada
    salvar_diario( ctx, FALSE );
@@ -1012,7 +1012,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
 
    popular_combo_box_text( cabecalho->combo_ano, cabecalho->anos, cabecalho->limite_anos - 1, cabecalho->limite_anos, cabecalho->handler_ano );
 
-   on_entry_atualizar_ano_interface_changed( NULL, ctx );
+   on_combo_atualizar_ano_interface_changed( NULL, ctx );
 }
 //======================================================================================================================//
 

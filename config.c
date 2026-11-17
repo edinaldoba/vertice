@@ -5,12 +5,15 @@
  */
 
 #include <gtk/gtk.h>
+#include <string.h>
 #include "config.h"
 #include "comum.h"
 #include "auxiliar.h"
 #include "diarios.h"
+#include "interface.h"
 #include "tex.h"
 #include "glib_gio.h"
+#include "mensagens.h"
 
 // ========================================================================
 // ROLAGEM AUTOMÁTICA (SCROLL-TO-VIEW) PARA O CARD DESTACADO
@@ -290,14 +293,15 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
 // ====================================================================================
 
 // Chamada ao abrir a sub-aba ATIPICIDADES ou ao trocar de turma no cabeçalho
-void inicializar_flowbox_atipicidades( AppContext *ctx ) {
+void mapear_sub_aba_atipicidades( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
+   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
 
    // Não esquecer que ( ctx->diario.fichas->len == ctx->dados.qtd_alunos_total ) = TRUE
    sincronizar_checks_com_ficha_lc( ctx, ( ctx->diario.fichas->len > 0U ) ? 0 : -1 );
    reconstruir_flowbox_atipicidades_lc( ctx );
 
-   GtkWidget *scrolled_window = gtk_widget_get_ancestor( ctx->config.atipicidade.flowbox, GTK_TYPE_SCROLLED_WINDOW );
+   GtkWidget *scrolled_window = gtk_widget_get_ancestor( atip->flowbox, GTK_TYPE_SCROLLED_WINDOW );
    GtkAdjustment *vadjustment = gtk_scrolled_window_get_vadjustment( GTK_SCROLLED_WINDOW( scrolled_window ) );
 
    if ( vadjustment ) {
@@ -442,6 +446,232 @@ static void exibir_erro_relatorio_aux( GtkWindow   *parent,
    gtk_dialog_run( GTK_DIALOG( dialog ) );
    gtk_widget_destroy( dialog );
 }
+
+
+
+// =====================================================================
+// 1. VALIDAÇÃO DAS REGRAS DE ENTRADA
+// =====================================================================
+static gboolean validar_termo_busca( InterfacePainel *painel, const gchar *texto_busca,
+                                     gsize *out_len, gboolean *out_tudo_alfabetico ) {
+   *out_len = 0U;
+   *out_tudo_alfabetico = TRUE;
+
+   if ( !texto_busca || *texto_busca == '\0' ) {
+      return FALSE;
+   }
+
+   gsize len = strlen( texto_busca );
+   *out_len = len;
+
+   if ( len < 2U ) {
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Termo Muito Curto" );
+      painel->format_subtitulo = meu_gerador_variadico( "A pesquisa exige pelo menos 2 caracteres para ser realizada." );
+      painel->format_instrucao = meu_gerador_variadico( "Digite uma sigla válida (ex: TEA, TDAH) ou o código CID (ex: F84) e tente novamente." );
+      criar_mensagem_painel( AVISO, painel );
+      return FALSE;
+   }
+
+   gboolean apenas_numeros = TRUE;
+   gboolean tem_digito = FALSE;
+   gboolean tudo_alfabetico = TRUE;
+   gboolean tem_especial = FALSE; // Nova flag para detectar caracteres especiais
+
+   for ( gsize i = 0U; i < len; i++ ) {
+      char c = texto_busca[i];
+
+      if ( g_ascii_isdigit( c ) ) {
+         tem_digito = TRUE;
+      } else {
+         apenas_numeros = FALSE;
+      }
+
+      if ( !g_ascii_isalpha( c ) ) {
+         tudo_alfabetico = FALSE;
+      }
+
+      // Se não for letra, não for número e não for espaço, é considerado caractere especial
+      if ( !g_ascii_isalnum( c ) && ( c != '.' ) ) {
+         tem_especial = TRUE;
+      }
+   }
+
+   *out_tudo_alfabetico = tudo_alfabetico;
+
+   // Bloqueia a busca imediatamente se houver caractere especial
+   if ( tem_especial ) {
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Termo Inválido" );
+      painel->format_subtitulo = meu_gerador_variadico( "A busca não pode conter caracteres especiais ou espaços." );
+      painel->format_instrucao = meu_gerador_variadico( "Remova símbolos, acentos ou pontuações e tente novamente." );
+      criar_mensagem_painel( AVISO, painel );
+      return FALSE;
+   }
+
+   if ( apenas_numeros ) {
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Termo Inválido" );
+      painel->format_subtitulo = meu_gerador_variadico( "A busca não pode conter apenas números." );
+      painel->format_instrucao = meu_gerador_variadico( "Digite termos descritivos ou siglas alfabéticas válidas." );
+      criar_mensagem_painel( AVISO, painel );
+      return FALSE;
+   }
+
+   if ( len == 2U && tem_digito ) {
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Termo Inválido" );
+      painel->format_subtitulo = meu_gerador_variadico( "Buscas de 2 caracteres não podem conter números." );
+      painel->format_instrucao = meu_gerador_variadico( "Insira uma sigla alfabética válida (ex: TEA)." );
+      criar_mensagem_painel( AVISO, painel );
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+// =====================================================================
+// 2. AVALIAÇÃO DE COINCIDÊNCIA (Com strcasecmp para busca curta)
+// =====================================================================
+static gboolean verificar_match_atipicidade( GtkWidget *chk, const gchar *busca_lower, gboolean busca_curta_alfabetica ) {
+   if ( chk == NULL || !GTK_IS_CHECK_BUTTON( chk ) ) {
+      return FALSE;
+   }
+
+   const gchar *label = gtk_button_get_label( GTK_BUTTON( chk ) );
+   g_autofree gchar *tooltip = gtk_widget_get_tooltip_text( chk );
+
+   if ( busca_curta_alfabetica ) {
+      // Verifica correspondência exata (case-insensitive) no prefixo do label
+      if ( label != NULL ) {
+         const char *hyphen = strchr( label, '-' );
+         g_autofree gchar *prefixo_label = NULL;
+         if ( hyphen != NULL ) {
+            prefixo_label = g_strndup( label, ( gsize )( hyphen - label ) );
+         } else {
+            prefixo_label = g_strndup( label, 5U );
+         }
+         g_strstrip( prefixo_label );
+
+         // Se o prefixo contiver '/', faz correspondência cruzada dividindo as partes
+         if ( strchr( prefixo_label, '/' ) != NULL ) {
+            g_auto( GStrv ) partes = g_strsplit_set( prefixo_label, "/", -1 );
+            for ( int p = 0; partes[p] != NULL; p++ ) {
+               g_autofree gchar *parte_limpa = g_strdup( partes[p] );
+               g_strstrip( parte_limpa );
+               if ( g_ascii_strcasecmp( parte_limpa, busca_lower ) == 0 ) {
+                  puts( parte_limpa );
+                  return TRUE;
+               }
+            }
+         } else {
+            if ( g_ascii_strcasecmp( prefixo_label, busca_lower ) == 0 ) {
+               return TRUE;
+            }
+         }
+      }
+
+      // Verifica correspondência no prefixo do tooltip (com suporte a '/' e múltiplos códigos)
+      if ( tooltip != NULL ) {
+         const char *paren = strchr( tooltip, '(' );
+         g_autofree gchar *prefixo_tooltip = NULL;
+         if ( paren != NULL ) {
+            prefixo_tooltip = g_strndup( tooltip, ( gsize )( paren - tooltip ) );
+         } else {
+            prefixo_tooltip = g_strndup( tooltip, 5U );
+         }
+         g_strstrip( prefixo_tooltip );
+
+         if ( strchr( prefixo_tooltip, '/' ) != NULL ) {
+            g_auto( GStrv ) partes = g_strsplit_set( prefixo_tooltip, "/", -1 );
+            for ( int p = 0; partes[p] != NULL; p++ ) {
+               g_autofree gchar *parte_limpa = g_strdup( partes[p] );
+               g_strstrip( parte_limpa );
+               if ( g_ascii_strcasecmp( parte_limpa, busca_lower ) == 0 ) {
+                  return TRUE;
+               }
+            }
+         } else {
+            if ( g_ascii_strcasecmp( prefixo_tooltip, busca_lower ) == 0 ) {
+               return TRUE;
+            }
+         }
+      }
+
+   } else {
+      // Varredura padrão global (substring search) para termos maiores ou alfanuméricos
+      if ( label != NULL ) {
+         g_autofree gchar *label_lower = g_ascii_strdown( label, -1 );
+         if ( strstr( label_lower, busca_lower ) != NULL ) {
+            return TRUE;
+         }
+      }
+
+      if ( tooltip != NULL ) {
+         g_autofree gchar *tooltip_lower = g_ascii_strdown( tooltip, -1 );
+         if ( strstr( tooltip_lower, busca_lower ) != NULL ) {
+            return TRUE;
+         }
+      }
+   }
+
+   return FALSE;
+}
+
+// =====================================================================
+// 3. FUNÇÃO ORQUESTRADORA PRINCIPAL
+// =====================================================================
+void localizar_cid_atipicidade( InterfacePainel *painel, const InterfaceAtipicidade *atip ) {
+   g_return_if_fail( painel != NULL );
+   g_return_if_fail( atip != NULL );
+   g_return_if_fail( atip->entry != NULL && GTK_IS_ENTRY( atip->entry ) );
+
+   const gchar *texto_busca = gtk_entry_get_text( GTK_ENTRY( atip->entry ) );
+   gsize len = 0U;
+   gboolean tudo_alfabetico = TRUE;
+
+   // Executa as validações estruturadas e extrai os metadados em passada única
+   if ( !validar_termo_busca( painel, texto_busca, &len, &tudo_alfabetico ) ) {
+      return;
+   }
+
+   gboolean busca_curta_alfabetica = ( len >= 2U && len <= 4U && tudo_alfabetico );
+
+   // Prepara a string de busca em minúsculas e remove espaços
+   g_autofree gchar *busca_lower = g_ascii_strdown( texto_busca, -1 );
+   g_strstrip( busca_lower );
+
+   if ( *busca_lower == '\0' ) {
+      return;
+   }
+
+   gboolean encontrado = FALSE;
+   const gchar *label_encontrado = NULL;
+
+   // Varre os check buttons registrados
+   for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
+      GtkWidget *chk = atip->checks[i];
+      if ( verificar_match_atipicidade( chk, busca_lower, busca_curta_alfabetica ) ) {
+         label_encontrado = gtk_button_get_label( GTK_BUTTON( chk ) );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( chk ), TRUE );
+         encontrado = TRUE;
+         break;
+      }
+   }
+
+   // Feedback visual explícito no painel de mensagens
+   if ( encontrado ) {
+      painel->format_titulo    = meu_gerador_variadico( "✔ Atipicidade Vinculada" );
+      painel->format_subtitulo = meu_gerador_variadico( "%s", label_encontrado ? label_encontrado : "Condição Atípica" );
+      painel->format_instrucao = meu_gerador_variadico( "A ficha do estudante foi atualizada com sucesso." );
+
+      criar_mensagem_painel( SUCESSO, painel );
+      gtk_entry_set_text( GTK_ENTRY( atip->entry ), "" );
+   } else {
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Termo Não Encontrado" );
+      painel->format_subtitulo = meu_gerador_variadico( "Nenhuma condição mapeada corresponde à busca." );
+      painel->format_instrucao = meu_gerador_variadico( "Verifique a digitação da CID/termo '%s' e tente novamente.", texto_busca );
+
+      criar_mensagem_painel( AVISO, painel );
+   }
+}
+
 
 // ====================================================================================
 // PIPELINE COMPLETO DO RELATÓRIO DE ATIPICIDADES COM TRATAMENTO DE FALHAS

@@ -262,6 +262,7 @@ typedef struct {
 
 // Sub-aba: Atribuição de Atipicidades e CIDs dos Alunos
 typedef struct {
+   GtkWidget *entry;
    GtkWidget *combo_alunos;          // GtkComboBox associado ao GtkListStore da função mapear_alunos()
    gulong     handler_combo_alunos;
 

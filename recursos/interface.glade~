@@ -3235,20 +3235,44 @@
                                 <property name="orientation">vertical</property>
                                 <property name="spacing">15</property>
                                 <child>
-                                  <object class="GtkComboBox" id="combo_alunos_atipicos">
+                                  <object class="GtkBox">
                                     <property name="height-request">45</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="margin-start">3</property>
-                                    <property name="margin-end">3</property>
-                                    <property name="model">liststore_combo_aluno</property>
+                                    <property name="spacing">10</property>
                                     <child>
-                                      <object class="GtkCellRendererText"/>
-                                      <attributes>
-                                        <attribute name="sensitive">1</attribute>
-                                        <attribute name="strikethrough">2</attribute>
-                                        <attribute name="text">0</attribute>
-                                      </attributes>
+                                      <object class="GtkComboBox" id="combo_alunos_atipicos">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="model">liststore_combo_aluno</property>
+                                        <child>
+                                          <object class="GtkCellRendererText"/>
+                                          <attributes>
+                                            <attribute name="sensitive">1</attribute>
+                                            <attribute name="strikethrough">2</attribute>
+                                            <attribute name="text">0</attribute>
+                                          </attributes>
+                                        </child>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">True</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkEntry" id="entry_atipicidades">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="width-chars">8</property>
+                                        <property name="placeholder-text" translatable="yes">Atipicidade</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">1</property>
+                                      </packing>
                                     </child>
                                   </object>
                                   <packing>
@@ -3743,14 +3767,13 @@
                                 <property name="spacing">15</property>
                                 <child>
                                   <object class="GtkBox">
-                                    <property name="width-request">0</property>
                                     <property name="height-request">45</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">center</property>
                                     <child>
                                       <object class="GtkButton" id="button_relatorio_atipicidades">
-                                        <property name="label" translatable="yes">GERAR  DOCUMENTO</property>
+                                        <property name="label" translatable="yes">GERAR DOCUMENTO</property>
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>

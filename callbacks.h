@@ -9,15 +9,15 @@
 // 1. NAVEGAÇÃO DE DADOS ESCOLARES (SIAEP / SEDUC)
 // =========================================================================
 // Controlam o fluxo em cascata para carregar as pastas e preencher os buffers da tela
-void on_entry_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_atualizar_escola_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data );
-void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_atualizar_escola_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_atualizar_turma_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_periodo_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
-void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
+void on_combo_estilo_interface_changed( GtkWidget *widget, gpointer user_data );
 
 gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, gpointer user_data );
 void on_calendar_navigation( GtkWidget *widget, gpointer user_data );
@@ -157,6 +157,7 @@ void on_check_logica_atipicidades_toggled( GtkWidget *widget, gpointer user_data
 void on_combo_logica_alunos_atipicos_changed( GtkWidget *widget, gpointer user_data );
 void on_combo_suporte_tea_changed( GtkWidget *widget, gpointer user_data );
 void on_button_relatorio_atipicidades_clicked( GtkWidget *widget, gpointer user_data );
+void on_entry_localizar_cid_atipicidade_activate( GtkWidget *widget, gpointer user_data );
 void on_flowbox_atipicidades_child_activated( GtkFlowBox *flowbox, GtkFlowBoxChild *child, gpointer user_data );
 
 

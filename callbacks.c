@@ -28,7 +28,7 @@
 
 
 
-void on_entry_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
@@ -55,13 +55,13 @@ void on_entry_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_
    }
 
    popular_combo_box_text( ctx->cabecalho.combo_escola, ctx->cabecalho.escolas, 0, ctx->cabecalho.limite_escolas, ctx->cabecalho.handler_escola );
-   on_entry_atualizar_escola_interface_changed( NULL, ctx );
+   on_combo_atualizar_escola_interface_changed( NULL, ctx );
 }
 
 
 
 
-void on_entry_atualizar_escola_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_atualizar_escola_interface_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
@@ -88,13 +88,13 @@ void on_entry_atualizar_escola_interface_changed( GtkWidget *widget, gpointer us
    }
 
    popular_combo_box_text( ctx->cabecalho.combo_turma, ctx->cabecalho.turmas, 0, ctx->cabecalho.limite_turmas, ctx->cabecalho.handler_turma );
-   on_entry_atualizar_turma_interface_changed( NULL, ctx ); // Ou o novo nome da callback de turma!
+   on_combo_atualizar_turma_interface_changed( NULL, ctx ); // Ou o novo nome da callback de turma!
 }
 
 
 
 
-void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_atualizar_turma_interface_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
@@ -121,12 +121,12 @@ void on_entry_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
       return;
    }
 
-   on_entry_atualizar_disciplina_interface_changed( NULL, ctx );
+   on_combo_atualizar_disciplina_interface_changed( NULL, ctx );
 }
 
 
 
-void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
@@ -168,7 +168,7 @@ void on_entry_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
 static void limpar_registro_em_edicao_lc( GtkEntry *entry_descricao, gboolean *editando );
 static gboolean ui_diario_mudar_aba_lc( GtkWidget *widget, const char *nome_da_pagina );
 //------------------------------------------------------------------------------------
-void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_periodo_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data; // Resgata o contexto
    if ( !ctx ) {
@@ -219,7 +219,7 @@ void on_entry_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
 
 
 
-void on_entry_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
@@ -231,7 +231,7 @@ void on_entry_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data
 }
 
 
-void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
@@ -243,7 +243,7 @@ void on_entry_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer us
 }
 
 
-void on_entry_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
@@ -2025,7 +2025,7 @@ void on_button_config_atipicidade_clicked( GtkWidget *widget, gpointer user_data
 
    if ( ui_diario_mudar_aba_lc( config->stack_pages, "page_atipicidades" ) ) {
       config_atualizar_css_botoes( config, widget );
-      // inicializar_flowbox_atipicidades( ctx );
+      // mapear_sub_aba_atipicidades( ctx );
    }
 }
 //-----------------------------------------------------------------------------------------
@@ -2050,7 +2050,7 @@ void on_check_logica_atipicidades_toggled( GtkWidget *widget, gpointer user_data
 
    logica_atipicidades( widget, ctx );
 }
-
+//-----------------------------------------------------------------------------------------
 void on_combo_logica_alunos_atipicos_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( widget != NULL && GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
@@ -2060,7 +2060,7 @@ void on_combo_logica_alunos_atipicos_changed( GtkWidget *widget, gpointer user_d
 
    logica_alunos_atipicos( ctx );
 }
-
+//-----------------------------------------------------------------------------------------
 void on_combo_suporte_tea_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( widget != NULL && GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
@@ -2081,13 +2081,20 @@ void on_button_relatorio_atipicidades_clicked( GtkWidget *widget, gpointer user_
    relatorio_atipicidades( ctx );
 }
 //-------------------------------------------------------------------------
-// Executada quando o usuário clica em qualquer card dentro do FlowBox
-void on_flowbox_atipicidades_child_activated( GtkFlowBox      *flowbox,
-      GtkFlowBoxChild *child,
-      gpointer         user_data ) {
-   ( void )flowbox;
+void on_entry_localizar_cid_atipicidade_activate( GtkWidget *widget, gpointer user_data ) {
+   g_return_if_fail( widget != NULL && GTK_IS_ENTRY( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
-   g_return_if_fail( ctx != NULL && GTK_IS_FLOW_BOX_CHILD( child ) );
+   if ( !ctx ) {
+      return;
+   }
+
+   localizar_cid_atipicidade( &ctx->painel, &ctx->config.atipicidade );
+}
+//-------------------------------------------------------------------------
+// Executada quando o usuário clica em qualquer card dentro do FlowBox
+void on_flowbox_atipicidades_child_activated( GtkFlowBox *flowbox, GtkFlowBoxChild *child, gpointer user_data ) {
+   AppContext *ctx = ( AppContext * )user_data;
+   g_return_if_fail( flowbox != NULL && ctx != NULL && GTK_IS_FLOW_BOX_CHILD( child ) );
 
    int idx_aluno = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( child ), "idx_aluno" ) ) - 1;
    if ( idx_aluno < 0 ) {

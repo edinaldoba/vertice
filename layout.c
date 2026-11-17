@@ -372,80 +372,192 @@ static void mapear_aba_provas_lc( AppContext *ctx, GtkBuilder *builder ) {
 
 
 typedef struct {
-   int              bit_idx;
+   int         bit_idx;
    FlagsAtipicidade flag;
-   const char      *glade_id;
+   const char  *glade_id;
+   const char  *label;
+   const char  *tooltip;
 } MapaCheckAtipico;
 
 static const MapaCheckAtipico MAPA_CHECKS_ATIPICOS[] = {
    // 1. Neurodesenvolvimento e Aprendizagem
-   {  0, ATIPICO_TEA,                 "check_atipico_1"  },
-   {  1, ATIPICO_TDAH,                "check_atipico_2"  },
-   {  2, ATIPICO_DEF_INTELECTUAL,     "check_atipico_3"  },
-   {  3, ATIPICO_TRANSTORNO_APRENDIZ, "check_atipico_4"  },
-   {  4, ATIPICO_TPAC,                "check_atipico_5"  },
-   {  5, ATIPICO_SUPERDOTACAO,        "check_atipico_6"  },
+   {
+      0, ATIPICO_TEA, "check_atipico_1",
+      "TEA - Transtorno do Espectro Autista",
+      "TEA (CID-10: F84, F84.0 / CID-11: 6A02, 6A02.0 — Níveis 1, 2 e 3)"
+   },
+   {
+      1, ATIPICO_TDAH, "check_atipico_2",
+      "TDAH - Transtorno do Déficit de Atenção com Hiperatividade",
+      "TDAH (CID-10: F90, F90.0 / CID-11: 6A05 — DDA / TDAH)"
+   },
+   {
+      2, ATIPICO_DEF_INTELECTUAL, "check_atipico_3",
+      "DI - Deficiência Intelectual",
+      "DI (CID-10: F70, F70.0, F70.1, F71, F71.0, F71.8, F72–F79 / CID-11: 6A00, 6E60 — DI Leve/Moderada)"
+   },
+   {
+      3, ATIPICO_TRANSTORNO_APRENDIZ, "check_atipico_4",
+      "TA - Transtorno Específico de Aprendizagem",
+      "TA (CID-10: F81, F81.0–F81.9 / CID-11: 6A03 — Dislexia, Discalculia, Disgrafia)"
+   },
+   {
+      4, ATIPICO_TPAC, "check_atipico_5",
+      "TPAC - Transtorno do Processamento Auditivo Central",
+      "TPAC (CID-10: H93.25 / CID-11: AB5Y — Dificuldade de Processamento Auditivo)"
+   },
+   {
+      5, ATIPICO_SUPERDOTACAO, "check_atipico_6",
+      "AH/SD - Altas Habilidades / Superdotação",
+      "AH/SD (CID-10: Z55.8 / Classificação MEC — Censo Escolar / AEE)"
+   },
 
    // 2. Transtornos Mentais, Emocionais e Comportamentais
-   {  6, ATIPICO_TRANSTORNO_MENTAL,   "check_atipico_7"  },
-   {  7, ATIPICO_TOD,                 "check_atipico_8"  },
-   {  8, ATIPICO_ANSIEDADE_DEPRESSAO, "check_atipico_9"  },
-   {  9, ATIPICO_MUTISMO_SELETIVO,    "check_atipico_10" },
-   { 20, ATIPICO_TRANSTORNO_CONDUTA,  "check_atipico_21" },
+   {
+      6, ATIPICO_TRANSTORNO_MENTAL, "check_atipico_7",
+      "TM - Transtorno Mental",
+      "TM (CID-10: F31, F31.6, F20 / CID-11: 6A60, 6A20 — Transtorno Bipolar, Esquizofrenia)"
+   },
+   {
+      7, ATIPICO_TOD, "check_atipico_8",
+      "TOD - Transtorno Opositivo-Desafiador",
+      "TOD (CID-10: F91.3 / CID-11: 6C90 — Comportamento Opositor/Desafiador)"
+   },
+   {
+      8, ATIPICO_ANSIEDADE_DEPRESSAO, "check_atipico_9",
+      "TE - Transtornos Emocionais: Ansiedade / Depressão",
+      "TE (CID-10: F32, F41, F41.0 / CID-11: 6A70, 6B00, 6B01 — Depressão, Ansiedade, Pânico)"
+   },
+   {
+      9, ATIPICO_MUTISMO_SELETIVO, "check_atipico_10",
+      "MS - Mutismo Seletivo",
+      "MS (CID-10: F94.0 / CID-11: 6B06 — Mutismo Seletivo)"
+   },
+   {
+      20, ATIPICO_TRANSTORNO_CONDUTA, "check_atipico_21",
+      "TC - Transtorno de Conduta",
+      "TC (CID-10: F91.0, F91.1, F91.2 / CID-11: 6C91 — Transtorno de Conduta Socializado/Regras)"
+   },
 
    // 3. Deficiências Físicas, Sensoriais e Múltiplas
-   { 10, ATIPICO_SINDROME_DOWN,       "check_atipico_11" },
-   { 11, ATIPICO_PARALISIA_CEREBRAL,  "check_atipico_12" },
-   { 12, ATIPICO_DEF_FISICA,          "check_atipico_13" },
-   { 13, ATIPICO_DEF_AUDITIVA,        "check_atipico_14" },
-   { 14, ATIPICO_DEF_VISUAL,          "check_atipico_15" },
-   { 15, ATIPICO_SURDOCEGUEIRA,       "check_atipico_16" },
-   { 16, ATIPICO_DEF_MULTIPLA,        "check_atipico_17" },
+   {
+      10, ATIPICO_SINDROME_DOWN, "check_atipico_11",
+      "DOWN - Síndrome de Down / Trissomia 21",
+      "DOWN (CID-10: Q90, Q90.0–Q90.9 / CID-11: LD40.0 — Trissomia 21)"
+   },
+   {
+      11, ATIPICO_PARALISIA_CEREBRAL, "check_atipico_12",
+      "PC - Paralisia Cerebral",
+      "PC (CID-10: G80, G80.0–G80.9, G80.8 / CID-11: 8D20 — Monoplégica / Adaptação Motora)"
+   },
+   {
+      12, ATIPICO_DEF_FISICA, "check_atipico_13",
+      "DF - Deficiência Física / Motora",
+      "DF (CID-10: G81–G83, M00–M99 / CID-11: 8B40–8D8Z — ex.: Cadeirante / Mobilidade Reduzida)"
+   },
+   {
+      13, ATIPICO_DEF_AUDITIVA, "check_atipico_14",
+      "DA - Deficiência Auditiva / Surdez",
+      "DA (CID-10: H90, H91 / CID-11: AB50, AB51 — LIBRAS / Leitura Labial)"
+   },
+   {
+      14, ATIPICO_DEF_VISUAL, "check_atipico_15",
+      "DV - Deficiência Visual / Baixa Visão / Cegueira",
+      "DV (CID-10: H54, H54.0–H54.9 / CID-11: 9D90 — Braille / Fonte Ampliada)"
+   },
+   {
+      15, ATIPICO_SURDOCEGUEIRA, "check_atipico_16",
+      "SC - Surdocegueira",
+      "SC (CID-10: H90 + H54 / CID-11: AB51 + 9D90 — Categoria AEE Específica)"
+   },
+   {
+      16, ATIPICO_DEF_MULTIPLA, "check_atipico_17",
+      "DM - Deficiência Múltipla",
+      "DM (CID-10: F84/F70 + G80/H90/H54 — Associação de duas ou mais deficiências primárias / Censo MEC)"
+   },
 
    // 4. Condições Médicas e Contexto Escolar
-   { 17, ATIPICO_EPILEPSIA,           "check_atipico_18" },
-   { 18, ATIPICO_DOENCA_CRONICA,      "check_atipico_19" },
-   { 19, ATIPICO_VULNERABILIDADE,     "check_atipico_20" },
+   {
+      17, ATIPICO_EPILEPSIA, "check_atipico_18",
+      "EP - Epilepsia",
+      "EP (CID-10: G40, G40.3 / CID-11: 8A60 — Requer protocolo de crise em sala)"
+   },
+   {
+      18, ATIPICO_DOENCA_CRONICA, "check_atipico_19",
+      "DC - Doença Crônica",
+      "DC (CID-10: E10–E14, I00–I99, J45, T78.4 / CID-11: 5A10, CA23 — Diabetes, Cardiopatias, Asma, Alergias severas)"
+   },
+   {
+      19, ATIPICO_VULNERABILIDADE, "check_atipico_20",
+      "VS - Vulnerabilidade Social",
+      "VS (CID-10: Z59–Z60 / CID-11: QD50–QD8Z — Acompanhamento Conselho Tutelar / CRAS)"
+   },
 
-   // 5. Metadados e Validação Pedagógica (Bits 28, 29 e 30)
-   { 28, ATIPICO_LAUDADO,             "check_atipico_29" },
-   { 29, ATIPICO_PROVA_ADAPTADA,      "check_atipico_30" },
-   { 30, ATIPICO_OBSERVACAO,          "check_atipico_31" }
+   // 5. Metadados e Validação Pedagógica
+   {
+      28, ATIPICO_LAUDADO, "check_atipico_29",
+      "LAUDO - Laudado",
+      "LAUDO (Possui laudo médico formal anexado na pasta do estudante)"
+   },
+   {
+      29, ATIPICO_PROVA_ADAPTADA, "check_atipico_30",
+      "ADAPT - Prova Adaptada",
+      "ADAPT (Requer banco de questões paralelo / avaliação adaptada)"
+   },
+   {
+      30, ATIPICO_OBSERVACAO, "check_atipico_31",
+      "OBS - Observação Pedagógica",
+      "OBS (Possui anotação específica da coordenação / gestão)"
+   }
 };
 
 static void mapear_aba_config_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceConfig *config = &ctx->config;
 
    /*** ABA NOTEBOOK CONFIG ***/
-   config->stack_pages              = GTK_WIDGET( gtk_builder_get_object( builder, "stack_config" ) );
-   config->btn_sub_aba_geral        = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_geral" ) );
+   config->stack_pages                = GTK_WIDGET( gtk_builder_get_object( builder, "stack_config" ) );
+   config->btn_sub_aba_geral          = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_geral" ) );
    config->btn_sub_aba_atipicidades = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_atipicidades" ) );
-   config->btn_sub_aba_acervo       = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_acervo" ) );
+   config->btn_sub_aba_acervo        = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_acervo" ) );
 
    gtk_widget_set_sensitive( config->btn_sub_aba_geral, FALSE );
 
    // Widgets internos da sub-aba Atipicidades
+   config->atipicidade.entry             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_atipicidades" ) );
    config->atipicidade.btn_relatorio     = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_atipicidades" ) );
    config->atipicidade.flowbox           = GTK_WIDGET( gtk_builder_get_object( builder, "flowbox_atipicidades" ) );
    config->atipicidade.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos_atipicos" ) );
    config->atipicidade.combo_suporte_tea = GTK_WIDGET( gtk_builder_get_object( builder, "combo_suporte_tea" ) );
 
-   // Inicializa todos os ponteiros com NULL (garante segurança nos bits vagos 20..27)
+   // Define o tooltip do combo box de suporte TEA programaticamente também
+   if ( config->atipicidade.combo_suporte_tea != NULL ) {
+      gtk_widget_set_tooltip_text( config->atipicidade.combo_suporte_tea, "Nível de Suporte TEA (1, 2 ou 3)" );
+   }
+
+   // Tooltip detalhado ao pairar o mouse
+   if ( config->atipicidade.entry != NULL ) {
+      gtk_widget_set_tooltip_text(
+         config->atipicidade.entry,
+         "Digite apenas o código da CID-10/CID-11 (ex: F84, F90.0, 6A02) ou a sigla/nome da condição e pressione Enter."
+      );
+   }
+
+   // Inicializa todos os ponteiros com NULL (garante segurança nos bits vagos)
    for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
       config->atipicidade.checks[i] = NULL;
    }
 
+   // Injeta dinamicamente labels, tooltips e IDs de forma centralizada
    for ( gsize k = 0; k < G_N_ELEMENTS( MAPA_CHECKS_ATIPICOS ); k++ ) {
-      int         bit_idx = MAPA_CHECKS_ATIPICOS[k].bit_idx;
-      GtkWidget  *chk     = GTK_WIDGET( gtk_builder_get_object( builder, MAPA_CHECKS_ATIPICOS[k].glade_id ) );
+      int       bit_idx = MAPA_CHECKS_ATIPICOS[k].bit_idx;
+      GtkWidget *chk     = GTK_WIDGET( gtk_builder_get_object( builder, MAPA_CHECKS_ATIPICOS[k].glade_id ) );
 
-      if ( chk != NULL ) {
+      if ( chk != NULL && GTK_IS_CHECK_BUTTON( chk ) ) {
          config->atipicidade.checks[bit_idx] = chk;
 
-         // GtkWidget *label = gtk_bin_get_child( GTK_BIN( chk ) );
-         // if ( GTK_IS_LABEL( label ) ) {
-         //    gtk_label_set_ellipsize( GTK_LABEL( label ), PANGO_ELLIPSIZE_END );
-         // }
+         // Atribui o rótulo e a dica de ferramenta diretamente via código
+         gtk_button_set_label( GTK_BUTTON( chk ), MAPA_CHECKS_ATIPICOS[k].label );
+         gtk_widget_set_tooltip_text( chk, MAPA_CHECKS_ATIPICOS[k].tooltip );
 
          // Embute o índice do bit diretamente no GObject para acesso O(1) na callback
          g_object_set_data( G_OBJECT( chk ), "bit_idx", GINT_TO_POINTER( bit_idx + 1 ) );

@@ -446,16 +446,16 @@ static void conectar_sinais_cabecalho_lc( AppContext *ctx ) {
    InterfaceCabecalho *cab = &ctx->cabecalho;
 
    cab->handler_ano        = g_signal_connect( cab->combo_ano, "changed",
-                             G_CALLBACK( on_entry_atualizar_ano_interface_changed ), ctx );
+                             G_CALLBACK( on_combo_atualizar_ano_interface_changed ), ctx );
    cab->handler_escola     = g_signal_connect( cab->combo_escola, "changed",
-                             G_CALLBACK( on_entry_atualizar_escola_interface_changed ), ctx );
+                             G_CALLBACK( on_combo_atualizar_escola_interface_changed ), ctx );
    cab->handler_turma      = g_signal_connect( cab->combo_turma, "changed",
-                             G_CALLBACK( on_entry_atualizar_turma_interface_changed ), ctx );
+                             G_CALLBACK( on_combo_atualizar_turma_interface_changed ), ctx );
    cab->handler_disciplina = g_signal_connect( cab->combo_disciplina, "changed",
-                             G_CALLBACK( on_entry_atualizar_disciplina_interface_changed ), ctx );
+                             G_CALLBACK( on_combo_atualizar_disciplina_interface_changed ), ctx );
 
-   g_signal_connect( cab->combo_periodo, "changed", G_CALLBACK( on_entry_periodo_interface_changed ), ctx );
-   g_signal_connect( cab->combo_estilo, "changed", G_CALLBACK( on_entry_estilo_interface_changed ), ctx );
+   g_signal_connect( cab->combo_periodo, "changed", G_CALLBACK( on_combo_periodo_interface_changed ), ctx );
+   g_signal_connect( cab->combo_estilo, "changed", G_CALLBACK( on_combo_estilo_interface_changed ), ctx );
    g_signal_connect( cab->btn_atualizar_alunos, "clicked", G_CALLBACK( on_button_siaep_atualizar_alunos_clicked ), ctx );
 }
 
@@ -578,8 +578,8 @@ static void conectar_sinais_aba_latex_lc( AppContext *ctx ) {
                         G_CALLBACK( on_radio_atualizar_generic_interface_toggled ), ctx );
    }
 
-   g_signal_connect( latex->combo_cor_serie, "changed", G_CALLBACK( on_entry_cor_serie_interface_changed ), ctx );
-   g_signal_connect( latex->combo_decoracao, "changed", G_CALLBACK( on_entry_decoracao_estilo_interface_changed ), ctx );
+   g_signal_connect( latex->combo_cor_serie, "changed", G_CALLBACK( on_combo_cor_serie_interface_changed ), ctx );
+   g_signal_connect( latex->combo_decoracao, "changed", G_CALLBACK( on_combo_decoracao_estilo_interface_changed ), ctx );
 
    g_signal_connect( latex->btn_pdflatex, "clicked", G_CALLBACK( on_button_abrir_tema_clicked ), ctx );
    g_signal_connect( latex->btn_compilar, "clicked", G_CALLBACK( on_button_compilar_questoes_clicked ), ctx );
@@ -635,6 +635,8 @@ static void conectar_sinais_aba_config_lc( AppContext *ctx ) {
 
    g_signal_connect( config->atipicidade.btn_relatorio, "clicked",
                      G_CALLBACK( on_button_relatorio_atipicidades_clicked ), ctx );
+
+   g_signal_connect( atip->entry, "activate", G_CALLBACK( on_entry_localizar_cid_atipicidade_activate ), ctx );
 
    g_signal_connect( atip->flowbox, "child-activated",
                      G_CALLBACK( on_flowbox_atipicidades_child_activated ), ctx );
