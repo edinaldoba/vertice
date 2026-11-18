@@ -26,6 +26,8 @@ DEV_PKGS=(
    libomp-dev
    zathura
    zathura-pdf-poppler
+   libfido2-1
+   opensc
 )
 
 sudo apt update && sudo apt install -y
