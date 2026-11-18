@@ -7,23 +7,23 @@
 
 
 gboolean gio_copiar_arquivo( const gchar *caminho_origem, const gchar *caminho_destino ) {
-   // 1. Validação defensiva padronizada da GLib (substitui o if inicial)
+// 1. Validação defensiva padronizada da GLib (substitui o if inicial)
    g_return_val_if_fail( caminho_origem != NULL, FALSE );
    g_return_val_if_fail( caminho_destino != NULL, FALSE );
 
-   // 2. Extrai a rota da pasta destino e garante que toda a árvore de diretórios exista
-   // g_autofree gchar *diretorio_pai = g_path_get_dirname(caminho_destino);
-   // if (g_mkdir_with_parents(diretorio_pai, 0755) != 0) {
-   //     g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", diretorio_pai);
-   //     return FALSE;
-   // }
+// 2. Extrai a rota da pasta destino e garante que toda a árvore de diretórios exista
+// g_autofree gchar *diretorio_pai = g_path_get_dirname(caminho_destino);
+// if (g_mkdir_with_parents(diretorio_pai, 0755) != 0) {
+//     g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", diretorio_pai);
+//     return FALSE;
+// }
 
-   // 3. Instancia os objetos GFile aproveitando o excelente uso do g_autoptr
+// 3. Instancia os objetos GFile aproveitando o excelente uso do g_autoptr
    g_autoptr( GFile ) origem = g_file_new_for_path( caminho_origem );
    g_autoptr( GFile ) destino = g_file_new_for_path( caminho_destino );
    g_autoptr( GError ) erro = NULL;
 
-   // 4. Executa a cópia com sobrescrita e tratamento de erro
+// 4. Executa a cópia com sobrescrita e tratamento de erro
    if ( !g_file_copy( origem, destino, G_FILE_COPY_OVERWRITE, NULL, NULL, NULL, &erro ) ) {
       g_printerr( "[ERRO] Falha ao copiar arquivo de '%s' para '%s': %s\n",
                   caminho_origem, caminho_destino, erro->message );
@@ -36,23 +36,23 @@ gboolean gio_copiar_arquivo( const gchar *caminho_origem, const gchar *caminho_d
 
 
 gboolean gio_mover_arquivo( const gchar *caminho_origem, const gchar *caminho_destino ) {
-   // 1. Validação defensiva usando as macros nativas da GLib
+// 1. Validação defensiva usando as macros nativas da GLib
    g_return_val_if_fail( caminho_origem != NULL, FALSE );
    g_return_val_if_fail( caminho_destino != NULL, FALSE );
 
-   // 2. Extrai a rota da pasta onde o arquivo vai cair e garante que ela exista
-   // g_autofree gchar *diretorio_pai = g_path_get_dirname(caminho_destino);
-   // if (g_mkdir_with_parents(diretorio_pai, 0755) != 0) {
-   //     g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", diretorio_pai);
-   //     return FALSE;
-   // }
+// 2. Extrai a rota da pasta onde o arquivo vai cair e garante que ela exista
+// g_autofree gchar *diretorio_pai = g_path_get_dirname(caminho_destino);
+// if (g_mkdir_with_parents(diretorio_pai, 0755) != 0) {
+//     g_printerr("[ERRO] Nao foi possivel criar/acessar a pasta de destino: %s\n", diretorio_pai);
+//     return FALSE;
+// }
 
-   // 3. Instancia os objetos GFile com limpeza automática de memória
+// 3. Instancia os objetos GFile com limpeza automática de memória
    g_autoptr( GFile ) origem = g_file_new_for_path( caminho_origem );
    g_autoptr( GFile ) destino = g_file_new_for_path( caminho_destino );
    g_autoptr( GError ) erro = NULL;
 
-   // 4. Executa a movimentação sobrescrevendo se já existir
+// 4. Executa a movimentação sobrescrevendo se já existir
    if ( !g_file_move( origem, destino, G_FILE_COPY_OVERWRITE, NULL, NULL, NULL, &erro ) ) {
       g_printerr( "[ERRO] Falha ao mover arquivo de '%s' para '%s': %s\n",
                   caminho_origem, caminho_destino, erro->message );
@@ -67,32 +67,41 @@ gboolean gio_mover_arquivo( const gchar *caminho_origem, const gchar *caminho_de
 
 
 
-void g_xdg_open( const char *caminho ) {
-   g_return_if_fail( caminho != NULL );
+/**
+* @brief Abre um arquivo com o visualizador especificado ou com o aplicativo padrão do sistema.
+* @param caminho      Caminho absoluto ou relativo do arquivo a ser aberto.
+* @param visualizador Nome do executável desejado (ex: "zathura", "atril") ou NULL para padrão (xdg-open).
+*/
+void g_xdg_open( const char *caminho, const char *visualizador ) {
+   g_return_if_fail( caminho != NULL && caminho[0] != '\0' );
 
-   if ( g_file_test( caminho, G_FILE_TEST_EXISTS ) ) {
-
-      // O g_autoptr gerencia o GError de forma automática.
-      g_autoptr( GError ) erro = NULL;
-
-      // Usa GFile para aceitar caminhos relativos ou absolutos com segurança total
-      g_autoptr( GFile ) arquivo = g_file_new_for_path( caminho );
-      g_autofree gchar *uri = g_file_get_uri( arquivo );
-
-      if ( !uri ) {
-         g_printerr( "Erro ao criar URI para o caminho: %s\n", caminho );
-         return;
-      }
-
-      if ( !g_app_info_launch_default_for_uri( uri, NULL, &erro ) ) {
-         g_printerr( "Erro ao abrir o arquivo: %s\n", erro->message );
-         // g_clear_error( &erro ) foi removido; o g_autoptr fará a liberação
-         // automaticamente ao final do bloco 'if', de forma segura.
-      }
-
-   } else {
-      g_printerr( "[AVISO] Arquivo nao encontrado: %s\n", caminho );
+   if ( !g_file_test( caminho, G_FILE_TEST_EXISTS ) ) {
+      return;
    }
+
+// 1. Verifica se o visualizador solicitado existe no PATH; caso contrário, usa xdg-open
+   g_autofree gchar *executavel = NULL;
+   if ( visualizador != NULL && visualizador[0] != '\0' ) {
+      executavel = g_find_program_in_path( visualizador );
+   }
+
+   if ( !executavel ) {
+      executavel = g_strdup( "xdg-open" );
+   }
+
+// 2. Cópia mutável do caminho para montar argv sem violar -Wcast-qual
+   g_autofree gchar *alvo = g_strdup( caminho );
+   gchar            *argv[] = { executavel, alvo, NULL };
+
+// 3. Dispara o visualizador de forma assíncrona e silenciosa (sem poluir o terminal)
+   g_spawn_async( NULL,
+                  argv,
+                  NULL,
+                  G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+                  NULL,
+                  NULL,
+                  NULL,
+                  NULL );
 }
 
 
@@ -103,7 +112,7 @@ void g_system_async( const char *comando ) {
 
    GError *erro = NULL;
 
-   // Passa o comando diretamente, permitindo que o shell interprete os argumentos e binários
+// Passa o comando diretamente, permitindo que o shell interprete os argumentos e binários
    if ( !g_spawn_command_line_async( comando, &erro ) ) {
       g_printerr( "Erro fatal ao tentar executar: %s\n", erro->message );
       g_clear_error( &erro );
@@ -120,34 +129,34 @@ void g_pdfunite( const char *diretorio, GStrv arquivos, const int qtd_arquivos, 
    g_return_if_fail( saida != NULL );
    g_return_if_fail( qtd_arquivos > 0 );
 
-   // g_auto(GStrv) aplica g_strfreev automaticamente ao final do escopo.
+// g_auto(GStrv) aplica g_strfreev automaticamente ao final do escopo.
    g_auto( GStrv ) argv = g_new0( char *, ( gsize )( qtd_arquivos + 3 ) );
 
    int pos = 0;
    argv[pos++] = g_strdup( "pdfunite" );
 
-   // 1. Os arquivos de entrada mantêm-se relativos, pois queremos
-   // que o pdfunite os procure dentro do 'diretorio' temporário.
+// 1. Os arquivos de entrada mantêm-se relativos, pois queremos
+// que o pdfunite os procure dentro do 'diretorio' temporário.
    for ( int i = 0; i < qtd_arquivos; i++ ) {
       argv[pos++] = g_strdup( arquivos[i] );
    }
 
-   // 2. A MÁGICA AQUI: Converte a saída para um caminho absoluto baseado no
-   // diretório raiz do Vértice, ignorando a mudança de diretório do filho!
+// 2. A MÁGICA AQUI: Converte a saída para um caminho absoluto baseado no
+// diretório raiz do Vértice, ignorando a mudança de diretório do filho!
    argv[pos++] = g_canonicalize_filename( saida, NULL );
 
-   // Terminador NULO obrigatório para vetores da família g_spawn
+// Terminador NULO obrigatório para vetores da família g_spawn
    argv[pos] = NULL;
 
    GError *erro = NULL;
    int status_saida = 0;
 
-   // Executamos o binário DIRETAMENTE, sem passar por um terminal "sh -c".
+// Executamos o binário DIRETAMENTE, sem passar por um terminal "sh -c".
    if ( !g_spawn_sync( diretorio, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status_saida, &erro ) ) {
       g_printerr( "[ERRO FATAL] Falha ao executar pdfunite: %s\n", erro->message );
       g_clear_error( &erro );
    } else if ( status_saida != 0 ) {
-      // Se o pdfunite retornar um aviso, logamos o status, mas a interface permanece estável.
+// Se o pdfunite retornar um aviso, logamos o status, mas a interface permanece estável.
       g_printerr( "[AVISO] União de PDFs em '%s' concluída com status %d.\n", diretorio, status_saida );
    }
 }
@@ -160,7 +169,7 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
    GError *erro = NULL;
    int status_saida = 0;
 
-   // 1. O comando agora é direcionado única e exclusivamente ao arquivo alvo.
+// 1. O comando agora é direcionado única e exclusivamente ao arquivo alvo.
    g_autofree char *comando_interno = g_strdup_printf(
                                          "nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode \"%s\"", arquivo_tex );
 
@@ -169,13 +178,13 @@ void g_pdflatex_serial( const char *dir_compile, const char *arquivo_tex ) {
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
 
-   // 2. A MÁGICA: O 3º parâmetro (dir_compile) garante o "cd" seguro antes da execução.
+// 2. A MÁGICA: O 3º parâmetro (dir_compile) garante o "cd" seguro antes da execução.
    if ( !g_spawn_sync( dir_compile, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status_saida, &erro ) ) {
       g_printerr( "[ERRO FATAL] Falha ao iniciar a compilação serial de '%s': %s\n", arquivo_tex, erro->message );
       g_clear_error( &erro );
    } else if ( status_saida != 0 ) {
-      // Como o pdflatex emite códigos de erro para referências não resolvidas ou bad boxes,
-      // registramos o status como aviso, mas não interrompemos a aplicação.
+// Como o pdflatex emite códigos de erro para referências não resolvidas ou bad boxes,
+// registramos o status como aviso, mas não interrompemos a aplicação.
       g_printerr( "[AVISO] Compilação de '%s' em '%s' concluída com status %d.\n", arquivo_tex, dir_compile, status_saida );
    }
 }
@@ -190,8 +199,8 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
    GError *erro = NULL;
    int status_saida = 0;
 
-   // 1. O comando volta a ser puro e limpo.
-   // Sem caminhos complexos, sem -output-directory. Apenas compila o que está na pasta.
+// 1. O comando volta a ser puro e limpo.
+// Sem caminhos complexos, sem -output-directory. Apenas compila o que está na pasta.
    g_autofree char *comando_interno = g_strdup_printf(
                                          "parallel -j %d nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: %s*.tex", num_cores, prefixo );
 
@@ -200,14 +209,14 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
 
-   // 2. A MÁGICA: O 3º parâmetro (dir_compile) diz à GLib para fazer um "cd"
-   // silencioso e seguro para essa pasta ANTES de executar o argv.
+// 2. A MÁGICA: O 3º parâmetro (dir_compile) diz à GLib para fazer um "cd"
+// silencioso e seguro para essa pasta ANTES de executar o argv.
    if ( !g_spawn_sync( dir_compile, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status_saida, &erro ) ) {
       g_printerr( "[ERRO FATAL] Falha ao iniciar a compilação paralela: %s\n", erro->message );
       g_clear_error( &erro );
    } else if ( status_saida != 0 ) {
-      // Isso substitui o seu antigo "|| TRUE". Se o pdflatex retornar um aviso,
-      // nós apenas logamos, mas o programa continua rodando normalmente.
+// Isso substitui o seu antigo "|| TRUE". Se o pdflatex retornar um aviso,
+// nós apenas logamos, mas o programa continua rodando normalmente.
       g_printerr( "[AVISO] Compilação paralela em '%s' concluída com status %d.\n", dir_compile, status_saida );
    }
 }
@@ -217,9 +226,9 @@ void g_pdflatex_parallel( const char *dir_compile, const char *prefixo ) {
 
 
 /**
- * Mapeia recursivamente todas as subpastas a partir de 'caminho_pai'.
- * Adiciona cada caminho encontrado dentro do GPtrArray retornado.
- */
+* Mapeia recursivamente todas as subpastas a partir de 'caminho_pai'.
+* Adiciona cada caminho encontrado dentro do GPtrArray retornado.
+*/
 GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista_caminhos ) {
    if ( !caminho_pai ) {
       return lista_caminhos;
@@ -233,22 +242,22 @@ GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista
    g_autoptr( GError ) erro = NULL;
 
    g_autoptr( GFileEnumerator ) enumerator = g_file_enumerate_children(
-            dir,
-            G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_TYPE,
-            G_FILE_QUERY_INFO_NONE,
-            NULL,
-            &erro );
+         dir,
+         G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_TYPE,
+         G_FILE_QUERY_INFO_NONE,
+         NULL,
+         &erro );
 
    if ( erro ) {
       g_printerr( "Erro ao abrir diretório '%s': %s\n", caminho_pai, erro->message );
       return lista_caminhos;
    }
 
-   // Laço infinito controlado com break para capturar erros de leitura do GIO
+// Laço infinito controlado com break para capturar erros de leitura do GIO
    while ( TRUE ) {
       GFileInfo *info = g_file_enumerator_next_file( enumerator, NULL, &erro );
 
-      // Proteção contra arquivos corrompidos ou sem permissão de leitura durante o ciclo
+// Proteção contra arquivos corrompidos ou sem permissão de leitura durante o ciclo
       if ( erro ) {
          g_printerr( "Erro ao ler item em '%s': %s\n", caminho_pai, erro->message );
          g_clear_error( &erro );
@@ -262,7 +271,7 @@ GPtrArray *listar_subpastas_recursivo( const char *caminho_pai, GPtrArray *lista
       g_autoptr( GFileInfo ) info_ptr = info;
       const char *nome = g_file_info_get_name( info_ptr );
 
-      // Barreira: Ignora pastas ocultas do sistema (ex: .git, .vscode, .config)
+// Barreira: Ignora pastas ocultas do sistema (ex: .git, .vscode, .config)
       if ( nome[0] == '.' ) {
          continue;
       }
@@ -293,7 +302,7 @@ char* trocar_extensao_arquivo( const char *caminho_orig, const char *nova_ext ) 
    const char *ponto = g_strrstr( caminho_orig, "." );
    const char *barra = g_strrstr( caminho_orig, G_DIR_SEPARATOR_S );
 
-   // Garante que o ponto pertence ao nome do arquivo e não a uma pasta oculta anterior
+// Garante que o ponto pertence ao nome do arquivo e não a uma pasta oculta anterior
    if ( ponto != NULL && ( barra == NULL || ponto > barra ) ) {
       return g_strdup_printf( "%.*s.%s", ( int )( ponto - caminho_orig ), caminho_orig, nova_ext );
    }
@@ -338,7 +347,7 @@ void apagar_temporarios_latex_paralelo( const gchar *diretorio, GStrv nomes_base
          continue;
       }
 
-      // 3. Reutiliza a versão serial para remover os artefatos daquela instância
+// 3. Reutiliza a versão serial para remover os artefatos daquela instância
       apagar_temporarios_latex_serial( diretorio, nomes_base[i], n_tipos );
    }
 }

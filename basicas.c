@@ -20,6 +20,7 @@
 #include "basicas.h"
 #include "comum.h"
 #include "interface.h"
+#include "glib_gio.h"
 
 
 /*
@@ -191,7 +192,7 @@ void liberar_array_strings( gchar ***array_ptr, int limite ) {
       g_clear_pointer( &array[i], g_free );
    }
 
-   g_clear_pointer( array_ptr, g_free );
+   g_clear_pointer( ( void** )array_ptr, g_free );
 }
 
 
@@ -560,31 +561,6 @@ EstadoArquivo verificar_arquivo( const char *nome_arquivo ) {
    return ARQUIVO_PRONTO;
 }
 
-int copiar_arquivo( const char *origem, const char *destino ) {
-   FILE *src = fopen( origem, "rb" );
-   if ( src == NULL ) {
-      return -1;
-   }
-
-   FILE *dst = fopen( destino, "wb" );
-   if ( dst == NULL ) {
-      fclose( src );
-      return -1;
-   }
-
-   char cp_buffer[65536];
-   size_t bloco;
-   while ( ( bloco = fread( cp_buffer, 1, sizeof( cp_buffer ), src ) ) > 0 ) {
-      if ( fwrite( cp_buffer, 1, bloco, dst ) != bloco ) {
-         fclose( src );
-         fclose( dst );
-         return -1;
-      }
-   }
-   fclose( src );
-   fclose( dst );
-   return 0;
-}
 
 // Emula o `mkdir -p` do Bash
 int criar_diretorios_cascata( const char *caminho ) {
@@ -785,7 +761,7 @@ void preparar_ambiente_latex_no_disco( void ) {
 
       // 3. Tenta instalar da origem
       if ( verificar_arquivo( origem_completa ) & ARQUIVO_PRONTO ) {
-         if ( copiar_arquivo( origem_completa, caminho_destino_final ) == 0 ) {
+         if ( gio_copiar_arquivo( origem_completa, caminho_destino_final ) == 0 ) {
             printf( "✅ Sucesso: professor.sty instalado em %s\n", pasta_destino );
 
             // 4. Atualiza o banco do TeX (usando caminho seguro em vez de ~)
@@ -807,7 +783,7 @@ void preparar_ambiente_latex_no_disco( void ) {
       // 5. O cp -u invisível: checa se você editou o .sty no projeto
       if ( origem_mais_recente( origem_completa, caminho_destino_final ) ) {
          printf( "🔄 Nova versão detectada na origem! Atualizando o texmf...\n" );
-         if ( copiar_arquivo( origem_completa, caminho_destino_final ) == 0 ) {
+         if ( gio_copiar_arquivo( origem_completa, caminho_destino_final ) == 0 ) {
             printf( "✅ Pacote atualizado com sucesso.\n" );
          }
       }

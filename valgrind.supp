@@ -1,20 +1,13 @@
 # =====================================================================
-# SUPRESSÕES DO VALGRIND PARA GTK3, PANGO, FONTCONFIG, HARFBUZZ E GIO
+# SUPRESSÕES DO VALGRIND PARA GTK3, PANGO, POPPLER, OPENMP E GIO
 # =====================================================================
 
 {
-   fontconfig_pattern_cache_realloc
+   fontconfig_pattern_cache_alloc
    Memcheck:Leak
    match-leak-kinds: definite,indirect,possible,reachable
-   fun:realloc
-   obj:*/libfontconfig.so*
-}
-
-{
-   fontconfig_xml_parse_malloc
-   Memcheck:Leak
-   match-leak-kinds: definite,indirect,possible,reachable
-   fun:malloc
+   fun:*alloc
+   ...
    obj:*/libfontconfig.so*
 }
 
@@ -44,22 +37,44 @@
 }
 
 {
-   gtk3_css_slice_alloc0
+   gtk3_css_and_style_cache
    Memcheck:Leak
    match-leak-kinds: definite,indirect,possible,reachable
    ...
-   fun:g_slice_alloc0
    obj:*/libgtk-3.so*
 }
 
 {
-   gio_gdbus_worker_thread_context
+   gdk_pixbuf_loader_modules
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   obj:*/libgdk_pixbuf-2.0.so*
+}
+
+{
+   poppler_global_params_cache
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   obj:*/libpoppler*.so*
+}
+
+{
+   gio_gdbus_and_gvfs_worker_threads
    Memcheck:Leak
    match-leak-kinds: definite,indirect,possible,reachable
    ...
    obj:*/libgio-2.0.so*
-   obj:*/libglib-2.0.so*
-   fun:start_thread
+}
+
+{
+   gobject_type_registration_static
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect,possible,reachable
+   ...
+   fun:g_type_register_*
+   obj:*/libgobject-2.0.so*
 }
 
 {
@@ -68,8 +83,6 @@
    match-leak-kinds: definite,indirect,possible,reachable
    ...
    fun:g_get_charset
-   ...
-   fun:g_print
 }
 
 {
@@ -77,15 +90,14 @@
    Memcheck:Leak
    match-leak-kinds: definite,indirect,possible,reachable
    ...
-   fun:g_slice_alloc
+   fun:g_slice_alloc*
    fun:g_string_sized_new
 }
 
 {
-   fontconfig_pattern_cache_calloc
+   openmp_libgomp_thread_pool
    Memcheck:Leak
    match-leak-kinds: definite,indirect,possible,reachable
-   fun:calloc
-   obj:*/libfontconfig.so*
+   ...
+   obj:*/libgomp.so*
 }
-

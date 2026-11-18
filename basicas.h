@@ -43,7 +43,6 @@ int sdatefind( char a, char *v, int n );
 int dia_da_semana( int dia, int mes, int ano );
 
 EstadoArquivo verificar_arquivo( const char *nome_arquivo );
-int copiar_arquivo( const char *origem, const char *destino );
 int criar_diretorios_cascata( const char *caminho );
 int origem_mais_recente( const char *origem, const char *destino );
 void preparar_ambiente_latex( const char *recursos_prefix );

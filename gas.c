@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include "basicas.h"
+#include "glib.h"
 #include "gas.h"
 
 
@@ -687,9 +688,9 @@ static GasPopulacao *gas_pipeline( const ImagemCinza *img, const GasParametros *
       gas_liberar_genitores( gen[k], par->n_gen );
    }
 
-   g_free( pop );
-   g_free( gen );
-   g_free( coef_disp );
+   g_clear_pointer( pop, g_free );
+   g_clear_pointer( gen, g_free );
+   g_clear_pointer( coef_disp, g_free );
 
    // Retorna as âncoras limpas e seguras
    return elite;

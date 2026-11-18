@@ -69,6 +69,11 @@ Diagnostics:
       - "performance-*"
 
     Remove:
+      # --- [ Falsos Positivos de Macros GTK3 / GLib e Padrões C ] ---
+      - "bugprone-casting-through-void"
+      - "bugprone-assignment-in-if-condition"
+      - "bugprone-switch-missing-default-case"
+
       # --- [ Redução de Ruído ] ---
       - "readability-identifier-length"
       - "bugprone-easily-swappable-parameters"

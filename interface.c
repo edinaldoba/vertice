@@ -463,21 +463,17 @@ gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceD
 //                           PERSISTÊNCIA: CARREGAMENTO INDIRETO DO DISCO                              //
 //=====================================================================================================//
 gboolean carregar_estado_aplicativo( AppContext *ctx ) {
-   if ( !ctx ) {
-      return FALSE;
-   }
+   g_return_val_if_fail( ctx != NULL, FALSE );
 
    CaminhoDiretorio *caminho = &ctx->caminho;
    InterfacePainel  *painel  = &ctx->painel;
 
-   // 1. Montagem do caminho baseado no índice da prova
-   g_autofree gchar *cache = g_strdup_printf( "cache%d.bin", ctx->dados.seq_prova );
+   // 1. Montagem segura do caminho baseado no índice da prova
+   g_autofree gchar *cache           = g_strdup_printf( "cache%d.bin", ctx->dados.seq_prova );
    g_autofree gchar *caminho_arquivo = g_build_filename( caminho->dados, cache, NULL );
 
-   // 2. Tenta abrir o arquivo em modo de leitura binária ("rb")
-   FILE *arquivo = fopen( caminho_arquivo, "rb" );
-   if ( !arquivo ) {
-
+   // 2. Verifica se o cache existe antes de tentar ler
+   if ( !g_file_test( caminho_arquivo, G_FILE_TEST_IS_REGULAR ) ) {
       painel->format_titulo    = meu_gerador_variadico( "⚠ Sem Dados na Memória:" );
       painel->format_subtitulo = meu_gerador_variadico( "Não há um rascunho anterior salvo para esta avaliação." );
       painel->format_instrucao = meu_gerador_variadico( "Aguardando novas entradas no %s.", ctx->dados.periodo );
@@ -487,16 +483,23 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
    }
 
    // =========================================================================
-   // 3. ENGENHARIA REVERSA DO TAMANHO (FAM - Flexible Array Member)
+   // 3. LEITURA ATÔMICA E VALIDAÇÃO DO BLOCO BINÁRIO (FAM)
    // =========================================================================
-   fseek( arquivo, 0, SEEK_END );
-   size_t tamanho_arquivo = ( size_t )ftell( arquivo );
-   rewind( arquivo );
+   g_autofree gchar *buffer          = NULL;
+   gsize             tamanho_arquivo = 0;
+   g_autoptr( GError ) erro          = NULL;
 
-   // Trava de segurança: O arquivo precisa ter no mínimo o tamanho do cabeçalho
+   if ( !g_file_get_contents( caminho_arquivo, &buffer, &tamanho_arquivo, &erro ) ) {
+      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Leitura:" );
+      painel->format_subtitulo = meu_gerador_variadico( "O arquivo de cache está inacessível ou ilegível." );
+      painel->format_instrucao = meu_gerador_variadico( "Detalhe: %s", erro ? erro->message : "Falha de E/S." );
+
+      criar_mensagem_painel( ERRO, painel );
+      return FALSE;
+   }
+
+   // Trava de segurança: O arquivo precisa ter no mínimo o tamanho do cabeçalho da struct
    if ( tamanho_arquivo < sizeof( DadosRascunho ) ) {
-      fclose( arquivo );
-
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Leitura:" );
       painel->format_subtitulo = meu_gerador_variadico( "O arquivo de cache está corrompido (tamanho inválido)." );
       painel->format_instrucao = meu_gerador_variadico( "Tente reconfigurar a estrutura e salvar novamente." );
@@ -505,27 +508,11 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
       return FALSE;
    }
 
-   // 4. Aloca a struct local com o tamanho matematicamente exato
-   DadosRascunho *rascunho = ( DadosRascunho * ) g_malloc0( tamanho_arquivo );
-
-   // 5. Suga o bloco binário inteiro do disco de uma só vez
-   size_t lidos = fread( rascunho, 1, tamanho_arquivo, arquivo );
-   fclose( arquivo );
-
-   if ( lidos != tamanho_arquivo ) {
-      g_free( rascunho ); // Libera a memória para não vazar no erro
-
-      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Leitura:" );
-      painel->format_subtitulo = meu_gerador_variadico( "O arquivo de cache está corrompido ou ilegível." );
-      painel->format_instrucao = meu_gerador_variadico( "Tente reconfigurar a estrutura e salvar novamente." );
-
-      criar_mensagem_painel( ERRO, painel );
-      fprintf( stderr, "Erro crítico: Arquivo de cache '%s' inválido.\n", caminho_arquivo );
-      return FALSE;
-   }
+   // 4. Converte o buffer recém-alocado diretamente para a struct com Flexible Array Member
+   DadosRascunho *rascunho = ( DadosRascunho * )( void * )buffer;
 
    // =========================================================================
-   // 6. SUCESSO E ALIMENTAÇÃO DA INTERFACE
+   // 5. SUCESSO E ALIMENTAÇÃO DA INTERFACE
    // =========================================================================
    painel->format_titulo    = meu_gerador_variadico( "✔ Cache Carregado!" );
    painel->format_subtitulo = meu_gerador_variadico( "Parâmetros de temas, colunas e questões restaurados." );
@@ -533,12 +520,9 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
 
    criar_mensagem_painel( SUCESSO, painel );
 
-   // SOLUÇÃO MESTRE: Como rascunho agora é um ponteiro alocado, passamos direto sem o '&'
    alimentar_interface_temporaria( ctx, rascunho );
 
-   // 7. Libera o pacote lido após a interface e a estrutura de dados interna já terem consumido o que precisavam
-   g_free( rascunho );
-
+   // O buffer (rascunho) e as strings de caminho são liberados automaticamente via g_autofree
    return TRUE;
 }
 //=====================================================================================================//
@@ -964,7 +948,7 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
-   dados->selecao_quest_prova = g_new0( gchar*, ( gsize )dados->total_quest_prova + 1U );
+   dados->selecao_quest_prova = g_new0( gchar*, ( gsize )MAX_QUEST_PROVA + 1U );
    dados->qtd_quest_subtema = g_new0( gint, ( gsize )dados->total_quest_prova );
    avaliacao->validas = g_new0( gboolean, ( gsize )MAX_AVALIACOES );
 

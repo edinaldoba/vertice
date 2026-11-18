@@ -112,7 +112,7 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
    // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    } else if ( img->image ) {
       liberar_matriz_pixels( img->image, img->nrow );
    }
@@ -121,7 +121,7 @@ static void aplicar_transformacao_afim( const ImagemCinza *IMG, ImagemCinza *img
    img->nrow = mapa->altura_destino;
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
-   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   img->image = ( guint8** )g_malloc( img->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -201,7 +201,7 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
    // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    } else if ( img->image ) {
       liberar_matriz_pixels_colorida( img->image, img->nrow );
    }
@@ -210,7 +210,7 @@ static void aplicar_transformacao_afim_colorida( const ImagemColorida *IMG, Imag
    img->nrow = mapa->altura_destino;
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
-   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   img->image = ( PixelRGB** )g_malloc( img->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -360,11 +360,11 @@ void cortar_imagem_bilinear( const ImagemCinza *IMG, ImagemCinza *img, const Ind
    // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    }
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
-   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   img->image = ( guint8** )g_malloc( img->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -466,11 +466,11 @@ void cortar_imagem_colorida_bilinear( const ImagemColorida *IMG, ImagemColorida 
    // Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    }
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
-   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   img->image = ( PixelRGB** )g_malloc( img->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -577,14 +577,14 @@ void redimensionar_imagem_bilinear( const ImagemCinza *origem, ImagemCinza *dest
    // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( destino->dados ) {
       g_free( destino->dados );
-      g_free( destino->image );
+      g_clear_pointer( destino->image, g_free );
    } else if ( destino->image ) {
       liberar_matriz_pixels( destino->image, destino->nrow );
    }
 
    // Alocação em bloco único para vetorização SIMD e aderência perfeita ao cache
    destino->dados = g_malloc( destino->nrow * destino->ncol * sizeof( uint8_t ) );
-   destino->image = g_malloc( destino->nrow * sizeof( uint8_t * ) );
+   destino->image = ( guint8** )g_malloc( destino->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < destino->nrow; i++ ) {
       destino->image[i] = destino->dados + ( i * destino->ncol );
    }
@@ -654,14 +654,14 @@ void redimensionar_imagem_colorida_bilinear( const ImagemColorida *origem, Image
    // 1. Barreira de Segurança e Limpeza no Padrão Contíguo
    if ( destino->dados ) {
       g_free( destino->dados );
-      g_free( destino->image );
+      g_clear_pointer( destino->image, g_free );
    } else if ( destino->image ) {
       liberar_matriz_pixels_colorida( destino->image, destino->nrow );
    }
 
    // Alocação da Nova Matriz Colorida em Bloco Único (Vetorização SIMD)
    destino->dados = g_malloc( destino->nrow * destino->ncol * sizeof( PixelRGB ) );
-   destino->image = g_malloc( destino->nrow * sizeof( PixelRGB * ) );
+   destino->image = ( PixelRGB** )g_malloc( destino->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < destino->nrow; i++ ) {
       destino->image[i] = destino->dados + ( i * destino->ncol );
    }
@@ -733,14 +733,14 @@ void aplicar_filtro_gaussiano_2d( const ImagemCinza *IMG, ImagemCinza *img, floa
    // 1. Limpeza e Realocação no Novo Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    }
 
    img->ncol = IMG->ncol;
    img->nrow = IMG->nrow;
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( uint8_t ) );
-   img->image = g_malloc( img->nrow * sizeof( uint8_t * ) );
+   img->image = ( guint8** )g_malloc( img->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -826,14 +826,14 @@ void aplicar_filtro_gaussiano_2d_rgb( const ImagemColorida *IMG, ImagemColorida 
    // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( img->dados ) {
       g_free( img->dados );
-      g_free( img->image );
+      g_clear_pointer( img->image, g_free );
    }
 
    img->ncol = IMG->ncol;
    img->nrow = IMG->nrow;
 
    img->dados = g_malloc( img->nrow * img->ncol * sizeof( PixelRGB ) );
-   img->image = g_malloc( img->nrow * sizeof( PixelRGB * ) );
+   img->image = ( PixelRGB** )g_malloc( img->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < img->nrow; i++ ) {
       img->image[i] = img->dados + ( i * img->ncol );
    }
@@ -1064,7 +1064,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
    // Limpa dados velhos se estiver reutilizando a mesma estrutura img_crop
    if ( img_crop->dados ) {
       g_free( img_crop->dados );
-      g_free( img_crop->image );
+      g_clear_pointer( img_crop->image, g_free );
    }
 
    img_crop->ncol = largura;
@@ -1074,7 +1074,7 @@ void transformada_homografica( ImagemCinza *img, ImagemCinza *img_crop, IndiceMa
 
    // Aloca a matriz do crop em bloco único para vetorização SIMD
    img_crop->dados = g_malloc( img_crop->nrow * img_crop->ncol * sizeof( uint8_t ) );
-   img_crop->image = g_malloc( img_crop->nrow * sizeof( uint8_t * ) );
+   img_crop->image = ( guint8** )g_malloc( img_crop->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < img_crop->nrow; i++ ) {
       img_crop->image[i] = img_crop->dados + ( i * img_crop->ncol );
    }
@@ -1213,7 +1213,7 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    // =========================================================================
    if ( img_crop->dados ) {
       g_free( img_crop->dados );
-      g_free( img_crop->image );
+      g_clear_pointer( img_crop->image, g_free );
    }
 
    img_crop->ncol = largura;
@@ -1222,8 +1222,8 @@ void transformada_homografica_colorida( ImagemColorida *img, ImagemColorida *img
    g_strlcpy( img_crop->key, img->key, sizeof( img_crop->key ) );
 
    // Aloca a matriz do crop em bloco único de structs PixelRGB para vetorização SIMD
-   img_crop->dados = g_malloc( img_crop->nrow * img_crop->ncol * sizeof( PixelRGB ) );
-   img_crop->image = g_malloc( img_crop->nrow * sizeof( PixelRGB * ) );
+   img_crop->dados = ( PixelRGB* )g_malloc( img_crop->nrow * img_crop->ncol * sizeof( PixelRGB ) );
+   img_crop->image = ( PixelRGB** )g_malloc( img_crop->nrow * sizeof( PixelRGB * ) );
    for ( gsize i = 0; i < img_crop->nrow; i++ ) {
       img_crop->image[i] = img_crop->dados + ( i * img_crop->ncol );
    }

@@ -857,12 +857,12 @@ static void processar_modo_por_aluno_lc( AppContext *ctx, int idx_aula, const ch
 }
 
 static gchar *cod_aluno_formatado_lc( uint32_t cod_aluno ) {
-   g_autofree gchar *str_temp = g_strdup_printf( "%" PRIu32, cod_aluno );
+   gchar *str_temp = g_strdup_printf( "%" PRIu32, cod_aluno );
    int len = ( int )strlen( str_temp );
 
    // Se o número tiver 3 dígitos ou menos, não precisa de ponto.
    if ( len <= 3 ) {
-      return g_steal_pointer( &str_temp );
+      return str_temp;
    }
 
    int qtd_pontos = ( len - 1 ) / 3;
@@ -884,6 +884,7 @@ static gchar *cod_aluno_formatado_lc( uint32_t cod_aluno ) {
       contador++;
    }
 
+   g_free( str_temp );
    return resultado;
 }
 
@@ -2113,7 +2114,6 @@ void confirmar_edicao_e_mover_cursor( GtkTreeView *tree_view, GtkTreePath *path_
 
 
 //=============================================================================================================
-//=============================================================================================================
 /**
  * @brief Validador universal de notas (0 a 10). Substitui vírgulas, detecta células limpas e ignora espaços tabulares.
  */
@@ -2126,19 +2126,23 @@ static gboolean validar_nota_digitada_lc( const gchar *texto, float *nota_saida 
       return TRUE;
    }
 
-   // 2. Cria uma cópia segura e dinâmica
+   // 2. Cria uma cópia segura e dinâmica (garante não-nulidade ao Clang Static Analyzer)
    g_autofree gchar *buffer = g_strdup( texto );
+   if ( !buffer ) {
+      return FALSE;
+   }
 
    // 3. Limpa espaços acidentais (ASCII padrão) nas pontas
    g_strstrip( buffer );
 
    gchar *start_ptr = buffer;
 
-   // 4. Ignora o Figure Space (\u2007) caso o professor não o tenha apagado
-   // O UTF-8 de \u2007 ocupa exatamente 3 bytes. O laço remove múltiplos se houver.
-   while ( g_str_has_prefix( start_ptr, "\u2007" ) ) {
+   // 4. Ignora o Figure Space (\u2007 - 3 bytes em UTF-8) sem acionar o ramo NULL de g_str_has_prefix
+   while ( strncmp( start_ptr, "\u2007", 3 ) == 0 ) {
       start_ptr += 3;
    }
+
+   g_strstrip( start_ptr );
 
    // 5. Se após a limpeza o texto ficar vazio ou for apenas um traço
    if ( start_ptr[0] == '\0' || g_strcmp0( start_ptr, "-" ) == 0 ) {
@@ -2149,8 +2153,8 @@ static gboolean validar_nota_digitada_lc( const gchar *texto, float *nota_saida 
    // 6. Substitui vírgulas por pontos nativamente, a partir da nova posição válida
    g_strdelimit( start_ptr, ",", '.' );
 
-   gchar *endptr = NULL;
-   gdouble valor = g_ascii_strtod( start_ptr, &endptr );
+   gchar  *endptr = NULL;
+   gdouble valor  = g_ascii_strtod( start_ptr, &endptr );
 
    // 7. Rejeita falha de conversão, lixo alfabético solto (ex: "8.5a") ou notas fora da escala
    if ( endptr == start_ptr || *endptr != '\0' || valor < 0.0 || valor > 10.0 ) {
@@ -2160,31 +2164,40 @@ static gboolean validar_nota_digitada_lc( const gchar *texto, float *nota_saida 
    *nota_saida = ( float )valor;
    return TRUE;
 }
+
 //-------------------------------------------------------------------------------------------------------------
 /**
  * @brief Formata a nota injetando o Figure Space (\u2007) para alinhar decimais no GTK3.
  */
 static void formatar_nota_com_espaco_tabular_lc( float nota, char *buffer, size_t size ) {
+   g_return_if_fail( buffer != NULL && size > 0 );
+
    if ( nota >= 10.0f ) {
-      g_snprintf( buffer, size, "%.2f", ( double )nota );
+      g_snprintf( buffer, ( gulong )size, "%.2f", ( double )nota );
    } else if ( nota >= 0.0f ) {
-      g_snprintf( buffer, size, "\u2007%.2f", ( double )nota );
-   } /*else {
-      g_snprintf( buffer, size, "" );
-   }*/
+      g_snprintf( buffer, ( gulong )size, "\u2007%.2f", ( double )nota );
+   } else {
+      buffer[0] = '\0';
+   }
 }
-//-------------------------------------------------------------------------------------------------------------
+
 //-------------------------------------------------------------------------------------------------------------
 /**
  * @brief Salva a nota tanto na Struct Soberana quanto no GtkListStore que disparou o evento.
  */
 void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
                               const gchar *path_string, const gchar *new_text ) {
-   const InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   g_return_if_fail( ctx != NULL && renderer != NULL && path_string != NULL );
 
-   float nova_nota;
+   const InterfaceDiario *diario    = &ctx->diario;
+   InterfaceAvaliacao    *avaliacao = &ctx->diario.avaliacao;
+   InterfaceRelatorio    *relatorio = &ctx->diario.relatorio;
+
+   if ( !diario->fichas ) {
+      return;
+   }
+
+   float nova_nota = -1.0f;
    if ( !validar_nota_digitada_lc( new_text, &nova_nota ) ) {
       return;
    }
@@ -2196,19 +2209,22 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    }
 
    GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
-   GtkTreeIter iter;
+   GtkTreeIter   iter;
    if ( !gtk_tree_model_get_iter_from_string( model, &iter, path_string ) ) {
       return;
    }
 
    int index_aluno = atoi( path_string );
-   FichaAluno *ficha = g_ptr_array_index( diario->fichas, index_aluno );
-   gint col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-   int foco = ctx->cabecalho.foco_disciplina;
+   if ( index_aluno < 0 || ( guint )index_aluno >= diario->fichas->len ) {
+      return;
+   }
+
+   FichaAluno *ficha   = g_ptr_array_index( diario->fichas, index_aluno );
+   gint        col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
+   int         foco    = ctx->cabecalho.foco_disciplina;
 
    float *nota_alvo = NULL;
 
-// Desativa temporariamente a checagem de ponteiro para membros empacotados apenas neste bloco
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 
@@ -2216,19 +2232,19 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    // 2. ROTEAMENTO DINÂMICO: Descobre o endereço de memória alvo
    // ==========================================================
    if ( tree_view == GTK_TREE_VIEW( avaliacao->treeview ) ) {
-      int periodo = ctx->cabecalho.foco_periodo;
-      int av_index = ( col_idx - 2 ) / 2;
-      gboolean is_rec = ( col_idx % 2 != 0 );
+      int      periodo  = ctx->cabecalho.foco_periodo;
+      int      av_index = ( col_idx - 2 ) / 2;
+      gboolean is_rec   = ( col_idx % 2 != 0 );
 
-      NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
-      nota_alvo = is_rec ? &nota->rec : &nota->av;
-
+      if ( av_index >= 0 && av_index < 5 ) {
+         NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[periodo].avaliacoes[av_index];
+         nota_alvo           = is_rec ? &nota->rec : &nota->av;
+      }
    } else if ( tree_view == GTK_TREE_VIEW( relatorio->treeview ) ) {
       RelatorioAnual *rel = &ficha->disciplina[foco].relatorio;
 
-      // Rotas dos Períodos Letivos (Colunas 2 a 4)
       if ( col_idx >= 2 && col_idx <= 4 ) {
-         int p = col_idx - 2;
+         int p     = col_idx - 2;
          nota_alvo = &rel->notas_periodos[p];
       } else if ( col_idx == 8 ) {
          nota_alvo = &rel->rec_final;
@@ -2246,121 +2262,106 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    // ==========================================================
    // 3. RETORNO ANTECIPADO UNIVERSAL (Destrava a rolagem do TreeView)
    // ==========================================================
-   // Aplicação da margem de tolerância (Epsilon) para silenciar o -Wfloat-equal
-   // e garantir a precisão sem precisar importar <math.h>
    float diff = *nota_alvo - nova_nota;
    if ( diff > -0.001f && diff < 0.001f ) {
-      GtkTreePath *path_temp = gtk_tree_path_new_from_string( path_string );
+      g_autoptr( GtkTreePath ) path_temp = gtk_tree_path_new_from_string( path_string );
       if ( path_temp ) {
          gtk_tree_model_row_changed( model, path_temp, &iter );
-         gtk_tree_path_free( path_temp );
       }
       return;
    }
 
    // 4. Efetiva a gravação na struct de forma limpa
-   *nota_alvo = nova_nota;
+   *nota_alvo              = nova_nota;
    ficha->ficha_modificada = TRUE;
 
    // 5. Atualização Visual
    gchar texto_formatado[16] = "";
-
-   if ( nova_nota >= 10.0f ) {
-      g_snprintf( texto_formatado, sizeof( texto_formatado ), "%.2f", ( double )nova_nota );
-   } else if ( nova_nota >= 0.0f ) {
-      g_snprintf( texto_formatado, sizeof( texto_formatado ), "\u2007%.2f", ( double )nova_nota );
-   }
-
+   formatar_nota_com_espaco_tabular_lc( nova_nota, texto_formatado, sizeof( texto_formatado ) );
    g_strdelimit( texto_formatado, ".", ',' );
 
    gtk_list_store_set( GTK_LIST_STORE( model ), &iter, col_idx, texto_formatado, -1 );
 }
-//=====================================================================================================
-
-
-
 
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Cola múltiplas notas na coluna a partir da célula atual
 //===================================================================================================
 void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start_path, GtkTreeViewColumn *column ) {
-   const InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   g_return_if_fail( ctx != NULL && start_path != NULL && column != NULL );
 
-   GtkClipboard *clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
-   gchar *text = gtk_clipboard_wait_for_text( clipboard );
+   const InterfaceDiario *diario    = &ctx->diario;
+   InterfaceAvaliacao    *avaliacao = &ctx->diario.avaliacao;
+   if ( !diario->fichas ) {
+      return;
+   }
+
+   GtkClipboard      *clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+   g_autofree gchar  *text      = gtk_clipboard_wait_for_text( clipboard );
    if ( !text ) {
       return;
    }
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
-   GtkTreeModel *model = gtk_tree_view_get_model( tree_view );
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeModel *model     = gtk_tree_view_get_model( tree_view );
 
-   GtkTreePath *current_path = gtk_tree_path_copy( start_path );
+   g_autoptr( GtkTreePath ) current_path = gtk_tree_path_copy( start_path );
    GtkTreeIter iter;
 
-   if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
-      gtk_tree_path_free( current_path );
-      g_free( text );
+   if ( !current_path || !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
       return;
    }
 
    GList *cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( column ) );
    if ( !cells ) {
-      gtk_tree_path_free( current_path );
-      g_free( text );
       return;
    }
    GtkCellRendererText *renderer = GTK_CELL_RENDERER_TEXT( cells->data );
    g_list_free( cells );
 
-   gchar **linhas = g_strsplit( text, "\n", -1 );
+   g_auto( GStrv ) linhas = g_strsplit( text, "\n", -1 );
+   if ( !linhas ) {
+      return;
+   }
+
    int i = 0;
 
    // 4. Bloco do GtkEntry: Aplica a nota se o aluno da linha atual for ativo
-   if ( GTK_IS_ENTRY( widget ) && linhas[0] != NULL ) {
-      gchar *nota_str = g_strstrip( linhas[0] );
-      gchar *path_str = gtk_tree_path_to_string( current_path );
+   if ( widget != NULL && GTK_IS_ENTRY( widget ) && linhas[0] != NULL ) {
+      gchar            *nota_str = g_strstrip( linhas[0] );
+      g_autofree gchar *path_str = gtk_tree_path_to_string( current_path );
+      gint             *indices  = gtk_tree_path_get_indices( current_path );
 
-      // Captura a correspondência absoluta do aluno pela interface
-      gint *indices = gtk_tree_path_get_indices( current_path );
-      if ( indices && ( guint )indices[0] < diario->fichas->len ) {
+      if ( indices && indices[0] >= 0 && ( guint )indices[0] < diario->fichas->len ) {
          FichaAluno *ficha = g_ptr_array_index( diario->fichas, indices[0] );
 
          if ( ficha->ativo ) {
             gtk_entry_set_text( GTK_ENTRY( widget ), nota_str );
             processar_gravacao_nota( ctx, GTK_CELL_RENDERER( renderer ), path_str, nota_str );
          } else {
-            // Limpa o entry visual se o aluno colado for inativo (proteção de interface)
             gtk_entry_set_text( GTK_ENTRY( widget ), "" );
          }
       }
 
-      g_free( path_str );
       i = 1;
       gtk_tree_path_next( current_path );
 
       if ( !gtk_tree_model_get_iter( model, &iter, current_path ) ) {
-         gtk_tree_path_free( current_path );
-         g_strfreev( linhas );
-         g_free( text );
          return;
       }
    }
 
-   // 5. Preenche as linhas seguintes mapeando o Path ao GArray corretamente
+   // 5. Preenche as linhas seguintes mapeando o Path ao GPtrArray corretamente
    while ( linhas[i] != NULL ) {
       gchar *nota_str = g_strstrip( linhas[i] );
 
-      if ( linhas[i + 1] == NULL && strlen( nota_str ) == 0 ) {
+      if ( linhas[i + 1] == NULL && nota_str[0] == '\0' ) {
          break;
       }
 
-      gchar *path_str = gtk_tree_path_to_string( current_path );
-      gint *indices = gtk_tree_path_get_indices( current_path );
+      g_autofree gchar *path_str = gtk_tree_path_to_string( current_path );
+      gint             *indices  = gtk_tree_path_get_indices( current_path );
 
-      // Verifica o aluno correspondente à linha do GTK iterada, e NÃO pela variável 'i'
-      if ( indices && ( guint )indices[0] < diario->fichas->len ) {
+      if ( indices && indices[0] >= 0 && ( guint )indices[0] < diario->fichas->len ) {
          FichaAluno *ficha = g_ptr_array_index( diario->fichas, indices[0] );
 
          if ( ficha->ativo ) {
@@ -2368,7 +2369,6 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
          }
       }
 
-      g_free( path_str );
       i++;
       gtk_tree_path_next( current_path );
 
@@ -2376,18 +2376,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
          break;
       }
    }
-
-   gtk_tree_path_free( current_path );
-   g_strfreev( linhas );
-   g_free( text );
 }
-//===================================================================================================
-
-
-
-
-
-
 
 //--------------------------------------------------------------------------------------------------
 void carregar_notas_ui_por_periodo( AppContext *ctx ) {
@@ -2398,8 +2387,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    }
    InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
-   GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkListStore *store     = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
    int foco_per = ctx->cabecalho.foco_periodo;
    g_return_if_fail( foco_per >= 0 && foco_per <= 3 );
@@ -2409,21 +2398,17 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 
    int foco = ctx->cabecalho.foco_disciplina;
 
-   // 2. Percorre o GArray reconstruindo as linhas do zero
+   // 2. Percorre o GPtrArray reconstruindo as linhas do zero
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
       FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
       GtkTreeIter iter;
 
-      // Buffer estático na Stack: 10 strings de até 8 caracteres (Ex: "10.00\0")
-      // Zera todo o bloco de memória automaticamente (todas strings vazias por padrão)
-      char str_notas[11][8] = {{0}};
+      char str_notas[11][8] = { { 0 } };
 
-      // Constrói as strings para os 5 pares de notas
       for ( int av = 0; av < 5; av++ ) {
          const NotaAvaliacao *nota = &ficha->disciplina[foco].periodo[foco_per].avaliacoes[av];
-         int base = av * 2;
+         int                  base = av * 2;
 
-         // Chamadas limpas para a função auxiliar
          formatar_nota_com_espaco_tabular_lc( nota->av,  str_notas[base],     sizeof( str_notas[base] ) );
          formatar_nota_com_espaco_tabular_lc( nota->rec, str_notas[base + 1], sizeof( str_notas[base + 1] ) );
       }
@@ -2432,12 +2417,10 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
       formatar_nota_com_espaco_tabular_lc( relatorio->notas_periodos[foco_per], str_notas[10], sizeof( str_notas[10] ) );
 
       for ( int j = 0; j < 11; j++ ) {
-         g_strdelimit( str_notas[j], ".", ',' ); // Aceita vírgula do teclado numérico
+         g_strdelimit( str_notas[j], ".", ',' );
       }
 
       gtk_list_store_append( store, &iter );
-
-      // Injeta todas as colunas de uma vez só na linha recém-criada
       gtk_list_store_set( store, &iter,
                           0, i + 1,
                           1, ficha->aluno,
@@ -2446,33 +2429,27 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
                           6, str_notas[4],   7, str_notas[5],
                           8, str_notas[6],   9, str_notas[7],
                           10, str_notas[8],  11, str_notas[9],
-                          12, str_notas[10], // Nota do período
+                          12, str_notas[10],
                           13, !ficha->ativo,
                           -1 );
    }
 
-   GtkTreePath *path_novo = gtk_tree_path_new_from_indices( 0, -1 );
+   g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_first();
    if ( path_novo ) {
-      gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW( avaliacao->treeview ), path_novo, NULL, FALSE, 0.0f, 0.0f );
-      gtk_tree_path_free( path_novo );
+      gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
    }
 }
-
-
-
-
 
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Transforma o status pré-calculado em texto para a UI e ativa as permissões (View)
 //===================================================================================================
 static const char *avaliar_status_aprovacao_e_pendencias_lc( const RelatorioAnual *rel, int *mascara_pendencias ) {
+   g_return_val_if_fail( rel != NULL && mascara_pendencias != NULL, "" );
 
-   // Se o aluno ainda não possui pontuação base no ano, sai silenciosamente
    if ( rel->soma < 0.0f ) {
-      return NULL;
+      return "";
    }
 
-   // Traduz o estado matemático para a string da interface e destrava edições (Rec/Cons)
    switch ( rel->obs ) {
    case OBS_ALUNO_APROVADO_NO_CONSELHO:
       *mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
@@ -2491,7 +2468,7 @@ static const char *avaliar_status_aprovacao_e_pendencias_lc( const RelatorioAnua
       return "Conselho";
 
    case OBS_ALUNO_APROVADO_DIRETO:
-      return "Aprov Dir"; // Não destrava Rec/Cons pois passou direto
+      return "Aprov Dir";
 
    case OBS_ALUNO_EM_RECUPERACAO_FINAL:
       *mascara_pendencias |= MASK_DESTRAVA_REC_FINAL;
@@ -2514,48 +2491,49 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    }
    InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( relatorio->treeview );
-   GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
+   int      d            = ctx->cabecalho.foco_disciplina;
+   gboolean eh_rec       = ( ctx->cabecalho.foco_periodo_vigente == RECUPERACAO_FINAL );
+   int      foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foco_periodo_vigente;
+   g_return_if_fail( foco_periodo >= 0 && foco_periodo < 4 );
+
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( relatorio->treeview );
+   GtkListStore *store     = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
    // 1. Otimização de Performance GTK
    g_object_ref( store );
    gtk_tree_view_set_model( tree_view, NULL );
    gtk_list_store_clear( store );
 
-   int d = ctx->cabecalho.foco_disciplina;
-   gboolean eh_rec = ( ctx->cabecalho.foco_periodo_vigente == RECUPERACAO_FINAL );
-   int foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foco_periodo_vigente; // 0 (1ºP) a 3 (4ºP)
-
    // =========================================================================
    // PRE-LOAD 2: Carregando acesso.bin em Tabelas Hash O(1)
    // =========================================================================
-   GHashTable *hash_acesso[4] = {NULL, NULL, NULL, NULL};
+   GHashTable *hash_acesso[4] = { NULL, NULL, NULL, NULL };
 
    for ( int p = 0; p <= foco_periodo; p++ ) {
       hash_acesso[p] = g_hash_table_new( g_direct_hash, g_direct_equal );
 
-      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      GtkComboBox      *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, p );
 
-      g_autofree gchar *acesso_bin = g_build_filename( ctx->dados.raiz, "dados", "informados", ctx->dados.ano,
-                                     ctx->dados.escola, ctx->dados.turma,
-                                     ctx->dados.disciplina, texto_periodo,
-                                     "acesso.bin", NULL );
-      gchar *conteudo = NULL;
-      gsize tamanho = 0;
+      g_autofree gchar *acesso_bin = g_build_filename(
+                                        ctx->dados.raiz, "dados", "informados", ctx->dados.ano,
+                                        ctx->dados.escola, ctx->dados.turma,
+                                        ctx->dados.disciplina, texto_periodo,
+                                        "acesso.bin", NULL
+                                     );
 
-      if ( g_file_get_contents( acesso_bin, &conteudo, &tamanho, NULL ) ) {
-         int qtd_acessos = ( int )( tamanho / sizeof( AcessoFicha ) );
-         AcessoFicha *acessos = ( AcessoFicha * )conteudo;
+      g_autofree gchar *conteudo = NULL;
+      gsize             tamanho  = 0;
 
-         for ( int a = 0; a < qtd_acessos; a++ ) {
-            // SACADA DE MESTRE: Salva o cod_aluno como CHAVE e o status ativo como VALOR
+      if ( g_file_get_contents( acesso_bin, &conteudo, &tamanho, NULL ) && conteudo != NULL ) {
+         gsize        qtd_acessos = tamanho / sizeof( AcessoFicha );
+         AcessoFicha *acessos     = ( AcessoFicha * )( void * )conteudo;
+
+         for ( gsize a = 0; a < qtd_acessos; a++ ) {
             g_hash_table_insert( hash_acesso[p],
                                  GINT_TO_POINTER( acessos[a].cod_aluno ),
                                  GINT_TO_POINTER( acessos[a].ativo ) );
          }
-
-         g_free( conteudo );
       }
    }
 
@@ -2563,28 +2541,27 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // LAÇO PRINCIPAL DOS ALUNOS
    // =========================================================================
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
-      FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
-      const RelatorioAnual *rel = &ficha->disciplina[d].relatorio;
+      FichaAluno           *ficha = g_ptr_array_index( diario->fichas, i );
+      const RelatorioAnual *rel   = &ficha->disciplina[d].relatorio;
 
       GtkTreeIter iter;
-      char str_cols[8][16] = {{0}};
+      char        str_cols[8][16] = { { 0 } };
 
-      // --- PASSO NOVO: Busca do status ativo do aluno no período atual em O(1) ---
-      gpointer ptr_ativo = NULL;
-      gboolean presente_no_foco = g_hash_table_lookup_extended( hash_acesso[foco_periodo],
-                                  GINT_TO_POINTER( ficha->cod_aluno ),
-                                  NULL, &ptr_ativo );
+      gpointer ptr_ativo        = NULL;
+      gboolean presente_no_foco = g_hash_table_lookup_extended(
+                                     hash_acesso[foco_periodo],
+                                     GINT_TO_POINTER( ficha->cod_aluno ),
+                                     NULL,
+                                     &ptr_ativo
+                                  );
 
-      // Resgata o booleano de dentro do ponteiro
-      gboolean ativo_no_foco = presente_no_foco ? GPOINTER_TO_INT( ptr_ativo ) : FALSE;
-
-      // Separação dos domínios em variáveis distintas
-      int mascara_pendencias = 0;
+      gboolean ativo_no_foco      = presente_no_foco ? GPOINTER_TO_INT( ptr_ativo ) : FALSE;
+      int      mascara_pendencias = 0;
 
       if ( presente_no_foco ) {
          for ( int p = 0; p < foco_periodo; p++ ) {
             if ( !g_hash_table_contains( hash_acesso[p], GINT_TO_POINTER( ficha->cod_aluno ) ) ) {
-               mascara_pendencias |= ( 1 << p ); // Bits 0 a 3: Matrícula Tardia
+               mascara_pendencias |= ( 1 << p );
             }
          }
       }
@@ -2598,7 +2575,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
       if ( rel->soma >= 0.0f ) {
-         formatar_nota_com_espaco_tabular_lc( rel->soma, str_cols[4], sizeof( str_cols[4] ) );
+         formatar_nota_com_espaco_tabular_lc( rel->soma,        str_cols[4], sizeof( str_cols[4] ) );
          formatar_nota_com_espaco_tabular_lc( rel->media_anual, str_cols[5], sizeof( str_cols[5] ) );
       }
 
@@ -2610,21 +2587,16 @@ void carregar_relatorio_ui( AppContext *ctx ) {
          formatar_nota_com_espaco_tabular_lc( rel->conselho, str_cols[7], sizeof( str_cols[7] ) );
       }
 
-      // --- PASSO C: Lógica de Status & Destravamento de Edição Final ---
-      const char *obs = "";
-      obs = avaliar_status_aprovacao_e_pendencias_lc( rel, &mascara_pendencias );
+      // --- PASSO C: Lógica de Status & Destravamento de Edição Final (Sem DeadStore) ---
+      const char *obs = avaliar_status_aprovacao_e_pendencias_lc( rel, &mascara_pendencias );
 
       // --- PASSO D: Filtro Visual para Alunos Inativos ---
       if ( !ficha->ativo ) {
          str_cols[6][0] = '\0';
          str_cols[7][0] = '\0';
-         obs = "";
+         obs            = "";
       }
 
-      // ----------------------------------------------------------------------
-      // CORREÇÃO DO BUG: Sincronização O(1) pelo cod_aluno.
-      // Se o aluno está inativo (ou sequer existia) no período focado, oculta a OBS.
-      // ----------------------------------------------------------------------
       if ( !ativo_no_foco ) {
          obs = "";
       }
@@ -2648,27 +2620,23 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           9, str_cols[7],
                           10, obs,
                           11, !ficha->ativo,
-                          12, mascara_pendencias, // Coluna 12 exclusiva de permissões
-                          13, rel->obs,           // Coluna 13 exclusiva de estado (renderização)
+                          12, mascara_pendencias,
+                          13, rel->obs,
                           -1 );
    }
 
-   // Limpeza O(1) da Memória das Hash Tables
    for ( int p = 0; p <= foco_periodo; p++ ) {
       if ( hash_acesso[p] ) {
          g_hash_table_destroy( hash_acesso[p] );
       }
    }
 
-   // 3. Reanexa o modelo atualizado à TreeView
    gtk_tree_view_set_model( tree_view, GTK_TREE_MODEL( store ) );
    g_object_unref( store );
 
-   // 5. Retorna o scroll para o topo da lista
-   GtkTreePath *path_novo = gtk_tree_path_new_first();
+   g_autoptr( GtkTreePath ) path_novo = gtk_tree_path_new_first();
    if ( path_novo ) {
       gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
-      gtk_tree_path_free( path_novo );
    }
 }
 

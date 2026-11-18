@@ -12,7 +12,7 @@ typedef struct {
    InterfaceCabecalho cabecalho;
    CaminhoDiretorio   caminho;
    CalendarioData     hoje;
-   GPtrArray         *fichas; // Clone na Heap
+   GPtrArray         *fichas; // Clone profundo na Heap
 } MotorProvaSnapshot;
 //==========================================================================
 

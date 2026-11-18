@@ -3,7 +3,7 @@
 # =====================================================================
 
 # Define o shell explicitamente para garantir o funcionamento do 'echo -e',
-# 'command -v' e evitar incompatibilidades com o /bin/sh (dash) do Debian.
+# 'command -v' e evitar incompatibilidades com o /bin/sh (dash) do Ubuntu/Debian.
 SHELL := /bin/bash
 
 # --- CORES PARA O TERMINAL ---
@@ -22,14 +22,14 @@ CC         ?= gcc
 PKG_CONFIG ?= pkg-config
 RM         := rm -f
 
-# Recursos GTK e LaTeX
+# Recursos GTK, LaTeX e Scripts
 RESOURCES_XML := recursos/recursos.xml
 RESOURCES_C   := recursos.c
 RESOURCES_O   := $(RESOURCES_C:.c=.o)
 UI_FILE       := recursos/interface.glade
 PROFESSOR_STY := recursos/professor.sty
 CSS_FILES     := $(wildcard recursos/css/*.css)
-SH_SCRIPTS    := $(wildcard *.sh)
+SH_SCRIPTS    := $(wildcard *.sh suporte/*.sh)
 
 # Fontes autorais separados do código autogerado
 USER_SOURCES := \
@@ -44,16 +44,18 @@ OBJECTS   := $(C_SOURCES:.c=.o)
 DEPFILES  := $(OBJECTS:.o=.d)
 
 # =====================================================================
-# 2. PACOTES E DEPENDÊNCIAS
+# 2. PACOTES E DEPENDÊNCIAS (Avaliação única com verificação)
 # =====================================================================
-PKG_DEPS   := gtk+-3.0 poppler-glib cairo
-PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_DEPS))
-PKG_LIBS   := $(shell $(PKG_CONFIG) --libs $(PKG_DEPS))
+PKG_DEPS   := gtk+-3.0 poppler-glib cairo openssl
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_DEPS) 2>/dev/null)
+PKG_LIBS   := $(shell $(PKG_CONFIG) --libs $(PKG_DEPS) 2>/dev/null)
+
+# Supressões do Valgrind disponíveis no sistema (Ubuntu / Debian)
+SYS_VALGRIND_SUPP := $(foreach f,/usr/share/glib-2.0/valgrind/glib.supp /usr/share/gtk-3.0/valgrind/gtk.supp,$(if $(wildcard $(f)),--suppressions=$(f)))
 
 # =====================================================================
 # 3. FLAGS BASE E DIAGNÓSTICOS (Sincronizado com .clangd / Kate)
 # =====================================================================
-# Flags universais suportadas tanto pelo GCC quanto pelo Clang
 PORTABLE_WARNINGS := \
    -Wall -Wextra -Wpedantic -Wshadow -Wcast-align -Wundef \
    -Wformat=2 -Wformat-security -Werror=implicit-function-declaration \
@@ -64,14 +66,13 @@ PORTABLE_WARNINGS := \
    -Wpointer-arith -Wfloat-equal -Wuninitialized \
    -Wno-overlength-strings
 
-# Flags adicionais exclusivas do GCC
 GCC_ONLY_WARNINGS := \
    -Wduplicated-cond -Wduplicated-branches -Wstrict-aliasing=3
 
 BASE_WARNINGS  := $(PORTABLE_WARNINGS) $(GCC_ONLY_WARNINGS)
 COMMON_CFLAGS  := -std=gnu11 $(BASE_WARNINGS) -march=native -fopenmp $(PKG_CFLAGS) -MMD -MP
 COMMON_LDFLAGS := -fopenmp
-LDLIBS         := $(PKG_LIBS) -lssl -lcrypto -llapacke -llapack -lblas -lm
+LDLIBS         := $(PKG_LIBS) -llapacke -llapack -lblas -lm
 
 # Flags limpas para o clang-tidy (sincronizadas com o .clangd)
 CLANG_TIDY_FLAGS := -std=gnu11 $(PORTABLE_WARNINGS) -Wno-gnu-zero-variadic-macro-arguments -fopenmp $(PKG_CFLAGS)
@@ -101,13 +102,20 @@ LDFLAGS := $(COMMON_LDFLAGS) $(SPECIFIC_LDFLAGS)
 # =====================================================================
 # 5. REGRAS DE COMPILAÇÃO E LINKAGEM
 # =====================================================================
-.PHONY: default all build clean distclean run run-debug run-valgrind \
+.PHONY: default all build check-deps clean distclean run run-debug run-valgrind \
         debug release valgrind install uninstall format format-ui lint lsp fix help
 
 default: help
 all: release
 
-debug release valgrind:
+check-deps:
+	@if ! $(PKG_CONFIG) --exists $(PKG_DEPS); then \
+		echo -e "$(C_RED)❌ Erro: Dependências ausentes no pkg-config ($(PKG_DEPS)).$(C_RESET)"; \
+		echo -e "$(C_WARN)💡 Execute: ./suporte/dependencias.sh$(C_RESET)"; \
+		exit 1; \
+	fi
+
+debug release valgrind: check-deps
 	@$(MAKE) --no-print-directory build MODE=$@
 
 build: $(APP_NAME)
@@ -127,7 +135,7 @@ $(RESOURCES_C): $(RESOURCES_XML) $(UI_FILE) $(CSS_FILES) $(PROFESSOR_STY)
 # Compilação isolada para código autogerado pela GLib (sem poluição de warnings internos)
 $(RESOURCES_O): $(RESOURCES_C)
 	@echo -e "📦 Compilando recursos GTK: $(C_BOLD)$<$(C_RESET)..."
-	@$(CC) $(CFLAGS) -Wno-overlength-strings -Wno-missing-prototypes -Wno-missing-declarations -Wno-conversion -c $< -o $@
+	@$(CC) $(CFLAGS) -Wno-overlength-strings -Wno-missing-prototypes -Wno-missing-declarations -Wno-conversion -Wno-pedantic -c $< -o $@
 
 %.o: %.c
 	@echo -e "📦 Compilando módulo: $(C_BOLD)$<$(C_RESET)..."
@@ -136,7 +144,7 @@ $(RESOURCES_O): $(RESOURCES_C)
 # =====================================================================
 # 6. FERRAMENTAS, DIAGNÓSTICOS E LINTERS
 # =====================================================================
-fix:
+fix: check-deps
 	@echo -e "$(C_BLUE)🔧 Aplicando refatoração automática e verificação com clang-tidy...$(C_RESET)"
 	@if command -v clang-tidy >/dev/null 2>&1; then \
 		clang-tidy --fix $(USER_SOURCES) -- $(CLANG_TIDY_FLAGS); \
@@ -145,7 +153,7 @@ fix:
 		echo -e "$(C_RED)⚠️  Erro: 'clang-tidy' não instalado. Instale com: sudo apt install clang-tidy$(C_RESET)"; \
 	fi
 
-lsp: clean
+lsp: clean check-deps
 	@echo -e "$(C_BLUE)🧠 Gerando compile_commands.json para o LSP (Kate / clangd)...$(C_RESET)"
 	@if command -v bear >/dev/null 2>&1; then \
 		bear -- $(MAKE) --no-print-directory build MODE=debug; \
@@ -165,14 +173,18 @@ format:
 	@if [ -n "$(SH_SCRIPTS)" ]; then \
 		for f in $(SH_SCRIPTS); do \
 			if [ -f "$$f" ]; then \
-				expand -t 3 "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+				if command -v shfmt >/dev/null 2>&1; then \
+					shfmt -i 3 -w "$$f"; \
+				else \
+					expand -t 3 "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+				fi; \
 				chmod +x "$$f"; \
 			fi \
 		done; \
 		echo -e "$(C_GREEN)✅ Shell scripts padronizados.$(C_RESET)"; \
 	fi
 
-lint:
+lint: check-deps
 	@echo -e "$(C_BLUE)🔍 Executando análise estática profunda com clang-tidy...$(C_RESET)"
 	@if command -v clang-tidy >/dev/null 2>&1; then \
 		clang-tidy $(USER_SOURCES) -- $(CLANG_TIDY_FLAGS); \
@@ -194,15 +206,14 @@ run-debug: debug
 	@G_SLICE=always-malloc LSAN_OPTIONS=suppressions=lsan.supp:print_suppressions=0 ./$(APP_NAME)
 
 run-valgrind: valgrind
-	@echo -e "$(C_WARN)🕵️  Iniciando Valgrind com filtros para GTK3, Pango, Fontconfig e OpenMP...$(C_RESET)"
+	@echo -e "$(C_WARN)🕵️  Iniciando Valgrind com filtros para GTK3, Pango, Poppler, Fontconfig e OpenMP...$(C_RESET)"
 	@G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind \
 		--leak-check=full \
 		--show-leak-kinds=definite \
 		--errors-for-leak-kinds=definite \
 		--track-origins=yes \
 		--child-silent-after-fork=yes \
-		--suppressions=/usr/share/glib-2.0/valgrind/glib.supp \
-		--suppressions=/usr/share/gtk-3.0/valgrind/gtk.supp \
+		$(SYS_VALGRIND_SUPP) \
 		--suppressions=valgrind.supp \
 		--log-file=relatorio_valgrind.txt \
 		./$(APP_NAME)
@@ -219,7 +230,7 @@ distclean: clean
 	@echo -e "$(C_GREEN)✨ Limpeza profunda concluída.$(C_RESET)"
 
 # =====================================================================
-# 7. INSTALAÇÃO E INTEGRAÇÃO (DEBIAN 12)
+# 7. INSTALAÇÃO E INTEGRAÇÃO (UBUNTU LTS / DEBIAN)
 # =====================================================================
 PREFIX   ?= /usr/local
 BIN_DIR  := $(DESTDIR)$(PREFIX)/bin
@@ -235,7 +246,7 @@ install: release
 	@echo -e "🔄 Atualizando banco de dados de atalhos..."
 	@-update-desktop-database $(APP_DIR) 2>/dev/null || true
 	@-gtk-update-icon-cache -f -t $(DESTDIR)$(PREFIX)/share/icons/hicolor 2>/dev/null || true
-	@echo -e "$(C_GREEN)✅ Instalação concluída! Disponível no menu Educativo.$(C_RESET)"
+	@echo -e "$(C_GREEN)✅ Instalação concluída! Disponível no menu de Aplicações.$(C_RESET)"
 
 uninstall:
 	@echo -e "$(C_WARN)🗑️  Removendo o Vértice do sistema...$(C_RESET)"
@@ -265,13 +276,13 @@ help:
 	@echo -e "$(C_BOLD)🛠️  FERRAMENTAS E EDITOR (KATE/LSP):$(C_RESET)"
 	@echo -e "   $(C_GREEN)make fix$(C_RESET)          - Aplica correções automáticas (Casts, Divisão Inteira, Chaves)."
 	@echo -e "   $(C_GREEN)make lsp$(C_RESET)          - Gera compile_commands.json para o Kate via 'bear'."
-	@echo -e "   $(C_GREEN)make format$(C_RESET)       - Formata códigos C/H autorais (AStyle) e Shell Scripts."
+	@echo -e "   $(C_GREEN)make format$(C_RESET)       - Formata códigos C/H autorais (AStyle) e Shell Scripts (shfmt)."
 	@echo -e "   $(C_GREEN)make lint$(C_RESET)         - Executa análise estática severa (Clang-Tidy)."
 	@echo -e "   $(C_GREEN)make format-ui$(C_RESET)    - Simplifica e formata a interface Glade XML."
 	@echo -e "   $(C_GREEN)make clean$(C_RESET)        - Limpa objetos (.o/.d) e binário (preserva LSP)."
 	@echo -e "   $(C_GREEN)make distclean$(C_RESET)    - Limpeza total (remove também compile_commands.json e logs)."
 	@echo -e ""
-	@echo -e "$(C_BOLD)📦 SISTEMA (Debian 12):$(C_RESET)"
+	@echo -e "$(C_BOLD)📦 SISTEMA (Ubuntu LTS / Debian):$(C_RESET)"
 	@echo -e "   $(C_GREEN)make install$(C_RESET)      - Instala binário, ícone e .desktop (requer sudo)."
 	@echo -e "   $(C_GREEN)make uninstall$(C_RESET)    - Remove os componentes do sistema."
 	@echo -e ""

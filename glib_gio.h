@@ -8,7 +8,7 @@ gboolean gio_copiar_arquivo( const gchar *caminho_origem, const gchar *caminho_d
 
 gboolean gio_mover_arquivo( const gchar *caminho_origem, const gchar *caminho_destino );
 
-void g_xdg_open( const char *caminho );
+void g_xdg_open( const char *caminho, const char *visualizador );
 
 void g_system_async( const char *comando );
 

@@ -280,9 +280,9 @@ gchar **carregar_diretorios_temas( int qtd_dir, const gchar *diretorio, int ( *c
    // 6. Ordenação do array de ponteiros
    if ( num_dir > 0 ) {
       if ( comparadora == NULL ) {
-         qsort( tms_combo, ( guint )num_dir, sizeof( gchar * ), comparar_item_combo );
+         qsort( ( void* )tms_combo, ( guint )num_dir, sizeof( gchar * ), comparar_item_combo );
       } else {
-         qsort( tms_combo, ( guint )num_dir, sizeof( gchar * ), comparadora );
+         qsort( ( void* )tms_combo, ( guint )num_dir, sizeof( gchar * ), comparadora );
       }
    }
 
@@ -507,7 +507,7 @@ static void copiar_acesso_bin_lc( AppContext *ctx ) {
       // Verifica se o arquivo de acesso existe neste período anterior
       if ( g_file_test( caminho_teste, G_FILE_TEST_EXISTS ) ) {
          // Rouba o ponteiro local para a variável externa sem causar Memory Leak
-         arq_origem_valido = g_steal_pointer( &caminho_teste );
+         arq_origem_valido = g_strdup( caminho_teste ); // Em observação
          break; // Encontrou a versão confiável mais recente, interrompe a busca!
       }
    }

@@ -106,8 +106,7 @@ int main( int argc, char *argv[] ) {
    // Inicialização estocástica nativa e de alta entropia da GLib
    guint32 sementes[4];
    gerar_sementes( sementes );
-   g_autoptr( GRand ) rand_context = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
-   ctx.rand = g_steal_pointer( &rand_context );
+   ctx.rand = g_rand_new_with_seed_array( sementes, G_N_ELEMENTS( sementes ) );
 
    GtkApplication *app;
    int status;

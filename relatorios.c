@@ -124,7 +124,7 @@ static void gerar_tex_avaliacoes( const char *nome_base, const AppContext *ctx, 
    }
 
    g_string_append( tex,
-                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[brazilian]{babel}\n"
                     "\\usepackage[left=0.5cm,right=0.5cm,top=0.5cm,bottom=0.5cm]{geometry}\n"
                     "\\usepackage[table]{xcolor}\n"
                     "\\usepackage{tikz}\n"
@@ -528,7 +528,7 @@ static void preencher_linha_relatorio_tex_lc( const FichaAluno *ficha, int disc,
       return;
    }
 
-   const char *obs_tex = "";
+   const char *obs_tex = NULL;
    switch ( rel->obs ) {
    case OBS_ALUNO_APROVADO_NO_CONSELHO:
       obs_tex = "\\textcolor{RoyalBlue}{\\small\\bf Aprov Cons}";
@@ -590,7 +590,7 @@ static void gerar_tex_relatorio_final( const char *nome_base, const AppContext *
    }
 
    g_string_append( tex,
-                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[brazilian]{babel}\n"
                     "\\usepackage[left=0.58cm,right=0.7cm,top=0.7cm,bottom=0.7cm]{geometry}\n"
                     "\\usepackage[dvipsnames]{xcolor}\n"
                     "\\usepackage{tikz}\n"
@@ -692,20 +692,20 @@ void relatorio_final( InterfacePainel *painel, const AppContext *ctx ) {
 //==================================================================================================
 static void gerar_preambulo_latex_frequencia( GString *tex, const AppContext *ctx ) {
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                    "\\usepackage[utf8]{inputenc}\n"
-                    "\\usepackage[T1]{fontenc}\n" );
+                         "\\usepackage[utf8]{inputenc}\n"
+                         "\\usepackage[T1]{fontenc}\n" );
 
    if ( ctx->dados.fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                    "\\usepackage[dvipsnames]{xcolor}\n"
-                    "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
-                    "\\usetikzlibrary{calc}\n"
-                    "\\pagestyle{empty}\n\n"
-                    "\\begin{document}\n\\begin{landscape}\n\n" );
+   g_string_append( tex, "\\usepackage[brazilian]{babel}\n"
+                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                         "\\usepackage[dvipsnames]{xcolor}\n"
+                         "\\usepackage{pdflscape,lscape,tikz,ulem,graphicx}\n" // Removido 'ifthen'
+                         "\\usetikzlibrary{calc}\n"
+                         "\\pagestyle{empty}\n\n"
+                         "\\begin{document}\n\\begin{landscape}\n\n" );
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -1128,22 +1128,22 @@ static void gerar_latex_conteudos( const AppContext *ctx, GArray *aulas, const c
 
    // --- CABEÇALHO DO DOCUMENTO LATEX ---
    g_string_append( tex, "\\documentclass[11pt,a4paper]{report}\n"
-                    "\\usepackage[utf8]{inputenc}\n"
-                    "\\usepackage[T1]{fontenc}\n" );
+                         "\\usepackage[utf8]{inputenc}\n"
+                         "\\usepackage[T1]{fontenc}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
    }
 
-   g_string_append( tex, "\\usepackage[brazil]{babel}\n"
-                    "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
-                    "\\usepackage{tikz,ulem,graphicx}\n"
-                    "\\usetikzlibrary{calc}\n"
-                    "\\pagestyle{empty}\n\n"
-                    "\\begin{document}\n"
-                    "  \\noindent\\begin{tikzpicture}\n"
-                    "  \\fill (0,0) circle (0pt);\n"
-                    "  \\draw (1,-1) rectangle (20,-28.7);\n" );
+   g_string_append( tex, "\\usepackage[brazilian]{babel}\n"
+                         "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
+                         "\\usepackage{tikz,ulem,graphicx}\n"
+                         "\\usetikzlibrary{calc}\n"
+                         "\\pagestyle{empty}\n\n"
+                         "\\begin{document}\n"
+                         "  \\noindent\\begin{tikzpicture}\n"
+                         "  \\fill (0,0) circle (0pt);\n"
+                         "  \\draw (1,-1) rectangle (20,-28.7);\n" );
 
    // Renderização das Linhas Estruturais Fixas
    g_string_append_printf( tex,
@@ -1292,14 +1292,14 @@ void expor_relatorio_escola( const char *path_pdf_origem, const char *nome_arqui
       g_snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s.pdf", caminho->externo, nome_arquivo_base );
    }
 
-   if ( copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
+   if ( gio_copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
       fprintf( stderr, "ERRO CRÍTICO: Não foi possível salvar a cópia institucional na pasta da Escola!\n" );
    }
 
    g_snprintf( path_pdf_destino, sizeof( path_pdf_destino ), "%s/%s/Relatório_%s - %s - %s_%c - %s.pdf",
                caminho->externo_escola, nome_arquivo_base, nome_arquivo_base, dados->turma, dados->ano, dados->periodo[0], dados->disciplina );
 
-   if ( copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
+   if ( gio_copiar_arquivo( path_pdf_origem, path_pdf_destino ) != 0 ) {
       fprintf( stderr, "ERRO CRÍTICO: Não foi possível salvar a cópia institucional na pasta da Escola!\n" );
    }
 
@@ -1341,7 +1341,7 @@ void disparar_latex( const char *nome_base, const char *pasta_destino,
    apagar_temporarios_latex_serial( dir_temp, nome_base, -1 );
 
    // 4. Abertura do documento usando a função assíncrona xdg-open wrapper
-   g_xdg_open( path_pdf_final );
+   g_xdg_open( path_pdf_final, NULL );
 }
 
 

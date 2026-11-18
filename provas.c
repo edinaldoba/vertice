@@ -71,7 +71,7 @@ static gchar *gerar_tex_lista_frequencia_lc( const char *caminho_saida, const GP
    const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
 
    g_string_append_printf( tex,
-                           "\\usepackage[brazil]{babel}\n"
+                           "\\usepackage[brazilian]{babel}\n"
                            "\\usepackage[left=0cm,right=0cm,top=0cm,bottom=0cm]{geometry}\n"
                            "\\usepackage[dvipsnames,table]{xcolor}\n"
                            "\\usepackage[%s]{professor}\n"
@@ -298,7 +298,7 @@ static void compilacao_latex_e_manipulacao_de_arquivos_lc( const GPtrArray *fich
       if ( dados->expor_dados ) {
          copiar_arquivos_prova_externamente( dados, caminho, destino_relatorio );
       }
-      g_xdg_open( destino_relatorio );
+      g_xdg_open( destino_relatorio, NULL );
 
    } else {
       g_printerr( "[AVISO] O arquivo final (%s) não foi gerado.\n", destino_relatorio );
@@ -332,7 +332,7 @@ static void imagens_para_prova_lc( const int i, int numero, const GPtrArray *fic
                     "\\documentclass[11pt,tikz,margin=20mm]{standalone}\n"
                     "\\usepackage[utf8]{inputenc}\n"
                     "\\usepackage[T1]{fontenc}\n"
-                    "\\usepackage[brazil]{babel}\n" );
+                    "\\usepackage[brazilian]{babel}\n" );
 
    if ( dados->fonte_latex == 1 ) {
       g_string_append( tex, "\\usepackage{cmbright}\n" );
@@ -371,7 +371,7 @@ static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) 
                     "\\documentclass[11pt,a4paper]{report}\n"
                     "\\usepackage[utf8]{inputenc}\n"
                     "\\usepackage[T1]{fontenc}\n"
-                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[brazilian]{babel}\n"
                     "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n" );
 
    if ( dados->fonte_latex == 1 ) {

@@ -731,6 +731,6 @@ void relatorio_atipicidades( const AppContext *ctx ) {
    apagar_temporarios_latex_serial( caminho->temp, nome_base, -1 );
 
    // 4. Abertura no visualizador de PDF padrão do sistema
-   g_xdg_open( dest_arq_pdf );
+   g_xdg_open( dest_arq_pdf, NULL );
 }
 

@@ -27,11 +27,157 @@
 typedef struct {
    AppContext        *ctx;         // Usado EXCLUSIVAMENTE nas callbacks da Main Thread
    GtkWidget         *botao_gerar; // Ponteiro para o botão que disparou a ação
-   MotorProvaSnapshot snap;        // O pacote de dados blindado para a Thread e para prova()
+   MotorProvaSnapshot snap;        // O pacote de dados 100% isolado na Heap para a Thread 2
    gboolean           sucesso;
 } ProvaThreadArgs;
 
-/* Destrutor unificado para ProvaThreadArgs (Compatível com GDestroyNotify) */
+// ====================================================================================
+// 1. CLONAGEM PROFUNDA (DEEP COPY) E DESTRUIÇÃO SIMÉTRICA DO SNAPSHOT
+// ====================================================================================
+
+/**
+ * @brief Clona todos os ponteiros dinâmicos de CaminhoDiretorio (incluindo raiz, temp e base).
+ */
+static void clonar_caminho_diretorio_lc( const CaminhoDiretorio *orig, CaminhoDiretorio *dest ) {
+   dest->raiz             = g_strdup( orig->raiz );
+   dest->dados            = g_strdup( orig->dados );
+   dest->gabaritos        = g_strdup( orig->gabaritos );
+   dest->relatorios       = g_strdup( orig->relatorios );
+   dest->externo          = g_strdup( orig->externo );
+   dest->relatorios_final = g_strdup( orig->relatorios_final );
+   dest->externo_final    = g_strdup( orig->externo_final );
+   dest->externo_escola   = g_strdup( orig->externo_escola );
+   dest->banco_questoes   = g_strdup( orig->banco_questoes );
+   dest->base             = g_strdup( orig->base );
+   dest->questoes_tex     = g_strdup( orig->questoes_tex );
+   dest->temp             = g_strdup( orig->temp );
+
+   // String literal constante (.rodata), cópia direta segura
+   dest->recursos_prefix  = orig->recursos_prefix;
+}
+
+/**
+ * @brief Libera todos os ponteiros clonados de CaminhoDiretorio no Snapshot.
+ */
+static void liberar_caminho_diretorio_snapshot_lc( CaminhoDiretorio *c ) {
+   g_clear_pointer( &c->raiz,             g_free );
+   g_clear_pointer( &c->dados,            g_free );
+   g_clear_pointer( &c->gabaritos,        g_free );
+   g_clear_pointer( &c->relatorios,       g_free );
+   g_clear_pointer( &c->externo,          g_free );
+   g_clear_pointer( &c->relatorios_final, g_free );
+   g_clear_pointer( &c->externo_final,    g_free );
+   g_clear_pointer( &c->externo_escola,   g_free );
+   g_clear_pointer( &c->banco_questoes,   g_free );
+   g_clear_pointer( &c->base,             g_free );
+   g_clear_pointer( &c->questoes_tex,     g_free );
+   g_clear_pointer( &c->temp,             g_free );
+}
+
+/**
+ * @brief Clona profundamente InterfaceDados (strings, vetores de questões e metadados).
+ */
+static void clonar_interface_dados_lc( const InterfaceDados *orig,
+                                       const CaminhoDiretorio *caminho_clone,
+                                       InterfaceDados *dest ) {
+   // 1. Copia todos os valores escalares (ints e gbooleans)
+   *dest = *orig;
+
+   // 2. Clona todas as strings dinâmicas do cabeçalho e estilo visual
+   dest->ano             = g_strdup( orig->ano );
+   dest->disciplina      = g_strdup( orig->disciplina );
+   dest->escola          = g_strdup( orig->escola );
+   dest->turma           = g_strdup( orig->turma );
+   dest->periodo         = g_strdup( orig->periodo );
+   dest->gestor          = g_strdup( orig->gestor );
+   dest->professor       = g_strdup( orig->professor );
+   dest->tema            = g_strdup( orig->tema );
+   dest->prova_sequencia = g_strdup( orig->prova_sequencia );
+
+   // 3. Vincula os ponteiros const gchar* (raiz e temp) às cópias já blindadas do snapshot
+   dest->raiz = caminho_clone->raiz;
+   dest->temp = caminho_clone->temp;
+
+   // 4. Clona os arrays dinâmicos usando o tamanho real alocado (total_quest_prova)
+   dest->qtd_quest_subtema   = NULL;
+   dest->selecao_quest_prova = NULL;
+
+   if ( orig->total_quest_prova > 0 ) {
+      gsize qtd = ( gsize )orig->total_quest_prova;
+
+      if ( orig->qtd_quest_subtema != NULL ) {
+         dest->qtd_quest_subtema = ( gint * )g_memdup2(
+                                      orig->qtd_quest_subtema,
+                                      qtd * sizeof( gint )
+                                   );
+      }
+
+      if ( orig->selecao_quest_prova != NULL ) {
+         dest->selecao_quest_prova = g_new0( gchar *, qtd + 1U );
+         for ( gsize i = 0; i < qtd; i++ ) {
+            if ( orig->selecao_quest_prova[i] != NULL ) {
+               dest->selecao_quest_prova[i] = g_strdup( orig->selecao_quest_prova[i] );
+            }
+         }
+      }
+   }
+}
+
+/**
+ * @brief Libera todos os recursos dinâmicos clonados em InterfaceDados.
+ */
+static void liberar_interface_dados_snapshot_lc( InterfaceDados *d ) {
+   g_clear_pointer( &d->ano,               g_free );
+   g_clear_pointer( &d->disciplina,        g_free );
+   g_clear_pointer( &d->escola,            g_free );
+   g_clear_pointer( &d->turma,             g_free );
+   g_clear_pointer( &d->periodo,           g_free );
+   g_clear_pointer( &d->gestor,            g_free );
+   g_clear_pointer( &d->professor,         g_free );
+   g_clear_pointer( &d->tema,              g_free );
+   g_clear_pointer( &d->prova_sequencia,   g_free );
+   g_clear_pointer( &d->qtd_quest_subtema, g_free );
+
+   if ( d->selecao_quest_prova != NULL ) {
+      for ( int i = 0; i < d->total_quest_prova; i++ ) {
+         g_free( d->selecao_quest_prova[i] );
+      }
+      g_clear_pointer( ( gpointer* )&d->selecao_quest_prova, g_free );
+   }
+
+   d->raiz = NULL;
+   d->temp = NULL;
+}
+
+/**
+ * @brief Clona profundamente o diário de alunos na Heap (FichaAluno + FAM HistoricoDisciplina).
+ */
+static GPtrArray *clonar_diario_alunos_lc( GPtrArray *fichas_originais, guint8 lim_disc ) {
+   if ( !fichas_originais || fichas_originais->len == 0 ) {
+      return NULL;
+   }
+
+   GPtrArray *fichas_clone = g_ptr_array_new_full( fichas_originais->len, g_free );
+
+   gsize tamanho_real_ficha = sizeof( FichaAluno ) +
+                              ( ( gsize )lim_disc * sizeof( HistoricoDisciplina ) );
+
+   for ( guint i = 0; i < fichas_originais->len; i++ ) {
+      const FichaAluno *orig = ( const FichaAluno * )g_ptr_array_index( fichas_originais, i );
+      if ( !orig ) {
+         continue;
+      }
+
+      FichaAluno *clone = ( FichaAluno * )g_memdup2( orig, tamanho_real_ficha );
+      g_ptr_array_add( fichas_clone, clone );
+   }
+
+   return fichas_clone;
+}
+
+/**
+ * @brief Destrutor unificado para ProvaThreadArgs (Compatível com GDestroyNotify).
+ */
 static void liberar_prova_thread_args( gpointer data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )data;
    if ( !args ) {
@@ -42,99 +188,92 @@ static void liberar_prova_thread_args( gpointer data ) {
       g_ptr_array_unref( args->snap.fichas );
       args->snap.fichas = NULL;
    }
+
+   liberar_interface_dados_snapshot_lc( &args->snap.dados );
+   liberar_caminho_diretorio_snapshot_lc( &args->snap.caminho );
+
    g_free( args );
 }
 
-/**
- * Clona profundamente o diário de alunos na Heap para isolamento de threads (Deep Copy).
- * Retorna o ponteiro do novo vetor alocado ou NULL se houver falha.
- */
-static GPtrArray* clonar_diario_alunos( GPtrArray *fichas_originais, guint8 lim_disc ) {
-   if ( !fichas_originais || fichas_originais->len == 0 ) {
-      return NULL;
+// ====================================================================================
+// 2. CONTROLE DE SENSIBILIDADE DA INTERFACE
+// ====================================================================================
+static void definir_estado_widgets_geracao_lc( AppContext *ctx, GtkWidget *botao_gerar, gboolean ativo ) {
+   if ( !ctx ) {
+      return;
    }
 
-   GPtrArray *fichas_clone = g_ptr_array_new_full( fichas_originais->len, g_free );
+   if ( botao_gerar ) {
+      gtk_widget_set_sensitive( botao_gerar, ativo );
+   }
+   if ( ctx->prova.btn_corrigir ) {
+      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, ativo );
+   }
+   if ( ctx->prova.btn_importar ) {
+      gtk_widget_set_sensitive( ctx->prova.btn_importar, ativo );
+   }
 
-   // Calcula o tamanho dinâmico real (Base da Ficha + Array Flexível de Histórico)
-   gsize tamanho_real_ficha = sizeof( FichaAluno ) +
-                              ( ( gsize )lim_disc * sizeof( HistoricoDisciplina ) );
-
-   for ( guint i = 0; i < fichas_originais->len; i++ ) {
-      const FichaAluno *orig = ( const FichaAluno * )g_ptr_array_index( fichas_originais, i );
-      if ( !orig ) {
-         continue;
+   if ( ctx->notebook ) {
+      GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
+      if ( aba_latex ) {
+         gtk_widget_set_sensitive( aba_latex, ativo );
       }
-
-      // g_memdup2 aloca e copia a estrutura + histórico flexível em uma única operação
-      FichaAluno *clone = ( FichaAluno * )g_memdup2( orig, tamanho_real_ficha );
-      g_ptr_array_add( fichas_clone, clone );
    }
-
-   return fichas_clone;
 }
 
 // ====================================================================================
-// ENTRADA DO MOTOR ASSÍNCRONO
+// 3. ENTRADA DO MOTOR ASSÍNCRONO
 // ====================================================================================
-void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
+void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, GThreadFunc funcao_background ) {
    g_return_if_fail( widget != NULL && ctx != NULL && funcao_background != NULL );
 
    ProvaThreadArgs *args = g_new0( ProvaThreadArgs, 1 );
 
-   // 1. Snapshot Seguro (Deep Copy obrigatório para isolar a thread da UI)
-   args->snap.dados     = ctx->dados;
-   args->snap.cabecalho = ctx->cabecalho;
-   args->snap.caminho   = ctx->caminho;
-   args->snap.hoje      = ctx->hoje;
-   args->snap.fichas    = clonar_diario_alunos( ctx->diario.fichas, ( guint8 )ctx->cabecalho.limite_disciplinas );
 
-   // 2. Referências Mestre para a Main Thread
+   // 1. Clona CaminhoDiretorio primeiro (pois InterfaceDados->raiz e ->temp apontam para ele)
+   clonar_caminho_diretorio_lc( &ctx->caminho, &args->snap.caminho );
+
+   // 2. Clona InterfaceDados profundamente (todas as strings e vetores de questões)
+   clonar_interface_dados_lc( &ctx->dados, &args->snap.caminho, &args->snap.dados );
+
+   // 3. Copia metadados escalares de cabeçalho, data e clona o diário de fichas
+   args->snap.cabecalho = ctx->cabecalho;
+   args->snap.hoje      = ctx->hoje;
+   args->snap.fichas    = clonar_diario_alunos_lc(
+                             ctx->diario.fichas,
+                             ( guint8 )ctx->cabecalho.limite_disciplinas
+                          );
+
+   // 4. Referências Mestre para retorno na Main Thread
    args->ctx         = ctx;
    args->botao_gerar = widget;
 
-   // 3. Congelamento Parcial da Interface
-   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
+   // 5. Congelamento Parcial da Interface (Aba LaTeX e botões de prova)
+   definir_estado_widgets_geracao_lc( ctx, widget, FALSE );
 
-   gtk_widget_set_sensitive( widget, FALSE );
-   if ( ctx->prova.btn_corrigir ) {
-      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, FALSE );
-   }
-   if ( ctx->prova.btn_importar ) {
-      gtk_widget_set_sensitive( ctx->prova.btn_importar, FALSE );
-   }
-   if ( aba_latex ) {
-      gtk_widget_set_sensitive( aba_latex, FALSE );
-   }
+   // 6. Disparo da Thread gerenciada pela GLib
+   GError  *erro_thread = NULL;
+   GThread *worker      = g_thread_try_new( "vertice-tex-worker", funcao_background, args, &erro_thread );
 
-   // 4. Criação da Thread Detached
-   pthread_t thread_id;
-   pthread_attr_t attr;
-   pthread_attr_init( &attr );
-   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
+   if ( !worker ) {
+      definir_estado_widgets_geracao_lc( ctx, widget, TRUE );
 
-   if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
-      // Rollback imediato em caso de erro na alocação da thread do SO
-      gtk_widget_set_sensitive( widget, TRUE );
-      if ( ctx->prova.btn_corrigir ) {
-         gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
-      }
-      if ( ctx->prova.btn_importar ) {
-         gtk_widget_set_sensitive( ctx->prova.btn_importar, TRUE );
-      }
-      if ( aba_latex ) {
-         gtk_widget_set_sensitive( aba_latex, TRUE );
-      }
+      InterfacePainel *painel  = &ctx->painel;
+      painel->format_titulo    = meu_gerador_variadico( "✘ Falha de Concorrência:" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar a thread de compilação em segundo plano." );
+      painel->format_instrucao = meu_gerador_variadico( "Detalhe: %s", erro_thread ? erro_thread->message : "Erro interno." );
 
-      g_printerr( "[ERRO] Falha ao criar a thread de geração de prova.\n" );
+      criar_mensagem_painel( ERRO, painel );
+      g_clear_error( &erro_thread );
       liberar_prova_thread_args( args );
+      return;
    }
 
-   pthread_attr_destroy( &attr );
+   g_thread_unref( worker );
 }
 
 // ====================================================================================
-// CALLBACK: Oculta o painel Toast (Executa na Main Thread)
+// 4. CALLBACKS DE RETORNO E TOAST (MAIN THREAD)
 // ====================================================================================
 static gboolean ocultar_painel_toast_cb( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
@@ -145,7 +284,7 @@ static gboolean ocultar_painel_toast_cb( gpointer user_data ) {
    InterfacePainel *painel = &args->ctx->painel;
 
    if ( painel->mouse_hover ) {
-      return G_SOURCE_CONTINUE; // Mantém o Toast vivo enquanto o cursor estiver sobre ele
+      return G_SOURCE_CONTINUE;
    }
 
    if ( painel->revealer_painel ) {
@@ -153,14 +292,9 @@ static gboolean ocultar_painel_toast_cb( gpointer user_data ) {
    }
    painel->timeout_id = 0;
 
-   // Ao retornar G_SOURCE_REMOVE, a própria GLib invoca liberar_prova_thread_args(args)
-   g_print( "[GLib Timer] Toast ocultado. Limpeza de ProvaThreadArgs concluída.\n" );
    return G_SOURCE_REMOVE;
 }
 
-// ====================================================================================
-// CALLBACK: Retorno da Thread (Executa na Main Thread via g_idle_add)
-// ====================================================================================
 static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    ProvaThreadArgs *args = ( ProvaThreadArgs * )user_data;
    if ( !args || !args->ctx ) {
@@ -168,121 +302,102 @@ static gboolean reativar_botao_gerar_prova( gpointer user_data ) {
    }
 
    AppContext *ctx = args->ctx;
-   GtkWidget *aba_latex = gtk_notebook_get_nth_page( GTK_NOTEBOOK( ctx->notebook ), 1 );
 
-   // Reativa a UI acessando os ponteiros mestre armazenados no AppContext
-   if ( args->botao_gerar ) {
-      gtk_widget_set_sensitive( args->botao_gerar, TRUE );
-   }
-   if ( ctx->prova.btn_corrigir ) {
-      gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
-   }
-   if ( ctx->prova.btn_importar ) {
-      gtk_widget_set_sensitive( ctx->prova.btn_importar, TRUE );
-   }
-   if ( aba_latex ) {
-      gtk_widget_set_sensitive( aba_latex, TRUE );
-   }
+   definir_estado_widgets_geracao_lc( ctx, args->botao_gerar, TRUE );
 
-   char instrucao[256] = { 0 };
    InterfacePainel *painel = &ctx->painel;
 
    if ( args->sucesso ) {
-      g_snprintf( instrucao, sizeof( instrucao ), "Pronto para impressão: %s Prova.pdf (em tela)",
-                  args->snap.dados.prova_sequencia );
-
       painel->format_titulo    = meu_gerador_variadico( "✔ Prova Gerada com Sucesso!" );
       painel->format_subtitulo = meu_gerador_variadico( "O arquivo PDF foi compilado e estruturado corretamente via TeX." );
-      painel->format_instrucao = meu_gerador_variadico( "%s", instrucao );
+      painel->format_instrucao = meu_gerador_variadico( "Pronto para impressão: %s Prova.pdf (em tela)",
+                                 args->snap.dados.prova_sequencia ? args->snap.dados.prova_sequencia : "" );
 
       criar_mensagem_painel( SUCESSO, painel );
    } else {
-      g_snprintf( instrucao, sizeof( instrucao ), "Verifique o arquivo lista.dat do \"%s\" ou os logs do compilador.",
-                  args->snap.dados.periodo );
-
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro no Motor TeX" );
       painel->format_subtitulo = meu_gerador_variadico( "Falha crítica na estruturação ou compilação assíncrona dos gabaritos." );
-      painel->format_instrucao = meu_gerador_variadico( "%s", instrucao );
+      painel->format_instrucao = meu_gerador_variadico( "Verifique o arquivo lista.dat do \"%s\" ou os logs do compilador.",
+                                 args->snap.dados.periodo ? args->snap.dados.periodo : "período atual" );
 
       criar_mensagem_painel( ERRO, painel );
    }
 
-   // Se havia um Toast anterior ativo, g_source_remove aciona automaticamente o GDestroyNotify dele!
    if ( painel->timeout_id > 0 ) {
       g_source_remove( painel->timeout_id );
       painel->timeout_id = 0;
    }
 
-   guint tempo_exibicao = ( args->sucesso ) ? 4000U : 6000U;
-   painel->timeout_id = g_timeout_add_full(
-                           G_PRIORITY_DEFAULT, tempo_exibicao, ocultar_painel_toast_cb, args, liberar_prova_thread_args
-                        );
+   guint tempo_exibicao = args->sucesso ? 4000U : 6000U;
+   painel->timeout_id   = g_timeout_add_full(
+                             G_PRIORITY_DEFAULT,
+                             tempo_exibicao,
+                             ocultar_painel_toast_cb,
+                             args,
+                             liberar_prova_thread_args
+                          );
 
    return G_SOURCE_REMOVE;
 }
 
 // ====================================================================================
-// WORKER: Executa em Background I/O Intensivo e Compilação LaTeX
+// 5. WORKER: EXECUÇÃO EM SEGUNDO PLANO (100% ISOLADA DA UI)
 // ====================================================================================
-void* thread_gerar_prova_background( void *data ) {
+void *thread_gerar_prova_background( void *data ) {
    g_return_val_if_fail( data != NULL, NULL );
 
    g_autoptr( GTimer ) cronometro = g_timer_new();
-   ProvaThreadArgs *args = ( ProvaThreadArgs * )data;
-   MotorProvaSnapshot *snap = &args->snap;
+   ProvaThreadArgs    *args       = ( ProvaThreadArgs * )data;
+   MotorProvaSnapshot *snap       = &args->snap;
 
    args->sucesso = FALSE;
-   g_print( "[Thread] Iniciando compilação com contexto clonado...\n" );
 
-   // Validação defensiva das dimensões antes de calcular o bloco contíguo
    if ( snap->dados.qtd_alunos_ativos <= 0 ) {
-      g_printerr( "[ERRO] Parâmetros de alunos (%d) inválidos.\n", snap->dados.qtd_alunos_ativos );
       g_idle_add( reativar_botao_gerar_prova, args );
       return NULL;
    }
 
-   g_autofree char *destino = g_build_filename(
-                                 snap->caminho.raiz, "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL
-                              );
+   g_autofree gchar *destino = g_build_filename(
+                                  snap->caminho.raiz, "dados", "gabaritos", snap->dados.ano, snap->dados.escola, "gabaritos", NULL
+                               );
 
-   g_autofree gchar *nome = nome_base_gabaritos_bin( snap->cabecalho.foco_turma, snap->cabecalho.foco_disciplina,
-                            snap->cabecalho.foco_periodo, snap->dados.seq_prova );
+   g_autofree gchar *nome = nome_base_gabaritos_bin(
+                               snap->cabecalho.foco_turma,
+                               snap->cabecalho.foco_disciplina,
+                               snap->cabecalho.foco_periodo,
+                               snap->dados.seq_prova
+                            );
 
-   g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
+   g_autofree gchar *arquivo = g_build_filename( destino, nome, NULL );
 
-   FILE *p = g_fopen( arquivo, "rb" );
-   if ( !p ) {
-      g_printerr( "[ERRO] Falha ao abrir o arquivo binário de gabaritos: %s\n", arquivo );
-      g_idle_add( reativar_botao_gerar_prova, args );
-      return NULL;
+   gsize num_alunos      = ( gsize )snap->dados.qtd_alunos_ativos;
+   gsize max_len         = ( gsize )MAX_QUEST_PROVA + 1U;
+   gsize bytes_esperados = num_alunos * max_len;
+
+   g_autofree gchar *G           = NULL;
+   gsize             lidos_bytes = 0;
+
+   if ( g_file_get_contents( arquivo, &G, &lidos_bytes, NULL ) && G != NULL ) {
+      gsize lidos_alunos = lidos_bytes / max_len;
+
+      if ( lidos_bytes >= max_len && lidos_alunos > 0 ) {
+         if ( lidos_bytes < bytes_esperados ) {
+            gchar *bloco_completo = g_malloc0( bytes_esperados );
+            memcpy( bloco_completo, G, lidos_bytes );
+            g_free( G );
+            G = bloco_completo;
+         }
+
+         args->sucesso = TRUE;
+
+         prova( snap, G );
+
+         salvar_estado_aplicativo( &snap->dados, &snap->caminho );
+      }
    }
 
-   // =========================================================================
-   // LEITURA EM BLOCO 1D CONTÍGUO (Sem ItemTextoCurto)
-   // =========================================================================
-   gsize num_alunos = ( gsize )snap->dados.qtd_alunos_ativos;
-   gsize max_len    = ( gsize )MAX_QUEST_PROVA + 1U; // +1 para o '\0'
+   g_clear_pointer( &G, g_free );
 
-   g_autofree char *G = g_malloc0( num_alunos * max_len );
-   gsize lidos = fread( G, max_len, num_alunos, p );
-   fclose( p );
-
-   if ( lidos != num_alunos ) {
-      g_printerr( "[AVISO] Esperava %" G_GSIZE_FORMAT " gabaritos, mas foram lidos %" G_GSIZE_FORMAT " em %s.\n",
-                  num_alunos, lidos, arquivo );
-   }
-
-   if ( lidos > 0 ) {
-      args->sucesso = TRUE;
-
-      // Passa o bloco 1D plano 'G' para prova( MotorProvaSnapshot *snap, const char *G )
-      // Dentro de prova(), o gabarito do aluno 'i' é acessado via: const char *gab_i = G + (i * max_len);
-      prova( snap, G );
-
-      salvar_estado_aplicativo( &snap->dados, &snap->caminho );
-   }
-
-   // 'G' é desalocado automaticamente pelo g_autofree ao sair do escopo.
    g_idle_add( reativar_botao_gerar_prova, args );
    display_tempo( "Geração de prova", cronometro );
 
@@ -304,9 +419,11 @@ void* thread_gerar_prova_background( void *data ) {
 // ESTRUTURA DE TRANSPORTE E ISOLAMENTO DA THREAD DE VISÃO COMPUTACIONAL
 // ====================================================================================
 typedef struct {
+   AppContext        *ctx;             // Usado EXCLUSIVAMENTE nas callbacks da Main Thread
    InterfacePainel   *painel;          // Ponteiro vivo para a Main Thread (lê mouse_hover)
-   InterfaceDados     dados;           // Cópia estática por valor (Isolamento da Thread)
-   InterfaceCabecalho cabecalho;       // Cópia estática por valor
+   InterfaceDados     dados;           // Deep Copy (Isolamento 100% blindado na Heap)
+   InterfaceCabecalho cabecalho;       // Cópia escalar dos índices de foco
+   CaminhoDiretorio   caminho_min;     // Guarda cópias próprias de raiz e temp para InterfaceDados
    GtkWidget         *botao_processar; // Referência de UI para reativação na Main Thread
    GtkWidget         *botao_corrigir;  // Referência de UI para reativação na Main Thread
    int                n_rejeitadas;    // Resultado do lote (< 0 indica erro operacional)
@@ -318,22 +435,29 @@ static void liberar_processar_thread_args( gpointer data ) {
    if ( !args ) {
       return;
    }
+
+   // Libera todas as strings e vetores clonados em InterfaceDados e CaminhoDiretorio
+   liberar_interface_dados_snapshot_lc( &args->dados );
+   liberar_caminho_diretorio_snapshot_lc( &args->caminho_min );
+
    g_free( args );
 }
 
 // ====================================================================================
 // DISPARADOR ASSÍNCRONO DE PROCESSAMENTO DE IMAGENS
 // ====================================================================================
-void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *ctx, void *( *funcao_background )( void * ) ) {
+void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *ctx, GThreadFunc funcao_background ) {
    g_return_if_fail( widget != NULL && ctx != NULL && funcao_background != NULL );
 
    ProcessarThreadArgs *args = g_new0( ProcessarThreadArgs, 1 );
 
-   // 1. Snapshot por Valor: Isolando os dados da Thread Principal GTK
-   args->dados     = ctx->dados;
+   // 1. Snapshot Profundo (Deep Copy): Isola 100% os ponteiros de InterfaceDados da Main Thread
+   clonar_caminho_diretorio_lc( &ctx->caminho, &args->caminho_min );
+   clonar_interface_dados_lc( &ctx->dados, &args->caminho_min, &args->dados );
    args->cabecalho = ctx->cabecalho;
 
    // 2. Referências Vivas (Acessadas exclusivamente na Main Thread)
+   args->ctx             = ctx;
    args->painel          = &ctx->painel;
    args->botao_processar = widget;
    args->botao_corrigir  = ctx->prova.btn_corrigir;
@@ -345,23 +469,28 @@ void disparar_processamento_imagens_assincrono( GtkWidget *widget, AppContext *c
       gtk_widget_set_sensitive( ctx->prova.btn_corrigir, FALSE );
    }
 
-   // 4. Criação da Thread Detached
-   pthread_t thread_id;
-   pthread_attr_t attr;
-   pthread_attr_init( &attr );
-   pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
+   // 4. Criação da Thread gerenciada pela GLib
+   GError  *erro_thread = NULL;
+   GThread *worker      = g_thread_try_new( "vertice-omr-worker", funcao_background, args, &erro_thread );
 
-   if ( pthread_create( &thread_id, &attr, funcao_background, args ) != 0 ) {
-      g_printerr( "[ERRO] Falha ao criar a thread de processamento de imagens.\n" );
-
+   if ( !worker ) {
       gtk_widget_set_sensitive( widget, TRUE );
       if ( ctx->prova.btn_corrigir ) {
          gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
       }
+
+      InterfacePainel *painel  = &ctx->painel;
+      painel->format_titulo    = meu_gerador_variadico( "✘ Falha de Concorrência:" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar a thread de visão computacional." );
+      painel->format_instrucao = meu_gerador_variadico( "Detalhe: %s", erro_thread ? erro_thread->message : "Erro interno." );
+
+      criar_mensagem_painel( ERRO, painel );
+      g_clear_error( &erro_thread );
       liberar_processar_thread_args( args );
+      return;
    }
 
-   pthread_attr_destroy( &attr );
+   g_thread_unref( worker );
 }
 
 // ====================================================================================
@@ -387,7 +516,6 @@ static gboolean ocultar_painel_cv_cb( gpointer user_data ) {
    painel->timeout_id = 0;
 
    // Ao retornar G_SOURCE_REMOVE, a GLib invoca liberar_processar_thread_args(args) automaticamente
-   g_print( "[GLib Timer] Toast CV ocultado. Limpeza de ProcessarThreadArgs concluída.\n" );
    return G_SOURCE_REMOVE;
 }
 
@@ -446,30 +574,27 @@ static gboolean reativar_botao_processar_imagens( gpointer user_data ) {
    }
 
    guint tempo_exibicao = ( args->n_rejeitadas == 0 ) ? 4000U : 6000U;
-   painel->timeout_id = g_timeout_add_full(
-                           G_PRIORITY_DEFAULT, tempo_exibicao, ocultar_painel_cv_cb, args, liberar_processar_thread_args
-                        );
+   painel->timeout_id   = g_timeout_add_full(
+                             G_PRIORITY_DEFAULT,
+                             tempo_exibicao,
+                             ocultar_painel_cv_cb,
+                             args,
+                             liberar_processar_thread_args
+                          );
 
-   g_print( "[Thread CV] Mensagem emitida. Aguardando término do Toast para desalocar Heap...\n" );
    return G_SOURCE_REMOVE;
 }
 
 // ====================================================================================
-// WORKER: Executa o Pipeline OMR em Background
+// WORKER: Executa o Pipeline OMR em Background (100% Isolado da UI)
 // ====================================================================================
-void* thread_processar_imagens_background( void *data ) {
+void *thread_processar_imagens_background( void *data ) {
    g_return_val_if_fail( data != NULL, NULL );
 
    g_autoptr( GTimer ) cronometro = g_timer_new();
-   ProcessarThreadArgs *args = ( ProcessarThreadArgs * )data;
+   ProcessarThreadArgs *args      = ( ProcessarThreadArgs * )data;
 
-   g_print( "[Thread CV] Iniciando o processamento assíncrono das imagens...\n" );
-
-   // args->n_rejeitadas = gas_processar_imagens( &args->dados, &args->cabecalho );
-   // args->n_rejeitadas = omr_processar_imagens( &args->dados, &args->cabecalho );
    args->n_rejeitadas = cs_omr_processar_imagens( &args->dados, &args->cabecalho );
-
-   g_print( "[Thread CV] Processamento concluído. Retornando o controle para a UI.\n" );
 
    // Agenda a execução do retorno gráfico na Thread Principal do GTK
    g_idle_add( reativar_botao_processar_imagens, args );
@@ -491,33 +616,70 @@ void* thread_processar_imagens_background( void *data ) {
 // ESTRUTURA DE TRANSPORTE E ISOLAMENTO DO COMPILADOR DE ACERVO
 // ====================================================================================
 typedef struct {
-   char            *tema;                   // Cópia profunda de ctx->dados.tema
+   gchar           *tema;                   // Cópia profunda de ctx->dados.tema
    int              qtd_subtemas;           // Cópia de ctx->prova.limite_subtemas
    GtkWidget       *btn_compilar;           // Referência de UI (ctx->latex.btn_compilar)
    GtkWidget       *btn_pdflatex;           // Referência de UI (ctx->latex.btn_pdflatex)
    GtkWidget       *widget;                 // Botão exato que originou o disparo
    GStrv            subtemas;               // Deep copy NULL-terminated das strings de subtemas
-   InterfacePainel *painel;                 // Painel de notificações Toast
-   char            *dir_compile;            // Cópia do diretório temporário de compilação
-   char            *caminho_banco_questoes; // Cópia de ctx->caminho.banco_questoes
+   InterfacePainel *painel;                 // Painel de notificações Toast (Main Thread)
+   gchar           *dir_compile;            // Cópia do diretório temporário de compilação
+   gchar           *caminho_banco_questoes; // Cópia de ctx->caminho.banco_questoes
 } DadosCompilacaoAsync;
 
-/* Destrutor centralizado para garantir higienização total (inclusive da GStrv de subtemas) */
-static void liberar_dados_compilacao_async( DadosCompilacaoAsync *async_data ) {
+/* Destrutor compatível com GDestroyNotify para higienização total */
+static void liberar_dados_compilacao_async( gpointer data ) {
+   DadosCompilacaoAsync *async_data = ( DadosCompilacaoAsync * )data;
    if ( !async_data ) {
       return;
    }
-   g_free( async_data->tema );
-   g_free( async_data->dir_compile );
-   g_free( async_data->caminho_banco_questoes );
-   g_strfreev( async_data->subtemas ); // Libera cada string clonada e o vetor de ponteiros
+
+   g_clear_pointer( &async_data->tema,                   g_free );
+   g_clear_pointer( &async_data->dir_compile,            g_free );
+   g_clear_pointer( &async_data->caminho_banco_questoes, g_free );
+   g_clear_pointer( &async_data->subtemas,               g_strfreev );
+
    g_free( async_data );
+}
+
+// ====================================================================================
+// CALLBACK: Oculta o painel Toast do Acervo (Executa na Main Thread)
+// ====================================================================================
+static gboolean ocultar_painel_acervo_cb( gpointer user_data ) {
+   InterfacePainel *painel = ( InterfacePainel * )user_data;
+   if ( !painel ) {
+      return G_SOURCE_REMOVE;
+   }
+
+   if ( painel->mouse_hover ) {
+      return G_SOURCE_CONTINUE;
+   }
+
+   if ( painel->revealer_painel ) {
+      gtk_revealer_set_reveal_child( GTK_REVEALER( painel->revealer_painel ), FALSE );
+   }
+   painel->timeout_id = 0;
+
+   return G_SOURCE_REMOVE;
+}
+
+static void agendar_ocultacao_toast_acervo_lc( InterfacePainel *painel, guint tempo_ms ) {
+   if ( !painel ) {
+      return;
+   }
+
+   if ( painel->timeout_id > 0 ) {
+      g_source_remove( painel->timeout_id );
+      painel->timeout_id = 0;
+   }
+
+   painel->timeout_id = g_timeout_add( tempo_ms, ocultar_painel_acervo_cb, painel );
 }
 
 // ====================================================================================
 // DIAGNÓSTICO DE INTEGRIDADE DOS PDFS DO ACERVO
 // ====================================================================================
-static gboolean verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const char *tema,
+static gboolean verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, const gchar *tema,
       int qtd_subtemas, int falhas ) {
    g_return_val_if_fail( painel != NULL && tema != NULL, FALSE );
 
@@ -525,25 +687,28 @@ static gboolean verificar_pdfs_latex_acervo_questoes( InterfacePainel *painel, c
       // --- ESTADO 1: SUCESSO TOTAL ---
       painel->format_titulo    = meu_gerador_variadico( "✔ Sucesso Total!" );
       painel->format_subtitulo = meu_gerador_variadico( "Todos os %d PDFs foram gerados corretamente.", qtd_subtemas );
-      painel->format_instrucao = meu_gerador_variadico( "Iniciando concatenação dos PDFs para %s.pdf...", tema );
+      painel->format_instrucao = meu_gerador_variadico( "Concatenação concluída para %s.pdf.", tema );
       criar_mensagem_painel( SUCESSO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 4000U );
       return TRUE;
 
    } else if ( falhas < qtd_subtemas ) {
       // --- ESTADO 2: ALERTA (SUCESSO PARCIAL) ---
-      int sucessos = qtd_subtemas - falhas;
+      int sucessos             = qtd_subtemas - falhas;
       painel->format_titulo    = meu_gerador_variadico( "⚠ Atenção (Sucesso Parcial):" );
       painel->format_subtitulo = meu_gerador_variadico( "Processados %d de %d arquivos com sucesso.", sucessos, qtd_subtemas );
-      painel->format_instrucao = meu_gerador_variadico( "Houve falha em %d item(ns). Unindo os PDFs disponíveis...", falhas );
+      painel->format_instrucao = meu_gerador_variadico( "Houve falha em %d item(ns). PDFs disponíveis unidos em %s.pdf.", falhas, tema );
       criar_mensagem_painel( AVISO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 6000U );
       return TRUE;
 
    } else {
       // --- ESTADO 3: ERRO CRÍTICO (NADA FOI GERADO) ---
       painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento:" );
-      painel->format_subtitulo = meu_gerador_variadico( "Nenhum arquivo PDF foi gerado pelo LaTeX." );
-      painel->format_instrucao = meu_gerador_variadico( "Verifique a pasta %s.", tema );
+      painel->format_subtitulo = meu_gerador_variadico( "Nenhum arquivo PDF foi gerado pelo motor LaTeX." );
+      painel->format_instrucao = meu_gerador_variadico( "Verifique a sintaxe TeX das questões no tema \"%s\".", tema );
       criar_mensagem_painel( ERRO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 6000U );
       return FALSE;
    }
 }
@@ -565,25 +730,25 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
    gboolean proc_ok = g_spawn_check_exit_status( wait_status, NULL );
 #endif
 
-   if ( proc_ok && async_data->qtd_subtemas > 0 && async_data->subtemas != NULL ) {
-      g_print( "[SUCESSO] O tema '%s' foi compilado perfeitamente!\n", async_data->tema );
+   const gchar *tema_seguro = async_data->tema ? async_data->tema : "Acervo";
 
+   if ( proc_ok && async_data->qtd_subtemas > 0 && async_data->subtemas != NULL ) {
       // 1. Prepara o array dinâmico com os nomes exatos dos PDFs efetivamente gerados
-      gsize cap_pdfs     = ( gsize )async_data->qtd_subtemas + 1U;
-      char **arquivos_pdf = g_new0( char *, cap_pdfs );
-      int qtd_sucessos_reais = 0;
+      gsize   cap_pdfs           = ( gsize )async_data->qtd_subtemas + 1U;
+      gchar **arquivos_pdf       = g_new0( gchar *, cap_pdfs );
+      int     qtd_sucessos_reais = 0;
 
       for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
-         const char *subtema_atual = async_data->subtemas[i];
+         const gchar *subtema_atual = async_data->subtemas[i];
          if ( !subtema_atual || subtema_atual[0] == '\0' ) {
             continue;
          }
 
-         char *nome_pdf             = g_strdup_printf( "%s.pdf", subtema_atual );
-         g_autofree char *path_teste = g_build_filename( async_data->dir_compile, nome_pdf, NULL );
+         gchar           *nome_pdf   = g_strdup_printf( "%s.pdf", subtema_atual );
+         g_autofree gchar *path_teste = g_build_filename( async_data->dir_compile, nome_pdf, NULL );
 
-         if ( g_file_test( path_teste, G_FILE_TEST_EXISTS ) ) {
-            arquivos_pdf[qtd_sucessos_reais++] = nome_pdf; // Transfere a posse diretamente (sem segundo g_strdup!)
+         if ( g_file_test( path_teste, G_FILE_TEST_IS_REGULAR ) ) {
+            arquivos_pdf[qtd_sucessos_reais++] = nome_pdf; // Transfere a posse diretamente
          } else {
             g_free( nome_pdf );
          }
@@ -591,12 +756,11 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
 
       int falhas = async_data->qtd_subtemas - qtd_sucessos_reais;
 
-      if ( verificar_pdfs_latex_acervo_questoes( async_data->painel, async_data->tema,
+      if ( verificar_pdfs_latex_acervo_questoes( async_data->painel, tema_seguro,
             async_data->qtd_subtemas, falhas ) ) {
-
          // 2. Caminho absoluto do arquivo final unificado do tema
-         g_autofree char *nome_arquivo  = g_strdup_printf( "%s.pdf", async_data->tema );
-         g_autofree char *arquivo_saida = g_build_filename( async_data->caminho_banco_questoes, nome_arquivo, NULL );
+         g_autofree gchar *nome_arquivo  = g_strdup_printf( "%s.pdf", tema_seguro );
+         g_autofree gchar *arquivo_saida = g_build_filename( async_data->caminho_banco_questoes, nome_arquivo, NULL );
 
          // 3. Unifica os PDFs disponíveis
          g_remove( arquivo_saida );
@@ -604,31 +768,26 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
             g_pdfunite( async_data->dir_compile, arquivos_pdf, qtd_sucessos_reais, arquivo_saida );
          }
 
-         // Apagar arquivos temporários adivindos da compilação latex
+         // 4. Apaga artefatos temporários (.aux, .log, .synctex.gz) da compilação LaTeX
          apagar_temporarios_latex_paralelo( async_data->dir_compile, async_data->subtemas, -1 );
 
          if ( async_data->widget == async_data->btn_pdflatex &&
-               g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
-            g_xdg_open( arquivo_saida );
+               g_file_test( arquivo_saida, G_FILE_TEST_IS_REGULAR ) ) {
+            g_xdg_open( arquivo_saida, NULL );
          }
       }
 
-      // Liberação explícita do vetor NULL-terminated (compreendida nativamente pelo clang-analyzer)
       g_strfreev( arquivos_pdf );
 
-   } else if ( !proc_ok ) {
-      g_printerr( "[AVISO] Compilação do tema '%s' interrompida ou com erros (status %d).\n",
-                  async_data->tema, wait_status );
-
-      if ( async_data->painel ) {
-         async_data->painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Compilação" );
-         async_data->painel->format_subtitulo = meu_gerador_variadico( "O processo paralelo retornou erro ao compilar '%s'.", async_data->tema );
-         async_data->painel->format_instrucao = meu_gerador_variadico( "Verifique os logs do terminal." );
-         criar_mensagem_painel( ERRO, async_data->painel );
-      }
+   } else if ( !proc_ok && async_data->painel ) {
+      async_data->painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Compilação:" );
+      async_data->painel->format_subtitulo = meu_gerador_variadico( "O processo paralelo retornou erro ao compilar \"%s\".", tema_seguro );
+      async_data->painel->format_instrucao = meu_gerador_variadico( "Código de término do subprocesso: %d.", wait_status );
+      criar_mensagem_painel( ERRO, async_data->painel );
+      agendar_ocultacao_toast_acervo_lc( async_data->painel, 6000U );
    }
 
-   // Reabilita os botões na interface com verificação de ponteiro
+   // Reabilita os botões na interface
    if ( async_data->btn_pdflatex ) {
       gtk_widget_set_sensitive( async_data->btn_pdflatex, TRUE );
    }
@@ -636,7 +795,6 @@ static void ao_terminar_compilacao_banco( GPid pid, gint wait_status, gpointer u
       gtk_widget_set_sensitive( async_data->btn_compilar, TRUE );
    }
 
-   // Desalocação profunda e unificada
    liberar_dados_compilacao_async( async_data );
 }
 
@@ -648,7 +806,11 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
    g_return_if_fail( dir_compile != NULL && painel != NULL && ctx != NULL );
 
    if ( ctx->prova.limite_subtemas <= 0 || ctx->prova.subtemas == NULL ) {
-      g_printerr( "[AVISO] Nenhum subtema disponível para compilação em '%s'.\n", dir_compile );
+      painel->format_titulo    = meu_gerador_variadico( "⚠ Acervo Vazio:" );
+      painel->format_subtitulo = meu_gerador_variadico( "Nenhum subtema disponível para compilação no tema atual." );
+      painel->format_instrucao = meu_gerador_variadico( "Cadastre questões no diretório antes de compilar." );
+      criar_mensagem_painel( AVISO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 4000U );
       return;
    }
 
@@ -670,21 +832,21 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
    async_data->caminho_banco_questoes = g_strdup( ctx->caminho.banco_questoes );
 
    // Deep Copy real do vetor de strings (+1 para o terminador NULL exigido por g_strfreev)
-   async_data->subtemas = g_new0( gchar *, ( gsize )async_data->qtd_subtemas + 1 );
+   async_data->subtemas = g_new0( gchar *, ( gsize )async_data->qtd_subtemas + 1U );
    for ( int i = 0; i < async_data->qtd_subtemas; i++ ) {
       async_data->subtemas[i] = g_strdup( ctx->prova.subtemas[i] );
    }
 
-   guint num_cores = g_get_num_processors();
-   g_autoptr( GError ) erro = NULL;
-   GPid pid = 0;
+   guint             num_cores = g_get_num_processors();
+   g_autoptr( GError ) erro    = NULL;
+   GPid              pid       = 0;
 
-   g_autofree char *comando_interno = g_strdup_printf(
-                                         "parallel -j %u nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true",
-                                         num_cores
-                                      );
+   g_autofree gchar *comando_interno = g_strdup_printf(
+                                          "parallel -j %u nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true",
+                                          num_cores
+                                       );
 
-   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   g_auto( GStrv ) argv = g_new0( gchar*, 4U );
    argv[0] = g_strdup( "sh" );
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
@@ -692,9 +854,6 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
    if ( !g_spawn_async( dir_compile, argv, NULL,
                         G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
                         NULL, NULL, &pid, &erro ) ) {
-
-      g_printerr( "[ERRO FATAL] Falha ao compilar assíncrono: %s\n", erro->message );
-
       if ( async_data->btn_pdflatex ) {
          gtk_widget_set_sensitive( async_data->btn_pdflatex, TRUE );
       }
@@ -702,10 +861,11 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
          gtk_widget_set_sensitive( async_data->btn_compilar, TRUE );
       }
 
-      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento" );
-      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o GNU Parallel." );
-      painel->format_instrucao = meu_gerador_variadico( "Verifique a instalação do ambiente TeX/Parallel." );
+      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento:" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o compilador paralelo." );
+      painel->format_instrucao = meu_gerador_variadico( "Detalhe: %s", erro ? erro->message : "Verifique o GNU Parallel/TeX." );
       criar_mensagem_painel( ERRO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 6000U );
 
       liberar_dados_compilacao_async( async_data );
    } else {
@@ -723,84 +883,105 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
 // ESTRUTURA DE TRANSPORTE E GESTÃO DO SUBPROCESSO DE CORREÇÃO
 // ====================================================================================
 typedef struct {
-   GArray          *map_array;   // Posse transferida de corrigir_prova()
-   AppContext      *ctx;         // Contexto mestre do aplicativo
-   InterfacePainel *painel;      // Painel de notificações Toast
-   char            *dir_compile; // Diretório temporário de compilação
-   GTimer          *cronometro;  // Medidor de performance do lote
+   GArray            *map_array;   // Posse transferida de corrigir_prova()
+   AppContext        *ctx;         // Referência da Main Thread apenas para reabilitar botões
+   InterfacePainel   *painel;      // Painel de notificações Toast (Main Thread)
+   InterfaceDados     dados;       // Deep Copy do estado da turma no momento do disparo
+   CaminhoDiretorio   caminho;     // Deep Copy dos diretórios da turma no momento do disparo
+   InterfaceCabecalho cabecalho;   // Cópia escalar do foco (período/turma/disciplina)
+   GPtrArray         *fichas;      // Deep Copy das fichas dos alunos para exportação PNG
+   gchar             *dir_compile; // Diretório temporário de compilação
+   GTimer            *cronometro;  // Medidor de performance do lote
 } DadosCorrecaoAsync;
 
 /* Destrutor centralizado para evitar vazamento de campos em qualquer fluxo de saída */
-static void liberar_dados_correcao_async( DadosCorrecaoAsync *async ) {
+static void liberar_dados_correcao_async( gpointer data ) {
+   DadosCorrecaoAsync *async = ( DadosCorrecaoAsync * )data;
    if ( !async ) {
       return;
    }
-   if ( async->cronometro ) {
+
+   if ( async->cronometro != NULL ) {
       g_timer_destroy( async->cronometro );
       async->cronometro = NULL;
    }
-   if ( async->map_array ) {
+   if ( async->map_array != NULL ) {
       g_array_free( async->map_array, TRUE );
       async->map_array = NULL;
    }
-   g_free( async->dir_compile );
+   if ( async->fichas != NULL ) {
+      g_ptr_array_unref( async->fichas );
+      async->fichas = NULL;
+   }
+
+   liberar_interface_dados_snapshot_lc( &async->dados );
+   liberar_caminho_diretorio_snapshot_lc( &async->caminho );
+   g_clear_pointer( &async->dir_compile, g_free );
+
    g_free( async );
 }
 
 // ====================================================================================
-// EXPORTAÇÃO INSTITUCIONAL E CONVERSÃO NÃO PRESENCIAL
+// EXPORTAÇÃO INSTITUCIONAL E CONVERSÃO NÃO PRESENCIAL (SOBRE O SNAPSHOT ISOLADO)
 // ====================================================================================
-static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados, const CaminhoDiretorio *caminho,
-      const char *arquivo_saida ) {
+static void copiar_arquivos_correcao_externamente( const InterfaceDados *dados,
+      const CaminhoDiretorio *caminho,
+      const gchar *arquivo_saida ) {
    g_return_if_fail( dados != NULL && caminho != NULL && arquivo_saida != NULL );
 
-   g_autofree char *nome_arquivo_escola = NULL;
+   if ( !dados->periodo || !caminho->externo_escola ) {
+      return;
+   }
+
+   g_autofree gchar *nome_arquivo_escola = NULL;
    if ( dados->periodo[0] == 'R' ) {
       nome_arquivo_escola = g_strdup_printf( "Correção Recuperação Final - %s - %s - %s.pdf",
                                              dados->ano, dados->turma, dados->disciplina );
    } else {
-      int inicial_per = ( dados->periodo[0] != '\0' ) ? dados->periodo[0] : '1';
+      gchar inicial_per   = ( gchar )( ( dados->periodo[0] != '\0' ) ? dados->periodo[0] : '1' );
       nome_arquivo_escola = g_strdup_printf( "Correção %s Prova - %s_%c - %s - %s.pdf",
                                              dados->prova_sequencia, dados->ano, inicial_per,
                                              dados->turma, dados->disciplina );
    }
 
-   g_autofree char *pasta_provas_escola = g_build_filename( caminho->externo_escola, "Correções", NULL );
-   g_autofree char *destino_escola      = g_build_filename( pasta_provas_escola, nome_arquivo_escola, NULL );
+   g_autofree gchar *pasta_provas_escola = g_build_filename( caminho->externo_escola, "Correções", NULL );
+   g_autofree gchar *destino_escola      = g_build_filename( pasta_provas_escola, nome_arquivo_escola, NULL );
 
    if ( g_mkdir_with_parents( pasta_provas_escola, 0755 ) != 0 ) {
-      g_printerr( "[ERRO] Não foi possível criar a pasta externa de correções: %s\n", pasta_provas_escola );
       return;
    }
 
-   if ( !gio_copiar_arquivo( arquivo_saida, destino_escola ) ) {
-      g_printerr( "[ERRO] Falha ao salvar a cópia institucional na pasta Correções da Escola!\n" );
-   }
+   gio_copiar_arquivo( arquivo_saida, destino_escola );
 }
 
 //------------------------------------------------------------------------------------------------------
-static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *map, guint qtd_linhas,
-      const AppContext *ctx ) {
-   g_return_if_fail( map != NULL && ctx != NULL && ctx->diario.fichas != NULL );
+static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *map,
+      guint qtd_linhas,
+      const DadosCorrecaoAsync *async ) {
+   g_return_if_fail( map != NULL && async != NULL && async->fichas != NULL );
 
-   const InterfaceDados   *dados   = &ctx->dados;
-   const CaminhoDiretorio *caminho = &ctx->caminho;
+   const InterfaceDados   *dados   = &async->dados;
+   const CaminhoDiretorio *caminho = &async->caminho;
 
-   g_autofree char *diretorio_imagens = NULL;
-
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
-      diretorio_imagens = g_build_filename( caminho->externo, "Notas", "Recuperação Final Imagens Corrigidas", NULL );
-   } else {
-      g_autofree char *pasta_imagens = g_strdup_printf( "%s Prova Imagens Corrigidas", dados->prova_sequencia );
-      diretorio_imagens = g_build_filename( caminho->externo, "Notas", pasta_imagens, NULL );
-   }
-
-   if ( g_mkdir_with_parents( diretorio_imagens, 0755 ) != 0 ) {
-      g_printerr( "[ERRO CRÍTICO] Falha ao criar a hierarquia externa de pastas: %s\n", diretorio_imagens );
+   if ( !caminho->externo || !caminho->raiz ) {
       return;
    }
 
-   guint total_fichas = ctx->diario.fichas->len;
+   g_autofree gchar *diretorio_imagens = NULL;
+
+   if ( async->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+      diretorio_imagens = g_build_filename( caminho->externo, "Notas", "Recuperação Final Imagens Corrigidas", NULL );
+   } else {
+      g_autofree gchar *pasta_imagens = g_strdup_printf( "%s Prova Imagens Corrigidas",
+                                        dados->prova_sequencia ? dados->prova_sequencia : "" );
+      diretorio_imagens               = g_build_filename( caminho->externo, "Notas", pasta_imagens, NULL );
+   }
+
+   if ( g_mkdir_with_parents( diretorio_imagens, 0755 ) != 0 ) {
+      return;
+   }
+
+   guint total_fichas = async->fichas->len;
 
    #pragma omp parallel for schedule(static)
    for ( guint i = 0; i < qtd_linhas; i++ ) {
@@ -808,19 +989,17 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
          int num_aluno = map[i].num;
 
          if ( num_aluno > 0 && ( guint )num_aluno <= total_fichas ) {
-            const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( ctx->diario.fichas, ( guint )( num_aluno - 1 ) );
+            const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( async->fichas, ( guint )( num_aluno - 1 ) );
             if ( !ficha ) {
                continue;
             }
 
-            g_autofree char *nome_pdf           = g_strdup_printf( "%.2d.pdf", num_aluno );
-            g_autofree char *thread_caminho_pdf = g_build_filename( caminho->raiz, "dados", "temporarios", nome_pdf, NULL );
-            g_autofree char *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
-            g_autofree char *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
+            g_autofree gchar *nome_pdf           = g_strdup_printf( "%.2d.pdf", num_aluno );
+            g_autofree gchar *thread_caminho_pdf = g_build_filename( caminho->raiz, "dados", "temporarios", nome_pdf, NULL );
+            g_autofree gchar *nome_arquivo_png   = g_strdup_printf( "%.2d - %s.png", num_aluno, ficha->aluno );
+            g_autofree gchar *thread_caminho_png = g_build_filename( diretorio_imagens, nome_arquivo_png, NULL );
 
-            if ( !pdf2png( thread_caminho_pdf, thread_caminho_png, 1.5 ) ) {
-               g_printerr( "[AVISO] Falha ao converter e mover imagem %s\n", thread_caminho_png );
-            }
+            pdf2png( thread_caminho_pdf, thread_caminho_png, 1.5 );
          }
       }
    }
@@ -838,11 +1017,11 @@ static void ao_terminar_correcao_prova( GPid pid, gint wait_status, gpointer use
       return;
    }
 
-   AppContext       *ctx       = async->ctx;
-   InterfaceDados   *dados     = &ctx->dados;
-   CaminhoDiretorio *caminho   = &ctx->caminho;
-   InterfacePainel  *painel    = async->painel;
-   GArray           *map_array = async->map_array;
+   AppContext             *ctx       = async->ctx;
+   const InterfaceDados   *dados     = &async->dados;
+   const CaminhoDiretorio *caminho   = &async->caminho;
+   InterfacePainel        *painel    = async->painel;
+   GArray                 *map_array = async->map_array;
 
 #if GLIB_CHECK_VERSION( 2, 70, 0 )
    gboolean proc_ok = g_spawn_check_wait_status( wait_status, NULL );
@@ -851,19 +1030,19 @@ static void ao_terminar_correcao_prova( GPid pid, gint wait_status, gpointer use
 #endif
 
    if ( proc_ok && map_array != NULL ) {
-      g_print( "[SUCESSO] Processamento assíncrono do LaTeX concluído.\n" );
-
-      // 1. Exportação de imagens corrigidas para modalidade não presencial
+      // 1. Exportação de imagens corrigidas para modalidade não presencial (usando snapshot isolado)
       if ( dados->nao_presencial && map_array->len > 0 ) {
          copiar_arquivos_correcao_nao_presencial(
-            ( const MapeamentoGabarito * )( void * )map_array->data, map_array->len, ctx
+            ( const MapeamentoGabarito * )( void * )map_array->data,
+            map_array->len,
+            async
          );
       }
 
       // 2. Unificação dos PDFs gerados e higienização paralela
-      guint total_provas = map_array->len;
-      g_auto( GStrv ) arquivos_pdf = g_new0( char *, ( gsize )total_provas + 1 );
-      int qtd_sucessos = 0;
+      guint   total_provas = map_array->len;
+      gchar **arquivos_pdf = g_new0( gchar *, ( gsize )total_provas + 1U );
+      int     qtd_sucessos = 0;
 
       for ( guint i = 0; i < total_provas; i++ ) {
          const MapeamentoGabarito *map = &g_array_index( map_array, MapeamentoGabarito, i );
@@ -872,8 +1051,8 @@ static void ao_terminar_correcao_prova( GPid pid, gint wait_status, gpointer use
          }
       }
 
-      g_autofree char *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->seq_prova );
-      g_autofree char *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
+      g_autofree gchar *nome_arquivo  = g_strdup_printf( "Correção_%d.pdf", dados->seq_prova );
+      g_autofree gchar *arquivo_saida = g_build_filename( caminho->relatorios, nome_arquivo, NULL );
 
       g_remove( arquivo_saida );
 
@@ -883,32 +1062,37 @@ static void ao_terminar_correcao_prova( GPid pid, gint wait_status, gpointer use
 
       // Limpeza paralela dos arquivos temporários (.tex, .aux, .log, .synctex.gz, .pdf)
       apagar_temporarios_latex_paralelo( async->dir_compile, arquivos_pdf, -1 );
+      g_strfreev( arquivos_pdf );
 
       // 3. Exibição automática e notificação na UI
-      if ( qtd_sucessos > 0 && g_file_test( arquivo_saida, G_FILE_TEST_EXISTS ) ) {
+      if ( qtd_sucessos > 0 && g_file_test( arquivo_saida, G_FILE_TEST_IS_REGULAR ) ) {
          if ( dados->expor_dados ) {
             copiar_arquivos_correcao_externamente( dados, caminho, arquivo_saida );
          }
 
-         g_xdg_open( arquivo_saida );
+         g_xdg_open( arquivo_saida, NULL );
 
-         painel->format_titulo    = meu_gerador_variadico( "✔ Correção Finalizada" );
-         painel->format_subtitulo = meu_gerador_variadico( "%d provas unificadas com sucesso.", qtd_sucessos );
-         painel->format_instrucao = meu_gerador_variadico( "As imagens corrigidas estão prontas no diretório base." );
-         criar_mensagem_painel( SUCESSO, painel );
-      } else {
-         painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Geração do PDF" );
-         painel->format_subtitulo = meu_gerador_variadico( "Ocorreu um erro ao unificar os arquivos." );
-         painel->format_instrucao = meu_gerador_variadico( "Verifique se há provas válidas ou se o pdfunite falhou." );
+         if ( painel ) {
+            painel->format_titulo    = meu_gerador_variadico( "✔ Correção Finalizada!" );
+            painel->format_subtitulo = meu_gerador_variadico( "%d prova(s) unificada(s) com sucesso.", qtd_sucessos );
+            painel->format_instrucao = meu_gerador_variadico( "O relatório de correção está pronto no diretório da turma." );
+            criar_mensagem_painel( SUCESSO, painel );
+            agendar_ocultacao_toast_acervo_lc( painel, 4000U );
+         }
+      } else if ( painel ) {
+         painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Geração do PDF:" );
+         painel->format_subtitulo = meu_gerador_variadico( "Ocorreu um erro ao unificar os espelhos de correção." );
+         painel->format_instrucao = meu_gerador_variadico( "Verifique se há provas válidas no lote processado." );
          criar_mensagem_painel( ERRO, painel );
+         agendar_ocultacao_toast_acervo_lc( painel, 6000U );
       }
 
-   } else {
-      g_printerr( "[ERRO FATAL] O comando LaTeX assíncrono falhou (Status: %d).\n", wait_status );
-      painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Compilação" );
-      painel->format_subtitulo = meu_gerador_variadico( "O motor LaTeX abortou o processamento." );
-      painel->format_instrucao = meu_gerador_variadico( "Verifique os logs do terminal." );
+   } else if ( painel ) {
+      painel->format_titulo    = meu_gerador_variadico( "✘ Falha na Compilação:" );
+      painel->format_subtitulo = meu_gerador_variadico( "O motor LaTeX abortou a geração dos espelhos de correção." );
+      painel->format_instrucao = meu_gerador_variadico( "Código de término do subprocesso: %d.", wait_status );
       criar_mensagem_painel( ERRO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 6000U );
    }
 
    // Reabilita os controles de correção e processamento na interface
@@ -935,21 +1119,31 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    g_autoptr( GError ) erro = NULL;
 
    DadosCorrecaoAsync *async_data = g_new0( DadosCorrecaoAsync, 1 );
-   async_data->map_array   = map_array; // Assume a posse do GArray
-   async_data->ctx         = ctx;
-   async_data->painel      = painel;
-   async_data->dir_compile = g_build_filename( ctx->caminho.raiz, "dados", "temporarios", NULL );
+   async_data->map_array          = map_array; // Assume a posse do GArray
+   async_data->ctx                = ctx;
+   async_data->painel             = painel;
+   async_data->cabecalho          = ctx->cabecalho;
+
+   // Snapshot profundo: garante que os relatórios e PNGs usem a turma exata do início da correção
+   clonar_caminho_diretorio_lc( &ctx->caminho, &async_data->caminho );
+   clonar_interface_dados_lc( &ctx->dados, &async_data->caminho, &async_data->dados );
+   async_data->fichas = clonar_diario_alunos_lc(
+                           ctx->diario.fichas,
+                           ( guint8 )ctx->cabecalho.limite_disciplinas
+                        );
+
+   async_data->dir_compile = g_build_filename( async_data->caminho.raiz, "dados", "temporarios", NULL );
    async_data->cronometro  = g_timer_new();
 
    guint num_cores = g_get_num_processors();
-   GPid pid = 0;
+   GPid  pid       = 0;
 
-   g_autofree char *comando_interno = g_strdup_printf(
-                                         "parallel -j %u nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true",
-                                         num_cores
-                                      );
+   g_autofree gchar *comando_interno = g_strdup_printf(
+                                          "parallel -j %u nice -n 5 pdflatex -synctex=1 -interaction=nonstopmode ::: *.tex || true",
+                                          num_cores
+                                       );
 
-   g_auto( GStrv ) argv = g_new0( gchar *, 4 );
+   g_auto( GStrv ) argv = g_new0( gchar*, 4U );
    argv[0] = g_strdup( "sh" );
    argv[1] = g_strdup( "-c" );
    argv[2] = g_strdup( comando_interno );
@@ -957,12 +1151,6 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    if ( !g_spawn_async( async_data->dir_compile, argv, NULL,
                         G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
                         NULL, NULL, &pid, &erro ) ) {
-
-      g_printerr( "[ERRO FATAL] Falha ao iniciar correção assíncrona: %s\n", erro->message );
-
-      // Limpa tudo com segurança (incluindo GTimer, GArray e dir_compile)
-      liberar_dados_correcao_async( async_data );
-
       // Restaura ambos os botões bloqueados em corrigir_prova()
       if ( ctx->prova.btn_corrigir ) {
          gtk_widget_set_sensitive( ctx->prova.btn_corrigir, TRUE );
@@ -971,10 +1159,13 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
          gtk_widget_set_sensitive( ctx->prova.btn_processar, TRUE );
       }
 
-      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento" );
-      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o GNU Parallel." );
-      painel->format_instrucao = meu_gerador_variadico( "Tente novamente." );
+      painel->format_titulo    = meu_gerador_variadico( "✘ Erro de Processamento:" );
+      painel->format_subtitulo = meu_gerador_variadico( "Não foi possível iniciar o compilador paralelo para a correção." );
+      painel->format_instrucao = meu_gerador_variadico( "Detalhe: %s", erro ? erro->message : "Verifique o GNU Parallel/TeX." );
       criar_mensagem_painel( ERRO, painel );
+      agendar_ocultacao_toast_acervo_lc( painel, 6000U );
+
+      liberar_dados_correcao_async( async_data );
    } else {
       g_child_watch_add( pid, ao_terminar_correcao_prova, async_data );
    }

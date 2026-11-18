@@ -530,7 +530,7 @@ void alimentar_interface_temporaria( AppContext *ctx, const DadosRascunho *rascu
       }
 
       // Busca rápida sem alocações extras no Heap
-      int t = buscar_indice_bsearch( &tema_salvo, prova->temas, ( guint )prova->limite_temas,
+      int t = buscar_indice_bsearch( ( const void* )&tema_salvo, ( const void* )prova->temas, ( guint )prova->limite_temas,
                                      sizeof( tema_salvo ), comparar_item_combo );
       if ( t >= 0 ) {
          gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.combo_tema ), t );

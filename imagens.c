@@ -12,6 +12,7 @@
 
 #include "comum.h"
 #include "imagens.h"
+#include "glib.h"
 #include "imgcore.h"
 #include "basicas.h"   // Para nFile e Files
 #include "omr.h" // Para mudar_numero_na_imagem, gabaritos e imagens_corrigidas
@@ -58,7 +59,7 @@ static gint buscar_indice_gptrarray_str_lc( const GPtrArray *array, const char *
       return -1;
    }
 
-   return buscar_indice_bsearch( &chave, array->pdata, ( gsize )array->len,
+   return buscar_indice_bsearch( ( const void* )&chave, ( const void* )array->pdata, ( gsize )array->len,
                                  sizeof( char * ), cmp_str_ptr_lc );
 }
 
@@ -184,39 +185,58 @@ static void normalizar_ancora( const ImagemColorida *img_rgb, const ImagemCinza 
 // ====================================================================================
 // FUNÇÕES AUXILIARES LOCAIS DE LIMPEZA (Evitam repetição e previnem vazamentos)
 // ====================================================================================
-static inline void limpar_imagem_cinza_local_lc( ImagemCinza *img ) {
+static void limpar_imagem_cinza_local_lc( ImagemCinza *img ) {
    if ( !img ) {
       return;
    }
-   if ( img->dados ) {
-      g_free( img->dados );
-      img->dados = NULL;
-      g_free( img->image );
-      img->image = NULL;
-   } else if ( img->image ) {
-      liberar_matriz_pixels( img->image, img->nrow );
-      img->image = NULL;
-   }
-   img->nrow = 0;
+   g_clear_pointer( &img->dados, g_free );
+   g_clear_pointer( ( gpointer* )&img->image, g_free );
    img->ncol = 0;
+   img->nrow = 0;
 }
-//------------------------------------------------------------------------------------------
-static inline void limpar_imagem_colorida_local_lc( ImagemColorida *img ) {
+
+static void limpar_imagem_colorida_local_lc( ImagemColorida *img ) {
    if ( !img ) {
       return;
    }
-   if ( img->dados ) {
-      g_free( img->dados );
-      img->dados = NULL;
-      g_free( img->image );
-      img->image = NULL;
-   } else if ( img->image ) {
-      liberar_matriz_pixels_colorida( img->image, img->nrow );
-      img->image = NULL;
-   }
-   img->nrow = 0;
+   g_clear_pointer( &img->dados, g_free );
+   g_clear_pointer( ( gpointer* )&img->image, g_free );
    img->ncol = 0;
+   img->nrow = 0;
 }
+// static inline void limpar_imagem_cinza_local_lc( ImagemCinza *img ) {
+//    if ( !img ) {
+//       return;
+//    }
+//    if ( img->dados ) {
+//       g_free( img->dados );
+//       img->dados = NULL;
+//       g_clear_pointer( img->image, g_free );
+//
+//    } else if ( img->image ) {
+//       liberar_matriz_pixels( img->image, img->nrow );
+//       img->image = NULL;
+//    }
+//    img->nrow = 0;
+//    img->ncol = 0;
+// }
+// //------------------------------------------------------------------------------------------
+// static inline void limpar_imagem_colorida_local_lc( ImagemColorida *img ) {
+//    if ( !img ) {
+//       return;
+//    }
+//    if ( img->dados ) {
+//       g_free( img->dados );
+//       img->dados = NULL;
+//       g_clear_pointer( img->image, g_free );
+//
+//    } else if ( img->image ) {
+//       liberar_matriz_pixels_colorida( img->image, img->nrow );
+//       img->image = NULL;
+//    }
+//    img->nrow = 0;
+//    img->ncol = 0;
+// }
 /**
  * Função principal de processamento em lote.
  * Executa a visão computacional multithread, cortes e leitura do payload/respostas.

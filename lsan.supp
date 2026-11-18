@@ -1,20 +1,33 @@
 # =====================================================================
-# SUPRESSÕES DO LEAKSANITIZER (ASan / LSan) - MODO DEBUG
+# SUPRESSÕES DO LEAKSANITIZER (ASan / LSan) - MODO DEBUG (UBUNTU LTS)
 # =====================================================================
-# Bibliotecas gráficas e de fontes externas
+
+# Bibliotecas gráficas, renderização PDF e fontes externas
 leak:libfontconfig.so
+leak:libfreetype.so
 leak:libharfbuzz.so
 leak:libgtk-3.so
 leak:libgdk-3.so
+leak:libgdk_pixbuf-2.0.so
 leak:libpango
 leak:libcairo.so
+leak:libpoppler.so
+leak:libpoppler-glib.so
 leak:libgio-2.0.so
+leak:libdconfsettings.so
+leak:libgvfsdbus.so
 
-# Caches internos e tipos estáticos da GLib (NUNCA suprimir libglib-2.0.so inteira!)
+# Pool de threads persistentes do OpenMP (GCC libgomp)
+leak:libgomp.so
+
+# Caches internos e tipos estáticos da GLib / GObject
+# (NUNCA suprimir libglib-2.0.so ou libgobject-2.0.so inteiras!)
 leak:g_type_register_static
 leak:g_type_register_fundamental
 leak:g_type_add_interface_static
+leak:g_type_init
 leak:g_quark_init
 leak:g_get_charset
 leak:g_get_language_names
+leak:g_get_user_Config_dir
 leak:g_slice_alloc

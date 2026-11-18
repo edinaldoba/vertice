@@ -15,6 +15,8 @@
 #include <omp.h>
 
 #include "comum.h"
+#include "glib-object.h"
+#include "glib.h"
 #include "glibconfig.h"
 #include "imgcore.h"
 
@@ -33,7 +35,7 @@ guint8** alocar_matriz_pixels( gsize nrow, gsize ncol ) {
    guint8 *dados = g_malloc0( nrow * ncol * sizeof( guint8 ) );
 
    // Aloca apenas o esqueleto de ponteiros de linha
-   guint8 **matriz = g_malloc( nrow * sizeof( guint8 * ) );
+   guint8 **matriz = ( guint8 ** )g_malloc( nrow * sizeof( guint8 * ) );
 
    // Mapeia os atalhos de linha para os deslocamentos corretos dentro do bloco 1D
    for ( gsize i = 0; i < nrow; i++ ) {
@@ -45,7 +47,7 @@ guint8** alocar_matriz_pixels( gsize nrow, gsize ncol ) {
 /* Função auxiliar para alocar a matriz de pixels RGB */
 PixelRGB** alocar_matriz_pixels_colorida( gsize nrow, gsize ncol ) {
    PixelRGB *dados = g_malloc0( nrow * ncol * sizeof( PixelRGB ) );
-   PixelRGB **matriz = g_malloc( nrow * sizeof( PixelRGB * ) );
+   PixelRGB **matriz = ( PixelRGB ** )g_malloc( nrow * sizeof( PixelRGB * ) );
 
    for ( gsize i = 0; i < nrow; i++ ) {
       matriz[i] = dados + ( i * ncol );
@@ -61,7 +63,7 @@ void liberar_matriz_pixels( guint8 **matriz, gsize nrow ) {
       if ( matriz[0] ) {
          g_free( matriz[0] ); // Libera todo o bloco mestre de pixels de uma vez
       }
-      g_free( matriz );       // Libera o esqueleto de ponteiros
+      g_clear_pointer( ( gpointer* )&matriz, g_free );     // Libera o esqueleto de ponteiros
    }
 }
 
@@ -73,7 +75,7 @@ void liberar_matriz_pixels_colorida( PixelRGB **matriz, gsize nrow ) {
       if ( matriz[0] ) {
          g_free( matriz[0] );
       }
-      g_free( matriz );
+      g_clear_pointer( ( gpointer* )&matriz, g_free );
    }
 }
 
@@ -86,15 +88,10 @@ void liberar_imagem_imread( ImagemColorida *img ) {
          g_free( img->dados );
          img->dados = NULL;
       }
-      // Fallback clássico: localiza o bloco gigante armazenado no índice 0
-      else if ( img->image && img->image[0] ) {
-         g_free( img->image[0] );
-      }
 
       // Libera o vetor de ponteiros
       if ( img->image ) {
-         g_free( img->image );
-         img->image = NULL;
+         g_clear_pointer( ( gpointer* )&img->image, g_free );
       }
    }
 }
@@ -176,8 +173,8 @@ static void reconstruir_matriz_colorida_lc( const guchar *pixels_1d, ImagemColor
    if ( img->dados ) {
       g_free( img->dados );
       img->dados = NULL;
-      g_free( img->image );
-      img->image = NULL;
+      g_clear_pointer( ( gpointer* )&img->image, g_free );
+
    } else if ( img->image ) {
       liberar_matriz_pixels_colorida( img->image, img->nrow );
       img->image = NULL;
@@ -190,7 +187,7 @@ static void reconstruir_matriz_colorida_lc( const guchar *pixels_1d, ImagemColor
 
    // 2. Alocação unificada no novo padrão contíguo (Bloco mestre + ponteiros de linha)
    img->dados = g_malloc( altura * largura * sizeof( PixelRGB ) );
-   img->image = g_malloc( altura * sizeof( PixelRGB * ) );
+   img->image = ( PixelRGB** )g_malloc( altura * sizeof( PixelRGB * ) );
 
    for ( gsize y = 0; y < altura; y++ ) {
       img->image[y] = img->dados + ( y * largura );
@@ -313,8 +310,8 @@ void cortar_imagem_ortogonal( const ImagemCinza *IMG, ImagemCinza *img,
 
    // Limpeza prévia caso a struct de destino já possua buffers alocados
    if ( img->dados ) {
-      g_clear_pointer( &img->dados, g_free );
-      g_clear_pointer( &img->image, g_free );
+      g_clear_pointer( ( gpointer* )&img->dados, g_free );
+      g_clear_pointer( ( gpointer* )&img->image, g_free );
    }
 
    img->ncol = largura;
@@ -361,7 +358,7 @@ void cortar_imagem_ortogonal_colorida( const ImagemColorida *IMG, ImagemColorida
    // Limpeza prévia caso a struct de destino já possua buffers alocados
    if ( img->dados ) {
       g_clear_pointer( ( gpointer * )&img->dados, g_free );
-      g_clear_pointer( &img->image, g_free );
+      g_clear_pointer( ( gpointer* )&img->image, g_free );
    }
 
    img->ncol = largura;
@@ -567,11 +564,11 @@ void rgb2gray( const ImagemColorida *PPM, ImagemCinza *PGM ) {
    // 1. Limpeza e Realocação no Padrão Contíguo (1D real + 2D pointers)
    if ( PGM->dados ) {
       g_free( PGM->dados );
-      g_free( PGM->image );
+      g_clear_pointer( ( gpointer* )&PGM->image, g_free );
    }
 
    PGM->dados = g_malloc( PGM->nrow * PGM->ncol * sizeof( uint8_t ) );
-   PGM->image = g_malloc( PGM->nrow * sizeof( uint8_t * ) );
+   PGM->image = ( guint8** )g_malloc( PGM->nrow * sizeof( uint8_t * ) );
    for ( gsize i = 0; i < PGM->nrow; i++ ) {
       PGM->image[i] = PGM->dados + ( i * PGM->ncol );
    }

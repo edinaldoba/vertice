@@ -5,6 +5,7 @@
  */
 
 #include "layout.h"
+#include "gtk/gtk.h"
 #include "interface.h"
 #include "config.h"
 
@@ -12,32 +13,6 @@
 // ======================================================================================
 // 1. FUNÇÕES AUXILIARES DE ESTILIZAÇÃO E ALINHAMENTO
 // ======================================================================================
-
-static gboolean detectar_ubuntu_lc( void ) {
-   FILE *fp = fopen( "/etc/os-release", "r" );
-   if ( fp == NULL ) {
-      // Se o arquivo não existir, provavelmente não é um Linux moderno
-      return FALSE;
-   }
-
-   char linha[256];
-   gboolean eh_ubuntu = FALSE;
-
-   // Lê o arquivo linha por linha buscando o ID da distribuição
-   while ( fgets( linha, sizeof( linha ), fp ) ) {
-      // O arquivo costuma ter uma linha como: ID=ubuntu
-      if ( strncmp( linha, "ID=", 3 ) == 0 ) {
-         if ( strstr( linha, "ubuntu" ) != NULL ) {
-            eh_ubuntu = TRUE;
-            break;
-         }
-      }
-   }
-
-   fclose( fp );
-   return eh_ubuntu;
-}
-
 /**
  * @brief Extrai o GtkLabel interno de um botão configurado pelo Glade e aplica o espaçamento.
  */
@@ -182,11 +157,7 @@ static void mapear_janela_mestra_lc( AppContext *ctx, GtkBuilder *builder, GtkAp
 
    gtk_window_set_application( GTK_WINDOW( ctx->window ), app );
 
-   if ( detectar_ubuntu_lc() ) {
-      gtk_window_set_position( GTK_WINDOW( ctx->window ), GTK_WIN_POS_CENTER );
-   } else {
-      gtk_window_move( GTK_WINDOW( ctx->window ), 1019, 141 );
-   }
+   gtk_window_set_position( GTK_WINDOW( ctx->window ), GTK_WIN_POS_CENTER );
 
    // Ativação da HeaderBar customizada para controle CSS
    GtkWidget *header = gtk_header_bar_new();

@@ -80,7 +80,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    }
 
    g_string_append( tex,
-                    "\\usepackage[brazil]{babel}\n"
+                    "\\usepackage[brazilian]{babel}\n"
                     "\\usepackage[bottom=1cm,top=1cm,left=1cm,right=1cm]{geometry}\n"
                     "\\usepackage[dvipsnames,table]{xcolor}\n"
                     "\\usepackage{multicol}\n"
@@ -392,7 +392,7 @@ void abrir_tema( GtkWidget *widget, InterfacePainel *painel, const AppContext *c
    }
 
    // 4. Se chegou aqui, o arquivo já existe e está pronto. Abre normalmente!
-   g_xdg_open( caminho_absoluto );
+   g_xdg_open( caminho_absoluto, NULL );
 }
 //========================================================================================================//
 
