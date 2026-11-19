@@ -493,18 +493,18 @@ static void conectar_sinais_aba_diarios_lc( AppContext *ctx ) {
    g_signal_connect( conteudo->entry_data, "button-press-event", G_CALLBACK( on_entry_data_button_press ), ctx );
    g_signal_connect( conteudo->entry_data, "focus-out-event", G_CALLBACK( on_entry_validar_data_focus_out_event ), ctx );
 
-   g_signal_connect( conteudo->stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
+   g_signal_connect( conteudo->btn_stepper_menos, "clicked", G_CALLBACK( on_button_stepper_menos_num_horarios_clicked ), ctx );
    g_signal_connect( conteudo->label_ch, "notify::label", G_CALLBACK( on_label_carga_horaria_notify_label ), ctx );
-   g_signal_connect( conteudo->stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
+   g_signal_connect( conteudo->btn_stepper_mais,  "clicked", G_CALLBACK( on_button_stepper_mais_num_horarios_clicked ), ctx );
 
    g_signal_connect( conteudo->entry_tema, "focus-out-event", G_CALLBACK( on_entry_tema_focus_out_event ), ctx );
    g_signal_connect( conteudo->entry_tema, "activate", G_CALLBACK( on_entry_tema_activate ), ctx );
    g_signal_connect( conteudo->entry_descricao, "activate", G_CALLBACK( on_entry_registrar_aula_activate ), ctx );
    g_signal_connect( conteudo->btn_salvar, "clicked", G_CALLBACK( on_button_registrar_aula_clicked ), ctx );
-   g_signal_connect( conteudo->remover_registro, "clicked",
-                     G_CALLBACK( on_button_remover_registro_aula_selecionado_clicked ), ctx );
+   g_signal_connect( conteudo->btn_remover_registro, "clicked",
+                     G_CALLBACK( on_button_btn_remover_registro_aula_selecionado_clicked ), ctx );
 
-   g_signal_connect( conteudo->treeview, "key-press-event", G_CALLBACK( on_treeview_remover_registro_aula_selecionado_key_press_event ), ctx );
+   g_signal_connect( conteudo->treeview, "key-press-event", G_CALLBACK( on_treeview_btn_remover_registro_aula_selecionado_key_press_event ), ctx );
    g_signal_connect( conteudo->treeview, "row-activated",
                      G_CALLBACK( on_treeview_carregar_registro_para_edicao_row_activated ), ctx );
 

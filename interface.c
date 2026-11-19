@@ -943,8 +943,8 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
       return;
    }
 
-   InterfaceDados     *dados    = &ctx->dados;
-   InterfaceConteudo  *conteudo = &ctx->diario.conteudo;
+   InterfaceDados     *dados     = &ctx->dados;
+   InterfaceConteudo  *conteudo  = &ctx->diario.conteudo;
    InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 

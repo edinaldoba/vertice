@@ -12,6 +12,7 @@
 
 #include "callbacks.h"
 #include "comum.h"
+#include "gtk/gtk.h"
 #include "imagens.h"
 #include "interface.h"
 #include "relatorios.h"
@@ -449,7 +450,7 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 
 
 
-static gboolean treeview_remover_registro_aula_selecionado_lc( AppContext *ctx, GtkTreeSelection *selection ) {
+static gboolean treeview_btn_remover_registro_aula_selecionado_lc( AppContext *ctx, GtkTreeSelection *selection ) {
    GtkTreeModel *model;
    GtkTreeIter iter;
 
@@ -460,7 +461,7 @@ static gboolean treeview_remover_registro_aula_selecionado_lc( AppContext *ctx, 
          int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
 
          // Executa a remoção e só sincroniza o restante da UI se for confirmado
-         if ( remover_registro_aula_selecionado( ctx, indice_remocao, model, &iter ) ) {
+         if ( btn_remover_registro_aula_selecionado( ctx, indice_remocao, model, &iter ) ) {
 
             // SINCRONIZAÇÃO: Repopula o combo da frequência
             popular_datas( ctx );
@@ -473,7 +474,7 @@ static gboolean treeview_remover_registro_aula_selecionado_lc( AppContext *ctx, 
    return FALSE;
 }
 
-void on_button_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_btn_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
@@ -483,10 +484,10 @@ void on_button_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpo
 
    GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( conteudo->treeview ) );
 
-   treeview_remover_registro_aula_selecionado_lc( ctx, selection );
+   treeview_btn_remover_registro_aula_selecionado_lc( ctx, selection );
 }
 
-gboolean on_treeview_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
+gboolean on_treeview_btn_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( ctx != NULL, FALSE );
@@ -496,7 +497,7 @@ gboolean on_treeview_remover_registro_aula_selecionado_key_press_event( GtkWidge
       GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) );
 
       // O retorno do evento flui de acordo com a ação (TRUE se removeu, FALSE se cancelou)
-      return treeview_remover_registro_aula_selecionado_lc( ctx, selection );
+      return treeview_btn_remover_registro_aula_selecionado_lc( ctx, selection );
    }
 
    return FALSE;
@@ -515,13 +516,15 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
    gboolean tem_selecao = gtk_tree_selection_get_selected( selection, &model, &iter );
 
    // 2. Garante a classe CSS do botão
-   GtkStyleContext *context = gtk_widget_get_style_context( GTK_WIDGET( conteudo->remover_registro ) );
+   GtkStyleContext *context = gtk_widget_get_style_context( GTK_WIDGET( conteudo->btn_remover_registro ) );
    if ( tem_selecao ) {
       if ( !gtk_style_context_has_class( context, "botao-remover-ifood" ) ) {
          gtk_style_context_add_class( context, "botao-remover-ifood" );
+         gtk_widget_set_sensitive( conteudo->btn_remover_registro, TRUE );
       }
    } else {
       gtk_style_context_remove_class( context, "botao-remover-ifood" );
+      gtk_widget_set_sensitive( conteudo->btn_remover_registro, FALSE );
    }
 
 }

@@ -67,8 +67,8 @@ typedef struct {
    GtkWidget *popover_calendario;
    GtkWidget *calendario_data;
 
-   GtkWidget *stepper_menos;
-   GtkWidget *stepper_mais;
+   GtkWidget *btn_stepper_menos;
+   GtkWidget *btn_stepper_mais;
    GtkWidget *label_ch;
 
    GtkWidget *treeview;          // Tabela principal de conteúdos
@@ -77,7 +77,7 @@ typedef struct {
    GtkWidget *entry_descricao;         // Entry da Descrição
    GtkWidget *tipo_registro;     // Combo (Normal, Pedagógico, Extra, etc.)
    GtkWidget *btn_salvar;
-   GtkWidget *remover_registro;
+   GtkWidget *btn_remover_registro;
 
    GtkTreeIter iter_em_edicao;
    gboolean editando;            // FALSE = Novo Registro, TRUE = Editando Existente

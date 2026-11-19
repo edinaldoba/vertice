@@ -30,3 +30,14 @@
 -I/usr/include/blkid
 -I/usr/include/sysprof-6
 -pthread
+-I/usr/include/poppler/glib
+-I/usr/include/poppler
+-I/usr/include/x86_64-linux-gnu
+-isystem
+/usr/include/mit-krb5
+-I/usr/include/p11-kit-1
+-I/usr/include/nss
+-I/usr/include/nspr
+-I/usr/include/openjpeg-2.5
+-I/usr/include/webp
+-I/usr/include/opencv4

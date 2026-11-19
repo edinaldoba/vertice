@@ -204,14 +204,16 @@ static void mapear_aba_diarios_lc( AppContext *ctx, GtkBuilder *builder ) {
    conteudo->entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
    conteudo->popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
    conteudo->calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
-   conteudo->stepper_menos      = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
+   conteudo->btn_stepper_menos      = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
    conteudo->label_ch           = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
-   conteudo->stepper_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
+   conteudo->btn_stepper_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
    conteudo->tipo_registro      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
    conteudo->entry_tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
    conteudo->entry_descricao          = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
    conteudo->btn_salvar         = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
-   conteudo->remover_registro   = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
+   conteudo->btn_remover_registro   = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
+   gtk_button_set_relief( GTK_BUTTON( conteudo->btn_remover_registro ), GTK_RELIEF_NONE );
+   gtk_widget_set_sensitive( conteudo->btn_remover_registro, FALSE );
 
    conteudo->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {

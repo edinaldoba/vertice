@@ -263,7 +263,7 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
          gtk_widget_set_valign( btn_remover, GTK_ALIGN_CENTER );
          gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "botao-remover-ifood" );
          gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "btn-stepper" );
-         gtk_widget_set_size_request( btn_remover, 34, 34 );
+         gtk_widget_set_size_request( btn_remover, 33, 33 );
 
          // Guarda idx_aluno (+1) e bit (+1) no GObject sem alocar memória dinâmica
          g_object_set_data( G_OBJECT( btn_remover ), "idx_aluno", GINT_TO_POINTER( ( int )i + 1 ) );

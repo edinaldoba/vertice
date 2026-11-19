@@ -245,7 +245,7 @@ gchar* validar_data( const gchar *texto ) {
  *
  * @return gboolean TRUE se a remoção foi confirmada e executada; FALSE se foi cancelada ou falhou.
  */
-gboolean remover_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
+gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
    g_return_val_if_fail( ctx != NULL && model != NULL && iter != NULL, FALSE );
 
    const InterfaceDiario *diario = &ctx->diario;
@@ -928,7 +928,7 @@ static void processar_modo_normal_lc( AppContext *ctx, RegistroAula *aula, int i
    } else {
       FichaAluno *ficha = g_ptr_array_index( diario->fichas, idx_aluno );
       g_autofree gchar *nasc = formatar_data_extenso_lc( ficha->nasc );
-      const char *fonte_numerica = "Monospace 19px";
+      const char *fonte_numerica = "Monospace 20px";
 
       g_autofree gchar *texto_cod_aluno_inicial = cod_aluno_formatado_lc( ficha->cod_aluno );
 
@@ -1058,7 +1058,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
       gtk_list_store_append( store_view, &iter );
 
       g_autofree gchar *nasc = formatar_data_extenso_lc( ficha->nasc );
-      const char *fonte_numerica = "Monospace 19px";
+      const char *fonte_numerica = "Monospace 20px";
 
       GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
       g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, status_atual );

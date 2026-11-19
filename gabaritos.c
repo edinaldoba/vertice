@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2026 Edinaldo Barbosa de Alencar
+ * Este programa é software livre; você pode redistribuí-lo e/ou
+ * modificá-lo sob os termos da Licença Pública Geral GNU...
+ */
+
 #include <stdio.h>
 #include "gabaritos.h"
 #include "mensagens.h"

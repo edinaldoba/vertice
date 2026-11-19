@@ -12,7 +12,7 @@
    ========================================================================== */
 label {
     font-family: "Ubuntu", "Inter", sans-serif;
-    font-size: 20px;
+    font-size: 21px;
     color: #E0E0E0;
 }
 
@@ -26,7 +26,7 @@ tooltip {
 
 tooltip label {
     color: #E2E8F0;
-    font-size: 20px;
+    font-size: 21px;
 }
 
 *:focus {
@@ -63,6 +63,7 @@ headerbar label,
 .titlebar label,
 headerbar .title {
     color: #E2E8F0;
+    font-size: 21px;
     text-shadow: 0 1px 2px rgba(2, 6, 23, 0.90);
 }
 
@@ -240,9 +241,9 @@ separator {
 
 .indicador-item-subtema {
     color: #00FFFF;
-    font-size: 23px;
+    font-size: 24px;
     font-weight: bold;
-    margin-left: 7px;
+    margin-left: 8px;
 }
 
 /* ==========================================================================
@@ -261,7 +262,7 @@ button {
 }
 
 button label {
-    font-size: 24px;
+    font-size: 25px;
     color: rgba(255, 255, 255, 0.85);
 }
 
@@ -291,7 +292,7 @@ entry {
     color: #FFFFFF;
     caret-color: #00AAFF;
     font-family: "Ubuntu Mono", monospace;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: normal;
     padding: 4px 12px;
     border: 1px solid #00557F;
@@ -308,7 +309,7 @@ entry:focus {
 entry label {
     color: #FFFFFF;
     font-family: "Ubuntu Mono", monospace;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: normal;
 }
 
@@ -327,10 +328,11 @@ button cellview {
     background-color: #0f223a;
     color: #FFFFFF;
     font-family: 'Ubuntu Mono', monospace;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: normal;
     border: 1px solid #002e7e;
     border-radius: 7px;
+    min-height: 32px;
     box-shadow: none;
 }
 
@@ -355,9 +357,10 @@ window.popup menu cellview {
     background-color: #091422;
     color: #7498a8;
     font-family: 'Ubuntu Mono', monospace;
-    font-size: 20px;
+    font-size: 21px;
     border: 1px solid #002e7e;
     border-radius: 7px;
+    min-height: 32px;
 }
 
 window.popup menu cellview {
@@ -449,7 +452,7 @@ calendar:selected {
 treeview {
     background-color: #091421;
     color: #FFFFFF;
-    font-size: 20px;
+    font-size: 21px;
     border-color: #283ABF;
     padding-left: 6px;
     padding-right: 6px;
@@ -460,7 +463,7 @@ treeview:selected {
 }
 
 treeview header label {
-    font-size: 20px;
+    font-size: 21px;
     font-weight: bold;
     color: rgba(255, 255, 255, 0.85);
     padding-left: 6px;
@@ -532,14 +535,15 @@ treeview header button {
 
 .label-stepper {
     color: #FFFFFF;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: bold;
     min-width: 17px;
 }
 
 .btn-stepper {
     background-color: #0F233B;
-    padding: 0;
+/*     padding: 0px 6px 3px 7px; */
+    padding: 0px;
     box-shadow: inset 0 0 3px #1E3E62;
 }
 
@@ -565,8 +569,8 @@ treeview header button {
     background-image: url("./icones/trash_blue.svg");
     background-repeat: no-repeat;
     background-position: center;
-    min-width: 24px;
-    min-height: 24px;
+    min-width: 25px;
+    min-height: 25px;
 }
 
 .botao-remover-ifood:hover {
@@ -587,7 +591,7 @@ treeview header button {
     border-left: 5px solid #38BDF8;
     border-radius: 10px;
     padding: 12px 18px;
-    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
+    box-shadow: 0 8px 25px rgba(2, 6, 23, 0.55);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -619,21 +623,21 @@ treeview header button {
 }
 
 /* --- Mensagens de Status --- */
-.sucesso-titulo    { color: #91e1ff; font-size: 28px; font-weight: bold; }
-.sucesso-subtitulo { color: #90A4AE; font-size: 24px; font-style: italic; }
-.sucesso-instrucao { color: #00d2ff; font-size: 20px; font-weight: normal; }
+.sucesso-titulo    { color: #91e1ff; font-size: 30px; font-weight: bold; }
+.sucesso-subtitulo { color: #90A4AE; font-size: 25px; font-style: italic; }
+.sucesso-instrucao { color: #00d2ff; font-size: 21px; font-weight: normal; }
 
-.aviso-titulo      { color: #FFCA28; font-size: 28px; font-weight: bold; }
-.aviso-subtitulo   { color: #90A4AE; font-size: 24px; font-style: italic; }
-.aviso-instrucao   { color: #FFB300; font-size: 20px; font-weight: normal; }
+.aviso-titulo      { color: #FFCA28; font-size: 30px; font-weight: bold; }
+.aviso-subtitulo   { color: #90A4AE; font-size: 25px; font-style: italic; }
+.aviso-instrucao   { color: #FFB300; font-size: 21px; font-weight: normal; }
 
-.erro-titulo       { color: #FF7675; font-size: 28px; font-weight: bold; }
-.erro-subtitulo    { color: #90A4AE; font-size: 24px; font-style: italic; }
-.erro-instrucao    { color: #FF8A80; font-size: 20px; font-weight: normal; }
+.erro-titulo       { color: #FF7675; font-size: 30px; font-weight: bold; }
+.erro-subtitulo    { color: #90A4AE; font-size: 25px; font-style: italic; }
+.erro-instrucao    { color: #FF8A80; font-size: 21px; font-weight: normal; }
 
-.info-titulo       { color: #8C9EFF; font-size: 28px; font-weight: bold; }
-.info-subtitulo    { color: #90A4AE; font-size: 24px; font-style: italic; }
-.info-instrucao    { color: #B39DDB; font-size: 20px; font-weight: normal; }
+.info-titulo       { color: #8C9EFF; font-size: 30px; font-weight: bold; }
+.info-subtitulo    { color: #90A4AE; font-size: 25px; font-style: italic; }
+.info-instrucao    { color: #B39DDB; font-size: 21px; font-weight: normal; }
 
 /* ==========================================================================
    8. DIÁLOGOS E MODAIS (GtkMessageDialog)
@@ -663,7 +667,7 @@ messagedialog .titlebar .title {
 
 messagedialog label {
     color: #94A3B8;
-    font-size: 20px;
+    font-size: 21px;
 }
 
 messagedialog button {
