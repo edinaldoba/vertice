@@ -7,12 +7,12 @@ void iniciar_autosave_diario( AppContext *ctx, guint intervalo_minutos );
 
 gchar *validar_data( const gchar *texto );
 
-gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
+gboolean btn_rm_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter );
 void registrar_aula( AppContext *ctx );
 void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter );
 void modificar_registro_aula( AppContext *ctx );
 
-void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, int qtd_aulas );
+void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *cont, int qtd_aulas );
 
 void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem );
 
@@ -27,7 +27,7 @@ void selecionar_combo_status( const AppContext *ctx );
 
 void carregar_diario( AppContext *ctx );
 
-void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo );
+void selecionar_aval( AppContext *ctx, GtkComboBox *combo, int item_ativo );
 
 void carregar_avaliacoes( AppContext *ctx );
 
@@ -35,11 +35,11 @@ void salvar_diario( AppContext *ctx, gboolean final_save );
 void salvar_avaliacoes( AppContext *ctx, gboolean final_save );
 
 // AVALIAÇÕES
-void desativar_avaliacao( AppContext *ctx, gboolean estado );
-void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao );
+void desativar_aval( AppContext *ctx, gboolean estado );
+void obter_avaliacoes_validas( InterfaceAvaliacao *aval );
 
-void popover_adicionar_avaliacao( AppContext *ctx, const char *texto );
-void popover_editar_avaliacao( AppContext *ctx, const char *texto );
+void popover_adicionar_aval( AppContext *ctx, const char *texto );
+void popover_editar_aval( AppContext *ctx, const char *texto );
 
 gboolean salvar_fichas( AppContext *ctx, gboolean final_save );
 

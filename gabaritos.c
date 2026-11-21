@@ -117,8 +117,8 @@ void gerenciar_fluxo_gabaritos( GtkWidget *widget, InterfacePainel *painel, cons
       return;
    }
 
-   g_autofree gchar *nome = nome_base_gabaritos_bin( cabecalho->foco_turma, cabecalho->foco_disciplina,
-                            cabecalho->foco_periodo, dados->seq_prova );
+   g_autofree gchar *nome = nome_base_gabaritos_bin( cabecalho->foc_turma, cabecalho->foc_disciplina,
+                            cabecalho->foc_periodo, dados->seq_prova );
 
    g_autofree char *arquivo = g_build_filename( destino, nome, NULL );
 

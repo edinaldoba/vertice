@@ -145,23 +145,23 @@ static double obter_largura_nome_mm( PangoLayout *layout, const char *texto ) {
 }
 
 
-static int obter_limite_corte_nome( PangoLayout *layout, const char *aluno ) {
+static int obter_lim_corte_nome( PangoLayout *layout, const char *aluno ) {
    int max_chars = ( int )g_utf8_strlen( aluno, -1 );
-   int limite_corte = calcular_len_limpo( aluno, max_chars );
+   int lim_corte = calcular_len_limpo( aluno, max_chars );
 
    char buffer[64];
-   g_snprintf( buffer, sizeof( buffer ), "%.*s", limite_corte, aluno );
+   g_snprintf( buffer, sizeof( buffer ), "%.*s", lim_corte, aluno );
 
    double largura = obter_largura_nome_mm( layout, buffer );
 
    while ( largura > 69.0 && max_chars > 0 ) {
       max_chars--;
-      limite_corte = calcular_len_limpo( aluno, max_chars );
-      g_snprintf( buffer, sizeof( buffer ), "%.*s", limite_corte, aluno );
+      lim_corte = calcular_len_limpo( aluno, max_chars );
+      g_snprintf( buffer, sizeof( buffer ), "%.*s", lim_corte, aluno );
       largura = obter_largura_nome_mm( layout, buffer );
    }
 
-   return limite_corte;
+   return lim_corte;
 }
 
 
@@ -396,7 +396,7 @@ static void salvar_ficha_aluno_inicial( const char *nome_turma_padrao, int fonte
             g_autofree char *nome_formatado = converter_nome_proprio( siaep.aluno );
             const char *nome_seguro = ( nome_formatado != NULL ) ? nome_formatado : siaep.aluno;
 
-            ficha->limite_corte = ( uint8_t )obter_limite_corte_nome( layout, nome_seguro );
+            ficha->lim_corte = ( uint8_t )obter_lim_corte_nome( layout, nome_seguro );
 
             g_strlcpy( ficha->aluno, nome_seguro, sizeof( ficha->aluno ) );
             g_strlcpy( ficha->nasc,  siaep.nasc,  sizeof( ficha->nasc ) );
@@ -633,7 +633,7 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
    const InterfaceCabecalho *cabecalho = &ctx->cabecalho;
    const InterfaceDados     *dados     = &ctx->dados;
 
-   int limite_turmas = ctx->cabecalho.limite_turmas;
+   int limite_turmas = ctx->cabecalho.lim_turmas;
 
    for ( int i = 0; i < limite_turmas; i++ ) {
       g_autofree char *acesso_bin = g_strdup_printf( "%s.bin", cabecalho->turmas[i] );
@@ -702,7 +702,7 @@ static void atualizar_acesso_e_adicionar_novos_alunos( const AppContext *ctx ) {
 
 gboolean siaep_atualizar_alunos( InterfacePainel *painel, const AppContext *ctx ) {
    g_return_val_if_fail( painel != NULL && ctx != NULL, FALSE );
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo == RECUPERACAO_FINAL ) {
       return FALSE;
    }
 

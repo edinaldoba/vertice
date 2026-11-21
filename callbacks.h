@@ -30,8 +30,8 @@ void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer u
 void on_label_carga_horaria_notify_label( GtkWidget *widget, GParamSpec *pspec, gpointer user_data );
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data );
 
-void on_button_btn_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data );
-gboolean on_treeview_btn_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
+void on_button_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data );
+gboolean on_treeview_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data );
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data );
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data );
@@ -50,18 +50,18 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data );
 void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_data );
 
 // AVALIAÇÕES
-void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_data );
-void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data );
-void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
-void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
-void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data );
-void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer user_data );
+void on_combo_selecionar_aval_changed( GtkWidget *widget, gpointer user_data );
+void on_check_desativar_aval_toggled( GtkWidget *widget, gpointer user_data );
+void on_button_nova_aval_clicked( GtkWidget *widget, gpointer user_data );
+void on_button_editar_aval_clicked( GtkWidget *widget, gpointer user_data );
+void on_entry_pop_nomear_aval_activate( GtkWidget *widget, gpointer user_data );
+void on_button_pop_nomear_aval_clicked( GtkWidget *widget, gpointer user_data );
 
 void on_cell_nota_editing_started( GtkCellRenderer *renderer, GtkCellEditable *editable,
                                    gchar *path_string, gpointer user_data );
 void on_cell_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gchar *new_text, gpointer user_data );
 
-void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
+void on_treeview_aval_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data );
 void on_button_salvar_avaliacoes_clicked( GtkWidget *widget, gpointer user_data );
 
 // RELATÓRIO FINAL

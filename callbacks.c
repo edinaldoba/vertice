@@ -35,12 +35,12 @@ void on_combo_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_
       return;
    }
 
-   ctx->cabecalho.foco_ano = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_ano ) );
-   if ( ctx->cabecalho.foco_ano < 0 || ctx->cabecalho.anos == NULL ) {
+   ctx->cabecalho.foc_ano = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.cmb_ano ) );
+   if ( ctx->cabecalho.foc_ano < 0 || ctx->cabecalho.anos == NULL ) {
       return;
    }
 
-   GtkComboBoxText *combo_ano = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_ano );
+   GtkComboBoxText *combo_ano = GTK_COMBO_BOX_TEXT( ctx->cabecalho.cmb_ano );
    gchar *ano_selecionado = gtk_combo_box_text_get_active_text( combo_ano );
    if ( !ano_selecionado ) {
       return;
@@ -55,7 +55,7 @@ void on_combo_atualizar_ano_interface_changed( GtkWidget *widget, gpointer user_
       return;
    }
 
-   popular_combo_box_text( ctx->cabecalho.combo_escola, ctx->cabecalho.escolas, 0, ctx->cabecalho.limite_escolas, ctx->cabecalho.handler_escola );
+   popular_combo_box_text( ctx->cabecalho.cmb_escola, ctx->cabecalho.escolas, 0, ctx->cabecalho.lim_escolas, ctx->cabecalho.hdl_escola );
    on_combo_atualizar_escola_interface_changed( NULL, ctx );
 }
 
@@ -68,12 +68,12 @@ void on_combo_atualizar_escola_interface_changed( GtkWidget *widget, gpointer us
       return;
    }
 
-   ctx->cabecalho.foco_escola = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_escola ) );
-   if ( ctx->cabecalho.foco_escola < 0 || ctx->cabecalho.escolas == NULL ) {
+   ctx->cabecalho.foc_escola = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.cmb_escola ) );
+   if ( ctx->cabecalho.foc_escola < 0 || ctx->cabecalho.escolas == NULL ) {
       return;
    }
 
-   GtkComboBoxText *combo_escola = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_escola );
+   GtkComboBoxText *combo_escola = GTK_COMBO_BOX_TEXT( ctx->cabecalho.cmb_escola );
    gchar *escola_selecionada = gtk_combo_box_text_get_active_text( combo_escola );
    if ( !escola_selecionada ) {
       return;
@@ -88,7 +88,7 @@ void on_combo_atualizar_escola_interface_changed( GtkWidget *widget, gpointer us
       return;
    }
 
-   popular_combo_box_text( ctx->cabecalho.combo_turma, ctx->cabecalho.turmas, 0, ctx->cabecalho.limite_turmas, ctx->cabecalho.handler_turma );
+   popular_combo_box_text( ctx->cabecalho.cmb_turma, ctx->cabecalho.turmas, 0, ctx->cabecalho.lim_turmas, ctx->cabecalho.hdl_turma );
    on_combo_atualizar_turma_interface_changed( NULL, ctx ); // Ou o novo nome da callback de turma!
 }
 
@@ -101,12 +101,12 @@ void on_combo_atualizar_turma_interface_changed( GtkWidget *widget, gpointer use
       return;
    }
 
-   ctx->cabecalho.foco_turma = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_turma ) );
-   if ( ctx->cabecalho.foco_turma < 0 || ctx->cabecalho.turmas == NULL ) {
+   ctx->cabecalho.foc_turma = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.cmb_turma ) );
+   if ( ctx->cabecalho.foc_turma < 0 || ctx->cabecalho.turmas == NULL ) {
       return;
    }
 
-   GtkComboBoxText *combo_turma = GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_turma );
+   GtkComboBoxText *combo_turma = GTK_COMBO_BOX_TEXT( ctx->cabecalho.cmb_turma );
    gchar *turma_selecionada = gtk_combo_box_text_get_active_text( combo_turma );
    if ( !turma_selecionada ) {
       return;
@@ -133,11 +133,11 @@ void on_combo_atualizar_disciplina_interface_changed( GtkWidget *widget, gpointe
       return;
    }
 
-   GtkComboBox *combo_disciplina = GTK_COMBO_BOX( ctx->cabecalho.combo_disciplina );
+   GtkComboBox *combo_disciplina = GTK_COMBO_BOX( ctx->cabecalho.cmb_disciplina );
 
    // 1. Atualiza o foco numérico
-   ctx->cabecalho.foco_disciplina = gtk_combo_box_get_active( combo_disciplina );
-   if ( ctx->cabecalho.foco_disciplina < 0 || ctx->cabecalho.disciplinas == NULL ) {
+   ctx->cabecalho.foc_disciplina = gtk_combo_box_get_active( combo_disciplina );
+   if ( ctx->cabecalho.foc_disciplina < 0 || ctx->cabecalho.disciplinas == NULL ) {
       return;
    }
 
@@ -175,29 +175,29 @@ void on_combo_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
    if ( !ctx ) {
       return;
    }
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
+   InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
-   ctx->cabecalho.foco_periodo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_periodo ) );
-   if ( ctx->cabecalho.foco_periodo < 0 ) {
+   ctx->cabecalho.foc_periodo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo ) );
+   if ( ctx->cabecalho.foc_periodo < 0 ) {
       return;
    }
 
    // As pendência só podem ser resolvidas se o período selecionado for maior ou igual ao período corrente (atual)
-   if ( ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_vigente ) {
-      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( relatorio->check_pendencias );
+   if ( ctx->cabecalho.foc_periodo < ctx->cabecalho.foc_periodo_vigente ) {
+      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( rel->chk_pendencias );
       gtk_toggle_button_set_active( check_pendencias, FALSE );
    }
 
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo == RECUPERACAO_FINAL ) {
 
       const gchar *aba_ativa = gtk_stack_get_visible_child_name( GTK_STACK( ctx->diario.stack_pages ) );
       if ( g_strcmp0( aba_ativa, "page_relatorio" ) != 0 ) {
-         gboolean ativo = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->diario.check_modo_edicao ) );
+         gboolean ativo = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->diario.chk_modo_edicao ) );
          if ( ativo ) {
             gtk_button_clicked( GTK_BUTTON( ctx->diario.btn_relatorio ) );
          } else {
-            limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+            limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
             ui_diario_mudar_aba_lc( ctx->diario.stack_pages, "page_relatorio" );
          }
       }
@@ -207,7 +207,7 @@ void on_combo_periodo_interface_changed( GtkWidget *widget, gpointer user_data )
       gtk_widget_set_sensitive( ctx->diario.btn_avaliacao, TRUE );
    }
 
-   gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.combo_periodo ) );
+   gchar *periodo_selecionado = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->cabecalho.cmb_periodo ) );
    if ( !periodo_selecionado ) {
       return;
    }
@@ -227,8 +227,8 @@ void on_combo_cor_serie_interface_changed( GtkWidget *widget, gpointer user_data
       return;
    }
 
-   ctx->latex.foco_cor_serie = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->latex.combo_cor_serie ) );
-   ctx->dados.foco_cor_serie = ctx->latex.foco_cor_serie;
+   ctx->latex.foc_cor_serie = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->latex.cmb_cor_serie ) );
+   ctx->dados.foc_cor_serie = ctx->latex.foc_cor_serie;
 }
 
 
@@ -239,8 +239,8 @@ void on_combo_decoracao_estilo_interface_changed( GtkWidget *widget, gpointer us
       return;
    }
 
-   ctx->latex.foco_decoracao = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->latex.combo_decoracao ) );
-   ctx->dados.foco_decoracao = ctx->latex.foco_decoracao;
+   ctx->latex.foc_decoracao = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->latex.cmb_decoracao ) );
+   ctx->dados.foc_decoracao = ctx->latex.foc_decoracao;
 }
 
 
@@ -251,19 +251,19 @@ void on_combo_estilo_interface_changed( GtkWidget *widget, gpointer user_data ) 
       return;
    }
 
-   ctx->cabecalho.foco_estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.combo_estilo ) );
+   ctx->cabecalho.foc_estilo = gtk_combo_box_get_active( GTK_COMBO_BOX( ctx->cabecalho.cmb_estilo ) );
 
    interface_style( ctx );
 
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
+   InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
-   gtk_widget_queue_draw( conteudo->treeview );
-   gtk_widget_queue_draw( frequencia->treeview );
-   gtk_widget_queue_draw( avaliacao->treeview );
-   gtk_widget_queue_draw( relatorio->treeview );
+   gtk_widget_queue_draw( cont->treeview );
+   gtk_widget_queue_draw( freq->treeview );
+   gtk_widget_queue_draw( aval->treeview );
+   gtk_widget_queue_draw( rel->treeview );
 
 }
 
@@ -283,15 +283,15 @@ gboolean on_entry_data_button_press( GtkWidget *widget, GdkEventButton *event, g
    g_return_val_if_fail( GTK_IS_ENTRY( widget ), FALSE );
    ( void )event;
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   g_return_val_if_fail( widget != NULL && ctx != NULL && conteudo->popover_calendario != NULL, FALSE );
+   g_return_val_if_fail( widget != NULL && ctx != NULL && cont->pop_calendario != NULL, FALSE );
 
-   GtkPopover *popover = GTK_POPOVER( conteudo->popover_calendario );
+   GtkPopover *popover = GTK_POPOVER( cont->pop_calendario );
 
    gtk_popover_set_modal( popover, FALSE );
 
-   gtk_widget_set_can_focus( conteudo->calendario_data, FALSE );
+   gtk_widget_set_can_focus( cont->calendario_data, FALSE );
 
    // Ancora na caixa de texto e exibe
    gtk_popover_set_relative_to( popover, widget );
@@ -312,7 +312,7 @@ void on_calendar_navigation( GtkWidget *widget, gpointer user_data ) {
 
 void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    g_return_if_fail( GTK_IS_CALENDAR( widget ) && ctx );
 
@@ -328,19 +328,19 @@ void on_calendar_day_selected( GtkWidget *widget, gpointer user_data ) {
    gtk_calendar_get_date( GTK_CALENDAR( widget ), &ano, &mes, &dia );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02u/%02u/%04u", dia, mes + 1, ano );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_data ), data_formatada );
 
-   gtk_popover_popdown( GTK_POPOVER( conteudo->popover_calendario ) );
+   gtk_popover_popdown( GTK_POPOVER( cont->pop_calendario ) );
 }
 
 
 gboolean on_entry_validar_data_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( GTK_IS_ENTRY( widget ) && event != NULL && ctx != NULL, FALSE );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // 1. A PRIMEIRA AÇÃO DA PERDA DE FOCO: Esconder o popover
-   gtk_popover_popdown( GTK_POPOVER( conteudo->popover_calendario ) );
+   gtk_popover_popdown( GTK_POPOVER( cont->pop_calendario ) );
 
    GtkEntry *entry = GTK_ENTRY( widget );
    const gchar *texto_digitado = gtk_entry_get_text( entry );
@@ -370,25 +370,25 @@ static int obter_qtd_aulas_lc( GtkLabel *label_qtd ) {
    return ( ch > 0 ) ? ch : 1;
 }
 //------------------------------------------------------------------------
-static void reavaliar_limite_tema_e_descricao_lc( InterfaceConteudo *conteudo ) {
-   g_return_if_fail( conteudo != NULL );
+static void reavaliar_lim_tema_e_descricao_lc( InterfaceConteudo *cont ) {
+   g_return_if_fail( cont != NULL );
 
-   int ch = obter_qtd_aulas_lc( GTK_LABEL( conteudo->label_ch ) );
-   atualizar_limite_descricao_por_aulas( conteudo, ch );
+   int ch = obter_qtd_aulas_lc( GTK_LABEL( cont->lbl_ch ) );
+   atualizar_limite_descricao_por_aulas( cont, ch );
 }
 //------------------------------------------------------------------------
 void on_entry_tema_activate( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_ENTRY( widget ) && ctx );
 
-   reavaliar_limite_tema_e_descricao_lc( &ctx->diario.conteudo );
+   reavaliar_lim_tema_e_descricao_lc( &ctx->diario.conteudo );
 }
 //------------------------------------------------------------------------
 gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( GTK_IS_ENTRY( widget ) && event != NULL && ctx != NULL, FALSE );
 
-   reavaliar_limite_tema_e_descricao_lc( &ctx->diario.conteudo );
+   reavaliar_lim_tema_e_descricao_lc( &ctx->diario.conteudo );
 
    return FALSE; // FALSE propaga o evento para que o GTK feche o foco visual
 }
@@ -396,9 +396,9 @@ gboolean on_entry_tema_focus_out_event( GtkWidget *widget, GdkEventFocus *event,
 void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   int ch = obter_qtd_aulas_lc( GTK_LABEL( conteudo->label_ch ) );
+   int ch = obter_qtd_aulas_lc( GTK_LABEL( cont->lbl_ch ) );
    if ( ch <= 1 ) {
       return;  // Trava no limite inferior
    }
@@ -406,22 +406,22 @@ void on_button_stepper_menos_num_horarios_clicked( GtkWidget *widget, gpointer u
    ch--;
 
    g_autofree char *label_novo = g_strdup_printf( "%d h", ch );
-   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), label_novo );
+   gtk_label_set_text( GTK_LABEL( cont->lbl_ch ), label_novo );
 }
 //-----------------------------------------------------------------------------------------
 void on_label_carga_horaria_notify_label( GtkWidget *widget, GParamSpec *pspec, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( pspec && GTK_IS_LABEL( widget ) && ctx != NULL );
 
-   reavaliar_limite_tema_e_descricao_lc( &ctx->diario.conteudo );
+   reavaliar_lim_tema_e_descricao_lc( &ctx->diario.conteudo );
 }
 //-----------------------------------------------------------------------------------------
 void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   int ch = obter_qtd_aulas_lc( GTK_LABEL( conteudo->label_ch ) );
+   int ch = obter_qtd_aulas_lc( GTK_LABEL( cont->lbl_ch ) );
 
    // Carga horária igual a 3h é o máximo de aulas admitidas por registro
    if ( ch >= 3 ) {
@@ -442,7 +442,7 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
    ch++;
 
    g_autofree char *label_novo = g_strdup_printf( "%d h", ch );
-   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), label_novo );
+   gtk_label_set_text( GTK_LABEL( cont->lbl_ch ), label_novo );
 }
 //=========================================================================================
 
@@ -450,7 +450,7 @@ void on_button_stepper_mais_num_horarios_clicked( GtkWidget *widget, gpointer us
 
 
 
-static gboolean treeview_btn_remover_registro_aula_selecionado_lc( AppContext *ctx, GtkTreeSelection *selection ) {
+static gboolean treeview_remover_registro_aula_selecionado_lc( AppContext *ctx, GtkTreeSelection *selection ) {
    GtkTreeModel *model;
    GtkTreeIter iter;
 
@@ -461,7 +461,7 @@ static gboolean treeview_btn_remover_registro_aula_selecionado_lc( AppContext *c
          int indice_remocao = gtk_tree_path_get_indices( path_remocao )[0];
 
          // Executa a remoção e só sincroniza o restante da UI se for confirmado
-         if ( btn_remover_registro_aula_selecionado( ctx, indice_remocao, model, &iter ) ) {
+         if ( btn_rm_registro_aula_selecionado( ctx, indice_remocao, model, &iter ) ) {
 
             // SINCRONIZAÇÃO: Repopula o combo da frequência
             popular_datas( ctx );
@@ -474,20 +474,20 @@ static gboolean treeview_btn_remover_registro_aula_selecionado_lc( AppContext *c
    return FALSE;
 }
 
-void on_button_btn_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_remover_registro_aula_selecionado_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( conteudo->treeview ) );
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( cont->treeview ) );
 
-   treeview_btn_remover_registro_aula_selecionado_lc( ctx, selection );
+   treeview_remover_registro_aula_selecionado_lc( ctx, selection );
 }
 
-gboolean on_treeview_btn_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
+gboolean on_treeview_remover_registro_aula_selecionado_key_press_event( GtkWidget *widget, GdkEventKey *event,
       gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( ctx != NULL, FALSE );
@@ -497,7 +497,7 @@ gboolean on_treeview_btn_remover_registro_aula_selecionado_key_press_event( GtkW
       GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) );
 
       // O retorno do evento flui de acordo com a ação (TRUE se removeu, FALSE se cancelou)
-      return treeview_btn_remover_registro_aula_selecionado_lc( ctx, selection );
+      return treeview_remover_registro_aula_selecionado_lc( ctx, selection );
    }
 
    return FALSE;
@@ -507,7 +507,7 @@ gboolean on_treeview_btn_remover_registro_aula_selecionado_key_press_event( GtkW
 
 void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    GtkTreeModel *model;
    GtkTreeIter iter;
@@ -516,25 +516,25 @@ void on_diario_selection_changed( GtkTreeSelection *selection, gpointer user_dat
    gboolean tem_selecao = gtk_tree_selection_get_selected( selection, &model, &iter );
 
    // 2. Garante a classe CSS do botão
-   GtkStyleContext *context = gtk_widget_get_style_context( GTK_WIDGET( conteudo->btn_remover_registro ) );
+   GtkStyleContext *context = gtk_widget_get_style_context( GTK_WIDGET( cont->btn_rm_registro ) );
    if ( tem_selecao ) {
       if ( !gtk_style_context_has_class( context, "botao-remover-ifood" ) ) {
          gtk_style_context_add_class( context, "botao-remover-ifood" );
-         gtk_widget_set_sensitive( conteudo->btn_remover_registro, TRUE );
+         gtk_widget_set_sensitive( cont->btn_rm_registro, TRUE );
       }
    } else {
       gtk_style_context_remove_class( context, "botao-remover-ifood" );
-      gtk_widget_set_sensitive( conteudo->btn_remover_registro, FALSE );
+      gtk_widget_set_sensitive( cont->btn_rm_registro, FALSE );
    }
 
 }
 
 
 static void treeview_adicionar_ou_modificar_registro_aula_lc( AppContext *ctx ) {
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   if ( conteudo->editando ) {
+   if ( cont->editando ) {
       modificar_registro_aula( ctx );
    } else {
       registrar_aula( ctx );
@@ -543,7 +543,7 @@ static void treeview_adicionar_ou_modificar_registro_aula_lc( AppContext *ctx ) 
 
    renderizar_frequencia_modo_normal( ctx );
 
-   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ), FALSE );
+   gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ), FALSE );
 }
 
 void on_button_registrar_aula_clicked( GtkWidget *widget, gpointer user_data ) {
@@ -568,7 +568,7 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
    if ( !ctx ) {
       return;
    }
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    GtkTreeModel *model = gtk_tree_view_get_model( treeview );
    GtkTreeIter iter;
@@ -578,7 +578,7 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
       carregar_registro_para_edicao( ctx, &iter );
 
       // Apenas gerencia a usabilidade visual
-      gtk_widget_grab_focus( conteudo->entry_descricao );
+      gtk_widget_grab_focus( cont->ent_descricao );
    }
 }
 
@@ -588,7 +588,7 @@ void on_treeview_carregar_registro_para_edicao_row_activated( GtkTreeView *treev
 
 void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    GtkTreeIter iter;
 
@@ -605,7 +605,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
 
       // Formata a string conforme o design e insere no Label
       g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>%s", qtd_aulas, eh_extra ? " - extra" : "" );
-      gtk_label_set_markup( GTK_LABEL( frequencia->label_ch ), str_qtd_aulas );
+      gtk_label_set_markup( GTK_LABEL( freq->lbl_ch ), str_qtd_aulas );
 
       selecionar_combo_status( ctx );
 
@@ -626,7 +626,7 @@ void on_combo_data_frequencia_changed( GtkWidget *widget, gpointer user_data ) {
 
 gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEventKey *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    // 1. Validação inicial reforçada
    g_return_val_if_fail( GTK_IS_WIDGET( widget ) && event != NULL && ctx != NULL, FALSE );
@@ -647,7 +647,7 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
    switch ( gdk_keyval_to_lower( event->keyval ) ) {
 
    case GDK_KEY_s:
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_status ), 0 );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_status ), 0 );
       gtk_button_clicked( GTK_BUTTON( diario->frequencia.btn_salvar ) );
       return TRUE;
 
@@ -664,7 +664,7 @@ gboolean on_key_presente_ou_ausente_key_press_event( GtkWidget *widget, GdkEvent
       return TRUE;
 
    case GDK_KEY_n:
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_status ), 10 );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_status ), 10 );
       gtk_button_clicked( GTK_BUTTON( diario->frequencia.btn_salvar ) );
       return TRUE;
 
@@ -698,9 +698,9 @@ void on_button_justificada_clicked( GtkWidget *widget, gpointer user_data ) {
 void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_status ) );
+   StatusAssiduidade status = ( StatusAssiduidade ) gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_status ) );
 
    registrar_status_assiduidade_frequencia( &ctx->painel, ctx, status );
 }
@@ -711,8 +711,8 @@ void on_button_salvar_frequencia_clicked( GtkWidget *widget, gpointer user_data 
 
 void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
+   GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
 
    GtkToggleButton *togglebutton = GTK_TOGGLE_BUTTON( widget );
    gboolean modo_por_aluno = gtk_toggle_button_get_active( togglebutton );
@@ -738,7 +738,7 @@ void on_check_por_aluno_toggled( GtkWidget *widget, gpointer user_data ) {
 
 void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    // Validações de segurança iniciais
    g_return_if_fail( ctx != NULL );
@@ -762,8 +762,8 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
    int indice_linha = indices[0];
    gboolean modo_por_aluno = FALSE;
 
-   if ( frequencia->check_por_aluno ) {
-      modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
+   if ( freq->chk_por_aluno ) {
+      modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) );
    }
 
    // 3. Roteamento de navegação baseado no modo ativo
@@ -782,7 +782,7 @@ void on_treeview_frequencia_cursor_changed( GtkWidget *widget, gpointer user_dat
 
 // AVALIAÇÕES
 
-void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_data ) {
+void on_combo_selecionar_aval_changed( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_COMBO_BOX( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
@@ -796,67 +796,67 @@ void on_combo_selecionar_avaliacao_changed( GtkWidget *widget, gpointer user_dat
       return;
    }
 
-   selecionar_avaliacao( ctx, combo, item_ativo );
+   selecionar_aval( ctx, combo, item_ativo );
 }
 
-void on_check_desativar_avaliacao_toggled( GtkWidget *widget, gpointer user_data ) {
+void on_check_desativar_aval_toggled( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_TOGGLE_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
 
-   desativar_avaliacao( ctx, estado );
+   desativar_aval( ctx, estado );
 
-   obter_avaliacoes_validas( avaliacao );
+   obter_avaliacoes_validas( aval );
 }
 
 
 //===================================================================================================
-void on_button_nova_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_nova_aval_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
    g_autofree gchar *label = meu_gerador_variadico( "<b>%s</b>", "NOVA AVALIAÇÃO" );
-   gtk_label_set_markup( GTK_LABEL( avaliacao->label_popover_avaliacao ), label );
-   gtk_button_set_label( GTK_BUTTON( avaliacao->btn_popover_nomear ), "ADICIONAR" );
+   gtk_label_set_markup( GTK_LABEL( aval->lbl_pop_aval ), label );
+   gtk_button_set_label( GTK_BUTTON( aval->btn_pop_nomear ), "ADICIONAR" );
 
    // ---------------------------------------------------------
    // INJETA O ESTADO DE CRIAÇÃO (FALSE) NA MEMÓRIA DO POPOVER
    // ---------------------------------------------------------
-   GObject *object = G_OBJECT( avaliacao->popover_nomear_avaliacao );
+   GObject *object = G_OBJECT( aval->pop_nomear_aval );
    g_object_set_data( object, "modo_edicao", GINT_TO_POINTER( FALSE ) );
 
    // Aponta o popover para o botão NOVA e exibe
-   gtk_popover_set_relative_to( GTK_POPOVER( avaliacao->popover_nomear_avaliacao ), widget );
-   gtk_widget_show_all( avaliacao->popover_nomear_avaliacao );
-   gtk_entry_set_text( GTK_ENTRY( avaliacao->entry_popover_nomear ), "" );
-   gtk_widget_grab_focus( avaliacao->entry_popover_nomear );
+   gtk_popover_set_relative_to( GTK_POPOVER( aval->pop_nomear_aval ), widget );
+   gtk_widget_show_all( aval->pop_nomear_aval );
+   gtk_entry_set_text( GTK_ENTRY( aval->ent_pop_nomear ), "" );
+   gtk_widget_grab_focus( aval->ent_pop_nomear );
 }
 
 //===================================================================================================
-void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_editar_aval_clicked( GtkWidget *widget, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
+   GtkComboBox *combo = GTK_COMBO_BOX( aval->cmb_aval );
    int ativo = gtk_combo_box_get_active( combo );
    if ( ativo < 0 ) {
       return;
    }
 
    g_autofree gchar *label = meu_gerador_variadico( "<b>%s</b>", "EDITAR AVALIAÇÃO" );
-   gtk_label_set_markup( GTK_LABEL( avaliacao->label_popover_avaliacao ), label );
-   gtk_button_set_label( GTK_BUTTON( avaliacao->btn_popover_nomear ), "REMOMEAR" );
+   gtk_label_set_markup( GTK_LABEL( aval->lbl_pop_aval ), label );
+   gtk_button_set_label( GTK_BUTTON( aval->btn_pop_nomear ), "REMOMEAR" );
 
    GtkTreeModel *model = gtk_combo_box_get_model( combo );
    GtkTreeIter iter;
@@ -864,27 +864,27 @@ void on_button_editar_avaliacao_clicked( GtkWidget *widget, gpointer user_data )
       g_autofree gchar *nome_atual = NULL;
       gtk_tree_model_get( model, &iter, 0, &nome_atual, -1 );
       if ( nome_atual ) {
-         gtk_entry_set_text( GTK_ENTRY( avaliacao->entry_popover_nomear ), nome_atual );
+         gtk_entry_set_text( GTK_ENTRY( aval->ent_pop_nomear ), nome_atual );
       }
    }
 
    // ---------------------------------------------------------
    // INJETA O ESTADO DE EDIÇÃO (TRUE) NA MEMÓRIA DO POPOVER
    // ---------------------------------------------------------
-   GObject *object = G_OBJECT( avaliacao->popover_nomear_avaliacao );
+   GObject *object = G_OBJECT( aval->pop_nomear_aval );
    g_object_set_data( object, "modo_edicao", GINT_TO_POINTER( TRUE ) );
 
    // Aponta o popover para o botão "ícone de LÁPIS" e exibe
-   gtk_popover_set_relative_to( GTK_POPOVER( avaliacao->popover_nomear_avaliacao ), widget );
-   gtk_widget_show_all( avaliacao->popover_nomear_avaliacao );
-   gtk_widget_grab_focus( avaliacao->entry_popover_nomear );
+   gtk_popover_set_relative_to( GTK_POPOVER( aval->pop_nomear_aval ), widget );
+   gtk_widget_show_all( aval->pop_nomear_aval );
+   gtk_widget_grab_focus( aval->ent_pop_nomear );
 }
 
 //===================================================================================================
-static void popover_nomear_avaliacao_lc( AppContext *ctx ) {
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+static void popover_nomear_aval_lc( AppContext *ctx ) {
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkEntry *entry = GTK_ENTRY( avaliacao->entry_popover_nomear );
+   GtkEntry *entry = GTK_ENTRY( aval->ent_pop_nomear );
    const gchar *texto = gtk_entry_get_text( entry );
 
    if ( !texto || strlen( texto ) == 0 ) {
@@ -894,35 +894,35 @@ static void popover_nomear_avaliacao_lc( AppContext *ctx ) {
    // ---------------------------------------------------------
    // RECUPERA O ESTADO DIRETAMENTE DA MEMÓRIA DO WIDGET
    // ---------------------------------------------------------
-   GObject *object = G_OBJECT( avaliacao->popover_nomear_avaliacao );
+   GObject *object = G_OBJECT( aval->pop_nomear_aval );
    gboolean editando = GPOINTER_TO_INT( g_object_get_data( object, "modo_edicao" ) );
 
    if ( editando ) {
-      popover_editar_avaliacao( ctx, texto );
+      popover_editar_aval( ctx, texto );
    } else {
-      popover_adicionar_avaliacao( ctx, texto );
+      popover_adicionar_aval( ctx, texto );
    }
 
    gtk_entry_set_text( entry, "" );
-   gtk_widget_hide( avaliacao->popover_nomear_avaliacao );
+   gtk_widget_hide( aval->pop_nomear_aval );
 }
 //----------------------------------------------------------------------------------
-void on_entry_popover_nomear_avaliacao_activate( GtkWidget *widget, gpointer user_data ) {
+void on_entry_pop_nomear_aval_activate( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_ENTRY( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   popover_nomear_avaliacao_lc( ctx );
+   popover_nomear_aval_lc( ctx );
 }
 //----------------------------------------------------------------------------------
-void on_button_popover_nomear_avaliacao_clicked( GtkWidget *widget, gpointer user_data ) {
+void on_button_pop_nomear_aval_clicked( GtkWidget *widget, gpointer user_data ) {
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
    AppContext *ctx = ( AppContext * )user_data;
    if ( !ctx ) {
       return;
    }
-   popover_nomear_avaliacao_lc( ctx );
+   popover_nomear_aval_lc( ctx );
 }
 //===================================================================================================
 
@@ -1031,9 +1031,9 @@ void on_cell_nota_edited( GtkCellRendererText *renderer, gchar *path_string, gch
 }
 
 //-------------------------------------------------------------------------------------------------
-void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data ) {
+void on_treeview_aval_notas_cursor_changed( GtkTreeView *tree_view, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
    GtkTreePath *path = NULL;
    GtkTreeViewColumn *column = NULL;
@@ -1047,7 +1047,7 @@ void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointe
 
       if ( col_index >= 2 && col_index <= 11 ) {
          int novo_foco = ( col_index - 2 ) / 2;
-         GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
+         GtkComboBox *combo = GTK_COMBO_BOX( aval->cmb_aval );
 
          /* =========================================================================================
           * REGRA DE SINCRONIZAÇÃO DA INTERFACE (TreeView -> ComboBox -> CheckButton "Desativar"):
@@ -1066,12 +1066,12 @@ void on_treeview_avaliacao_notas_cursor_changed( GtkTreeView *tree_view, gpointe
           *    - Manter o sinal fluindo garante a consistência visual automática de todo o conjunto de widgets.
           * ========================================================================================= */
          if ( gtk_combo_box_get_active( combo ) != novo_foco ) {
-            // gulong handler = avaliacao->handler_combo_avaliacoes;
-            // if ( handler > 0 ) g_signal_handler_block( combo, handler );
+            // gulong hdl = aval->hdl_cmb_avaliacoes;
+            // if ( hdl > 0 ) g_signal_handler_block( combo, hdl );
 
             gtk_combo_box_set_active( combo, novo_foco );
 
-            // if ( handler > 0 ) g_signal_handler_unblock( combo, handler );
+            // if ( hdl > 0 ) g_signal_handler_unblock( combo, hdl );
          }
       }
    }
@@ -1132,12 +1132,12 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
    g_return_if_fail( ctx != NULL );
    g_return_if_fail( GTK_IS_BUTTON( widget ) );
 
-   if ( ctx->cabecalho.foco_periodo != ctx->cabecalho.foco_periodo_vigente ) {
+   if ( ctx->cabecalho.foc_periodo != ctx->cabecalho.foc_periodo_vigente ) {
 
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
-      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      GtkComboBox *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo );
 
-      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foc_periodo_vigente );
       g_autofree gchar *msg_periodo = meu_gerador_variadico(
                                          "A <b>Consolidação Final</b> exige o contexto do período vigente.\n\n"
                                          "Mudando automaticamente para o <b>%s</b>.",
@@ -1148,10 +1148,10 @@ void on_button_consolidar_relatorio_clicked( GtkWidget *widget, gpointer user_da
       mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );
 
       // Muda imediatamente para o período atual
-      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foc_periodo_vigente );
    }
 
-   int foco_disciplina = ctx->cabecalho.foco_disciplina;
+   int foco_disciplina = ctx->cabecalho.foc_disciplina;
 
    // Consolidação anual
    calcular_consolidado_anual( ctx->diario.fichas, foco_disciplina );
@@ -1171,16 +1171,16 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
    if ( !ctx ) {
       return;
    }
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
    gboolean estado = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
 
-   if ( estado && ctx->cabecalho.foco_periodo < ctx->cabecalho.foco_periodo_vigente ) {
+   if ( estado && ctx->cabecalho.foc_periodo < ctx->cabecalho.foc_periodo_vigente ) {
 
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( widget ) );
-      GtkComboBox *combo_periodo  = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      GtkComboBox *combo_periodo  = GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo );
 
-      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+      g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, ctx->cabecalho.foc_periodo_vigente );
 
       g_autofree gchar *msg_periodo = meu_gerador_variadico(
                                          "As <b>Pendências e Exceções</b> são tratadas a partir do período vigente\n\n"
@@ -1191,12 +1191,12 @@ void on_check_pendencias_excecoes_relatorio_toggled( GtkWidget *widget, gpointer
       // Como o título é NULL, o popup atua como um aviso de "OK"
       mostrar_popup_confirmacao( janela_principal, NULL, msg_periodo );
 
-      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foco_periodo_vigente );
+      gtk_combo_box_set_active( combo_periodo, ctx->cabecalho.foc_periodo_vigente );
    }
 
    // Força a repintura e reavaliação de todas as células do Relatório Final
    // Não é necessário redesenhar a interface, mas não apague linha seguinte.
-   gtk_widget_queue_draw( relatorio->treeview );
+   gtk_widget_queue_draw( rel->treeview );
 }
 //===================================================================================================
 
@@ -1226,7 +1226,7 @@ static gboolean ui_diario_mudar_aba_lc( GtkWidget *widget, const char *nome_da_p
 gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget != NULL && event != NULL && ctx != NULL, FALSE );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->diario.botoes_travados ) {
@@ -1234,7 +1234,7 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
    }
 
    if ( ui_diario_mudar_aba_lc( ctx->diario.stack_pages, "page_conteudo" ) ) {
-      gtk_widget_grab_focus( conteudo->tipo_registro );
+      gtk_widget_grab_focus( cont->tipo_registro );
    }
 
    return FALSE;
@@ -1243,14 +1243,14 @@ gboolean on_button_conteudos_enter_notify_event( GtkWidget *widget, GdkEventCros
 gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget != NULL && event != NULL && ctx != NULL, FALSE );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->diario.botoes_travados ) {
       return FALSE;
    }
 
-   limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+   limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
 
    // 2. Permite a transição de aba se o estado estiver limpo
    if ( ui_diario_mudar_aba_lc( ctx->diario.stack_pages, "page_frequencia" ) ) {
@@ -1263,14 +1263,14 @@ gboolean on_button_frequencia_enter_notify_event( GtkWidget *widget, GdkEventCro
 gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget != NULL && event != NULL && ctx != NULL, FALSE );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->diario.botoes_travados ) {
       return FALSE;
    }
 
-   limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+   limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
 
    if ( ui_diario_mudar_aba_lc( ctx->diario.stack_pages, "page_avaliacoes" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
@@ -1282,14 +1282,14 @@ gboolean on_button_avaliacoes_enter_notify_event( GtkWidget *widget, GdkEventCro
 gboolean on_button_relatorio_enter_notify_event( GtkWidget *widget, GdkEventCrossing *event, gpointer user_data ) {
    AppContext *ctx = ( AppContext * )user_data;
    g_return_val_if_fail( widget != NULL && event != NULL && ctx != NULL, FALSE );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // NOVA BLINDAGEM: Se estiver travado, ignora o hover!
    if ( ctx->diario.botoes_travados ) {
       return FALSE;
    }
 
-   limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+   limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
 
    if ( ui_diario_mudar_aba_lc( ctx->diario.stack_pages, "page_relatorio" ) ) {
       // No futuro alguma coisa deverá ser posta aqui
@@ -1325,20 +1325,20 @@ static void diario_atualizar_css_botoes_lc( InterfaceDiario *diario, GtkWidget *
 // FUNÇÃO AUXILIAR: INFERE OS WIDGETS CASO A EDIÇÃO SEJA ATIVADA FORA DO CLIQUE (EX: ATALHO)
 // ======================================================================================
 static const gchar *ui_diario_inferir_widgets_de_edicao_lc( const AppContext *ctx, GObject *object ) {
-   const InterfaceConteudo *conteudo = &ctx->diario.conteudo;
-   const InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
-   const InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
-   const InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   const InterfaceConteudo *cont = &ctx->diario.conteudo;
+   const InterfaceFrequencia *freq = &ctx->diario.frequencia;
+   const InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
+   const InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
    GtkWidget *botoes[4] = { ctx->diario.btn_conteudo, ctx->diario.btn_frequencia,
                             ctx->diario.btn_avaliacao, ctx->diario.btn_relatorio
                           };
 
    // Mapeamento correto dos widgets que devem receber foco inicial em cada respectiva aba
-   GtkWidget *focos[4] =  { conteudo->tipo_registro,
-                            frequencia->combo_data,
-                            avaliacao->combo_avaliacao,
-                            relatorio->btn_consolidar
+   GtkWidget *focos[4] =  { cont->tipo_registro,
+                            freq->cmb_data,
+                            aval->cmb_aval,
+                            rel->btn_consolidar
                           };
 
    const gchar *stack_pages[4] = { "page_conteudo", "page_frequencia", "page_avaliacoes", "page_relatorio" };
@@ -1390,7 +1390,7 @@ void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
       }
 
       // 3. Trava o estado no botão correto e injeta o CSS verde
-      ctx->diario.botao_ativo = widget_button;
+      ctx->diario.btn_ativo = widget_button;
       diario_atualizar_css_botoes_lc( &ctx->diario, widget_button );
 
       // 4. Move o cursor para o primeiro campo de edição (se houver)
@@ -1405,7 +1405,7 @@ void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
       g_object_set_data( object, "widget_focus", NULL );
 
       // Destrava os botões e remove as classes CSS de todos
-      ctx->diario.botao_ativo = NULL;
+      ctx->diario.btn_ativo = NULL;
       diario_atualizar_css_botoes_lc( &ctx->diario, NULL );
    }
 }
@@ -1418,9 +1418,9 @@ void on_check_modo_edicao_toggled( GtkWidget *widget, gpointer user_data ) {
  */
 static void configurar_transicao_aba_lc( AppContext *ctx, GtkWidget *btn_clicado,
       gchar *nome_pagina, GtkWidget *widget_foco ) {
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   GObject *object = G_OBJECT( ctx->diario.check_modo_edicao );
+   GObject *object = G_OBJECT( ctx->diario.chk_modo_edicao );
 
    // Associa a string da página e os ponteiros diretamente ao objeto do toggle
    g_object_set_data( object, "page_name", ( gpointer ) nome_pagina );
@@ -1428,13 +1428,13 @@ static void configurar_transicao_aba_lc( AppContext *ctx, GtkWidget *btn_clicado
    g_object_set_data( object, "widget_focus", ( gpointer ) widget_foco );
 
    // Se o toggle já estiver ativo, força um re-trigger. Senão, ativa naturalmente.
-   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->diario.check_modo_edicao ) ) ) {
-      on_check_modo_edicao_toggled( ctx->diario.check_modo_edicao, ctx );
+   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( ctx->diario.chk_modo_edicao ) ) ) {
+      on_check_modo_edicao_toggled( ctx->diario.chk_modo_edicao, ctx );
    } else {
-      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->diario.check_modo_edicao ), TRUE );
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->diario.chk_modo_edicao ), TRUE );
    }
    if ( btn_clicado != ctx->diario.btn_conteudo ) {
-      limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+      limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
    }
 }
 
@@ -1447,12 +1447,12 @@ void on_button_relatorio_de_conteudos_clicked( GtkWidget *widget, gpointer user_
    if ( !ctx ) {
       return;
    }
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // 1º CASO: Primeiro clique (ou botão inativo) -> Ativa o modo de edição
-   if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
+   if ( !ctx->diario.botoes_travados || ctx->diario.btn_ativo != widget ) {
       g_autofree gchar *page = g_strdup( "page_conteudo" );
-      configurar_transicao_aba_lc( ctx, widget, page, conteudo->tipo_registro );
+      configurar_transicao_aba_lc( ctx, widget, page, cont->tipo_registro );
    }
    // 2º CASO: Segundo clique no botão já travado -> Gera o relatório PDF
    else {
@@ -1467,11 +1467,11 @@ void on_button_relatorio_de_frequencia_clicked( GtkWidget *widget, gpointer user
    if ( !ctx ) {
       return;
    }
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
+   if ( !ctx->diario.botoes_travados || ctx->diario.btn_ativo != widget ) {
       g_autofree gchar *page = g_strdup( "page_frequencia" );
-      configurar_transicao_aba_lc( ctx, widget, page, frequencia->combo_data );
+      configurar_transicao_aba_lc( ctx, widget, page, freq->cmb_data );
    } else {
       g_print( "Gerando PDF de Frequência...\n" );
       relatorio_de_frequencia( &ctx->painel, ctx );
@@ -1482,16 +1482,16 @@ void on_button_relatorio_de_avaliacoes_clicked( GtkWidget *widget, gpointer user
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
 
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
+   if ( !ctx->diario.botoes_travados || ctx->diario.btn_ativo != widget ) {
       g_autofree gchar *page = g_strdup( "page_avaliacoes" );
-      configurar_transicao_aba_lc( ctx, widget, page, avaliacao->combo_avaliacao );
+      configurar_transicao_aba_lc( ctx, widget, page, aval->cmb_aval );
    } else {
       g_print( "Gerando PDF de Avaliações...\n" );
 
       // 1. Salva os dados pendentes da avaliação na memória/disco
-      gtk_button_clicked( GTK_BUTTON( avaliacao->btn_salvar ) );
+      gtk_button_clicked( GTK_BUTTON( aval->btn_salvar ) );
 
       // 2. Gera o documento TeX/PDF a partir da memória atualizada
       relatorio_de_avaliacoes( &ctx->painel, ctx );
@@ -1505,16 +1505,16 @@ void on_button_relatorio_final_clicked( GtkWidget *widget, gpointer user_data ) 
    AppContext *ctx = ( AppContext * )user_data;
    g_return_if_fail( GTK_IS_BUTTON( widget ) && ctx != NULL );
 
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
-   if ( !ctx->diario.botoes_travados || ctx->diario.botao_ativo != widget ) {
+   if ( !ctx->diario.botoes_travados || ctx->diario.btn_ativo != widget ) {
       g_autofree gchar *page = g_strdup( "page_relatorio" );
-      configurar_transicao_aba_lc( ctx, widget, page, relatorio->btn_consolidar );
+      configurar_transicao_aba_lc( ctx, widget, page, rel->btn_consolidar );
    } else {
       g_print( "Gerando PDF de Relatório Final...\n" );
 
       // 1. Força a consolidação síncrona dos cálculos anuais na TreeView/Memória
-      gtk_button_clicked( GTK_BUTTON( relatorio->btn_consolidar ) );
+      gtk_button_clicked( GTK_BUTTON( rel->btn_consolidar ) );
 
       // 2. Gera o PDF do relatório final
       relatorio_final( &ctx->painel, ctx );
@@ -1531,11 +1531,11 @@ void on_notebook_principal_switch_page( GtkWidget *widget, GtkWidget *page, guin
    if ( !ctx ) {
       return;
    }
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // Se saiu da aba principal de Relatórios/Diário (índice 0), destrava o modo edição
    if ( page_num != 0 ) {
-      limpar_registro_em_edicao_lc( GTK_ENTRY( conteudo->entry_descricao ), &conteudo->editando );
+      limpar_registro_em_edicao_lc( GTK_ENTRY( cont->ent_descricao ), &cont->editando );
    }
 }
 
@@ -1572,8 +1572,8 @@ void on_button_latex_config_acervo_clicked( GtkWidget *widget, gpointer user_dat
    // 1. Tenta voltar para a aba de diagramação
    if ( ui_diario_mudar_aba_lc( latex->stack_pages, "page_diagramacao" ) ) {
 
-      gtk_label_set_text( GTK_LABEL( latex->label_diag_acervo ), "DIAGRAMAÇÃO" );
-      ui_label_aplicar_espacamento_manual( latex->label_diag_acervo, 2 );
+      gtk_label_set_text( GTK_LABEL( latex->lbl_diag_acervo ), "DIAGRAMAÇÃO" );
+      ui_label_aplicar_espacamento_manual( latex->lbl_diag_acervo, 2 );
 
       // Sucesso: Atualiza o botão para indicar a ação de "Configurar"
       GtkWidget *icone_config = gtk_image_new_from_icon_name( "emblem-system-symbolic", GTK_ICON_SIZE_BUTTON );
@@ -1584,8 +1584,8 @@ void on_button_latex_config_acervo_clicked( GtkWidget *widget, gpointer user_dat
    // 2. Se já estava na diagramação, avança para a aba de configuração
    else if ( ui_diario_mudar_aba_lc( latex->stack_pages, "page_configuracao" ) ) {
 
-      gtk_label_set_text( GTK_LABEL( latex->label_diag_acervo ), "ACERVO DE QUESTÕES" );
-      ui_label_aplicar_espacamento_manual( latex->label_diag_acervo, 2 );
+      gtk_label_set_text( GTK_LABEL( latex->lbl_diag_acervo ), "ACERVO DE QUESTÕES" );
+      ui_label_aplicar_espacamento_manual( latex->lbl_diag_acervo, 2 );
 
       // Sucesso: Atualiza o botão para indicar a ação de "Voltar"
       GtkWidget *icone_voltar = gtk_image_new_from_icon_name( "go-previous-symbolic", GTK_ICON_SIZE_BUTTON );
@@ -1659,14 +1659,14 @@ void on_combo_sequencia_prova_changed( GtkWidget *widget, gpointer user_data ) {
       return;
    }
 
-   ctx->prova.foco_seq_prova = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+   ctx->prova.foc_seq_prova = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
 
    // TRAVA DE SEGURANÇA: Ignora se nenhum item estiver selecionado (-1)
-   if ( ctx->prova.foco_seq_prova < 0 ) {
+   if ( ctx->prova.foc_seq_prova < 0 ) {
       return;
    }
 
-   ctx->dados.seq_prova = ctx->prova.foco_seq_prova + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
+   ctx->dados.seq_prova = ctx->prova.foc_seq_prova + 1; // 1 (Primeira), 2 (Segunda) ou 3 (Terceira) = idx;
 
    g_clear_pointer( &ctx->dados.prova_sequencia, g_free );
    ctx->dados.prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
@@ -1826,24 +1826,24 @@ void on_entry_atualizar_tema_changed( GtkWidget *widget, gpointer user_data ) {
       return;
    }
 
-   ctx->prova.foco_tema = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
+   ctx->prova.foc_tema = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
 
-   if ( widget == ctx->prova.combo_tema ) {
+   if ( widget == ctx->prova.cmb_tema ) {
 
-      g_signal_handler_block( ctx->latex.combo_tema_espelho, ctx->latex.handler_combo_tema_espelho );
+      g_signal_handler_block( ctx->latex.cmb_tema_espelho, ctx->latex.hdl_cmb_tema_espelho );
 
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_tema_espelho ), ctx->prova.foco_tema );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.cmb_tema_espelho ), ctx->prova.foc_tema );
 
-      g_signal_handler_unblock( ctx->latex.combo_tema_espelho, ctx->latex.handler_combo_tema_espelho );
+      g_signal_handler_unblock( ctx->latex.cmb_tema_espelho, ctx->latex.hdl_cmb_tema_espelho );
 
 
-   } else if ( widget == ctx->latex.combo_tema_espelho ) {
+   } else if ( widget == ctx->latex.cmb_tema_espelho ) {
 
-      g_signal_handler_block( ctx->prova.combo_tema, ctx->prova.handler_combo_tema );
+      g_signal_handler_block( ctx->prova.cmb_tema, ctx->prova.hdl_cmb_tema );
 
-      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.combo_tema ), ctx->prova.foco_tema );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->prova.cmb_tema ), ctx->prova.foc_tema );
 
-      g_signal_handler_unblock( ctx->prova.combo_tema, ctx->prova.handler_combo_tema );
+      g_signal_handler_unblock( ctx->prova.cmb_tema, ctx->prova.hdl_cmb_tema );
    }
 
    gchar *tema = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( widget ) );
@@ -1907,8 +1907,8 @@ void on_scrolled_rolar_para_o_fim_sizeallocate( GtkWidget *widget, GdkRectangle 
 
    rolar_para_o_fim( GTK_SCROLLED_WINDOW( widget ) );
 
-   if ( ctx->prova.montagem.handler_scrolled > 0  && ctx->prova.montagem.importar == FALSE ) {
-      g_signal_handler_block( widget, ctx->prova.montagem.handler_scrolled );
+   if ( ctx->prova.montagem.hdl_scrolled > 0  && ctx->prova.montagem.importar == FALSE ) {
+      g_signal_handler_block( widget, ctx->prova.montagem.hdl_scrolled );
    }
 
 }
@@ -1922,7 +1922,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    if ( !ctx ) {
       return;
    }
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( widget ) );
    if ( ativo < 0 ) {
@@ -1932,33 +1932,33 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
    gboolean via_codigo = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "programatico" ) );
    if ( via_codigo ) {
       selecionar_combo_status( ctx );
-      frequencia->foco_combo_alunos = ativo;
+      freq->foc_cmb_alunos = ativo;
       {
          return;
       }
    }
 
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) );
 
    // =================================================================
    // MODO 1: CHAMADA NORMAL (Navegação Restrita / Sequencial)
    // =================================================================
-   if ( !modo_por_aluno && ativo >= frequencia->limite_combo_alunos ) {
-      if ( frequencia->handler_combo_alunos > 0 ) {
-         g_signal_handler_block( widget, frequencia->handler_combo_alunos );
+   if ( !modo_por_aluno && ativo >= freq->lim_cmb_alunos ) {
+      if ( freq->hdl_cmb_alunos > 0 ) {
+         g_signal_handler_block( widget, freq->hdl_cmb_alunos );
       }
 
-      frequencia->foco_combo_alunos = frequencia->limite_combo_alunos - 1;
-      gtk_combo_box_set_active( GTK_COMBO_BOX( widget ), frequencia->foco_combo_alunos );
+      freq->foc_cmb_alunos = freq->lim_cmb_alunos - 1;
+      gtk_combo_box_set_active( GTK_COMBO_BOX( widget ), freq->foc_cmb_alunos );
 
-      if ( frequencia->handler_combo_alunos > 0 ) {
-         g_signal_handler_unblock( widget, frequencia->handler_combo_alunos );
+      if ( freq->hdl_cmb_alunos > 0 ) {
+         g_signal_handler_unblock( widget, freq->hdl_cmb_alunos );
       }
       return;
    }
 
    // Se a navegação foi válida (dentro do limite da chamada), atualiza o foco normalmente
-   frequencia->foco_combo_alunos = ativo;
+   freq->foc_cmb_alunos = ativo;
 
    if ( !via_codigo ) {
       selecionar_combo_status( ctx );
@@ -1983,7 +1983,7 @@ void on_combo_alunos_changed( GtkWidget *widget, gpointer user_data ) {
 static void config_atualizar_css_botoes( InterfaceConfig *config, GtkWidget *botao_clicado ) {
    GtkWidget *botoes[3] = {
       config->btn_sub_aba_geral,
-      config->btn_sub_aba_atipicidades,
+      config->btn_sub_aba_atip,
       config->btn_sub_aba_acervo
    };
 
@@ -2091,7 +2091,7 @@ void on_entry_localizar_cid_atipicidade_activate( GtkWidget *widget, gpointer us
       return;
    }
 
-   localizar_cid_atipicidade( &ctx->painel, &ctx->config.atipicidade );
+   localizar_cid_atipicidade( &ctx->painel, &ctx->config.atipicidades );
 }
 //-------------------------------------------------------------------------
 // Executada quando o usuário clica em qualquer card dentro do FlowBox
@@ -2104,11 +2104,11 @@ void on_flowbox_atipicidades_child_activated( GtkFlowBox *flowbox, GtkFlowBoxChi
       return;
    }
 
-   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
 
    // Seta o aluno correspondente no combo_alunos (que dispara logica_alunos_atipicos,
    // marcando seus CheckButtons e aplicando o contorno de destaque ao card)
-   gtk_combo_box_set_active( GTK_COMBO_BOX( atip->combo_alunos ), idx_aluno );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( atip->cmb_alunos ), idx_aluno );
 }
 
 

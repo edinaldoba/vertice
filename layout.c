@@ -7,7 +7,6 @@
 #include "layout.h"
 #include "gtk/gtk.h"
 #include "interface.h"
-#include "config.h"
 
 
 // ======================================================================================
@@ -170,12 +169,12 @@ static void mapear_janela_mestra_lc( AppContext *ctx, GtkBuilder *builder, GtkAp
 static void mapear_cabecalho_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceCabecalho *cab = &ctx->cabecalho;
 
-   cab->combo_ano            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_ano" ) );
-   cab->combo_escola         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_escola" ) );
-   cab->combo_turma          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
-   cab->combo_disciplina     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
-   cab->combo_periodo        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_periodos" ) );
-   cab->combo_estilo         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_estilo" ) );
+   cab->cmb_ano            = GTK_WIDGET( gtk_builder_get_object( builder, "combo_ano" ) );
+   cab->cmb_escola         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_escola" ) );
+   cab->cmb_turma          = GTK_WIDGET( gtk_builder_get_object( builder, "combo_turma" ) );
+   cab->cmb_disciplina     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_disciplina" ) );
+   cab->cmb_periodo        = GTK_WIDGET( gtk_builder_get_object( builder, "combo_periodos" ) );
+   cab->cmb_estilo         = GTK_WIDGET( gtk_builder_get_object( builder, "combo_estilo" ) );
 
    cab->btn_atualizar_alunos = GTK_WIDGET( gtk_builder_get_object( builder, "button_atualizar_alunos" ) );
 }
@@ -183,15 +182,15 @@ static void mapear_cabecalho_lc( AppContext *ctx, GtkBuilder *builder ) {
 
 static void mapear_aba_diarios_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceDiario     *diario     = &ctx->diario;
-   InterfaceConteudo   *conteudo   = &ctx->diario.conteudo;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
-   InterfaceAvaliacao  *avaliacao  = &ctx->diario.avaliacao;
-   InterfaceRelatorio  *relatorio  = &ctx->diario.relatorio;
+   InterfaceConteudo   *cont   = &ctx->diario.conteudo;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
+   InterfaceAvaliacao  *aval  = &ctx->diario.avaliacao;
+   InterfaceRelatorio  *rel  = &ctx->diario.relatorio;
 
    // --- RAIZ DA ABA DIÁRIOS ---
    diario->stack_pages            = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages_diarios" ) );
-   diario->check_modo_edicao      = GTK_WIDGET( gtk_builder_get_object( builder, "check_modo_edicao" ) );
-   diario->check_expor_dados      = GTK_WIDGET( gtk_builder_get_object( builder, "check_expor_dados" ) );
+   diario->chk_modo_edicao      = GTK_WIDGET( gtk_builder_get_object( builder, "check_modo_edicao" ) );
+   diario->chk_expor_dados      = GTK_WIDGET( gtk_builder_get_object( builder, "check_expor_dados" ) );
    diario->responsavel.gestor     = GTK_WIDGET( gtk_builder_get_object( builder, "box_gestor" ) );
    diario->responsavel.professor  = GTK_WIDGET( gtk_builder_get_object( builder, "box_professor" ) );
 
@@ -201,84 +200,84 @@ static void mapear_aba_diarios_lc( AppContext *ctx, GtkBuilder *builder ) {
    diario->btn_relatorio          = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_final" ) );
 
    // --- SUB-ABA: CONTEÚDOS ---
-   conteudo->entry_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
-   conteudo->popover_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
-   conteudo->calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
-   conteudo->btn_stepper_menos      = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
-   conteudo->label_ch           = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
-   conteudo->btn_stepper_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
-   conteudo->tipo_registro      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
-   conteudo->entry_tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
-   conteudo->entry_descricao          = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
-   conteudo->btn_salvar         = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
-   conteudo->btn_remover_registro   = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
-   gtk_button_set_relief( GTK_BUTTON( conteudo->btn_remover_registro ), GTK_RELIEF_NONE );
-   gtk_widget_set_sensitive( conteudo->btn_remover_registro, FALSE );
+   cont->ent_data         = GTK_WIDGET( gtk_builder_get_object( builder, "entry_data" ) );
+   cont->pop_calendario = GTK_WIDGET( gtk_builder_get_object( builder, "popover_calendario" ) );
+   cont->calendario_data    = GTK_WIDGET( gtk_builder_get_object( builder, "calendar_data" ) );
+   cont->btn_menos      = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_menos" ) );
+   cont->lbl_ch           = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_aulas" ) );
+   cont->btn_mais       = GTK_WIDGET( gtk_builder_get_object( builder, "button_stepper_mais" ) );
+   cont->tipo_registro      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tipo_registro" ) );
+   cont->ent_tema               = GTK_WIDGET( gtk_builder_get_object( builder, "entry_tema" ) );
+   cont->ent_descricao          = GTK_WIDGET( gtk_builder_get_object( builder, "entry_descricao" ) );
+   cont->btn_salvar         = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_conteudo" ) );
+   cont->btn_rm_registro   = GTK_WIDGET( gtk_builder_get_object( builder, "button_remover_registro" ) );
+   gtk_button_set_relief( GTK_BUTTON( cont->btn_rm_registro ), GTK_RELIEF_NONE );
+   gtk_widget_set_sensitive( cont->btn_rm_registro, FALSE );
 
-   conteudo->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
+   cont->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_conteudo" ) );
    for ( int i = 0; i < 4; i++ ) {
       if ( i < 2 ) {
-         treeview_configurar_alinhamento_coluna_lc( conteudo->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_lc( cont->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i < 2 ) {
-         treeview_configurar_font_features_col_lc( conteudo->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_lc( cont->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 
    // --- SUB-ABA: FREQUÊNCIA ---
-   frequencia->combo_data       = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
-   frequencia->label_ch         = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
-   frequencia->check_por_aluno  = GTK_WIDGET( gtk_builder_get_object( builder, "check_chamada_por_aluno" ) );
-   frequencia->combo_alunos     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
-   frequencia->combo_status     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
-   frequencia->btn_salvar       = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
-   frequencia->btn_presente     = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
-   frequencia->btn_ausente      = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
-   frequencia->btn_justificada  = GTK_WIDGET( gtk_builder_get_object( builder, "button_justificada" ) );
+   freq->cmb_data       = GTK_WIDGET( gtk_builder_get_object( builder, "combo_data" ) );
+   freq->lbl_ch         = GTK_WIDGET( gtk_builder_get_object( builder, "label_ch_freq" ) );
+   freq->chk_por_aluno  = GTK_WIDGET( gtk_builder_get_object( builder, "check_chamada_por_aluno" ) );
+   freq->cmb_alunos     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos" ) );
+   freq->cmb_status     = GTK_WIDGET( gtk_builder_get_object( builder, "combo_status" ) );
+   freq->btn_salvar       = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_frequencia" ) );
+   freq->btn_presente     = GTK_WIDGET( gtk_builder_get_object( builder, "button_presente" ) );
+   freq->btn_ausente      = GTK_WIDGET( gtk_builder_get_object( builder, "button_ausente" ) );
+   freq->btn_justificada  = GTK_WIDGET( gtk_builder_get_object( builder, "button_justificada" ) );
 
-   frequencia->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
+   freq->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_frequencia" ) );
    for ( int i = 0; i < 5; i++ ) {
       if ( i != 1 ) {
-         treeview_configurar_alinhamento_coluna_lc( frequencia->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_lc( freq->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i == 0 || i == 2 ) {
-         treeview_configurar_font_features_col_lc( frequencia->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_lc( freq->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 
    // --- SUB-ABA: AVALIAÇÕES ---
-   avaliacao->combo_avaliacao           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
-   avaliacao->btn_editar_avaliacao      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );
-   avaliacao->btn_nova_avaliacao        = GTK_WIDGET( gtk_builder_get_object( builder, "button_nova_avaliacao" ) );
-   avaliacao->check_desativar_avaliacao = GTK_WIDGET( gtk_builder_get_object( builder, "check_desativar_avaliacao" ) );
-   avaliacao->popover_nomear_avaliacao  = GTK_WIDGET( gtk_builder_get_object( builder, "popover_nomear_avaliacao" ) );
-   avaliacao->label_popover_avaliacao   = GTK_WIDGET( gtk_builder_get_object( builder, "label_popover_avaliacao" ) );
-   avaliacao->entry_popover_nomear      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_nomear" ) );
-   avaliacao->btn_popover_nomear        = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_avaliacao" ) );
-   avaliacao->btn_salvar                = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
+   aval->cmb_aval           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_avaliacoes" ) );
+   aval->btn_editar_aval      = GTK_WIDGET( gtk_builder_get_object( builder, "button_editar_avaliacao" ) );
+   aval->btn_nova_aval        = GTK_WIDGET( gtk_builder_get_object( builder, "button_nova_avaliacao" ) );
+   aval->chk_desativar_aval = GTK_WIDGET( gtk_builder_get_object( builder, "check_desativar_avaliacao" ) );
+   aval->pop_nomear_aval  = GTK_WIDGET( gtk_builder_get_object( builder, "popover_nomear_avaliacao" ) );
+   aval->lbl_pop_aval   = GTK_WIDGET( gtk_builder_get_object( builder, "label_popover_avaliacao" ) );
+   aval->ent_pop_nomear      = GTK_WIDGET( gtk_builder_get_object( builder, "entry_popover_nomear" ) );
+   aval->btn_pop_nomear        = GTK_WIDGET( gtk_builder_get_object( builder, "button_popover_avaliacao" ) );
+   aval->btn_salvar                = GTK_WIDGET( gtk_builder_get_object( builder, "button_salvar_avaliacao" ) );
 
-   avaliacao->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
+   aval->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_avaliacoes" ) );
    for ( int i = 0; i < 13; i++ ) {
       if ( i != 1 ) {
-         treeview_configurar_alinhamento_coluna_lc( avaliacao->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_lc( aval->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i != 1 ) {
-         treeview_configurar_font_features_col_lc( avaliacao->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_lc( aval->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
-   destacar_cabecalho_nota_lc( avaliacao->treeview );
+   destacar_cabecalho_nota_lc( aval->treeview );
 
    // --- SUB-ABA: RELATÓRIO ---
-   relatorio->btn_consolidar   = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
-   relatorio->check_pendencias = GTK_WIDGET( gtk_builder_get_object( builder, "check_pendencias" ) );
+   rel->btn_consolidar   = GTK_WIDGET( gtk_builder_get_object( builder, "button_consolidar" ) );
+   rel->chk_pendencias = GTK_WIDGET( gtk_builder_get_object( builder, "check_pendencias" ) );
 
-   relatorio->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
+   rel->treeview = GTK_WIDGET( gtk_builder_get_object( builder, "treeview_relatorio" ) );
    for ( int i = 0; i < 11; i++ ) {
       if ( i != 1 ) {
-         treeview_configurar_alinhamento_coluna_lc( relatorio->treeview, i, 0.5, 0, 0.5f );
+         treeview_configurar_alinhamento_coluna_lc( rel->treeview, i, 0.5, 0, 0.5f );
       }
       if ( i != 1 ) {
-         treeview_configurar_font_features_col_lc( relatorio->treeview, i, "tnum=1, lnum=1, zero=1" );
+         treeview_configurar_font_features_col_lc( rel->treeview, i, "tnum=1, lnum=1, zero=1" );
       }
    }
 }
@@ -287,7 +286,7 @@ static void mapear_aba_diarios_lc( AppContext *ctx, GtkBuilder *builder ) {
 static void mapear_aba_latex_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceLatex *latex = &ctx->latex;
 
-   latex->combo_tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
+   latex->cmb_tema_espelho = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema_acervo" ) );
    latex->listbox_subtemas   = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas_acervo" ) );
 
    latex->stack_pages        = GTK_WIDGET( gtk_builder_get_object( builder, "stack_pages_latex" ) );
@@ -297,8 +296,8 @@ static void mapear_aba_latex_lc( AppContext *ctx, GtkBuilder *builder ) {
    gtk_button_set_image( GTK_BUTTON( latex->btn_config ), icone_config );
    gtk_widget_set_tooltip_text( latex->btn_config, "Configurar Acervo de Questões" );
 
-   latex->combo_cor_serie    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
-   latex->combo_decoracao    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
+   latex->cmb_cor_serie    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_cor_serie" ) );
+   latex->cmb_decoracao    = GTK_WIDGET( gtk_builder_get_object( builder, "combo_decoracao" ) );
 
    latex->btn_pdflatex       = GTK_WIDGET( gtk_builder_get_object( builder, "button_pdf_latex" ) );
    latex->btn_compilar       = GTK_WIDGET( gtk_builder_get_object( builder, "button_compilar" ) );
@@ -307,19 +306,19 @@ static void mapear_aba_latex_lc( AppContext *ctx, GtkBuilder *builder ) {
    char id_string[64];
    for ( int i = 0; i < 2; i++ ) {
       g_snprintf( id_string, sizeof( id_string ), "radio_colunas_%d", i + 1 );
-      latex->radio_qtd_colunas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      latex->rad_qtd_colunas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       g_snprintf( id_string, sizeof( id_string ), "radio_separadores_%d", i + 1 );
-      latex->radio_separadores[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      latex->rad_separadores[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       g_snprintf( id_string, sizeof( id_string ), "radio_fonte_%d", i + 1 );
-      latex->radio_fonte_latex[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      latex->rad_fonte_latex[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       g_snprintf( id_string, sizeof( id_string ), "radio_paginas_%d", i + 1 );
-      latex->radio_qtd_paginas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      latex->rad_qtd_paginas[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
 
       g_snprintf( id_string, sizeof( id_string ), "radio_cabecalho_%d", i + 1 );
-      latex->radio_cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
+      latex->rad_cabecalho_tipo[i] = GTK_WIDGET( gtk_builder_get_object( builder, id_string ) );
    }
 }
 
@@ -327,15 +326,15 @@ static void mapear_aba_latex_lc( AppContext *ctx, GtkBuilder *builder ) {
 static void mapear_aba_provas_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceProva *prova = &ctx->prova;
 
-   prova->combo_tema           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
+   prova->cmb_tema           = GTK_WIDGET( gtk_builder_get_object( builder, "combo_tema" ) );
    prova->listbox_subtemas     = GTK_WIDGET( gtk_builder_get_object( builder, "listbox_subtemas" ) );
    prova->flowbox_selecionados = GTK_WIDGET( gtk_builder_get_object( builder, "flowbox_selecionados" ) );
    prova->scrolled_window      = GTK_WIDGET( gtk_builder_get_object( builder, "scrolled_subtemas_selecionados" ) );
 
-   prova->label_qtd_ativos     = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_ativos" ) );
-   prova->combo_seq_prova      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_sequencia_prova" ) );
-   prova->check_validar_ciclos = GTK_WIDGET( gtk_builder_get_object( builder, "check_validar_ciclos" ) );
-   prova->check_nao_presencial = GTK_WIDGET( gtk_builder_get_object( builder, "check_nao_presencial" ) );
+   prova->lbl_qtd_ativos     = GTK_WIDGET( gtk_builder_get_object( builder, "label_qtd_ativos" ) );
+   prova->cmb_seq_prova      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_sequencia_prova" ) );
+   prova->chk_validar_ciclos = GTK_WIDGET( gtk_builder_get_object( builder, "check_validar_ciclos" ) );
+   prova->chk_nao_presencial = GTK_WIDGET( gtk_builder_get_object( builder, "check_nao_presencial" ) );
 
    prova->btn_importar         = GTK_WIDGET( gtk_builder_get_object( builder, "button_importar_dados" ) );
    prova->btn_gerar_prova      = GTK_WIDGET( gtk_builder_get_object( builder, "button_gerar_prova" ) );
@@ -486,38 +485,39 @@ static const MapaCheckAtipico MAPA_CHECKS_ATIPICOS[] = {
 
 static void mapear_aba_config_lc( AppContext *ctx, GtkBuilder *builder ) {
    InterfaceConfig *config = &ctx->config;
+   InterfaceAtipicidades *atip = &config->atipicidades;
 
    /*** ABA NOTEBOOK CONFIG ***/
    config->stack_pages                = GTK_WIDGET( gtk_builder_get_object( builder, "stack_config" ) );
    config->btn_sub_aba_geral          = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_geral" ) );
-   config->btn_sub_aba_atipicidades = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_atipicidades" ) );
+   config->btn_sub_aba_atip = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_atipicidades" ) );
    config->btn_sub_aba_acervo        = GTK_WIDGET( gtk_builder_get_object( builder, "btn_config_acervo" ) );
 
    gtk_widget_set_sensitive( config->btn_sub_aba_geral, FALSE );
 
    // Widgets internos da sub-aba Atipicidades
-   config->atipicidade.entry             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_atipicidades" ) );
-   config->atipicidade.btn_relatorio     = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_atipicidades" ) );
-   config->atipicidade.flowbox           = GTK_WIDGET( gtk_builder_get_object( builder, "flowbox_atipicidades" ) );
-   config->atipicidade.combo_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos_atipicos" ) );
-   config->atipicidade.combo_suporte_tea = GTK_WIDGET( gtk_builder_get_object( builder, "combo_suporte_tea" ) );
+   atip->entry             = GTK_WIDGET( gtk_builder_get_object( builder, "entry_atipicidades" ) );
+   atip->btn_relatorio     = GTK_WIDGET( gtk_builder_get_object( builder, "button_relatorio_atipicidades" ) );
+   atip->flowbox           = GTK_WIDGET( gtk_builder_get_object( builder, "flowbox_atipicidades" ) );
+   atip->cmb_alunos      = GTK_WIDGET( gtk_builder_get_object( builder, "combo_alunos_atipicos" ) );
+   atip->cmb_sup_tea = GTK_WIDGET( gtk_builder_get_object( builder, "combo_suporte_tea" ) );
 
    // Define o tooltip do combo box de suporte TEA programaticamente também
-   if ( config->atipicidade.combo_suporte_tea != NULL ) {
-      gtk_widget_set_tooltip_text( config->atipicidade.combo_suporte_tea, "Nível de Suporte TEA (1, 2 ou 3)" );
+   if ( atip->cmb_sup_tea != NULL ) {
+      gtk_widget_set_tooltip_text( atip->cmb_sup_tea, "Nível de Suporte TEA (1, 2 ou 3)" );
    }
 
    // Tooltip detalhado ao pairar o mouse
-   if ( config->atipicidade.entry != NULL ) {
+   if ( atip->entry != NULL ) {
       gtk_widget_set_tooltip_text(
-         config->atipicidade.entry,
+         atip->entry,
          "Digite apenas o código da CID-10/CID-11 (ex: F84, F90.0, 6A02) ou a sigla/nome da condição e pressione Enter."
       );
    }
 
    // Inicializa todos os ponteiros com NULL (garante segurança nos bits vagos)
    for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
-      config->atipicidade.checks[i] = NULL;
+      atip->chks[i] = NULL;
    }
 
    // Injeta dinamicamente labels, tooltips e IDs de forma centralizada
@@ -526,7 +526,7 @@ static void mapear_aba_config_lc( AppContext *ctx, GtkBuilder *builder ) {
       GtkWidget *chk     = GTK_WIDGET( gtk_builder_get_object( builder, MAPA_CHECKS_ATIPICOS[k].glade_id ) );
 
       if ( chk != NULL && GTK_IS_CHECK_BUTTON( chk ) ) {
-         config->atipicidade.checks[bit_idx] = chk;
+         atip->chks[bit_idx] = chk;
 
          // Atribui o rótulo e a dica de ferramenta diretamente via código
          gtk_button_set_label( GTK_BUTTON( chk ), MAPA_CHECKS_ATIPICOS[k].label );
@@ -583,18 +583,18 @@ static void aplicar_espacamentos_interface_lc( AppContext *ctx, GtkBuilder *buil
       }
 
       if ( g_strcmp0( labels[i], "label_config_diagramacao" ) == 0 ) {
-         latex->label_diag_acervo = label;
+         latex->lbl_diag_acervo = label;
       }
    }
 
    // Espaçamento nos Labels Internos dos Botões (Usando a nova topologia)
    GtkWidget *widgets_botoes[23] = {
       diario->relatorio.btn_consolidar,
-      diario->avaliacao.btn_nova_avaliacao,
+      diario->avaliacao.btn_nova_aval,
       diario->avaliacao.btn_salvar,
       diario->conteudo.btn_salvar,
       diario->frequencia.btn_salvar,
-      diario->avaliacao.btn_popover_nomear,
+      diario->avaliacao.btn_pop_nomear,
       latex->btn_pdflatex,
       latex->btn_compilar,
       latex->btn_diversificar,
@@ -608,10 +608,10 @@ static void aplicar_espacamentos_interface_lc( AppContext *ctx, GtkBuilder *buil
       prova->btn_importar,
       config->btn_sub_aba_acervo,
       config->acervo.btn_salvar,
-      config->btn_sub_aba_atipicidades,
+      config->btn_sub_aba_atip,
       config->btn_sub_aba_geral,
       config->geral.btn_salvar,
-      config->atipicidade.btn_relatorio
+      config->atipicidades.btn_relatorio
    };
 
    for ( int i = 0; i < 23; i++ ) {

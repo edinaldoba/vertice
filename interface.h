@@ -19,35 +19,35 @@
 
 // Barra superior de filtros globais (Ano, Escola, Turma, etc.)
 typedef struct {
-   GtkWidget *combo_ano;
-   GtkWidget *combo_disciplina;
-   GtkWidget *combo_escola;
-   GtkWidget *combo_turma;
-   GtkWidget *combo_periodo;
-   GtkWidget *combo_estilo;
+   GtkWidget *cmb_ano;
+   GtkWidget *cmb_disciplina;
+   GtkWidget *cmb_escola;
+   GtkWidget *cmb_turma;
+   GtkWidget *cmb_periodo;
+   GtkWidget *cmb_estilo;
 
-   gulong handler_ano;
-   gulong handler_escola;
-   gulong handler_turma;
-   gulong handler_disciplina;
+   gulong hdl_ano;
+   gulong hdl_escola;
+   gulong hdl_turma;
+   gulong hdl_disciplina;
 
    gchar **anos;
    gchar **escolas;
    gchar **turmas;
    gchar **disciplinas;
 
-   int foco_ano;
-   int foco_escola;
-   int foco_turma;
-   int foco_disciplina;
-   int foco_periodo;
-   int foco_periodo_vigente;
-   int foco_estilo;
+   int foc_ano;
+   int foc_escola;
+   int foc_turma;
+   int foc_disciplina;
+   int foc_periodo;
+   int foc_periodo_vigente;
+   int foc_estilo;
 
-   int limite_anos;
-   int limite_escolas;
-   int limite_turmas;
-   int limite_disciplinas;
+   int lim_anos;
+   int lim_escolas;
+   int lim_turmas;
+   int lim_disciplinas;
 
    GtkWidget *btn_atualizar_alunos; // Sincroniza alunos a partir das planilhas SIAEP
 } InterfaceCabecalho;
@@ -63,21 +63,21 @@ typedef struct {
 
 // Sub-aba: Registro de Aulas e Conteúdos
 typedef struct {
-   GtkWidget *entry_data;
-   GtkWidget *popover_calendario;
+   GtkWidget *ent_data;
+   GtkWidget *pop_calendario;
    GtkWidget *calendario_data;
 
-   GtkWidget *btn_stepper_menos;
-   GtkWidget *btn_stepper_mais;
-   GtkWidget *label_ch;
+   GtkWidget *btn_menos;
+   GtkWidget *btn_mais;
+   GtkWidget *lbl_ch;
 
    GtkWidget *treeview;          // Tabela principal de conteúdos
 
-   GtkWidget *entry_tema;              // Entry do Tema
-   GtkWidget *entry_descricao;         // Entry da Descrição
-   GtkWidget *tipo_registro;     // Combo (Normal, Pedagógico, Extra, etc.)
+   GtkWidget *ent_tema;              // Entry do Tema
+   GtkWidget *ent_descricao;         // Entry da Descrição
+   GtkWidget *tipo_registro;     // Combo (Normal, Pedagógico, Feriado e Extra)
    GtkWidget *btn_salvar;
-   GtkWidget *btn_remover_registro;
+   GtkWidget *btn_rm_registro;
 
    GtkTreeIter iter_em_edicao;
    gboolean editando;            // FALSE = Novo Registro, TRUE = Editando Existente
@@ -85,55 +85,55 @@ typedef struct {
 
 // Sub-aba: Chamada e Assiduidade
 typedef struct {
-   GtkWidget *combo_data;        // Filtra por data da aula
-   GtkWidget *label_ch;
-   GtkWidget *check_por_aluno;
-   GtkWidget *combo_status;      // StatusAssiduidade (Presente, Falta Justificada, etc.)
+   GtkWidget *cmb_data;        // Filtra por data da aula
+   GtkWidget *lbl_ch;
+   GtkWidget *chk_por_aluno;
+   GtkWidget *cmb_status;      // StatusAssiduidade (Presente, Falta Justificada, etc.)
 
    GtkWidget *btn_salvar;        // Aplica o status selecionado
    GtkWidget *btn_presente;      // Atalho para PRESENTE
    GtkWidget *btn_ausente;       // Atalho para AUSENTE
    GtkWidget *btn_justificada;   // Atalho para FALTA JUSTIFICADA
 
-   GtkWidget *combo_alunos;
+   GtkWidget *cmb_alunos;
    GtkWidget *treeview;          // Tabela de assiduidade
 
-   gulong handler_combo_alunos;
-   gulong handler_combo_data;
+   gulong hdl_cmb_alunos;
+   gulong hdl_cmb_data;
 
-   int limite_combo_alunos;
-   int foco_combo_alunos;
+   int lim_cmb_alunos;
+   int foc_cmb_alunos;
 } InterfaceFrequencia;
 
 // Sub-aba: Lançamento de Notas e Recuperações
 typedef struct {
-   GtkWidget *combo_avaliacao;   // Seleciona a coluna ativa (0=Av1, 1=Rec1... 9=Rec5)
-   GtkWidget *btn_nova_avaliacao;
-   GtkWidget *btn_editar_avaliacao;
+   GtkWidget *cmb_aval;   // Seleciona a coluna ativa (0=Av1, 1=Rec1... 9=Rec5)
+   GtkWidget *btn_nova_aval;
+   GtkWidget *btn_editar_aval;
    gboolean  *validas; // Adicionei dia 4 de novembro de 2026
    int qtd_validas;    // Adicionei dia 4 de novembro de 2026
 
    // Popover de nomenclatura da avaliação
-   GtkWidget *popover_nomear_avaliacao;
-   GtkWidget *label_popover_avaliacao;
-   GtkWidget *entry_popover_nomear;
-   GtkWidget *btn_popover_nomear;
+   GtkWidget *pop_nomear_aval;
+   GtkWidget *lbl_pop_aval;
+   GtkWidget *ent_pop_nomear;
+   GtkWidget *btn_pop_nomear;
 
-   GtkWidget *check_desativar_avaliacao;
-   gulong handler_check_desativar;
+   GtkWidget *chk_desativar_aval;
+   gulong hdl_chk_desativar;
 
    GtkWidget *btn_salvar;
    GtkWidget *treeview;          // Tabela de notas
 
-   gulong handler_combo_avaliacao;
-   int foco_avaliacao;           // Guardião do índice da avaliação ativa (0 a 9)
+   gulong hdl_cmb_aval;
+   int foc_aval;           // Guardião do índice da avaliação ativa (0 a 9)
 } InterfaceAvaliacao;
 
 // Sub-aba: Fechamento de Bimestre e Situação Final
 typedef struct {
    GtkWidget *treeview;          // Tabela resumo
    GtkWidget *btn_consolidar;    // Executa cálculos finais
-   GtkWidget *check_pendencias;  // Filtra alunos em recuperação/dependência
+   GtkWidget *chk_pendencias;  // Filtra alunos em recuperação/dependência
 } InterfaceRelatorio;
 
 // Contêiner Mestre: Aba DIÁRIOS (Notebook Page 1)
@@ -156,11 +156,11 @@ typedef struct {
    GtkWidget *stack_pages;       // Gerencia a navegação entre as sub-abas
 
    gboolean botoes_travados;     // Controle de bloqueio de UI durante operações
-   GtkWidget *botao_ativo;       // Ponteiro para o botão do stack em evidência
+   GtkWidget *btn_ativo;       // Ponteiro para o botão do stack em evidência
 
    InterfaceResponsavel responsavel;
-   GtkWidget *check_expor_dados; // Exporta pdfs de relatório para a pasta da escola
-   GtkWidget *check_modo_edicao;
+   GtkWidget *chk_expor_dados; // Exporta pdfs de relatório para a pasta da escola
+   GtkWidget *chk_modo_edicao;
 
    InterfaceConteudo   conteudo;
    InterfaceFrequencia frequencia;
@@ -179,26 +179,26 @@ typedef struct {
 
 // Contêiner Mestre: Aba LATEX (Notebook Page 2)
 typedef struct {
-   GtkWidget *combo_tema_espelho;
-   gulong handler_combo_tema_espelho;
+   GtkWidget *cmb_tema_espelho;
+   gulong hdl_cmb_tema_espelho;
    GtkWidget *listbox_subtemas;
 
    GtkWidget *stack_pages;       // Gerencia a navegação entre as sub-abas
-   GtkWidget *label_diag_acervo;
+   GtkWidget *lbl_diag_acervo;
    GtkWidget *btn_config;
 
    // Parâmetros do gerador de documento (Radio buttons agrupados em vetor)
-   GtkWidget *radio_fonte_latex[2];
-   GtkWidget *radio_qtd_paginas[2];
-   GtkWidget *radio_separadores[2];
-   GtkWidget *radio_qtd_colunas[2];
-   GtkWidget *radio_cabecalho_tipo[2];
+   GtkWidget *rad_fonte_latex[2];
+   GtkWidget *rad_qtd_paginas[2];
+   GtkWidget *rad_separadores[2];
+   GtkWidget *rad_qtd_colunas[2];
+   GtkWidget *rad_cabecalho_tipo[2];
 
-   GtkWidget *combo_cor_serie;
-   GtkWidget *combo_decoracao;
+   GtkWidget *cmb_cor_serie;
+   GtkWidget *cmb_decoracao;
 
-   int foco_cor_serie;
-   int foco_decoracao;
+   int foc_cor_serie;
+   int foc_decoracao;
 
    GtkWidget *btn_pdflatex;      // Visualiza o catálogo de questões selecionadas em PDF
    GtkWidget *btn_compilar;      // Renderiza o script LaTeX final
@@ -212,8 +212,8 @@ typedef struct {
 typedef struct {
    GtkWidget *btn_menos;         // Criado dinâmicamente fora do Glade
    GtkWidget *btn_mais;          // Criado dinâmicamente fora do Glade
-   gulong *handlers_check;
-   gulong handler_scrolled;
+   gulong *hdls_chks;
+   gulong hdl_scrolled;
    gboolean importar;
    int cont_add;
 } InterfaceDinamica;
@@ -221,24 +221,24 @@ typedef struct {
 // Contêiner Mestre: Aba PROVAS (Notebook Page 3)
 typedef struct {
    gchar **temas;
-   int foco_tema;
-   int limite_temas;
+   int foc_tema;
+   int lim_temas;
 
-   GtkWidget *combo_tema;
-   gulong handler_combo_tema;
+   GtkWidget *cmb_tema;
+   gulong hdl_cmb_tema;
 
    gchar **subtemas;
-   int limite_subtemas;
+   int lim_subtemas;
 
    GtkWidget *listbox_subtemas;
 
-   GtkWidget *label_qtd_ativos;
+   GtkWidget *lbl_qtd_ativos;
 
-   GtkWidget *combo_seq_prova;
-   int foco_seq_prova;
+   GtkWidget *cmb_seq_prova;
+   int foc_seq_prova;
 
-   GtkWidget *check_nao_presencial; // Regras flexíveis para alunos remotos
-   GtkWidget *check_validar_ciclos; // Detecção de fraudes cíclicas nos gabaritos
+   GtkWidget *chk_nao_presencial; // Regras flexíveis para alunos remotos
+   GtkWidget *chk_validar_ciclos; // Detecção de fraudes cíclicas nos gabaritos
 
    GtkWidget *scrolled_window;      // Área de rolagem da montagem
    GtkWidget *flowbox_selecionados; // Grid reativo das questões selecionadas
@@ -263,18 +263,18 @@ typedef struct {
 // Sub-aba: Atribuição de Atipicidades e CIDs dos Alunos
 typedef struct {
    GtkWidget *entry;
-   GtkWidget *combo_alunos;          // GtkComboBox associado ao GtkListStore da função mapear_alunos()
-   gulong     handler_combo_alunos;
+   GtkWidget *cmb_alunos;          // GtkComboBox associado ao GtkListStore da função mapear_alunos()
+   gulong     hdl_cmb_alunos;
 
-   GtkWidget *combo_suporte_tea;     // GtkComboBoxText (0=N/A, 1=Nível 1, 2=Nível 2, 3=Nível 3)
-   gulong     handler_combo_suporte_tea;
+   GtkWidget *cmb_sup_tea;     // GtkComboBoxText (0=N/A, 1=Nível 1, 2=Nível 2, 3=Nível 3)
+   gulong     hdl_cmb_sup_tea;
 
    GtkWidget *btn_relatorio;
    GtkWidget *flowbox;               // GtkFlowBox dos cards de alunos atípicos
 
-   GtkWidget *checks[MAX_FLAGS_ATIPICIDADES];
-   gulong     handlers_check[MAX_FLAGS_ATIPICIDADES];
-} InterfaceAtipicidade;
+   GtkWidget *chks[MAX_FLAGS_ATIPICIDADES];
+   gulong     hdls_chks[MAX_FLAGS_ATIPICIDADES];
+} InterfaceAtipicidades;
 
 // Sub-aba: Gerenciamento do Acervo de Questões (TeX)
 typedef struct {
@@ -287,11 +287,11 @@ typedef struct {
    GtkWidget *stack_pages;       // Sub-páginas: Geral, Atipicidades, Acervo
 
    GtkWidget *btn_sub_aba_geral;
-   GtkWidget *btn_sub_aba_atipicidades;
+   GtkWidget *btn_sub_aba_atip;
    GtkWidget *btn_sub_aba_acervo;
 
    InterfaceGeral       geral;
-   InterfaceAtipicidade atipicidade;
+   InterfaceAtipicidades atipicidades;
    InterfaceAcervo      acervo;
 } InterfaceConfig;
 
@@ -352,7 +352,7 @@ void popular_datas( AppContext *ctx );
 
 typedef void ( *ComboMapperFunc )( GtkListStore *store, GtkTreeIter *iter, const void *dados, int indice );
 void popular_combo_box_generico( GtkWidget *combo, const void *dados, int limite, int foco,
-                                 gulong handler_id, ComboMapperFunc mapper );
+                                 gulong hdl_id, ComboMapperFunc mapper );
 
 
 void interface_style( AppContext *ctx );
@@ -362,7 +362,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
 
 void atualizar_generic_interface( AppContext *ctx, const int categoria, const int valor );
 
-void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos );
+void ui_label_aplicar_espacamento_manual( GtkWidget *lbl_widget, gint quantidade_espacos );
 
 gboolean carregar_estado_aplicativo( AppContext *ctx );
 
@@ -374,7 +374,7 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
 
 gboolean verificar_dados_da_interface( InterfacePainel *painel, const InterfaceDados *dados );
 
-void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong handler_id );
+void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong hdl_id );
 gchar *combo_box_text_get_text_at( GtkComboBox *combo, gint index );
 
 void atualizar_dados_e_alunos_ativos( AppContext *ctx );

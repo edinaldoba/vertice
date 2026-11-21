@@ -45,7 +45,8 @@ CompileFlags:
     - "-Wlogical-op"
 
 Diagnostics:
-  UnusedIncludes: None
+  UnusedIncludes: Strict
+  MissingIncludes: None
 
   ClangTidy:
     Add:

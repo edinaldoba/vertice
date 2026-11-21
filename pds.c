@@ -4,7 +4,6 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdio.h>
 #include <math.h>
 #include <omp.h>
 

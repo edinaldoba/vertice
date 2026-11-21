@@ -156,11 +156,11 @@ void inicializacao_app_context( AppContext *ctx ) {
          .turmas             = NULL,
          .disciplinas        = NULL,
 
-         .handler_ano        = 0,
-         .handler_escola     = 0,
-         .handler_turma      = 0,
-         .handler_disciplina = 0,
-         .foco_estilo        = 0
+         .hdl_ano        = 0,
+         .hdl_escola     = 0,
+         .hdl_turma      = 0,
+         .hdl_disciplina = 0,
+         .foc_estilo        = 0
       },
 
       // 1. O Provedor CSS Global
@@ -222,24 +222,24 @@ void inicializacao_app_context( AppContext *ctx ) {
             .professor       = NULL
          },
          .frequencia = {
-            .handler_combo_data   = 0,
-            .handler_combo_alunos = 0
+            .hdl_cmb_data   = 0,
+            .hdl_cmb_alunos = 0
          },
          .avaliacao = {
-            .handler_check_desativar = 0,
+            .hdl_chk_desativar = 0,
             .validas = NULL
          },
          .botoes_travados    = FALSE
       },
 
       .latex = {
-         .handler_combo_tema_espelho = 0
+         .hdl_cmb_tema_espelho = 0
       },
 
       .prova = {
          .subtemas           = NULL,
          .temas              = NULL,
-         .handler_combo_tema = 0,
+         .hdl_cmb_tema = 0,
 
          .listbox_subtemas   = NULL,
          .flowbox_selecionados = NULL,
@@ -248,16 +248,16 @@ void inicializacao_app_context( AppContext *ctx ) {
          .montagem = {
             .btn_menos       = NULL,
             .btn_mais        = NULL,
-            .handlers_check  = NULL,
-            .handler_scrolled = 0
+            .hdls_chks  = NULL,
+            .hdl_scrolled = 0
          }
       },
 
       .config = {
-         .atipicidade = {
-            .handler_combo_alunos = 0,
-            .handler_combo_suporte_tea = 0,
-            .handlers_check = { 0 }
+         .atipicidades = {
+            .hdl_cmb_alunos = 0,
+            .hdl_cmb_sup_tea = 0,
+            .hdls_chks = { 0 }
          }
       },
 
@@ -343,8 +343,8 @@ void limpeza_final( AppContext *ctx ) {
    }
    g_clear_pointer( &ctx->diario.path_save_fichas, g_free );
 
-   // 4. Matriz do Acervo (handlers_check)
-   g_clear_pointer( &ctx->prova.montagem.handlers_check, g_free );
+   // 4. Matriz do Acervo (hdls_check)
+   g_clear_pointer( &ctx->prova.montagem.hdls_chks, g_free );
 
    // 5. Arrays Dinâmicos da Interface (Cabeçalho e Provas)
    g_clear_pointer( &ctx->prova.subtemas, g_strfreev );

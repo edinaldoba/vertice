@@ -12,7 +12,6 @@
 
 #include "comum.h"
 #include "interface.h"
-#include "basicas.h"
 #include "callbacks.h"
 #include "mensagens.h"
 #include "dinamica.h"
@@ -55,7 +54,7 @@ void interface_style( AppContext *ctx ) {
    // Alocação segura via GLib com liberação automática (sem limite fixo de 256 bytes)
    g_autofree gchar *arquivo_css = NULL;
 
-   switch ( ctx->cabecalho.foco_estilo ) {
+   switch ( ctx->cabecalho.foc_estilo ) {
    case STYLE_DARK_GREEN:
       arquivo_css = g_strdup_printf( "%s/css/style_dark_green.css", ctx->caminho.recursos_prefix );
       break;
@@ -110,7 +109,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
       // Regra: Se a prova não é presencial (TRUE), os dados PRECISAM ser expostos (TRUE).
       if ( dados->nao_presencial && !dados->expor_dados ) {
          // Força o botão 'Expor Dados' a ligar. O GTK emitirá um "toggled" para ele.
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( diario->check_expor_dados ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( diario->chk_expor_dados ), TRUE );
       }
       break;
 
@@ -120,7 +119,7 @@ void atualizar_booleanos_interface( const gboolean estado, const int categoria, 
       // Regra: Se os dados forem ocultados (FALSE), a prova não pode ser 'não presencial' (FALSE).
       if ( !dados->expor_dados && dados->nao_presencial ) {
          // Força o botão 'Não Presencial' a desligar. O GTK emitirá um "toggled" para ele.
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( prova->check_nao_presencial ), FALSE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( prova->chk_nao_presencial ), FALSE );
       }
       break;
 
@@ -146,7 +145,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       // Restrição de Layout: Se a prova tiver 2 colunas, o cabeçalho não pode ser lateral (tipo 2).
       // Dispara o rádio tipo 1 (Acima) automaticamente.
       if ( dados->qtd_colunas == 2 && dados->cabecalho_tipo == 2 ) {
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_cabecalho_tipo[0] ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.rad_cabecalho_tipo[0] ), TRUE );
       }
       break;
 
@@ -166,7 +165,7 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
       dados->cabecalho_tipo = valor; // 1 (acima) ou 2 (à esquerda)
       // Restrição de Layout: Se forçarem o cabeçalho lateral (tipo 2), a prova precisa ter 3 colunas.
       if ( dados->cabecalho_tipo == 2 && dados->qtd_colunas == 2 ) {
-         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.radio_qtd_colunas[1] ), TRUE );
+         gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( ctx->latex.rad_qtd_colunas[1] ), TRUE );
       }
       break;
 
@@ -185,10 +184,10 @@ void atualizar_generic_interface( AppContext *ctx, const int categoria, const in
  * @brief Aplica espaçamento uniforme intercalando Hair Spaces (\u200A)
  *        diretamente no texto de um GtkLabel.
  */
-void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantidade_espacos ) {
-   g_return_if_fail( GTK_IS_LABEL( label_widget ) );
+void ui_label_aplicar_espacamento_manual( GtkWidget *lbl_widget, gint quantidade_espacos ) {
+   g_return_if_fail( GTK_IS_LABEL( lbl_widget ) );
 
-   const gchar *texto_original = gtk_label_get_text( GTK_LABEL( label_widget ) );
+   const gchar *texto_original = gtk_label_get_text( GTK_LABEL( lbl_widget ) );
    if ( !texto_original || texto_original[0] == '\0' ) {
       return;
    }
@@ -217,7 +216,7 @@ void ui_label_aplicar_espacamento_manual( GtkWidget *label_widget, gint quantida
       primeiro_caractere = FALSE;
    }
 
-   gtk_label_set_text( GTK_LABEL( label_widget ), resultado->str );
+   gtk_label_set_text( GTK_LABEL( lbl_widget ), resultado->str );
    g_string_free( resultado, TRUE );
 }
 
@@ -254,13 +253,13 @@ void atualizar_tema( AppContext *ctx, char *tema ) {
    g_clear_pointer( &prova->subtemas, g_strfreev );
 
    g_autofree gchar *diretorio = g_build_filename( caminho->banco_questoes, dados->tema, NULL );
-   prova->limite_subtemas = quantidade_diretorios( diretorio );
+   prova->lim_subtemas = quantidade_diretorios( diretorio );
 
-   if ( prova->limite_subtemas > 0 ) {
-      prova->subtemas = carregar_diretorios_temas( prova->limite_subtemas, diretorio, NULL );
+   if ( prova->lim_subtemas > 0 ) {
+      prova->subtemas = carregar_diretorios_temas( prova->lim_subtemas, diretorio, NULL );
 
    } else {
-      const char *nome_widget = gtk_widget_get_name( ctx->prova.combo_tema );
+      const char *nome_widget = gtk_widget_get_name( ctx->prova.cmb_tema );
       if ( g_strcmp0( nome_widget, "evento_via_codigo" ) != 0 ) {
 
          // Alimenta os buffers variádicos e delega o estilo para o motor central (AVISO)
@@ -350,8 +349,8 @@ void salvar_estado_aplicativo( const InterfaceDados *dados, const CaminhoDiretor
    DadosRascunho *rascunho = ( DadosRascunho * ) g_malloc0( tamanho_total );
 
    // 3. Popula os dados estáticos
-   rascunho->foco_cor_serie = dados->foco_cor_serie;
-   rascunho->foco_decoracao = dados->foco_decoracao;
+   rascunho->foc_cor_serie = dados->foc_cor_serie;
+   rascunho->foc_decoracao = dados->foc_decoracao;
    rascunho->qtd_paginas    = dados->qtd_paginas;
    rascunho->qtd_colunas    = dados->qtd_colunas;
    rascunho->separadores    = dados->separadores;
@@ -537,11 +536,11 @@ gboolean carregar_estado_aplicativo( AppContext *ctx ) {
 
 
 void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int limite, int foco,
-                                 gulong handler_id, ComboMapperFunc mapper ) {
+                                 gulong hdl_id, ComboMapperFunc mapper ) {
    g_return_if_fail( combo != NULL && mapper != NULL );
 
-   if ( handler_id > 0 ) {
-      g_signal_handler_block( combo, handler_id );
+   if ( hdl_id > 0 ) {
+      g_signal_handler_block( combo, hdl_id );
    }
 
    GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( combo ) );
@@ -560,8 +559,8 @@ void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int 
       gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
    }
 
-   if ( handler_id > 0 ) {
-      g_signal_handler_unblock( combo, handler_id );
+   if ( hdl_id > 0 ) {
+      g_signal_handler_unblock( combo, hdl_id );
    }
 }
 
@@ -571,14 +570,14 @@ void popular_combo_box_generico( GtkWidget *combo, const void *dados_array, int 
 //=====================================================================================================//
 // FUNÇÃO AUXILIAR: Alimenta qualquer GtkComboBoxText de forma limpa e automática                      //
 //=====================================================================================================//
-void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong handler_id ) {
+void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limite, gulong hdl_id ) {
    // Validações rigorosas de tipo para evitar crashes (Melhor prática GTK/GLib)
    g_return_if_fail( GTK_IS_COMBO_BOX_TEXT( combo ) );
    g_return_if_fail( lista != NULL );
 
    // 1. Bloqueia o sinal para evitar disparos acidentais durante a alteração
-   if ( handler_id > 0 ) {
-      g_signal_handler_block( combo, handler_id );
+   if ( hdl_id > 0 ) {
+      g_signal_handler_block( combo, hdl_id );
    }
 
    // 2. O remove_all roda em absoluto silêncio
@@ -593,8 +592,8 @@ void popular_combo_box_text( GtkWidget *combo, gchar **lista, int foco, int limi
    gtk_combo_box_set_active( GTK_COMBO_BOX( combo ), foco );
 
    // 4. Desbloqueia o sinal
-   if ( handler_id > 0 ) {
-      g_signal_handler_unblock( combo, handler_id );
+   if ( hdl_id > 0 ) {
+      g_signal_handler_unblock( combo, hdl_id );
    }
 
    // 5. Ajuste visual (Truncamento de texto grande)
@@ -652,12 +651,12 @@ static void atualizar_acervo_questoes_e_temas_lc( AppContext *ctx ) {
 
    InterfaceDados    *dados    = &ctx->dados;
    CaminhoDiretorio  *caminho  = &ctx->caminho;
-   InterfaceDinamica *montagem = &ctx->prova.montagem;
+   InterfaceDinamica *mont = &ctx->prova.montagem;
    InterfaceLatex    *latex = &ctx->latex;
    InterfaceProva    *prova = &ctx->prova;
 
    // 1. Limpeza de interface anterior (se o combo já estiver ativo)
-   if ( prova->handler_combo_tema > 0 ) {
+   if ( prova->hdl_cmb_tema > 0 ) {
       limpar_container( prova->listbox_subtemas );
       limpar_container( latex->listbox_subtemas );
       limpar_container( prova->flowbox_selecionados );
@@ -666,16 +665,16 @@ static void atualizar_acervo_questoes_e_temas_lc( AppContext *ctx ) {
          g_clear_pointer( &dados->selecao_quest_prova[i], g_free );
          dados->qtd_quest_subtema[i] = 0;
       }
-      montagem->cont_add = 0;
+      mont->cont_add = 0;
    }
 
    // Usa a nova função auxiliar de gerenciamento seguro de strings
    g_clear_pointer( &prova->subtemas, g_strfreev );
    g_clear_pointer( &prova->temas, g_strfreev );
 
-   prova->foco_tema = 0;
-   prova->limite_temas = 0;
-   prova->limite_subtemas = 0; // Garantia extra de redefinição de estado
+   prova->foc_tema = 0;
+   prova->lim_temas = 0;
+   prova->lim_subtemas = 0; // Garantia extra de redefinição de estado
 
    // 3. Define o caminho físico do Acervo para a disciplina atual
    g_clear_pointer( &caminho->banco_questoes, g_free );
@@ -684,19 +683,19 @@ static void atualizar_acervo_questoes_e_temas_lc( AppContext *ctx ) {
 
    // 4. Verifica a existência e processa o diretório
    if ( diretorio_existe( caminho->banco_questoes ) ) {
-      prova->limite_temas = quantidade_diretorios( caminho->banco_questoes );
+      prova->lim_temas = quantidade_diretorios( caminho->banco_questoes );
    }
 
    // 5. Bifurcação de Estado (Carga ou Fallback)
-   if ( prova->limite_temas > 0 ) {
+   if ( prova->lim_temas > 0 ) {
 
-      prova->temas = carregar_diretorios_temas( prova->limite_temas, caminho->banco_questoes, NULL );
+      prova->temas = carregar_diretorios_temas( prova->lim_temas, caminho->banco_questoes, NULL );
 
-      popular_combo_box_text( ctx->prova.combo_tema, prova->temas, 0,
-                              prova->limite_temas, prova->handler_combo_tema );
+      popular_combo_box_text( ctx->prova.cmb_tema, prova->temas, 0,
+                              prova->lim_temas, prova->hdl_cmb_tema );
 
-      popular_combo_box_text( ctx->latex.combo_tema_espelho, prova->temas, 0,
-                              prova->limite_temas, latex->handler_combo_tema_espelho );
+      popular_combo_box_text( ctx->latex.cmb_tema_espelho, prova->temas, 0,
+                              prova->lim_temas, latex->hdl_cmb_tema_espelho );
 
       atualizar_tema( ctx, prova->temas[0] );
 
@@ -707,21 +706,21 @@ static void atualizar_acervo_questoes_e_temas_lc( AppContext *ctx ) {
 
       // Solução Elegante para as 6 linhas: Agrupamos por contexto de execução.
       // Primeiro blindamos a interface, depois alteramos os dados, e então liberamos a interface.
-      if ( prova->handler_combo_tema > 0 ) {
-         g_signal_handler_block( ctx->prova.combo_tema, prova->handler_combo_tema );
+      if ( prova->hdl_cmb_tema > 0 ) {
+         g_signal_handler_block( ctx->prova.cmb_tema, prova->hdl_cmb_tema );
       }
-      if ( latex->handler_combo_tema_espelho > 0 ) {
-         g_signal_handler_block( ctx->latex.combo_tema_espelho, latex->handler_combo_tema_espelho );
+      if ( latex->hdl_cmb_tema_espelho > 0 ) {
+         g_signal_handler_block( ctx->latex.cmb_tema_espelho, latex->hdl_cmb_tema_espelho );
       }
 
-      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->prova.combo_tema ) );
-      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->latex.combo_tema_espelho ) );
+      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->prova.cmb_tema ) );
+      gtk_combo_box_text_remove_all( GTK_COMBO_BOX_TEXT( ctx->latex.cmb_tema_espelho ) );
 
-      if ( prova->handler_combo_tema > 0 ) {
-         g_signal_handler_unblock( ctx->prova.combo_tema, prova->handler_combo_tema );
+      if ( prova->hdl_cmb_tema > 0 ) {
+         g_signal_handler_unblock( ctx->prova.cmb_tema, prova->hdl_cmb_tema );
       }
-      if ( latex->handler_combo_tema_espelho > 0 ) {
-         g_signal_handler_unblock( ctx->latex.combo_tema_espelho, latex->handler_combo_tema_espelho );
+      if ( latex->hdl_cmb_tema_espelho > 0 ) {
+         g_signal_handler_unblock( ctx->latex.cmb_tema_espelho, latex->hdl_cmb_tema_espelho );
       }
    }
 }
@@ -739,13 +738,13 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    const InterfaceDiario *diario = &ctx->diario;
    InterfaceDados       *dados       = &ctx->dados;
-   InterfaceConteudo    *conteudo    = &ctx->diario.conteudo;
-   InterfaceFrequencia  *frequencia  = &ctx->diario.frequencia;
-   InterfaceAvaliacao   *avaliacao   = &ctx->diario.avaliacao;
-   InterfaceAtipicidade *atipicidade = &ctx->config.atipicidade;
+   InterfaceConteudo    *cont    = &ctx->diario.conteudo;
+   InterfaceFrequencia  *freq  = &ctx->diario.frequencia;
+   InterfaceAvaliacao   *aval   = &ctx->diario.avaliacao;
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
 
    ui_restaurar_registros_de_aula( ctx, TRUE );
-   conteudo->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
+   cont->editando = FALSE; // GG, acabei retornando para bancada por esse pequeno detalhe, ele me permite carregar um registro de uma turma e salvar em outra (muito útil no dia a dia). Essa função é executada quando a turma ou o período muda. A ausência dessa linha estava causando falha de segmentação quando eu tentava executar o referido procedimento. Agora vou dormir de verdade, rsrs. Boa noite.
 
    salvar_fichas( ctx, FALSE );
 
@@ -753,7 +752,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    carregar_relatorio_ui( ctx );
 
-   if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo != RECUPERACAO_FINAL ) {
       carregar_notas_ui_por_periodo( ctx );
    }
 
@@ -761,13 +760,13 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    int foco = obter_foco_inicial( limite, ctx );
 
-   popular_combo_box_generico( frequencia->combo_alunos, diario->fichas, limite, foco,
-                               frequencia->handler_combo_alunos, mapear_alunos );
-   renderizar_combo_box_ellipsize( frequencia->combo_alunos, 30 );
+   popular_combo_box_generico( freq->cmb_alunos, diario->fichas, limite, foco,
+                               freq->hdl_cmb_alunos, mapear_alunos );
+   renderizar_combo_box_ellipsize( freq->cmb_alunos, 30 );
 
-   popular_combo_box_generico( atipicidade->combo_alunos, diario->fichas, limite, foco,
-                               atipicidade->handler_combo_alunos, mapear_alunos );
-   renderizar_combo_box_ellipsize( atipicidade->combo_alunos, 25 );
+   popular_combo_box_generico( atip->cmb_alunos, diario->fichas, limite, foco,
+                               atip->hdl_cmb_alunos, mapear_alunos );
+   renderizar_combo_box_ellipsize( atip->cmb_alunos, 25 );
 
    // ========================================================================
    // RECONSTRUÇÃO DA ABA CONFIG -> ATIPICIDADES PARA A NOVA TURMA
@@ -782,14 +781,14 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
 
    popular_datas( ctx );
 
-   if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo != RECUPERACAO_FINAL ) {
       salvar_avaliacoes( ctx, FALSE );
       carregar_avaliacoes( ctx );
-      obter_avaliacoes_validas( avaliacao );
+      obter_avaliacoes_validas( aval );
       sincronizar_registro_aula_com_turma_siaep( ctx );
    }
 
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) );
 
    if ( modo_por_aluno ) {
       renderizar_frequencia_modo_por_aluno( ctx );
@@ -797,7 +796,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
       renderizar_frequencia_modo_normal( ctx );
    }
 
-   if ( frequencia->handler_combo_data == 0 || frequencia->handler_combo_alunos == 0 ) {
+   if ( freq->hdl_cmb_data == 0 || freq->hdl_cmb_alunos == 0 ) {
       rolagem_automatica_treeview_frequencia( ctx );
       selecionar_combo_status( ctx );
    }
@@ -805,7 +804,7 @@ void atualizar_dados_e_alunos_ativos( AppContext *ctx ) {
    iniciar_autosave_diario( ctx, 5 );
 
    g_autofree gchar *texto_ativos = g_strdup_printf( "%d ativos", dados->qtd_alunos_ativos );
-   gtk_label_set_text( GTK_LABEL( ctx->prova.label_qtd_ativos ), texto_ativos );
+   gtk_label_set_text( GTK_LABEL( ctx->prova.lbl_qtd_ativos ), texto_ativos );
 }
 //==================================================================================================
 
@@ -944,42 +943,42 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    }
 
    InterfaceDados     *dados     = &ctx->dados;
-   InterfaceConteudo  *conteudo  = &ctx->diario.conteudo;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceConteudo  *cont  = &ctx->diario.conteudo;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
    InterfaceCabecalho *cabecalho = &ctx->cabecalho;
 
    dados->selecao_quest_prova = g_new0( gchar*, ( gsize )MAX_QUEST_PROVA + 1U );
    dados->qtd_quest_subtema = g_new0( gint, ( gsize )dados->total_quest_prova );
-   avaliacao->validas = g_new0( gboolean, ( gsize )MAX_AVALIACOES );
+   aval->validas = g_new0( gboolean, ( gsize )MAX_AVALIACOES );
 
-   gtk_widget_set_name( ctx->cabecalho.combo_turma, "turma" );
+   gtk_widget_set_name( ctx->cabecalho.cmb_turma, "turma" );
 
    obter_data_hoje( &ctx->hoje );
 
    g_autofree char *data_formatada = g_strdup_printf( "%02d/%02d/%04d", ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), data_formatada );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_data ), data_formatada );
 
    g_autofree char *str_qtd_aulas = g_strdup_printf( "%d h", 1 );
-   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), str_qtd_aulas );
+   gtk_label_set_text( GTK_LABEL( cont->lbl_ch ), str_qtd_aulas );
 
    int qtd_caracteres = 10;
-   renderizar_combo_box_ellipsize( cabecalho->combo_periodo, qtd_caracteres );
+   renderizar_combo_box_ellipsize( cabecalho->cmb_periodo, qtd_caracteres );
 
    long int escalar_hoje = mapear_data_para_id( ctx->hoje.dia, ctx->hoje.mes, ctx->hoje.ano );
-   cabecalho->foco_periodo_vigente = foco_periodo_corrente( ( int )escalar_hoje );
-   cabecalho->foco_periodo = cabecalho->foco_periodo_vigente;
-   GtkComboBox *combo_periodo = GTK_COMBO_BOX( cabecalho->combo_periodo );
+   cabecalho->foc_periodo_vigente = foco_periodo_corrente( ( int )escalar_hoje );
+   cabecalho->foc_periodo = cabecalho->foc_periodo_vigente;
+   GtkComboBox *combo_periodo = GTK_COMBO_BOX( cabecalho->cmb_periodo );
 
-   gtk_combo_box_set_active( combo_periodo, cabecalho->foco_periodo );
-   dados->periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->combo_periodo ) );
+   gtk_combo_box_set_active( combo_periodo, cabecalho->foc_periodo );
+   dados->periodo = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( cabecalho->cmb_periodo ) );
 
-   dados->foco_cor_serie = COR_SERIE_PRIMEIRO_ANO;
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_cor_serie ), dados->foco_cor_serie );
+   dados->foc_cor_serie = COR_SERIE_PRIMEIRO_ANO;
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.cmb_cor_serie ), dados->foc_cor_serie );
 
-   dados->foco_decoracao = DECORACAO_TRAPEZIOS;
-   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.combo_decoracao ), dados->foco_decoracao );
+   dados->foc_decoracao = DECORACAO_TRAPEZIOS;
+   gtk_combo_box_set_active( GTK_COMBO_BOX( ctx->latex.cmb_decoracao ), dados->foc_decoracao );
 
-   dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->prova.combo_seq_prova ) );
+   dados->prova_sequencia = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( ctx->prova.cmb_seq_prova ) );
 
    const gchar *home = g_get_home_dir();
    // ctx->caminho.raiz = g_build_filename( home ? home : ".", "Documentos", "LATEX", "SEDUC", NULL );
@@ -991,10 +990,10 @@ void inicializar_estado_do_aplicativo( AppContext *ctx ) {
    carregar_escolas_e_turmas_lc( dados->raiz, combo_periodo );
 
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", NULL );
-   cabecalho->limite_anos = quantidade_diretorios( diretorio );
-   cabecalho->anos = carregar_diretorios_temas( cabecalho->limite_anos, diretorio, NULL );
+   cabecalho->lim_anos = quantidade_diretorios( diretorio );
+   cabecalho->anos = carregar_diretorios_temas( cabecalho->lim_anos, diretorio, NULL );
 
-   popular_combo_box_text( cabecalho->combo_ano, cabecalho->anos, cabecalho->limite_anos - 1, cabecalho->limite_anos, cabecalho->handler_ano );
+   popular_combo_box_text( cabecalho->cmb_ano, cabecalho->anos, cabecalho->lim_anos - 1, cabecalho->lim_anos, cabecalho->hdl_ano );
 
    on_combo_atualizar_ano_interface_changed( NULL, ctx );
 }
@@ -1033,9 +1032,9 @@ gboolean atualizar_ano_interface( AppContext *ctx, gchar *novo_ano, gboolean for
    // Gerenciamento seguro da RAM
    g_clear_pointer( &cabecalho->escolas, g_strfreev );
 
-   ctx->cabecalho.limite_escolas = quantidade_diretorios( diretorio );
-   if ( ctx->cabecalho.limite_escolas > 0 ) {
-      cabecalho->escolas = carregar_diretorios_temas( ctx->cabecalho.limite_escolas, diretorio, NULL );
+   ctx->cabecalho.lim_escolas = quantidade_diretorios( diretorio );
+   if ( ctx->cabecalho.lim_escolas > 0 ) {
+      cabecalho->escolas = carregar_diretorios_temas( ctx->cabecalho.lim_escolas, diretorio, NULL );
    }
 
    return TRUE; // Retorna TRUE indicando que uma carga real (ou semente) foi processada
@@ -1066,12 +1065,12 @@ gboolean atualizar_escola_interface( AppContext *ctx, gchar *nova_escola, gboole
 
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, NULL );
 
-   ctx->cabecalho.limite_turmas = quantidade_diretorios( diretorio );
+   ctx->cabecalho.lim_turmas = quantidade_diretorios( diretorio );
 
    g_clear_pointer( &cabecalho->turmas, g_strfreev );
 
-   if ( ctx->cabecalho.limite_turmas > 0 ) {
-      cabecalho->turmas = carregar_diretorios_temas( ctx->cabecalho.limite_turmas, diretorio, ordenar_turmas_novo_em );
+   if ( ctx->cabecalho.lim_turmas > 0 ) {
+      cabecalho->turmas = carregar_diretorios_temas( ctx->cabecalho.lim_turmas, diretorio, ordenar_turmas_novo_em );
    }
 
    g_clear_pointer( &dados->gestor, g_free );
@@ -1108,17 +1107,17 @@ gboolean atualizar_turma_interface( AppContext *ctx, gchar *nova_turma, gboolean
    g_autofree gchar *diretorio = g_build_filename( dados->raiz, "dados", "informados", dados->ano, dados->escola, dados->turma, NULL );
 
    // Varre o diretório para contar e carregar as disciplinas desta turma
-   ctx->cabecalho.limite_disciplinas = quantidade_diretorios( diretorio );
+   ctx->cabecalho.lim_disciplinas = quantidade_diretorios( diretorio );
 
    g_clear_pointer( &cabecalho->disciplinas, g_strfreev );
 
-   if ( ctx->cabecalho.limite_disciplinas > 0 ) {
-      cabecalho->disciplinas = carregar_diretorios_temas( ctx->cabecalho.limite_disciplinas, diretorio, NULL );
+   if ( ctx->cabecalho.lim_disciplinas > 0 ) {
+      cabecalho->disciplinas = carregar_diretorios_temas( ctx->cabecalho.lim_disciplinas, diretorio, NULL );
    }
 
-   int foco = obter_foco_inicial_disciplina( ctx, ctx->cabecalho.limite_disciplinas );
-   popular_combo_box_generico( ctx->cabecalho.combo_disciplina, ctx, ctx->cabecalho.limite_disciplinas, foco,
-                               ctx->cabecalho.handler_disciplina, mapear_disciplinas );
+   int foco = obter_foco_inicial_disciplina( ctx, ctx->cabecalho.lim_disciplinas );
+   popular_combo_box_generico( ctx->cabecalho.cmb_disciplina, ctx, ctx->cabecalho.lim_disciplinas, foco,
+                               ctx->cabecalho.hdl_disciplina, mapear_disciplinas );
 
    return TRUE; // Retorna TRUE indicando que a carga lógica foi realizada com sucesso
 }

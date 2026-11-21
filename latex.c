@@ -17,9 +17,6 @@
 // Caso ainda não tenha no seu header
 #include <stdio.h>
 #include <glib.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
 
 
@@ -97,7 +94,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
 
    // O pacote de cores do professor recebe o parâmetro (ex: "sexto") e converte para "CorSerie"
    const char *cor_serie_nome[7] = { "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono" };
-   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foco_cor_serie] );
+   g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[dados->foc_cor_serie] );
 
    g_string_append( tex,
                     "\\newcommand*{\\vtext}[2]{\\parbox[t]{9pt}{\\multirow{#1}{*}{\\rotatebox[origin=c]{90}{#2}}}}\n\n"
@@ -117,7 +114,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
    gint k_tema = 1;
 
    // O uso nativo de "CorSerie" fará o elo direto com o professor.sty
-   switch ( dados->foco_decoracao ) {
+   switch ( dados->foc_decoracao ) {
    case DECORACAO_TRAPEZIOS:
       anexar_tema_pagina_trapezios( tex, k_tema );
       break;
@@ -182,7 +179,7 @@ static void motor_gerador_latex( const gchar *pasta_tema, const gchar *subtema, 
             g_string_append_printf( tex, "%s\n", linha );
 
             // Injeção do Cabeçalho
-            switch ( dados->foco_decoracao ) {
+            switch ( dados->foc_decoracao ) {
             case DECORACAO_TRAPEZIOS:
                anexar_cabecalho_questao_trapezios( tex, k_questao, q + 1 );
                break;
@@ -277,7 +274,7 @@ void compilar_questoes( GtkWidget *widget, InterfacePainel *painel, const AppCon
    }
 
    // 1. Delega a construção dos arquivos .tex para o Motor LaTeX
-   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
+   for ( int i = 0; i < prova->lim_subtemas; i++ ) {
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,
                                     dados->tema,
                                     prova->subtemas[i],
@@ -320,7 +317,7 @@ void atualizar_questoes( InterfacePainel *painel, const AppContext *ctx ) {
    gboolean mecanismo_executado = FALSE;
 
    // Declaração do iterador dentro do for (padrão moderno C99+)
-   for ( int i = 0; i < prova->limite_subtemas; i++ ) {
+   for ( int i = 0; i < prova->lim_subtemas; i++ ) {
 
       // Criação dinâmica e 100% segura do caminho do subtema, unindo as pastas com '/'
       g_autofree char *pasta_tema = g_build_filename( caminho->banco_questoes,

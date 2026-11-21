@@ -5,7 +5,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
 #include <glib/gstdio.h> // Necessário para g_remove e g_mkdir_with_parents
 #include <omp.h>
@@ -16,6 +15,7 @@
 #include "imgcore.h"
 #include "basicas.h"   // Para nFile e Files
 #include "omr.h" // Para mudar_numero_na_imagem, gabaritos e imagens_corrigidas
+#include "gas.h"
 #include "interface.h"
 #include "mensagens.h"
 #include "glib_gio.h"
@@ -877,8 +877,8 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
       return;
    }
 
-   g_autofree gchar *nome_bin = nome_base_gabaritos_bin( cabecalho->foco_turma, cabecalho->foco_disciplina,
-                                cabecalho->foco_periodo, dados->seq_prova );
+   g_autofree gchar *nome_bin = nome_base_gabaritos_bin( cabecalho->foc_turma, cabecalho->foc_disciplina,
+                                cabecalho->foc_periodo, dados->seq_prova );
 
    g_autofree char *path_resp = g_build_filename(
                                    dados->raiz, "dados", "gabaritos", dados->ano, dados->escola, "respostas", nome_bin, NULL
@@ -1024,7 +1024,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
          if ( diario->fichas && idx_aluno >= 0 && ( guint )idx_aluno < diario->fichas->len ) {
             FichaAluno *ficha = ( FichaAluno * )g_ptr_array_index( diario->fichas, ( guint )idx_aluno );
-            int f_disc    = cabecalho->foco_disciplina;
+            int f_disc    = cabecalho->foc_disciplina;
             int f_per     = map->per;
             int seq_prova = map->seq;
             int idx_av    = ( 2 * seq_prova ) - 2;
@@ -1032,7 +1032,7 @@ void corrigir_prova( InterfacePainel *painel, AppContext *ctx ) {
 
             // Proteção completa de limites antes de gravar na ficha do diário
             if ( ficha &&
-                  f_disc >= 0 && f_disc < cabecalho->limite_disciplinas &&
+                  f_disc >= 0 && f_disc < cabecalho->lim_disciplinas &&
                   f_per >= 0 && f_per <= 4 &&
                   idx_av >= 0 ) {
                ficha->disciplina[f_disc].periodo[f_per].avaliacoes[idx_av].av = nota;

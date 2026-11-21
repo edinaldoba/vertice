@@ -135,7 +135,7 @@ typedef struct {
    // 4. Configurações de Layout do LaTeX
    int  qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex;
 
-   int foco_cor_serie, foco_decoracao;
+   int foc_cor_serie, foc_decoracao;
 
    // 5. Matriz do Acervo
    gint  *qtd_quest_subtema; // Quantidade de questões disponíveis por tema/subtema selecionado para prova
@@ -157,7 +157,7 @@ typedef struct {
 // O pacote principal
 typedef struct {
    // 1. Configurações Numéricas Básicas
-   int qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foco_cor_serie, foco_decoracao;
+   int qtd_paginas, qtd_colunas, separadores, cabecalho_tipo, fonte_latex, foc_cor_serie, foc_decoracao;
 
    // 2. Flags de Controle Estéticas
    gboolean expor_dados, nao_presencial;
@@ -379,7 +379,7 @@ typedef struct {
    SituacaoAluno sit;
    gboolean      ativo;
 
-   guint8  limite_corte;
+   guint8  lim_corte;
    guint8  idx_siaep;
    guint8  lim_disc;
    gboolean ficha_modificada;

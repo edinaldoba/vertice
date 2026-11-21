@@ -8,8 +8,6 @@
 #include <string.h>
 #include "config.h"
 #include "comum.h"
-#include "auxiliar.h"
-#include "diarios.h"
 #include "interface.h"
 #include "tex.h"
 #include "glib_gio.h"
@@ -46,7 +44,7 @@ static void rolagem_automatica_scrolled_window_atipicidades_lc( GtkWidget *flowb
 // ====================================================================================
 // 1. DESTAQUE VISUAL DO CARD DO ALUNO SELECIONADO NO FLOWBOX
 // ====================================================================================
-static void destacar_card_aluno_selecionado_lc( InterfaceAtipicidade *atip, int idx_aluno_ativo ) {
+static void destacar_card_aluno_selecionado_lc( InterfaceAtipicidades *atip, int idx_aluno_ativo ) {
    g_return_if_fail( atip != NULL && GTK_IS_FLOW_BOX( atip->flowbox ) );
 
    GList *children = gtk_container_get_children( GTK_CONTAINER( atip->flowbox ) );
@@ -79,7 +77,7 @@ static void destacar_card_aluno_selecionado_lc( InterfaceAtipicidade *atip, int 
 // 2. SINCRONIZAÇÃO DOS CHECKBUTTONS E COMBO TEA PARA O ALUNO ATUAL DO COMBO
 // ====================================================================================
 static void sincronizar_checks_com_ficha_lc( AppContext *ctx, int idx_aluno ) {
-   InterfaceAtipicidade *atip   = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip   = &ctx->config.atipicidades;
    GPtrArray            *fichas = ctx->diario.fichas;
 
    FlagsAtipicidade flags_aluno = ATIPICO_NENHUM;
@@ -96,35 +94,35 @@ static void sincronizar_checks_com_ficha_lc( AppContext *ctx, int idx_aluno ) {
 
    // Atualiza cada CheckButton com o sinal bloqueado para evitar recursão
    for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
-      GtkWidget *chk = atip->checks[i];
+      GtkWidget *chk = atip->chks[i];
       if ( chk == NULL ) {
          continue;
       }
 
       gboolean marcado = aluno_valido && ( ( ( guint32 )flags_aluno & ( 1U << ( guint )i ) ) != 0U );
 
-      if ( atip->handlers_check[i] > 0 ) {
-         g_signal_handler_block( chk, atip->handlers_check[i] );
+      if ( atip->hdls_chks[i] > 0 ) {
+         g_signal_handler_block( chk, atip->hdls_chks[i] );
       }
       gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( chk ), marcado );
       gtk_widget_set_sensitive( chk, aluno_valido );
-      if ( atip->handlers_check[i] > 0 ) {
-         g_signal_handler_unblock( chk, atip->handlers_check[i] );
+      if ( atip->hdls_chks[i] > 0 ) {
+         g_signal_handler_unblock( chk, atip->hdls_chks[i] );
       }
    }
 
    // Atualiza o Combo de Nível de Suporte TEA (0=N/A, 1=Nível 1, 2=Nível 2, 3=Nível 3)
-   if ( atip->combo_suporte_tea != NULL ) {
+   if ( atip->cmb_sup_tea != NULL ) {
       gboolean tea_marcado = aluno_valido && ( ( flags_aluno & ATIPICO_TEA ) != 0 );
       int      idx_combo   = ( tea_marcado && nivel_tea <= 3 ) ? ( int )nivel_tea : 0;
 
-      if ( atip->handler_combo_suporte_tea > 0 ) {
-         g_signal_handler_block( atip->combo_suporte_tea, atip->handler_combo_suporte_tea );
+      if ( atip->hdl_cmb_sup_tea > 0 ) {
+         g_signal_handler_block( atip->cmb_sup_tea, atip->hdl_cmb_sup_tea );
       }
-      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->combo_suporte_tea ), idx_combo );
-      gtk_widget_set_sensitive( atip->combo_suporte_tea, tea_marcado );
-      if ( atip->handler_combo_suporte_tea > 0 ) {
-         g_signal_handler_unblock( atip->combo_suporte_tea, atip->handler_combo_suporte_tea );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->cmb_sup_tea ), idx_combo );
+      gtk_widget_set_sensitive( atip->cmb_sup_tea, tea_marcado );
+      if ( atip->hdl_cmb_sup_tea > 0 ) {
+         g_signal_handler_unblock( atip->cmb_sup_tea, atip->hdl_cmb_sup_tea );
       }
    }
 }
@@ -169,13 +167,13 @@ static void on_btn_remover_mini_card_clicked_lc( GtkWidget *btn, gpointer user_d
 
    // Se o card clicado não era o aluno ativo no combo, muda o combo para ele;
    // caso já seja o aluno ativo, apenas ressincroniza os checks.
-   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
-   int idx_combo_atual = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
+   int idx_combo_atual = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->cmb_alunos ) );
 
    if ( idx_combo_atual != idx_aluno ) {
-      g_signal_handler_block( atip->combo_alunos, atip->handler_combo_alunos );
-      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->combo_alunos ), idx_aluno );
-      g_signal_handler_unblock( atip->combo_alunos, atip->handler_combo_alunos );
+      g_signal_handler_block( atip->cmb_alunos, atip->hdl_cmb_alunos );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->cmb_alunos ), idx_aluno );
+      g_signal_handler_unblock( atip->cmb_alunos, atip->hdl_cmb_alunos );
    }
 
    sincronizar_checks_com_ficha_lc( ctx, idx_aluno );
@@ -186,7 +184,7 @@ static void on_btn_remover_mini_card_clicked_lc( GtkWidget *btn, gpointer user_d
 // 4. CONSTRUÇÃO DOS CARDS E MINI-CARDS NO FLOWBOX
 // ====================================================================================
 static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
-   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
    g_return_if_fail( GTK_IS_FLOW_BOX( atip->flowbox ) );
 
    // Limpa todos os cards anteriores do FlowBox
@@ -201,7 +199,7 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
       return;
    }
 
-   int idx_aluno_selecionado = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
+   int idx_aluno_selecionado = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->cmb_alunos ) );
 
    for ( guint i = 0; i < fichas->len; i++ ) {
       const FichaAluno *ficha = ( const FichaAluno * )g_ptr_array_index( fichas, i );
@@ -237,7 +235,7 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
             continue;
          }
 
-         GtkWidget *chk_ref = atip->checks[bit];
+         GtkWidget *chk_ref = atip->chks[bit];
          const gchar *texto_check = ( chk_ref != NULL )
                                     ? gtk_button_get_label( GTK_BUTTON( chk_ref ) )
                                     : "Atipicidade";
@@ -263,7 +261,7 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
          gtk_widget_set_valign( btn_remover, GTK_ALIGN_CENTER );
          gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "botao-remover-ifood" );
          gtk_style_context_add_class( gtk_widget_get_style_context( btn_remover ), "btn-stepper" );
-         gtk_widget_set_size_request( btn_remover, 33, 33 );
+         gtk_widget_set_size_request( btn_remover, 36, 36 );
 
          // Guarda idx_aluno (+1) e bit (+1) no GObject sem alocar memória dinâmica
          g_object_set_data( G_OBJECT( btn_remover ), "idx_aluno", GINT_TO_POINTER( ( int )i + 1 ) );
@@ -295,7 +293,7 @@ static void reconstruir_flowbox_atipicidades_lc( AppContext *ctx ) {
 // Chamada ao abrir a sub-aba ATIPICIDADES ou ao trocar de turma no cabeçalho
 void mapear_sub_aba_atipicidades( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
-   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
 
    // Não esquecer que ( ctx->diario.fichas->len == ctx->dados.qtd_alunos_total ) = TRUE
    sincronizar_checks_com_ficha_lc( ctx, ( ctx->diario.fichas->len > 0U ) ? 0 : -1 );
@@ -314,8 +312,8 @@ void mapear_sub_aba_atipicidades( AppContext *ctx ) {
 void logica_alunos_atipicos( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
-   InterfaceAtipicidade *atip = &ctx->config.atipicidade;
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
+   InterfaceAtipicidades *atip = &ctx->config.atipicidades;
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->cmb_alunos ) );
 
    sincronizar_checks_com_ficha_lc( ctx, idx_aluno );
    destacar_card_aluno_selecionado_lc( atip, idx_aluno );
@@ -325,13 +323,13 @@ void logica_alunos_atipicos( AppContext *ctx ) {
 void logica_atipicidades( GtkWidget *widget, AppContext *ctx ) {
    g_return_if_fail( ctx != NULL && GTK_IS_TOGGLE_BUTTON( widget ) );
 
-   InterfaceAtipicidade *atip   = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip   = &ctx->config.atipicidades;
    GPtrArray            *fichas = ctx->diario.fichas;
    if ( !fichas ) {
       return;
    }
 
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->cmb_alunos ) );
    int bit_idx   = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( widget ), "bit_idx" ) ) - 1;
 
    if ( idx_aluno < 0 || ( guint )idx_aluno >= fichas->len || bit_idx < 0 || bit_idx >= MAX_FLAGS_ATIPICIDADES ) {
@@ -354,7 +352,7 @@ void logica_atipicidades( GtkWidget *widget, AppContext *ctx ) {
    }
 
    // Sincroniza o combo de Nível de Suporte TEA caso o check alterado seja o ATIPICO_TEA (bit 0)
-   if ( bit_idx == 0 && atip->combo_suporte_tea != NULL ) {
+   if ( bit_idx == 0 && atip->cmb_sup_tea != NULL ) {
       if ( ativo ) {
          if ( ficha->atipico.nivel_suporte_tea == 0 ) {
             ficha->atipico.nivel_suporte_tea = 1; // Padrão inicial ao marcar TEA: Nível 1
@@ -363,10 +361,10 @@ void logica_atipicidades( GtkWidget *widget, AppContext *ctx ) {
          ficha->atipico.nivel_suporte_tea = 0;
       }
 
-      g_signal_handler_block( atip->combo_suporte_tea, atip->handler_combo_suporte_tea );
-      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->combo_suporte_tea ), ( int )ficha->atipico.nivel_suporte_tea );
-      gtk_widget_set_sensitive( atip->combo_suporte_tea, ativo );
-      g_signal_handler_unblock( atip->combo_suporte_tea, atip->handler_combo_suporte_tea );
+      g_signal_handler_block( atip->cmb_sup_tea, atip->hdl_cmb_sup_tea );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( atip->cmb_sup_tea ), ( int )ficha->atipico.nivel_suporte_tea );
+      gtk_widget_set_sensitive( atip->cmb_sup_tea, ativo );
+      g_signal_handler_unblock( atip->cmb_sup_tea, atip->hdl_cmb_sup_tea );
    }
 
    ficha->ficha_modificada       = TRUE;
@@ -379,13 +377,13 @@ void logica_atipicidades( GtkWidget *widget, AppContext *ctx ) {
 void logica_suporte_tea( GtkWidget *widget, AppContext *ctx ) {
    g_return_if_fail( ctx != NULL && GTK_IS_COMBO_BOX( widget ) );
 
-   InterfaceAtipicidade *atip   = &ctx->config.atipicidade;
+   InterfaceAtipicidades *atip   = &ctx->config.atipicidades;
    GPtrArray            *fichas = ctx->diario.fichas;
    if ( !fichas ) {
       return;
    }
 
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->combo_alunos ) );
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( atip->cmb_alunos ) );
    if ( idx_aluno < 0 || ( guint )idx_aluno >= fichas->len ) {
       return;
    }
@@ -409,10 +407,10 @@ void logica_suporte_tea( GtkWidget *widget, AppContext *ctx ) {
       ficha->atipico.flags = ( FlagsAtipicidade )( ( guint32 )ficha->atipico.flags | ( guint32 )ATIPICO_TEA );
    }
 
-   if ( atip->checks[0] != NULL ) {
-      g_signal_handler_block( atip->checks[0], atip->handlers_check[0] );
-      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( atip->checks[0] ), idx_nivel > 0 );
-      g_signal_handler_unblock( atip->checks[0], atip->handlers_check[0] );
+   if ( atip->chks[0] != NULL ) {
+      g_signal_handler_block( atip->chks[0], atip->hdls_chks[0] );
+      gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( atip->chks[0] ), idx_nivel > 0 );
+      g_signal_handler_unblock( atip->chks[0], atip->hdls_chks[0] );
    }
 
    ficha->ficha_modificada       = TRUE;
@@ -617,7 +615,7 @@ static gboolean verificar_match_atipicidade( GtkWidget *chk, const gchar *busca_
 // =====================================================================
 // 3. FUNÇÃO ORQUESTRADORA PRINCIPAL
 // =====================================================================
-void localizar_cid_atipicidade( InterfacePainel *painel, const InterfaceAtipicidade *atip ) {
+void localizar_cid_atipicidade( InterfacePainel *painel, const InterfaceAtipicidades *atip ) {
    g_return_if_fail( painel != NULL );
    g_return_if_fail( atip != NULL );
    g_return_if_fail( atip->entry != NULL && GTK_IS_ENTRY( atip->entry ) );
@@ -646,7 +644,7 @@ void localizar_cid_atipicidade( InterfacePainel *painel, const InterfaceAtipicid
 
    // Varre os check buttons registrados
    for ( int i = 0; i < MAX_FLAGS_ATIPICIDADES; i++ ) {
-      GtkWidget *chk = atip->checks[i];
+      GtkWidget *chk = atip->chks[i];
       if ( verificar_match_atipicidade( chk, busca_lower, busca_curta_alfabetica ) ) {
          label_encontrado = gtk_button_get_label( GTK_BUTTON( chk ) );
          gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( chk ), TRUE );

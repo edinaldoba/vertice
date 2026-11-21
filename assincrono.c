@@ -5,8 +5,6 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "assincrono.h"
 #include "comum.h"
@@ -241,7 +239,7 @@ void disparar_geracao_prova_assincrona( GtkWidget *widget, AppContext *ctx, GThr
    args->snap.hoje      = ctx->hoje;
    args->snap.fichas    = clonar_diario_alunos_lc(
                              ctx->diario.fichas,
-                             ( guint8 )ctx->cabecalho.limite_disciplinas
+                             ( guint8 )ctx->cabecalho.lim_disciplinas
                           );
 
    // 4. Referências Mestre para retorno na Main Thread
@@ -362,9 +360,9 @@ void *thread_gerar_prova_background( void *data ) {
                                );
 
    g_autofree gchar *nome = nome_base_gabaritos_bin(
-                               snap->cabecalho.foco_turma,
-                               snap->cabecalho.foco_disciplina,
-                               snap->cabecalho.foco_periodo,
+                               snap->cabecalho.foc_turma,
+                               snap->cabecalho.foc_disciplina,
+                               snap->cabecalho.foc_periodo,
                                snap->dados.seq_prova
                             );
 
@@ -617,7 +615,7 @@ void *thread_processar_imagens_background( void *data ) {
 // ====================================================================================
 typedef struct {
    gchar           *tema;                   // Cópia profunda de ctx->dados.tema
-   int              qtd_subtemas;           // Cópia de ctx->prova.limite_subtemas
+   int              qtd_subtemas;           // Cópia de ctx->prova.lim_subtemas
    GtkWidget       *btn_compilar;           // Referência de UI (ctx->latex.btn_compilar)
    GtkWidget       *btn_pdflatex;           // Referência de UI (ctx->latex.btn_pdflatex)
    GtkWidget       *widget;                 // Botão exato que originou o disparo
@@ -805,7 +803,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
                                 InterfacePainel *painel, const AppContext *ctx ) {
    g_return_if_fail( dir_compile != NULL && painel != NULL && ctx != NULL );
 
-   if ( ctx->prova.limite_subtemas <= 0 || ctx->prova.subtemas == NULL ) {
+   if ( ctx->prova.lim_subtemas <= 0 || ctx->prova.subtemas == NULL ) {
       painel->format_titulo    = meu_gerador_variadico( "⚠ Acervo Vazio:" );
       painel->format_subtitulo = meu_gerador_variadico( "Nenhum subtema disponível para compilação no tema atual." );
       painel->format_instrucao = meu_gerador_variadico( "Cadastre questões no diretório antes de compilar." );
@@ -823,7 +821,7 @@ void g_pdflatex_parallel_async( GtkWidget *widget, const char *dir_compile,
 
    DadosCompilacaoAsync *async_data   = g_new0( DadosCompilacaoAsync, 1 );
    async_data->tema                   = g_strdup( ctx->dados.tema );
-   async_data->qtd_subtemas           = ctx->prova.limite_subtemas;
+   async_data->qtd_subtemas           = ctx->prova.lim_subtemas;
    async_data->btn_compilar           = ctx->latex.btn_compilar;
    async_data->btn_pdflatex           = ctx->latex.btn_pdflatex;
    async_data->widget                 = widget;
@@ -969,7 +967,7 @@ static void copiar_arquivos_correcao_nao_presencial( const MapeamentoGabarito *m
 
    g_autofree gchar *diretorio_imagens = NULL;
 
-   if ( async->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+   if ( async->cabecalho.foc_periodo == RECUPERACAO_FINAL ) {
       diretorio_imagens = g_build_filename( caminho->externo, "Notas", "Recuperação Final Imagens Corrigidas", NULL );
    } else {
       g_autofree gchar *pasta_imagens = g_strdup_printf( "%s Prova Imagens Corrigidas",
@@ -1129,7 +1127,7 @@ void g_pdflatex_parallel_async_corrigir_prova( InterfacePainel *painel, GArray *
    clonar_interface_dados_lc( &ctx->dados, &async_data->caminho, &async_data->dados );
    async_data->fichas = clonar_diario_alunos_lc(
                            ctx->diario.fichas,
-                           ( guint8 )ctx->cabecalho.limite_disciplinas
+                           ( guint8 )ctx->cabecalho.lim_disciplinas
                         );
 
    async_data->dir_compile = g_build_filename( async_data->caminho.raiz, "dados", "temporarios", NULL );

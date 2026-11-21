@@ -28,6 +28,7 @@ DEV_PKGS=(
    zathura-pdf-poppler
    libfido2-1
    opensc
+   bash-language-server --classic
 )
 
 sudo apt update && sudo apt install -y

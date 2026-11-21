@@ -19,7 +19,6 @@
 
 #include "basicas.h"
 #include "comum.h"
-#include "interface.h"
 #include "glib_gio.h"
 
 
@@ -210,7 +209,7 @@ void liberar_array_strings( gchar ***array_ptr, int limite ) {
  */
 void liberar_vetor_ponteiros( gpointer ptr_to_array, int limite, GDestroyNotify free_func ) {
    // O parâmetro gpointer (void *) age como um buraco negro que aceita qualquer
-   // endereço (ex: &handlers_check) sem emitir alertas -Wincompatible-pointer-types.
+   // endereço (ex: &hdls_check) sem emitir alertas -Wincompatible-pointer-types.
    // Internamente, nós o convertemos para o ponteiro duplo necessário:
    gpointer *array_ptr = ( gpointer * ) ptr_to_array;
 

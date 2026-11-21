@@ -508,7 +508,8 @@
                                         <child>
                                           <object class="GtkButton" id="button_stepper_menos">
                                             <property name="label" translatable="yes">－</property>
-                                            <property name="width-request">35</property>
+                                            <property name="width-request">36</property>
+                                            <property name="height-request">36</property>
                                             <property name="visible">True</property>
                                             <property name="can-focus">True</property>
                                             <property name="receives-default">True</property>
@@ -539,7 +540,8 @@
                                         <child>
                                           <object class="GtkButton" id="button_stepper_mais">
                                             <property name="label" translatable="yes">＋</property>
-                                            <property name="width-request">35</property>
+                                            <property name="width-request">36</property>
+                                            <property name="height-request">36</property>
                                             <property name="visible">True</property>
                                             <property name="can-focus">True</property>
                                             <property name="receives-default">True</property>
@@ -640,12 +642,12 @@
                                       <object class="GtkBox">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="margin-top">6</property>
-                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-top">4</property>
+                                        <property name="margin-bottom">4</property>
                                         <child>
                                           <object class="GtkButton" id="button_remover_registro">
-                                            <property name="width-request">31</property>
-                                            <property name="height-request">31</property>
+                                            <property name="width-request">36</property>
+                                            <property name="height-request">36</property>
                                             <property name="visible">True</property>
                                             <property name="can-focus">True</property>
                                             <property name="receives-default">True</property>

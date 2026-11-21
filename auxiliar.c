@@ -8,7 +8,6 @@
 #include <glib/gstdio.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <sys/stat.h>
 
 #include "auxiliar.h"
@@ -482,8 +481,8 @@ static void copiar_acesso_bin_lc( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
 
    InterfaceDados *dados = &ctx->dados;
-   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
-   int target_periodo = ctx->cabecalho.foco_periodo;
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo );
+   int target_periodo = ctx->cabecalho.foc_periodo;
 
    g_autofree gchar *arq_origem_valido = NULL;
 
@@ -555,7 +554,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
 
    // Tamanho real dinâmico (Ficha Base + Histórico Flexível)
    gsize tamanho_real_ficha = sizeof( FichaAluno ) +
-                              ( ( guint )ctx->cabecalho.limite_disciplinas * sizeof( HistoricoDisciplina ) );
+                              ( ( guint )ctx->cabecalho.lim_disciplinas * sizeof( HistoricoDisciplina ) );
 
    g_autofree gchar *arquivo_acesso = g_build_filename( caminho->dados, "acesso.bin", NULL );
 
@@ -614,7 +613,7 @@ void acessar_e_carregar_ficha_dos_alunos_da_turma( AppContext *ctx ) {
             ficha_ptr->idx_siaep = ( guint8 )i;
             ficha_ptr->sit = acesso->sit;
             ficha_ptr->ativo = acesso->ativo;
-            ficha_ptr->lim_disc = ( guint8 )ctx->cabecalho.limite_disciplinas;
+            ficha_ptr->lim_disc = ( guint8 )ctx->cabecalho.lim_disciplinas;
             ficha_ptr->ficha_modificada = FALSE;
 
             if ( ficha_ptr->ativo ) {

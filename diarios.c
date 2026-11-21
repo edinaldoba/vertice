@@ -55,7 +55,7 @@ static gboolean autosave_dados_binarios_cb_lc( gpointer user_data ) {
 
    // 2. Grava as metas de avaliações (exceto na Recuperação Final)
    gboolean ok_metas = TRUE;
-   if ( ctx->cabecalho.foco_periodo != RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo != RECUPERACAO_FINAL ) {
       ok_metas = salvar_garray_binario_lc( diario->metas_avs, sizeof( MetaAvaliacao ), diario->path_save_metas_avs );
    }
 
@@ -245,11 +245,11 @@ gchar* validar_data( const gchar *texto ) {
  *
  * @return gboolean TRUE se a remoção foi confirmada e executada; FALSE se foi cancelada ou falhou.
  */
-gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
+gboolean btn_rm_registro_aula_selecionado( AppContext *ctx, int indice_remocao, GtkTreeModel *model, GtkTreeIter *iter ) {
    g_return_val_if_fail( ctx != NULL && model != NULL && iter != NULL, FALSE );
 
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    // 1. Proteção de limites da memória
    if ( indice_remocao < 0 || ( guint )indice_remocao >= diario->aulas->len ) {
@@ -271,7 +271,7 @@ gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remo
 
    // Se houver presença/ausência gravada, exige confirmação explícita do professor
    if ( possui_chamada ) {
-      GtkWidget *treeview = GTK_WIDGET( conteudo->treeview );
+      GtkWidget *treeview = GTK_WIDGET( cont->treeview );
       GtkWindow *janela_principal = GTK_WINDOW( gtk_widget_get_toplevel( treeview ) );
 
       const char *str_detalhe = ( aula->tema[0] != '\0' ) ? aula->tema :
@@ -298,19 +298,19 @@ gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remo
    // =========================================================================
    // 3. CANCELAMENTO DO MODO DE EDIÇÃO (Caso esteja editando a linha a apagar)
    // =========================================================================
-   if ( conteudo->editando ) {
+   if ( cont->editando ) {
       g_autoptr( GtkTreePath ) path_remocao = gtk_tree_path_new_from_indices( indice_remocao, -1 );
-      g_autoptr( GtkTreePath ) path_edicao  = gtk_tree_model_get_path( model, &conteudo->iter_em_edicao );
+      g_autoptr( GtkTreePath ) path_edicao  = gtk_tree_model_get_path( model, &cont->iter_em_edicao );
 
       if ( path_edicao && gtk_tree_path_compare( path_remocao, path_edicao ) == 0 ) {
-         conteudo->editando = FALSE;
+         cont->editando = FALSE;
          gboolean tipo_feriado    = ( aula->tipo_registro == TIPO_REGISTRO_FERIADO );
          gboolean tipo_pedagogico = ( aula->tipo_registro == TIPO_REGISTRO_PEDAGOGICO );
 
          if ( tipo_feriado || tipo_pedagogico ) {
-            gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), "" );
+            gtk_entry_set_text( GTK_ENTRY( cont->ent_tema ), "" );
          }
-         gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
+         gtk_entry_set_text( GTK_ENTRY( cont->ent_descricao ), "" );
       }
    }
 
@@ -324,7 +324,7 @@ gboolean btn_remover_registro_aula_selecionado( AppContext *ctx, int indice_remo
    // 5. ATUALIZAÇÃO VISUAL NO GTK
    // =========================================================================
    gtk_list_store_remove( GTK_LIST_STORE( model ), iter );
-   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( conteudo->treeview ) );
+   GtkTreeSelection *selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( cont->treeview ) );
    gtk_tree_selection_unselect_all( selection );
 
    return TRUE;
@@ -389,9 +389,9 @@ static void extrair_linha_liststore_para_ram_lc( GtkListStore *store, GtkTreeIte
 //===================================================================================================
 static void reconstruir_ui_conteudos_da_ram_lc( AppContext *ctx ) {
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( cont->treeview );
    GtkListStore *store = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
    // Otimização O(1): Desanexa a UI para redesenho em massa instantâneo
@@ -409,7 +409,7 @@ static void reconstruir_ui_conteudos_da_ram_lc( AppContext *ctx ) {
    g_object_unref( store );
 }
 
-static gboolean validar_campos_conteudo_diario_lc( InterfacePainel *painel, const InterfaceConteudo *conteudo,
+static gboolean validar_campos_conteudo_diario_lc( InterfacePainel *painel, const InterfaceConteudo *cont,
       const char *tema, const char *descricao ) {
    g_return_val_if_fail( painel != NULL && tema != NULL && descricao != NULL, FALSE );
 
@@ -418,7 +418,7 @@ static gboolean validar_campos_conteudo_diario_lc( InterfacePainel *painel, cons
 
    // 1. Caminho feliz: Tudo preenchido, passa direto
    if ( !tema_vazio && !desc_vazia ) {
-      gtk_widget_grab_focus( conteudo->entry_descricao );
+      gtk_widget_grab_focus( cont->ent_descricao );
       return TRUE;
    }
 
@@ -426,7 +426,7 @@ static gboolean validar_campos_conteudo_diario_lc( InterfacePainel *painel, cons
    painel->format_titulo = meu_gerador_variadico( "⚠ Validação de Conteúdo" );
 
    // Joga o foco inteligentemente para o primeiro campo que estiver faltando
-   gtk_widget_grab_focus( tema_vazio ? conteudo->entry_tema : conteudo->entry_descricao );
+   gtk_widget_grab_focus( tema_vazio ? cont->ent_tema : cont->ent_descricao );
 
    // 3. Resolução específica da mensagem
    if ( tema_vazio && desc_vazia ) {
@@ -447,21 +447,21 @@ static gboolean validar_campos_conteudo_diario_lc( InterfacePainel *painel, cons
 void registrar_aula( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
-   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( cont->ent_tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( cont->ent_descricao ) );
 
-   if ( !validar_campos_conteudo_diario_lc( &ctx->painel, conteudo, tema, descricao ) ) {
+   if ( !validar_campos_conteudo_diario_lc( &ctx->painel, cont, tema, descricao ) ) {
       return; // Interrompe o salvamento imediatamente
    }
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( cont->treeview );
    GtkListStore *store_view = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
    GtkTreeIter iter_temp;
 
    int temp_qtd = 0;
-   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->label_ch ) );
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( cont->lbl_ch ) );
    if ( str_ch ) {
       sscanf( str_ch, "%d", &temp_qtd );
    }
@@ -471,11 +471,11 @@ void registrar_aula( AppContext *ctx ) {
    // =====================================================================
    gtk_list_store_append( store_view, &iter_temp );
    gtk_list_store_set( store_view, &iter_temp,
-                       0, gtk_entry_get_text( GTK_ENTRY( conteudo->entry_data ) ),
+                       0, gtk_entry_get_text( GTK_ENTRY( cont->ent_data ) ),
                        1, temp_qtd,
                        2, tema,
                        3, descricao,
-                       4, gtk_combo_box_get_active( GTK_COMBO_BOX( conteudo->tipo_registro ) ),
+                       4, gtk_combo_box_get_active( GTK_COMBO_BOX( cont->tipo_registro ) ),
                        -1 );
 
    // =====================================================================
@@ -518,25 +518,25 @@ void registrar_aula( AppContext *ctx ) {
 
    RegistroAula *aula = &g_array_index( diario->aulas, RegistroAula, novo_indice );
    if ( aula->tipo_registro == TIPO_REGISTRO_FERIADO || aula->tipo_registro == TIPO_REGISTRO_PEDAGOGICO ) {
-      gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), "" );
-      gtk_widget_grab_focus( conteudo->entry_tema );
+      gtk_entry_set_text( GTK_ENTRY( cont->ent_tema ), "" );
+      gtk_widget_grab_focus( cont->ent_tema );
    } else {
-      gtk_widget_grab_focus( conteudo->entry_descricao );
+      gtk_widget_grab_focus( cont->ent_descricao );
    }
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_descricao ), "" );
 }
 
 
 void modificar_registro_aula( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( cont->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
-   g_autoptr( GtkTreePath ) path_antigo = gtk_tree_model_get_path( model_view, &conteudo->iter_em_edicao );
+   g_autoptr( GtkTreePath ) path_antigo = gtk_tree_model_get_path( model_view, &cont->iter_em_edicao );
    if ( !path_antigo ) {
       return;
    }
@@ -548,31 +548,31 @@ void modificar_registro_aula( AppContext *ctx ) {
 
    RegistroAula *reg = &g_array_index( diario->aulas, RegistroAula, idx );
 
-   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
-   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_descricao ) );
+   const gchar *tema = gtk_entry_get_text( GTK_ENTRY( cont->ent_tema ) );
+   const gchar *descricao = gtk_entry_get_text( GTK_ENTRY( cont->ent_descricao ) );
 
-   if ( !validar_campos_conteudo_diario_lc( &ctx->painel, conteudo, tema, descricao ) ) {
+   if ( !validar_campos_conteudo_diario_lc( &ctx->painel, cont, tema, descricao ) ) {
       return; // Interrompe o salvamento imediatamente
    }
 
    int temp_qtd = 0;
-   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( conteudo->label_ch ) );
+   const gchar *str_ch = gtk_label_get_text( GTK_LABEL( cont->lbl_ch ) );
    if ( str_ch ) {
       sscanf( str_ch, "%d", &temp_qtd );
    }
 
    // 1. INJETA AS ALTERAÇÕES DIRETAMENTE NA LINHA DO LISTSTORE
-   gtk_list_store_set( store_view, &conteudo->iter_em_edicao,
-                       0, gtk_entry_get_text( GTK_ENTRY( conteudo->entry_data ) ),
+   gtk_list_store_set( store_view, &cont->iter_em_edicao,
+                       0, gtk_entry_get_text( GTK_ENTRY( cont->ent_data ) ),
                        1, temp_qtd,
                        2, tema,
                        3, descricao,
-                       4, gtk_combo_box_get_active( GTK_COMBO_BOX( conteudo->tipo_registro ) ),
+                       4, gtk_combo_box_get_active( GTK_COMBO_BOX( cont->tipo_registro ) ),
                        -1 );
 
    // 2. EXTRAI DO LISTSTORE PARA O CLONE DA RAM (Mantém a lista de frequência intacta)
    RegistroAula reg_clone = *reg;
-   extrair_linha_liststore_para_ram_lc( store_view, &conteudo->iter_em_edicao, &reg_clone );
+   extrair_linha_liststore_para_ram_lc( store_view, &cont->iter_em_edicao, &reg_clone );
 
    // 3. ATUALIZA A RAM GLOBAL E ORDENA
    *reg = reg_clone;
@@ -597,9 +597,9 @@ void modificar_registro_aula( AppContext *ctx ) {
       gtk_tree_view_scroll_to_cell( tree_view, path_novo, NULL, FALSE, 0.0f, 0.0f );
    }
 
-   conteudo->editando = FALSE;
+   cont->editando = FALSE;
    gtk_tree_selection_unselect_all( gtk_tree_view_get_selection( tree_view ) );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), "" );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_descricao ), "" );
 }
 
 
@@ -609,26 +609,26 @@ void modificar_registro_aula( AppContext *ctx ) {
  * @brief Atualiza dinamicamente o limite de caracteres da descrição e o placeholder
  *        conforme a carga horária selecionada e o tamanho do tema já digitado.
  */
-void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, int qtd_aulas ) {
-   GtkEntry *entry_descricao = GTK_ENTRY( conteudo->entry_descricao );
+void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *cont, int qtd_aulas ) {
+   GtkEntry *entry_descricao = GTK_ENTRY( cont->ent_descricao );
 
-   const gchar *texto = gtk_entry_get_text( GTK_ENTRY( conteudo->entry_tema ) );
+   const gchar *texto = gtk_entry_get_text( GTK_ENTRY( cont->ent_tema ) );
    int qtd_caracteres = ( int )g_utf8_strlen( texto, -1 );
 
    // Matemática inteira limpa: (x * 3) / 2 substitui o round(x * 1.5)
    // Se qtd_caracteres == 0, a subtração será 0 automaticamente, dispensando o if/else
-   int limite_chars = ( qtd_aulas * 98 ) - ( ( qtd_caracteres * 7 ) / 5 ) - ( qtd_aulas == 1 ? 3 : 0 );
+   int lim_chars = ( qtd_aulas * 98 ) - ( ( qtd_caracteres * 7 ) / 5 ) - ( qtd_aulas == 1 ? 3 : 0 );
 
    // Prevenção contra estouro reverso (caso o tema digitado seja absurdamente longo)
-   if ( limite_chars < 0 ) {
-      limite_chars = 0;
+   if ( lim_chars < 0 ) {
+      lim_chars = 0;
    }
 
    // 1. Aplica o limite físico de caracteres na GtkEntry
-   gtk_entry_set_max_length( entry_descricao, limite_chars );
+   gtk_entry_set_max_length( entry_descricao, lim_chars );
 
    // 2. Sinaliza visualmente no placeholder da entry para orientar o usuário
-   g_autofree char *placeholder = g_strdup_printf( "Descrição (máx. %d caracteres)", limite_chars );
+   g_autofree char *placeholder = g_strdup_printf( "Descrição (máx. %d caracteres)", lim_chars );
    gtk_entry_set_placeholder_text( entry_descricao, placeholder );
 }
 // ======================================================================================
@@ -638,12 +638,12 @@ void atualizar_limite_descricao_por_aulas( const InterfaceConteudo *conteudo, in
 
 void ui_restaurar_registros_de_aula( AppContext *ctx, gboolean rolagem ) {
    g_return_if_fail( ctx != NULL );
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
    g_autofree char *caminho_arquivo = g_build_filename( ctx->caminho.dados, "diario.bin", NULL );
 
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( cont->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -702,9 +702,9 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    g_return_if_fail( ctx != NULL && iter != NULL );
 
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceConteudo *conteudo = &ctx->diario.conteudo;
+   InterfaceConteudo *cont = &ctx->diario.conteudo;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( conteudo->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( cont->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
 
    // 1. Descobre o índice da linha clicada na TreeView
@@ -725,19 +725,19 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
    RegistroAula *aula_edicao = &g_array_index( diario->aulas, RegistroAula, indice );
 
    // 3. Popula a interface visual rapidamente
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_data ), aula_edicao->data );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_data ), aula_edicao->data );
 
-   gtk_combo_box_set_active( GTK_COMBO_BOX( conteudo->tipo_registro ), aula_edicao->tipo_registro );
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_tema ), aula_edicao->tema );
+   gtk_combo_box_set_active( GTK_COMBO_BOX( cont->tipo_registro ), aula_edicao->tipo_registro );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_tema ), aula_edicao->tema );
 
    g_autofree gchar *str_ch = g_strdup_printf( "%d h", aula_edicao->ch );
-   gtk_label_set_text( GTK_LABEL( conteudo->label_ch ), str_ch ); // Dispara sinal notify::label (precisa tema setado)
+   gtk_label_set_text( GTK_LABEL( cont->lbl_ch ), str_ch ); // Dispara sinal notify::label (precisa tema setado)
 
-   gtk_entry_set_text( GTK_ENTRY( conteudo->entry_descricao ), aula_edicao->descricao );
+   gtk_entry_set_text( GTK_ENTRY( cont->ent_descricao ), aula_edicao->descricao );
 
    // 4. Atualiza o estado da aplicação
-   conteudo->iter_em_edicao = *iter;
-   conteudo->editando = TRUE;
+   cont->iter_em_edicao = *iter;
+   cont->editando = TRUE;
 }
 
 
@@ -751,7 +751,7 @@ void carregar_registro_para_edicao( AppContext *ctx, GtkTreeIter *iter ) {
 void popular_datas( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    int qtd_itens = ( int )diario->aulas->len;
    int foco = -1; // -1 indica que nenhuma data válida foi encontrada ainda
@@ -769,11 +769,11 @@ void popular_datas( AppContext *ctx ) {
    }
 
    if ( qtd_itens > 0 && foco >= 0 ) {
-      popular_combo_box_generico( frequencia->combo_data, diario->aulas, qtd_itens, foco,
-                                  frequencia->handler_combo_data, mapear_datas_frequencia_lc );
+      popular_combo_box_generico( freq->cmb_data, diario->aulas, qtd_itens, foco,
+                                  freq->hdl_cmb_data, mapear_datas_frequencia_lc );
 
       GtkTreeIter iter;
-      GtkComboBox *combo = GTK_COMBO_BOX( frequencia->combo_data );
+      GtkComboBox *combo = GTK_COMBO_BOX( freq->cmb_data );
 
       if ( gtk_combo_box_get_active_iter( combo, &iter ) ) {
          GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
@@ -782,28 +782,28 @@ void popular_datas( AppContext *ctx ) {
          gtk_tree_model_get( model_view, &iter, 1, &qtd_aulas, 2, &eh_extra, -1 );
 
          g_autofree gchar *str_qtd_aulas = meu_gerador_variadico( "<b>%u h</b>%s", qtd_aulas, eh_extra ? " - extra" : "" );
-         gtk_label_set_markup( GTK_LABEL( frequencia->label_ch ), str_qtd_aulas );
+         gtk_label_set_markup( GTK_LABEL( freq->lbl_ch ), str_qtd_aulas );
       }
 
    } else {
       // Limpa visualmente se a turma estiver vazia ou só tiver feriados
-      popular_combo_box_generico( frequencia->combo_data, NULL, 0, 0,
-                                  frequencia->handler_combo_data, mapear_datas_frequencia_lc );
+      popular_combo_box_generico( freq->cmb_data, NULL, 0, 0,
+                                  freq->hdl_cmb_data, mapear_datas_frequencia_lc );
 
-      gtk_label_set_text( GTK_LABEL( frequencia->label_ch ), "0 h" );
+      gtk_label_set_text( GTK_LABEL( freq->lbl_ch ), "0 h" );
 
       // Limpa a visualização da TreeView de forma segura
-      GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+      GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
       GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
       if ( model_view ) {
          gtk_list_store_clear( GTK_LIST_STORE( model_view ) );
       }
 
       // SE NÃO HÁ AULAS REGISTRADAS, ENTÃO O COMBO DOS ALUNOS DEVE SER OCULTADO
-      gtk_list_store_clear( GTK_LIST_STORE( gtk_tree_view_get_model( GTK_TREE_VIEW( frequencia->treeview ) ) ) );
-      frequencia->foco_combo_alunos = -1;
-      frequencia->limite_combo_alunos = 0;
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), frequencia->foco_combo_alunos );
+      gtk_list_store_clear( GTK_LIST_STORE( gtk_tree_view_get_model( GTK_TREE_VIEW( freq->treeview ) ) ) );
+      freq->foc_cmb_alunos = -1;
+      freq->lim_cmb_alunos = 0;
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_alunos ), freq->foc_cmb_alunos );
    }
 }
 
@@ -825,9 +825,9 @@ static int indexar_liststore_modo_por_aluno_lc( const GArray *aulas, int idx_aul
 
 static void processar_modo_por_aluno_lc( AppContext *ctx, int idx_aula, const char *str_status, int status_num ) {
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -852,7 +852,7 @@ static void processar_modo_por_aluno_lc( AppContext *ctx, int idx_aula, const ch
    }
 
    if ( ( guint )idx_aula < diario->aulas->len ) {
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), idx_aula );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_data ), idx_aula );
    }
 }
 
@@ -891,9 +891,9 @@ static gchar *cod_aluno_formatado_lc( uint32_t cod_aluno ) {
 static void processar_modo_normal_lc( AppContext *ctx, RegistroAula *aula, int idx_aluno,
                                       const char *str_status, int status_num ) {
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -952,7 +952,7 @@ static void processar_modo_normal_lc( AppContext *ctx, RegistroAula *aula, int i
 
          aula->chamada[idx_aluno].status = SEM_STATUS;
 
-         GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
+         GtkComboBox *combo_status = GTK_COMBO_BOX( freq->cmb_status );
          g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, 0 );
 
          g_autofree gchar *nasc_inativo = formatar_data_extenso_lc( ficha->nasc );
@@ -974,10 +974,10 @@ static void processar_modo_normal_lc( AppContext *ctx, RegistroAula *aula, int i
       }
    }
 
-   frequencia->limite_combo_alunos = gtk_tree_model_iter_n_children( model_view, NULL ) + 1;
+   freq->lim_cmb_alunos = gtk_tree_model_iter_n_children( model_view, NULL ) + 1;
 
    if ( idx_aluno < ctx->dados.qtd_alunos_total ) {
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), idx_aluno );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_alunos ), idx_aluno );
    } else if ( idx_aluno == ctx->dados.qtd_alunos_total ) {
       rolagem_automatica_treeview_frequencia( ctx );
    }
@@ -986,14 +986,14 @@ static void processar_modo_normal_lc( AppContext *ctx, RegistroAula *aula, int i
 void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContext *ctx, StatusAssiduidade status ) {
    g_return_if_fail( ctx != NULL && painel != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_alunos ) );
    if ( idx_aluno < 0 || idx_aluno >= ctx->dados.qtd_alunos_total ) {
       return;
    }
 
-   int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
+   int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_data ) );
    if ( idx_aula < 0 || ( guint )idx_aula >= diario->aulas->len ) {
       return;
    }
@@ -1002,11 +1002,11 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
    aula->chamada[idx_aluno].status = status;
    marcar_dados_modificado_lc( ctx );
 
-   GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
+   GtkComboBox *combo_status = GTK_COMBO_BOX( freq->cmb_status );
    g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, status );
 
    // O roteamento agora passa o número do status, eliminando os GdkRGBA intermediários!
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) );
    if ( modo_por_aluno ) {
       processar_modo_por_aluno_lc( ctx, idx_aula, texto_status, status );
    } else {
@@ -1017,20 +1017,20 @@ void registrar_status_assiduidade_frequencia( InterfacePainel *painel, AppContex
 void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
+   int foco = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_data ) );
    if ( foco < 0 || ( guint )foco >= diario->aulas->len ) {
       return;
    }
 
    RegistroAula *aula = &g_array_index( diario->aulas, RegistroAula, foco );
 
-   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) ) ) {
+   if ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) ) ) {
       return;
    }
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -1060,7 +1060,7 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
       g_autofree gchar *nasc = formatar_data_extenso_lc( ficha->nasc );
       const char *fonte_numerica = "Monospace 20px";
 
-      GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
+      GtkComboBox *combo_status = GTK_COMBO_BOX( freq->cmb_status );
       g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, status_atual );
 
       g_autofree gchar *texto_cod_aluno = cod_aluno_formatado_lc( ficha->cod_aluno );
@@ -1083,16 +1083,16 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
    g_object_unref( store_view );
 
    if ( linhas_renderizadas < ctx->dados.qtd_alunos_total ) {
-      frequencia->limite_combo_alunos = linhas_renderizadas + 1;
+      freq->lim_cmb_alunos = linhas_renderizadas + 1;
    } else {
-      frequencia->limite_combo_alunos = ctx->dados.qtd_alunos_total;
+      freq->lim_cmb_alunos = ctx->dados.qtd_alunos_total;
    }
 
-   for ( int i = frequencia->limite_combo_alunos - 1; i >= 0; i-- ) {
+   for ( int i = freq->lim_cmb_alunos - 1; i >= 0; i-- ) {
       FichaAluno *ficha = g_ptr_array_index( diario->fichas, i );
       if ( ficha->ativo ) {
-         frequencia->foco_combo_alunos = i;
-         gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), i );
+         freq->foc_cmb_alunos = i;
+         gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_alunos ), i );
          break;
       }
    }
@@ -1101,14 +1101,14 @@ void renderizar_frequencia_modo_normal( AppContext *ctx ) {
 void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
+   int idx_aluno = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_alunos ) );
    if ( idx_aluno < 0 || idx_aluno >= ctx->dados.qtd_alunos_total ) {
       return;
    }
 
-   GtkTreeView *tree_view = GTK_TREE_VIEW( frequencia->treeview );
+   GtkTreeView *tree_view = GTK_TREE_VIEW( freq->treeview );
    GtkTreeModel *model_view = gtk_tree_view_get_model( tree_view );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -1139,7 +1139,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
          achou_pendente = TRUE;
       }
 
-      GtkComboBox *combo_status = GTK_COMBO_BOX( frequencia->combo_status );
+      GtkComboBox *combo_status = GTK_COMBO_BOX( freq->cmb_status );
       g_autofree gchar *texto_status = combo_box_text_get_text_at( combo_status, idx_st );
 
       GtkTreeIter iter;
@@ -1158,7 +1158,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
    g_object_unref( store_view );
 
    if ( diario->aulas->len > 0 ) {
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), proxima_data_pendente );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_data ), proxima_data_pendente );
    }
 }
 
@@ -1170,7 +1170,7 @@ void renderizar_frequencia_modo_por_aluno( AppContext *ctx ) {
 void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indice_linha ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   const InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   const InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    int linha_atual = 0;
    int indice_real_diario = -1;
@@ -1192,17 +1192,17 @@ void treeview_frequencia_navegar_modo_por_aluno( const AppContext *ctx, int indi
       linha_atual++;
    }
 
-   if ( indice_real_diario >= 0 && frequencia->combo_data ) {
-      g_object_set_data( G_OBJECT( frequencia->combo_data ), "programatico", GINT_TO_POINTER( TRUE ) );
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_data ), indice_real_diario );
-      g_object_set_data( G_OBJECT( frequencia->combo_data ), "programatico", GINT_TO_POINTER( FALSE ) );
+   if ( indice_real_diario >= 0 && freq->cmb_data ) {
+      g_object_set_data( G_OBJECT( freq->cmb_data ), "programatico", GINT_TO_POINTER( TRUE ) );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_data ), indice_real_diario );
+      g_object_set_data( G_OBJECT( freq->cmb_data ), "programatico", GINT_TO_POINTER( FALSE ) );
    }
 }
 
 void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView *treeview, int indice_linha ) {
    g_return_if_fail( ctx != NULL && treeview != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   const InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   const InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
    if ( indice_linha < 0 && indice_linha >= ctx->dados.qtd_alunos_total ) {
       return;
@@ -1212,14 +1212,14 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
    ficha = g_ptr_array_index( diario->fichas, indice_linha );
 
    if ( ficha->ativo ) {
-      g_object_set_data( G_OBJECT( frequencia->combo_alunos ), "programatico", GINT_TO_POINTER( TRUE ) );
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_alunos ), indice_linha );
-      g_object_set_data( G_OBJECT( frequencia->combo_alunos ), "programatico", GINT_TO_POINTER( FALSE ) );
+      g_object_set_data( G_OBJECT( freq->cmb_alunos ), "programatico", GINT_TO_POINTER( TRUE ) );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_alunos ), indice_linha );
+      g_object_set_data( G_OBJECT( freq->cmb_alunos ), "programatico", GINT_TO_POINTER( FALSE ) );
       return;
    }
 
    // ALUNO INATIVO: Lógica de repulsão magnética (Pulo Automático)
-   int foco_anterior = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
+   int foco_anterior = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_alunos ) );
    int target = -1;
 
    if ( indice_linha > foco_anterior ) {
@@ -1259,9 +1259,9 @@ void treeview_frequencia_navegar_modo_normal( const AppContext *ctx, GtkTreeView
 void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   const InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   const InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   GtkTreeView *treeview = GTK_TREE_VIEW( frequencia->treeview );
+   GtkTreeView *treeview = GTK_TREE_VIEW( freq->treeview );
    GtkTreeModel *model = gtk_tree_view_get_model( treeview );
 
    // Prevenção caso a árvore ainda não tenha sido populada
@@ -1269,12 +1269,12 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
       return;
    }
 
-   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( frequencia->check_por_aluno ) );
+   gboolean modo_por_aluno = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( freq->chk_por_aluno ) );
 
    // Captura o índice ativo original dos combos
    int ativo = modo_por_aluno ?
-               gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) ) :
-               gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
+               gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_data ) ) :
+               gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_alunos ) );
 
    if ( ativo < 0 ) {
       return;
@@ -1330,21 +1330,21 @@ void rolagem_automatica_treeview_frequencia( const AppContext *ctx ) {
 void selecionar_combo_status( const AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   const InterfaceFrequencia *frequencia = &ctx->diario.frequencia;
+   const InterfaceFrequencia *freq = &ctx->diario.frequencia;
 
-   int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_alunos ) );
+   int ativo = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_alunos ) );
    if ( ativo < 0 ) {
       return;
    }
 
-   int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( frequencia->combo_data ) );
+   int idx_aula = gtk_combo_box_get_active( GTK_COMBO_BOX( freq->cmb_data ) );
 
    if ( idx_aula >= 0 && ( guint )idx_aula < diario->aulas->len ) {
       const RegistroAula *aula = &g_array_index( diario->aulas, RegistroAula, idx_aula );
       int status_atual = aula->chamada[ativo].status;
 
       // O índice do combo de status corresponde exatamente ao valor do enum (StatusAssiduidade)
-      gtk_combo_box_set_active( GTK_COMBO_BOX( frequencia->combo_status ), status_atual );
+      gtk_combo_box_set_active( GTK_COMBO_BOX( freq->cmb_status ), status_atual );
    }
 }
 
@@ -1447,7 +1447,7 @@ void salvar_diario( AppContext *ctx, gboolean final_save ) {
 // =====================================================================
 // AVALIAÇÕES
 // =====================================================================
-static void mapper_avaliacao_diario( GtkListStore *store, GtkTreeIter *iter, const void *dados_array, int index ) {
+static void mapper_aval_diario( GtkListStore *store, GtkTreeIter *iter, const void *dados_array, int index ) {
    g_return_if_fail( store != NULL );
    g_return_if_fail( iter != NULL );
    g_return_if_fail( dados_array != NULL );
@@ -1497,12 +1497,12 @@ static void visibilidade_avaliacoes_lc( const AppContext *ctx, GtkTreeView *tree
 
 
 
-void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo ) {
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+void selecionar_aval( AppContext *ctx, GtkComboBox *combo, int item_ativo ) {
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
    // -----------------------------------------------------------------
    // REGRA 2: Mostra a ordem da avaliação selecionada no label
    // -----------------------------------------------------------------
-   avaliacao->foco_avaliacao = item_ativo;
+   aval->foc_aval = item_ativo;
 
    GtkTreeModel *model = gtk_combo_box_get_model( combo );
    GtkTreeIter iter;
@@ -1513,20 +1513,20 @@ void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo )
       // 1. Lê a coluna 1 do ListStore (TRUE se estiver desativada/riscada)
       gtk_tree_model_get( model, &iter, 1, &riscado, -1 );
 
-      GtkWidget *check = avaliacao->check_desativar_avaliacao;
-      gulong handler = avaliacao->handler_check_desativar;
+      GtkWidget *check = aval->chk_desativar_aval;
+      gulong hdl = aval->hdl_chk_desativar;
 
       // 2. Bloqueia o sinal temporariamente para evitar disparo falso do autosave
-      if ( handler > 0 ) {
-         g_signal_handler_block( check, handler );
+      if ( hdl > 0 ) {
+         g_signal_handler_block( check, hdl );
       }
 
       // 3. Atualiza a interface da caixa de seleção
       gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), riscado );
 
       // 4. Desbloqueia o sinal para que cliques reais do professor voltem a funcionar
-      if ( handler > 0 ) {
-         g_signal_handler_unblock( check, handler );
+      if ( hdl > 0 ) {
+         g_signal_handler_unblock( check, hdl );
       }
    }
 }
@@ -1536,14 +1536,14 @@ void selecionar_avaliacao( AppContext *ctx, GtkComboBox *combo, int item_ativo )
 void carregar_avaliacoes( AppContext *ctx ) {
    g_return_if_fail( ctx != NULL );
    InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkWidget *check = avaliacao->check_desativar_avaliacao;
-   gulong handler = avaliacao->handler_check_desativar;
+   GtkWidget *check = aval->chk_desativar_aval;
+   gulong hdl = aval->hdl_chk_desativar;
    int foco_inicial = 0;
 
-   if ( handler > 0 ) {
-      g_signal_handler_block( check, handler );
+   if ( hdl > 0 ) {
+      g_signal_handler_block( check, hdl );
    }
 
    // 1. Carrega o binário para a memória RAM (GArray)
@@ -1552,12 +1552,12 @@ void carregar_avaliacoes( AppContext *ctx ) {
       // 2. Se houver dados, repassa o ponteiro interno do GArray para popular o UI
       if ( diario->metas_avs && diario->metas_avs->len > 0 ) {
          popular_combo_box_generico(
-            avaliacao->combo_avaliacao,
+            aval->cmb_aval,
             diario->metas_avs->data,               // Bloco contíguo das structs
             ( int )diario->metas_avs->len,              // Quantidade exata de itens
             foco_inicial,                        // Foco padrão
-            avaliacao->handler_combo_avaliacao,  // Silencia o sinal durante o processo
-            mapper_avaliacao_diario
+            aval->hdl_cmb_aval,  // Silencia o sinal durante o processo
+            mapper_aval_diario
          );
 
          MetaAvaliacao *meta = &g_array_index( diario->metas_avs, MetaAvaliacao, foco_inicial );
@@ -1566,18 +1566,18 @@ void carregar_avaliacoes( AppContext *ctx ) {
       marcar_dados_modificado_lc( ctx );
 
    } else {
-      popular_combo_box_generico( avaliacao->combo_avaliacao, diario->metas_avs->data, 0, 0,
-                                  avaliacao->handler_combo_avaliacao, mapper_avaliacao_diario );
+      popular_combo_box_generico( aval->cmb_aval, diario->metas_avs->data, 0, 0,
+                                  aval->hdl_cmb_aval, mapper_aval_diario );
 
       gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), FALSE );
    }
 
-   if ( handler > 0 ) {
-      g_signal_handler_unblock( check, handler );
+   if ( hdl > 0 ) {
+      g_signal_handler_unblock( check, hdl );
    }
 
    // Assumindo que o ponteiro do seu TreeView está no contexto
-   GtkTreeView *treeview = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeView *treeview = GTK_TREE_VIEW( aval->treeview );
    visibilidade_avaliacoes_lc( ctx, treeview );
 
 }
@@ -1596,11 +1596,11 @@ void salvar_avaliacoes( AppContext *ctx, gboolean final_save ) {
 }
 
 //===================================================================================
-void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
+void desativar_aval( AppContext *ctx, gboolean estado ) {
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
+   GtkComboBox *combo = GTK_COMBO_BOX( aval->cmb_aval );
    int ativo = gtk_combo_box_get_active( combo );
 
    // 1. Aborta se não houver avaliação selecionada no combo
@@ -1631,24 +1631,24 @@ void desativar_avaliacao( AppContext *ctx, gboolean estado ) {
    marcar_dados_modificado_lc( ctx );
 
    // Assumindo que o ponteiro do seu TreeView está no contexto
-   GtkTreeView *treeview = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeView *treeview = GTK_TREE_VIEW( aval->treeview );
    visibilidade_avaliacoes_lc( ctx, treeview );
 }
 //-----------------------------------------------------------------------------------
-void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
-   g_return_if_fail( avaliacao != NULL );
+void obter_avaliacoes_validas( InterfaceAvaliacao *aval ) {
+   g_return_if_fail( aval != NULL );
 
-   GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( avaliacao->combo_avaliacao ) );
+   GtkTreeModel *model = gtk_combo_box_get_model( GTK_COMBO_BOX( aval->cmb_aval ) );
    if ( !model ) {
       return;
    }
 
    for ( int i = 0; i < MAX_AVALIACOES; i++ ) {
-      avaliacao->validas[i] = FALSE;
+      aval->validas[i] = FALSE;
    }
 
    GtkTreeIter iter;
-   avaliacao->qtd_validas = 0;
+   aval->qtd_validas = 0;
    int idx = 0;
 
    if ( gtk_tree_model_get_iter_first( model, &iter ) ) {
@@ -1661,8 +1661,8 @@ void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
          gtk_tree_model_get( model, &iter, 1, &desativada, -1 );
 
          if ( !desativada ) {
-            avaliacao->validas[idx] = TRUE;
-            avaliacao->qtd_validas++;
+            aval->validas[idx] = TRUE;
+            aval->qtd_validas++;
          }
          idx++;
       } while ( gtk_tree_model_iter_next( model, &iter ) );
@@ -1670,13 +1670,13 @@ void obter_avaliacoes_validas( InterfaceAvaliacao *avaliacao ) {
 }
 //===================================================================================
 
-void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
+void popover_adicionar_aval( AppContext *ctx, const char *texto ) {
    g_return_if_fail( ctx != NULL );
    g_return_if_fail( texto != NULL );
    InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
+   GtkComboBox *combo = GTK_COMBO_BOX( aval->cmb_aval );
    GtkTreeModel *model_view = gtk_combo_box_get_model( combo );
    GtkListStore *store_view = GTK_LIST_STORE( model_view );
 
@@ -1716,18 +1716,18 @@ void popover_adicionar_avaliacao( AppContext *ctx, const char *texto ) {
    // 4. Sinaliza ao sistema (autosave) que há dados pendentes para gravação
    marcar_dados_modificado_lc( ctx );
 
-   GtkTreeView *treeview = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeView *treeview = GTK_TREE_VIEW( aval->treeview );
    visibilidade_avaliacoes_lc( ctx, treeview );
 }
 
 
-void popover_editar_avaliacao( AppContext *ctx, const char *texto ) {
+void popover_editar_aval( AppContext *ctx, const char *texto ) {
    g_return_if_fail( ctx != NULL );
    g_return_if_fail( texto != NULL );
    const InterfaceDiario *diario = &ctx->diario;
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkComboBox *combo = GTK_COMBO_BOX( avaliacao->combo_avaliacao );
+   GtkComboBox *combo = GTK_COMBO_BOX( aval->cmb_aval );
    int ativo = gtk_combo_box_get_active( combo );
 
    if ( ativo < 0 ) {
@@ -1854,7 +1854,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    destino->atipico          = origem->atipico;
 //    destino->sit              = origem->sit;
 //    destino->ativo            = origem->ativo;
-//    destino->limite_corte     = origem->limite_corte;
+//    destino->lim_corte     = origem->lim_corte;
 //    destino->idx_siaep        = origem->idx_siaep;
 //    destino->ficha_modificada = origem->ficha_modificada;
 //    destino->lim_disc         = lim_disc;
@@ -1881,7 +1881,7 @@ gboolean salvar_fichas( AppContext *ctx, gboolean final_save ) {
 //    g_return_val_if_fail( ctx != NULL, FALSE );
 //
 //    guint8 lim_disc = 1;
-//    if( ctx->cabecalho.foco_turma > 4 ) lim_disc = 2;
+//    if( ctx->cabecalho.foc_turma > 4 ) lim_disc = 2;
 //
 //    gboolean salvou_algo = FALSE;
 //
@@ -1971,7 +1971,7 @@ static gboolean celula_pode_receber_foco_lc( AppContext *ctx, GtkTreeModel *mode
          return FALSE;
       }
 
-      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( ctx->diario.relatorio.check_pendencias );
+      GtkToggleButton *check_pendencias = GTK_TOGGLE_BUTTON( ctx->diario.relatorio.chk_pendencias );
       gboolean modo_pendencias = gtk_toggle_button_get_active( check_pendencias );
       if ( !modo_pendencias ) {
          return FALSE;
@@ -2190,7 +2190,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    g_return_if_fail( ctx != NULL && renderer != NULL && path_string != NULL );
 
    const InterfaceDiario *diario    = &ctx->diario;
-   InterfaceAvaliacao    *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao    *aval = &ctx->diario.avaliacao;
    InterfaceRelatorio    *relatorio = &ctx->diario.relatorio;
 
    if ( !diario->fichas ) {
@@ -2221,7 +2221,7 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
 
    FichaAluno *ficha   = g_ptr_array_index( diario->fichas, index_aluno );
    gint        col_idx = GPOINTER_TO_INT( g_object_get_data( G_OBJECT( renderer ), "col_model_idx" ) );
-   int         foco    = ctx->cabecalho.foco_disciplina;
+   int         foco    = ctx->cabecalho.foc_disciplina;
 
    float *nota_alvo = NULL;
 
@@ -2231,8 +2231,8 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
    // ==========================================================
    // 2. ROTEAMENTO DINÂMICO: Descobre o endereço de memória alvo
    // ==========================================================
-   if ( tree_view == GTK_TREE_VIEW( avaliacao->treeview ) ) {
-      int      periodo  = ctx->cabecalho.foco_periodo;
+   if ( tree_view == GTK_TREE_VIEW( aval->treeview ) ) {
+      int      periodo  = ctx->cabecalho.foc_periodo;
       int      av_index = ( col_idx - 2 ) / 2;
       gboolean is_rec   = ( col_idx % 2 != 0 );
 
@@ -2241,15 +2241,15 @@ void processar_gravacao_nota( AppContext *ctx, GtkCellRenderer *renderer,
          nota_alvo           = is_rec ? &nota->rec : &nota->av;
       }
    } else if ( tree_view == GTK_TREE_VIEW( relatorio->treeview ) ) {
-      RelatorioAnual *rel = &ficha->disciplina[foco].relatorio;
+      RelatorioAnual *relf = &ficha->disciplina[foco].relatorio;
 
       if ( col_idx >= 2 && col_idx <= 4 ) {
          int p     = col_idx - 2;
-         nota_alvo = &rel->notas_periodos[p];
+         nota_alvo = &relf->notas_periodos[p];
       } else if ( col_idx == 8 ) {
-         nota_alvo = &rel->rec_final;
+         nota_alvo = &relf->rec_final;
       } else if ( col_idx == 9 ) {
-         nota_alvo = &rel->conselho;
+         nota_alvo = &relf->conselho;
       }
    }
 
@@ -2290,7 +2290,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
    g_return_if_fail( ctx != NULL && start_path != NULL && column != NULL );
 
    const InterfaceDiario *diario    = &ctx->diario;
-   InterfaceAvaliacao    *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao    *aval = &ctx->diario.avaliacao;
    if ( !diario->fichas ) {
       return;
    }
@@ -2301,7 +2301,7 @@ void colar_notas_em_lote( AppContext *ctx, GtkWidget *widget, GtkTreePath *start
       return;
    }
 
-   GtkTreeView  *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( aval->treeview );
    GtkTreeModel *model     = gtk_tree_view_get_model( tree_view );
 
    g_autoptr( GtkTreePath ) current_path = gtk_tree_path_copy( start_path );
@@ -2385,18 +2385,18 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
    if ( diario->fichas == NULL ) {
       return;
    }
-   InterfaceAvaliacao *avaliacao = &ctx->diario.avaliacao;
+   InterfaceAvaliacao *aval = &ctx->diario.avaliacao;
 
-   GtkTreeView  *tree_view = GTK_TREE_VIEW( avaliacao->treeview );
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( aval->treeview );
    GtkListStore *store     = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
-   int foco_per = ctx->cabecalho.foco_periodo;
+   int foco_per = ctx->cabecalho.foc_periodo;
    g_return_if_fail( foco_per >= 0 && foco_per <= 3 );
 
    // 1. Limpa o modelo inteiro para receber os dados do novo período
    gtk_list_store_clear( store );
 
-   int foco = ctx->cabecalho.foco_disciplina;
+   int foco = ctx->cabecalho.foc_disciplina;
 
    // 2. Percorre o GPtrArray reconstruindo as linhas do zero
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
@@ -2413,8 +2413,8 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
          formatar_nota_com_espaco_tabular_lc( nota->rec, str_notas[base + 1], sizeof( str_notas[base + 1] ) );
       }
 
-      const RelatorioAnual *relatorio = &ficha->disciplina[foco].relatorio;
-      formatar_nota_com_espaco_tabular_lc( relatorio->notas_periodos[foco_per], str_notas[10], sizeof( str_notas[10] ) );
+      const RelatorioAnual *relf = &ficha->disciplina[foco].relatorio;
+      formatar_nota_com_espaco_tabular_lc( relf->notas_periodos[foco_per], str_notas[10], sizeof( str_notas[10] ) );
 
       for ( int j = 0; j < 11; j++ ) {
          g_strdelimit( str_notas[j], ".", ',' );
@@ -2443,14 +2443,14 @@ void carregar_notas_ui_por_periodo( AppContext *ctx ) {
 //===================================================================================================
 // FUNÇÃO AUXILIAR: Transforma o status pré-calculado em texto para a UI e ativa as permissões (View)
 //===================================================================================================
-static const char *avaliar_status_aprovacao_e_pendencias_lc( const RelatorioAnual *rel, int *mascara_pendencias ) {
-   g_return_val_if_fail( rel != NULL && mascara_pendencias != NULL, "" );
+static const char *avaliar_status_aprovacao_e_pendencias_lc( const RelatorioAnual *relf, int *mascara_pendencias ) {
+   g_return_val_if_fail( relf != NULL && mascara_pendencias != NULL, "" );
 
-   if ( rel->soma < 0.0f ) {
+   if ( relf->soma < 0.0f ) {
       return "";
    }
 
-   switch ( rel->obs ) {
+   switch ( relf->obs ) {
    case OBS_ALUNO_APROVADO_NO_CONSELHO:
       *mascara_pendencias |= MASK_DESTRAVA_CONSELHO;
       return "Aprov Cons";
@@ -2489,14 +2489,14 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    if ( diario->fichas == NULL ) {
       return;
    }
-   InterfaceRelatorio *relatorio = &ctx->diario.relatorio;
+   InterfaceRelatorio *rel = &ctx->diario.relatorio;
 
-   int      d            = ctx->cabecalho.foco_disciplina;
-   gboolean eh_rec       = ( ctx->cabecalho.foco_periodo_vigente == RECUPERACAO_FINAL );
-   int      foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foco_periodo_vigente;
+   int      d            = ctx->cabecalho.foc_disciplina;
+   gboolean eh_rec       = ( ctx->cabecalho.foc_periodo_vigente == RECUPERACAO_FINAL );
+   int      foco_periodo = eh_rec ? QUARTO_PERIODO : ctx->cabecalho.foc_periodo_vigente;
    g_return_if_fail( foco_periodo >= 0 && foco_periodo < 4 );
 
-   GtkTreeView  *tree_view = GTK_TREE_VIEW( relatorio->treeview );
+   GtkTreeView  *tree_view = GTK_TREE_VIEW( rel->treeview );
    GtkListStore *store     = GTK_LIST_STORE( gtk_tree_view_get_model( tree_view ) );
 
    // 1. Otimização de Performance GTK
@@ -2512,7 +2512,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    for ( int p = 0; p <= foco_periodo; p++ ) {
       hash_acesso[p] = g_hash_table_new( g_direct_hash, g_direct_equal );
 
-      GtkComboBox      *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+      GtkComboBox      *combo_periodo = GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo );
       g_autofree gchar *texto_periodo = combo_box_text_get_text_at( combo_periodo, p );
 
       g_autofree gchar *acesso_bin = g_build_filename(
@@ -2542,7 +2542,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
    // =========================================================================
    for ( guint i = 0; i < diario->fichas->len; i++ ) {
       FichaAluno           *ficha = g_ptr_array_index( diario->fichas, i );
-      const RelatorioAnual *rel   = &ficha->disciplina[d].relatorio;
+      const RelatorioAnual *relf   = &ficha->disciplina[d].relatorio;
 
       GtkTreeIter iter;
       char        str_cols[8][16] = { { 0 } };
@@ -2568,27 +2568,27 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 
       // --- PASSO A: Formata as notas dos 4 períodos ---
       for ( int j = 0; j < 4; j++ ) {
-         if ( rel->notas_periodos[j] >= 0.0f ) {
-            formatar_nota_com_espaco_tabular_lc( rel->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
+         if ( relf->notas_periodos[j] >= 0.0f ) {
+            formatar_nota_com_espaco_tabular_lc( relf->notas_periodos[j], str_cols[j], sizeof( str_cols[j] ) );
          }
       }
 
       // --- PASSO B: Soma, Média, Rec Final e Conselho ---
-      if ( rel->soma >= 0.0f ) {
-         formatar_nota_com_espaco_tabular_lc( rel->soma,        str_cols[4], sizeof( str_cols[4] ) );
-         formatar_nota_com_espaco_tabular_lc( rel->media_anual, str_cols[5], sizeof( str_cols[5] ) );
+      if ( relf->soma >= 0.0f ) {
+         formatar_nota_com_espaco_tabular_lc( relf->soma,        str_cols[4], sizeof( str_cols[4] ) );
+         formatar_nota_com_espaco_tabular_lc( relf->media_anual, str_cols[5], sizeof( str_cols[5] ) );
       }
 
-      if ( rel->rec_final >= 0.0f ) {
-         formatar_nota_com_espaco_tabular_lc( rel->rec_final, str_cols[6], sizeof( str_cols[6] ) );
+      if ( relf->rec_final >= 0.0f ) {
+         formatar_nota_com_espaco_tabular_lc( relf->rec_final, str_cols[6], sizeof( str_cols[6] ) );
       }
 
-      if ( rel->conselho >= 0.0f ) {
-         formatar_nota_com_espaco_tabular_lc( rel->conselho, str_cols[7], sizeof( str_cols[7] ) );
+      if ( relf->conselho >= 0.0f ) {
+         formatar_nota_com_espaco_tabular_lc( relf->conselho, str_cols[7], sizeof( str_cols[7] ) );
       }
 
       // --- PASSO C: Lógica de Status & Destravamento de Edição Final (Sem DeadStore) ---
-      const char *obs = avaliar_status_aprovacao_e_pendencias_lc( rel, &mascara_pendencias );
+      const char *obs = avaliar_status_aprovacao_e_pendencias_lc( relf, &mascara_pendencias );
 
       // --- PASSO D: Filtro Visual para Alunos Inativos ---
       if ( !ficha->ativo ) {
@@ -2621,7 +2621,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
                           10, obs,
                           11, !ficha->ativo,
                           12, mascara_pendencias,
-                          13, rel->obs,
+                          13, relf->obs,
                           -1 );
    }
 
@@ -2645,7 +2645,7 @@ void carregar_relatorio_ui( AppContext *ctx ) {
 void gerar_acesso_recuperacao_final( AppContext *ctx ) {
    const InterfaceDiario *diario = &ctx->diario;
    InterfaceDados *dados = &ctx->dados;
-   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.combo_periodo );
+   GtkComboBox *combo = GTK_COMBO_BOX( ctx->cabecalho.cmb_periodo );
 
    // 1. Extração segura da nomenclatura direto da UI
    g_autofree gchar *nome_p4  = combo_box_text_get_text_at( combo, QUARTO_PERIODO );

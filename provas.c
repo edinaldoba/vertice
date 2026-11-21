@@ -77,7 +77,7 @@ static gchar *gerar_tex_lista_frequencia_lc( const char *caminho_saida, const GP
                            "\\usepackage[%s]{professor}\n"
                            "\\pagestyle{empty}\n\n"
                            "\\begin{document}\n"
-                           "\\noindent\\begin{tikzpicture}\n", cor_serie_nome[dados->foco_cor_serie] );
+                           "\\noindent\\begin{tikzpicture}\n", cor_serie_nome[dados->foc_cor_serie] );
 
    // Variáveis de Cálculo e Moldura
    g_string_append_printf( tex,
@@ -121,11 +121,11 @@ static gchar *gerar_tex_lista_frequencia_lc( const char *caminho_saida, const GP
 
       if ( ficha->ativo ) {
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {%.*s};\n",
-                                 i, ficha->limite_corte, ficha->aluno );
+                                 i, ficha->lim_corte, ficha->aluno );
       } else {
          const char *motivo = ( dados->periodo[0] == 'R' ) ? "Aprovado(a) na Média" : "Não Frequenta";
          g_string_append_printf( tex, "\\node[inner sep=0pt,right] at (1.75,{-2-\\p*(%d+0.5)}) {\\color{gray!50}%.*s};\n",
-                                 i, ficha->limite_corte, ficha->aluno );
+                                 i, ficha->lim_corte, ficha->aluno );
          g_string_append_printf( tex, "\\node[inner sep=0pt,color=gray!80,right] at (7.1,{-2-\\p*(%d+0.5)}) {%s};\n", i, motivo );
       }
    }
@@ -341,7 +341,7 @@ static void imagens_para_prova_lc( const int i, int numero, const GPtrArray *fic
    static const char * const cor_serie_nome[7] = {
       "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono"
    };
-   int idx_cor = CLAMP( dados->foco_cor_serie, 0, 6 );
+   int idx_cor = CLAMP( dados->foc_cor_serie, 0, 6 );
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[idx_cor] );
 
    char direcao = ( dados->qtd_colunas == 2 ) ? 'h' : 'v';
@@ -381,7 +381,7 @@ static void anexar_preambulo_latex( GString *tex, const InterfaceDados *dados ) 
    static const char * const cor_serie_nome[7] = {
       "primeiro", "segundo", "terceiro", "sexto", "setimo", "oitavo", "nono"
    };
-   int idx_cor = CLAMP( dados->foco_cor_serie, 0, 6 );
+   int idx_cor = CLAMP( dados->foc_cor_serie, 0, 6 );
    g_string_append_printf( tex, "\\usepackage[%s]{professor}\n", cor_serie_nome[idx_cor] );
 
    g_string_append( tex,
@@ -400,7 +400,7 @@ static void anexar_cabecalho_base_latex( GString *tex, const InterfaceDados *dad
    // 1. INJEÇÃO DO TEMA GRÁFICO DA PÁGINA (Renderizado por baixo)
    gint fator_tamanho = ( dados->cabecalho_tipo == 1 ) ? 1 : 0;
 
-   switch ( dados->foco_decoracao ) {
+   switch ( dados->foc_decoracao ) {
    case DECORACAO_TRAPEZIOS:
       anexar_tema_pagina_trapezios( tex, fator_tamanho );
       break;
@@ -589,7 +589,7 @@ static void processar_questao_latex( GString *tex, FILE *f_questao, int q_idx, i
          g_string_append( tex, "\n\n% QUESTAO\n" );
          int col_factor = ( 3 - dados->qtd_colunas ) * ( dados->cabecalho_tipo == 1 );
 
-         switch ( dados->foco_decoracao ) {
+         switch ( dados->foc_decoracao ) {
          case DECORACAO_TRAPEZIOS:
             anexar_cabecalho_questao_trapezios( tex, col_factor, q_idx + 1 );
             break;

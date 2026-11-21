@@ -4,7 +4,6 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -665,7 +664,7 @@ gboolean decodificar_payload_matriz( MapeamentoGabarito *map, const InterfaceCab
    // A sequência da prova é o único valor que não pode ser zero (valores 1, 2 e 3)
    // Pois a leitura do binário numa área branca retornava um payload válido onde todos os bits são zero
    // Mudando a sequência da prova de 0, 1, 2 para 1, 2, 3 elimina essa vulnerabilidade.
-   if ( map->turma >= cabecalho->limite_turmas || map->per + 1 >= 5 || map->seq == 0 ) {
+   if ( map->turma >= cabecalho->lim_turmas || map->per + 1 >= 5 || map->seq == 0 ) {
       return FALSE;
    }
 

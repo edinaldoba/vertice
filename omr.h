@@ -2,7 +2,6 @@
 #define OMR_H
 
 #include "interface.h"
-#include "gas.h"
 
 
 gboolean detectar_ancoras_omr( const ImagemCinza *img_bin, IndiceMatriz ancora[4], char *direcao_inferida, gboolean resgate );

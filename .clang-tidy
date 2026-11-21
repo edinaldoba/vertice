@@ -11,6 +11,7 @@ Checks: >
   readability-redundant-declaration,
   misc-definitions-in-headers,
   misc-redundant-expression,
+  bugprone-unused-local-non-trivial-variable,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -clang-analyzer-security.insecureAPI.strcpy,
   -bugprone-casting-through-void,

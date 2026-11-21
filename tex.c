@@ -4,7 +4,6 @@
  * modificá-lo sob os termos da Licença Pública Geral GNU...
  */
 
-#include <stdio.h>
 #include <stdint.h>
 #include <math.h>
 
@@ -110,9 +109,9 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
    }
 
    // 3. Injeção do Payload Binário (27 bits)
-   guint8 turma = ( guint8 )cabecalho->foco_turma;
-   guint8 disc  = ( guint8 )cabecalho->foco_disciplina;
-   guint8 per   = ( guint8 )cabecalho->foco_periodo;
+   guint8 turma = ( guint8 )cabecalho->foc_turma;
+   guint8 disc  = ( guint8 )cabecalho->foc_disciplina;
+   guint8 per   = ( guint8 )cabecalho->foc_periodo;
    guint8 seq   = ( guint8 )dados->seq_prova;
 
    gerar_matriz_identificacao_lc( tex, id, turma, disc, per, seq );
@@ -131,7 +130,7 @@ void quadro_de_respostas( GString *tex, const char *aluno, int numero, const gui
       tex,
       "\\node[color=CorSerie,inner sep=0pt] at (11,-7.5) {\\small%dº};\n"
       "\\node[color=CorSerie,inner sep=0pt] at (12,-7.5) {\\small%d};\n",
-      cabecalho->foco_periodo + 1, dados->seq_prova
+      cabecalho->foc_periodo + 1, dados->seq_prova
    );
 
    // 5. Bolhas do Número de Chamada (Dezena: 0..6 | Unidade: 0..9)
@@ -354,7 +353,7 @@ int imagens_corrigidas( const char *gab, const MapeamentoGabarito *map, const Ap
 
    // Formatação Dinâmica do Título da Prova
    char titulo_prova[512] = { 0 };
-   if ( ctx->cabecalho.foco_periodo == RECUPERACAO_FINAL ) {
+   if ( ctx->cabecalho.foc_periodo == RECUPERACAO_FINAL ) {
       g_snprintf( titulo_prova, sizeof( titulo_prova ), "%s de %s / \\textbf{%s}",
                   dados->periodo, dados->disciplina, dados->ano );
    } else {
@@ -1159,7 +1158,7 @@ gboolean gerar_latex_cards_atipicidades( const AppContext *ctx, gchar *arq_tex )
    g_return_val_if_fail( ctx != NULL, FALSE );
 
    const InterfaceDados       *dados   = &ctx->dados;
-   const InterfaceAtipicidade *atip    = &ctx->config.atipicidade;
+   const InterfaceAtipicidades *atip    = &ctx->config.atipicidades;
    const GPtrArray            *fichas  = ctx->diario.fichas;
 
    // 2. Sanitiza metadados do cabeçalho oriundos de ctx->dados
@@ -1173,7 +1172,7 @@ gboolean gerar_latex_cards_atipicidades( const AppContext *ctx, gchar *arq_tex )
    g_autoptr( GDateTime ) agora = g_date_time_new_now_local();
    g_autofree gchar *data_hora  = g_date_time_format( agora, "%d/%m/%Y às %H:%M" );
 
-   const gchar *opcao_serie = obter_opcao_cor_serie_lc( dados->foco_cor_serie );
+   const gchar *opcao_serie = obter_opcao_cor_serie_lc( dados->foc_cor_serie );
 
    // 3. Contabiliza o total de alunos atípicos ativos na turma
    guint qtd_atipicos = 0;
@@ -1327,7 +1326,7 @@ gboolean gerar_latex_cards_atipicidades( const AppContext *ctx, gchar *arq_tex )
                continue;
             }
 
-            GtkWidget   *chk_ref     = atip->checks[bit];
+            GtkWidget   *chk_ref     = atip->chks[bit];
             const gchar *label_bruto = ( chk_ref != NULL )
                                        ? gtk_button_get_label( GTK_BUTTON( chk_ref ) )
                                        : "Atipicidade Registrada";
